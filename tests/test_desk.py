@@ -474,3 +474,29 @@ class ScheduledStories(Tmp):
         kinds = sorted(Path(p).parent.name.rsplit("-", 1)[-1] for p in first)
         self.assertEqual(kinds, ["digest", "morning", "number"])
         self.assertEqual(again, [])
+
+
+class MoreStories(Tmp):
+    def test_company_person_quiz_world_fire_once_and_quiz_hides_only_the_company(self):
+        now = desk.now().isoformat()
+        rows = [("ElevenLabs in talks to raise at a $33B valuation", "ElevenLabs", "$33B", "Business", ""),
+                ("Nvidia halts chip shipments", "Nvidia", "", "Tech", ""),
+                ("S&P weighs Nvidia downgrade", "Nvidia", "AA-", "Markets", ""),
+                ("UK net migration falls to 77,000", "", "77,000", "Politics", ""),
+                ("ECB picks new president", "", "", "Economy", "Pablo Hernández de Cos"),
+                ("Trump escalates tariffs", "", "", "Politics", "Donald Trump")]
+        for i, (h, co, fig, top, person) in enumerate(rows):
+            self.write_post(f"2026-11-26-1000-{i}", status="published", published=now, headlines=[h], score=10 - i,
+                            company=co, figure=fig, topic=top, person=person)
+            (desk.MEDIA / f"2026-11-26-1000-{i}").mkdir(parents=True)
+            (desk.MEDIA / f"2026-11-26-1000-{i}" / "photo.jpg").write_text("x")
+        seen = {}
+        with mock.patch.object(desk, "now", return_value=desk.now().replace(hour=21)), \
+             mock.patch.object(desk.R, "shoot", side_effect=lambda html, png, w, h: seen.setdefault(Path(png).parent.name, html)), \
+             mock.patch.object(desk.R, "jpeg"), mock.patch.object(Path, "unlink"):
+            made = {Path(p).parent.name.split("-", 3)[3] for p in desk.scheduled_stories()}
+            self.assertEqual(desk.scheduled_stories(), [])
+        self.assertTrue({"company", "person", "quiz", "answer", "world"} <= made)
+        quiz = next(v for k, v in seen.items() if k.endswith("-quiz"))
+        self.assertNotIn("ElevenLabs", quiz)
+        self.assertIn("$33B", quiz)

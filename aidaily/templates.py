@@ -257,6 +257,63 @@ def story_number(figure, headline, label):
     return _story_shell(inner, label)
 
 
+def _foot(text):
+    return f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">{e(text)}</div>'
+
+
+def _logo_chip(uri, h=130):
+    if not uri:
+        return ""
+    return (f'<div style="display:inline-flex;align-items:center;background:#fff;border-radius:28px;padding:34px 44px">'
+            f'<img src="{uri}" style="height:{h}px;max-width:620px;object-fit:contain"></div>')
+
+
+def story_company(logo_uri, name, headlines, label):
+    """Company of the day: the company everyone wrote about, and its headlines."""
+    rows = "".join(f'<div style="padding:30px 0;border-top:1px solid #2a2c31;font-size:46px;font-weight:800;line-height:1.1;letter-spacing:-1.5px">{e(h)}</div>'
+                   for h in headlines)
+    top = _logo_chip(logo_uri) or f'<div style="font-size:120px;font-weight:800;letter-spacing:-5px">{e(name)}</div>'
+    inner = (f'<div style="margin-top:100px;font-size:40px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#9aa0a8">Company of the day</div>'
+             f'<div style="margin-top:40px">{top}</div>'
+             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{rows}</div>{_foot("Read them on the feed")}')
+    return _story_shell(inner, label)
+
+
+def story_person(photo_uri, name, headline, credit, label):
+    """In the news: the person of the day in a licensed portrait, with the headline that put them there."""
+    inner = (f'<div style="margin-top:80px;font-size:40px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#9aa0a8">In the news</div>'
+             f'<div style="margin-top:36px;border-radius:24px;overflow:hidden;height:1010px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+             f'<div style="margin-top:44px;font-size:96px;font-weight:800;letter-spacing:-4px;line-height:.95">{e(name)}</div>'
+             f'<div style="margin-top:24px;font-size:44px;font-weight:700;line-height:1.15;letter-spacing:-1px;color:#d6d6d4">{e(headline)}</div>'
+             f'<div style="flex:1"></div><div style="font-size:22px;color:#6b7078;text-align:center;margin-bottom:18px">{e(credit)}</div>{_foot("Read it on the feed")}')
+    return _story_shell(inner, label)
+
+
+def story_quiz(hint, label):
+    """Guess the company: a headline with the company blanked; the answer follows an hour later."""
+    hint_html = e(hint).replace("___", '<span style="display:inline-block;min-width:260px;border-bottom:10px solid #f2f2f0">&nbsp;</span>')
+    inner = (f'<div style="margin-top:110px;font-size:130px;font-weight:800;letter-spacing:-6px;line-height:.9">Guess the<br>company.</div>'
+             f'<div style="flex:1;display:flex;align-items:center"><div style="font-size:74px;font-weight:800;line-height:1.12;letter-spacing:-2.5px">{hint_html}</div></div>'
+             f'{_foot("Answer in an hour, right here")}')
+    return _story_shell(inner, label)
+
+
+def story_answer(logo_uri, company, headline, label):
+    inner = (f'<div style="margin-top:110px;font-size:130px;font-weight:800;letter-spacing:-6px;line-height:.9">It was<br>{e(company)}.</div>'
+             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:60px">{_logo_chip(logo_uri)}'
+             f'<div style="font-size:60px;font-weight:800;line-height:1.1;letter-spacing:-2px">{e(headline)}</div></div>{_foot("Read it on the feed")}')
+    return _story_shell(inner, label)
+
+
+def story_numbers(rows, label):
+    """The week in numbers: five figures from the week's posts, each with its headline."""
+    items = "".join(f'<div style="padding:30px 0;border-top:1px solid #2a2c31"><div style="font-size:104px;font-weight:800;letter-spacing:-5px;line-height:.95">{e(f)}</div>'
+                    f'<div style="margin-top:10px;font-size:36px;font-weight:700;line-height:1.15;color:#d6d6d4">{e(h)}</div></div>' for f, h in rows)
+    inner = (f'<div style="margin-top:100px;font-size:110px;font-weight:800;letter-spacing:-5px;line-height:.92">The week<br>in numbers.</div>'
+             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{items}</div>{_foot("Every figure is from a report we cite")}')
+    return _story_shell(inner, label)
+
+
 def feed_card(story, brand=BRAND, tag=None):
     return card(story, brand)
 

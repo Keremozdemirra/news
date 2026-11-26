@@ -13,6 +13,7 @@ State lives in the repository, so every post and reply is a commit:
 """
 import json
 import math
+import shutil
 import os
 import re
 import urllib.parse
@@ -148,10 +149,10 @@ def caption(m, s):
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
-def story_frame(img):
+def story_frame(img, kicker="New post"):
     """story.jpg beside the card: the card on a 9:16 canvas, posted as a story once the post is out."""
     png = img / "story.png"
-    R.shoot(R.T.story_frame(f"file://{(img / 'card.jpg').resolve()}"), png, 1080, 1920)
+    R.shoot(R.T.story_frame(f"file://{(img / 'card.jpg').resolve()}", kicker), png, 1080, 1920)
     R.jpeg(png)
     png.unlink()
 
@@ -204,6 +205,58 @@ def scheduled_stories():
         if len(top) >= 3:
             made.append(_queue_story(f"{day}-digest", T.story_list(f"Today's<br>top {len(top)}.", [p["headlines"][0] for p in top],
                                                                   now().strftime("%-d %b")), f"Today's top {len(top)}"))
+    def media(p, *names):
+        for n in names:
+            f = MEDIA / p["id"] / n
+            if f.exists():
+                return f"file://{f.resolve()}"
+        return ""
+
+    day_posts = [p for p in _published(24) if p.get("published", "")[:10] == day]
+
+    if due("company", CONFIG["story_hours"]["company"]):
+        by = {}
+        for p in _published(24):
+            if p.get("company"):
+                by.setdefault(p["company"], []).append(p)
+        best = max(by.items(), key=lambda kv: (len(kv[1]), max(q.get("score") or 0 for q in kv[1])), default=None)
+        if best and len(best[1]) >= 2:
+            name, rows = best
+            logo = next((media(q, "logo.svg", "logo.png", "logo.jpg") for q in rows if media(q, "logo.svg", "logo.png", "logo.jpg")), "")
+            made.append(_queue_story(f"{day}-company", T.story_company(logo, name, [q["headlines"][0] for q in rows][:4],
+                                                                      now().strftime("%-d %b")), f"Company of the day: {name}"))
+    if due("person", CONFIG["story_hours"]["person"]):
+        people = [p for p in day_posts if p.get("person") and media(p, "photo.jpg")]
+        if people:
+            p = max(people, key=lambda q: q.get("score") or 0)
+            made.append(_queue_story(f"{day}-person", T.story_person(media(p, "photo.jpg"), p["person"], p["headlines"][0],
+                                                                    p.get("credit", ""), now().strftime("%-d %b")),
+                                     f"In the news: {p['person']}"))
+    if due("quiz", CONFIG["story_hours"]["quiz"]):
+        # the blank must hide the company and nothing else: its name has to be in the headline, the figure stays
+        cands = [p for p in _published(48) if p.get("company") and p.get("figure") and p["company"] in p["headlines"][0]]
+        if cands:
+            p = max(cands, key=lambda q: q.get("score") or 0)
+            hint = p["headlines"][0].replace(p["company"], "___")
+            if p["company"] not in hint:
+                made.append(_queue_story(f"{day}-quiz", T.story_quiz(hint, now().strftime("%-d %b")), "Guess the company"))
+                ans = _queue_story(f"{day}-answer", T.story_answer(media(p, "logo.svg", "logo.png", "logo.jpg"), p["company"],
+                                                                  p["headlines"][0], now().strftime("%-d %b")), "The answer")
+                post = _load(ans, {})
+                post["publish_after"] = (now() + timedelta(hours=1)).isoformat(timespec="seconds")
+                _save(ans, post)
+                made.append(ans)
+    if due("world", CONFIG["story_hours"]["world"]):
+        world = sorted([p for p in day_posts if p.get("topic") in ("World", "Politics", "Economy")],
+                       key=lambda q: -(q.get("score") or 0))[:5]
+        if len(world) >= 3:
+            made.append(_queue_story(f"{day}-world", T.story_list("Around<br>the world.", [q["headlines"][0] for q in world],
+                                                                 now().strftime("%-d %b")), "Around the world"))
+    if now().weekday() == 5 and due("numbers", CONFIG["story_hours"]["numbers"]):
+        figs = sorted([p for p in _published(24 * 7) if p.get("figure")], key=lambda q: -(q.get("score") or 0))[:5]
+        if len(figs) >= 3:
+            made.append(_queue_story(f"{day}-numbers", T.story_numbers([(q["figure"], q["headlines"][0]) for q in figs],
+                                                                      now().strftime("Week %V")), "The week in numbers"))
     if now().weekday() == 6 and due("week", CONFIG["story_hours"]["week"]):
         top = sorted(_published(24 * 7), key=lambda p: (-(((p.get("insights") or {}).get("shares") or 0)
                                                            + ((p.get("insights") or {}).get("saved") or 0)), -(p.get("score") or 0)))[:10]
@@ -283,7 +336,11 @@ def queue(day_dir, batch=None, render=True):
             R.jpeg(png)
             png.unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
-            story_frame(img)
+            story_frame(img, "Breaking" if m.get("score", 0) >= CONFIG["breaking_score"] else "New post")
+            logo = (s.get("_assets", {}).get("logos") or [""])[0]
+            if logo.startswith("file://"):
+                lp = Path(urllib.parse.unquote(urllib.parse.urlparse(logo).path))
+                shutil.copy(lp, img / f"logo{lp.suffix}")
             # the web pages show the clean photo, not the card with its text burnt in
             src = s.get("_assets", {}).get("photo", "")
             if src.startswith("file://"):
@@ -293,7 +350,8 @@ def queue(day_dir, batch=None, render=True):
                 "cards": ["card.jpg", "detail.jpg"], "story": "story.jpg" if render else "", "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
-                "score": m.get("score", 0), "figure": s.get("figure", ""), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
+                "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
+                "person": s.get("person", ""), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],

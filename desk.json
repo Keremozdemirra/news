@@ -90,6 +90,12 @@
     "morning": 6,
     "number": 12,
     "evening": 18,
-    "week": 17
-  }
+    "week": 17,
+    "company": 9,
+    "person": 15,
+    "quiz": 16,
+    "world": 20,
+    "numbers": 10
+  },
+  "breaking_score": 11
 }
