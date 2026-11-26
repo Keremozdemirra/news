@@ -56,11 +56,10 @@ def _get(url, timeout=20):
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout, context=CTX) as r:  # noqa: S310 (fixed https endpoints)
             return _text(r.read())
-    except urllib.error.URLError as e:
-        if not isinstance(e.reason, ssl.SSLError):
-            raise
-    # the ECB's intermediate certificate is missing from the CA file some machines ship (the desk's Mac); curl uses the system store
-    out = subprocess.run(["curl", "-fsS", "--compressed", "--max-time", str(timeout), "-A", UA["User-Agent"], url],
+    except OSError as e:
+        print(f"markets: urllib failed for {url.split('?')[0]} ({e!r}); trying curl")
+    # a CA file without the ECB's intermediate certificate (the desk's Mac) or a stalled connection: curl takes its own route
+    out = subprocess.run(["curl", "-fsS", "--compressed", "--retry", "1", "--max-time", str(timeout), "-A", UA["User-Agent"], url],
                          check=True, capture_output=True, timeout=timeout + 5).stdout
     return _text(out)
 
@@ -146,7 +145,7 @@ def fetch():
         try:
             got[key] = job()
         except Exception as e:  # noqa: BLE001 (any network or format failure means: keep the last good block)
-            print(f"markets: {key} not refreshed ({type(e).__name__})")
+            print(f"markets: {key} not refreshed ({e!r})")
     return got
 
 
