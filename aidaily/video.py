@@ -126,7 +126,7 @@ def plan(post, markets=None, photo_file=None, footage=None):
     if chart:
         pl["chart"] = chart
     elif photo_file and photo_ok(post):
-        pl["photo"] = {"file": str(photo_file), "credit": post["credit"], "focus": tuple(post.get("focus") or (0.5, 0.3))}
+        pl["photo"] = {"file": str(photo_file), "credit": post["credit"], "focus": tuple(post.get("focus") or (0.5, 0.12))}
     elif fig:
         tail = head.split(fig, 1)[-1].split()[:4]
         pl["figure"] = {"text": fig, "label": " ".join(tail)}
@@ -163,11 +163,11 @@ def size_for(text):
 
 def header(t, total, topic, date, light=False):
     a = inout(p(t, 0.0, 0.5))
-    return (f'<div class="a" style="left:{LEFT}px;top:{TOP - 8}px;font-size:52px;font-weight:800;letter-spacing:-0.035em;opacity:{a:.3f}">boardread.</div>'
+    return (f'<div class="a" style="left:{LEFT}px;top:{TOP - 8}px;font-size:52px;font-weight:800;letter-spacing:-0.035em;opacity:{a:.3f};text-shadow:0 2px 14px rgba(0,0,0,.55)">boardread.</div>'
             f'<div class="a" style="right:{RIGHT}px;top:{TOP + 4}px;font-size:30px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;'
-            f'color:{GREY};opacity:{a:.3f}">{e(topic)} &middot; {e(date)}</div>'
-            f'<div class="a" style="left:{LEFT}px;top:{TOP + 74}px;height:3px;width:{(W - LEFT - RIGHT) * clamp(t / total):.1f}px;background:{INK};opacity:.9"></div>'
-            f'<div class="a" style="left:{LEFT}px;top:{TOP + 74}px;height:3px;width:{W - LEFT - RIGHT}px;background:{LINE};z-index:-1"></div>')
+            f'color:{INK};text-shadow:0 2px 14px rgba(0,0,0,.55);opacity:{a * .78:.3f}">{e(topic)} &middot; {e(date)}</div>'
+            f'<div class="a" style="left:{LEFT}px;top:{TOP + 74}px;height:3px;width:{W - LEFT - RIGHT}px;background:{LINE}"></div>'
+            f'<div class="a" style="left:{LEFT}px;top:{TOP + 74}px;height:3px;width:{(W - LEFT - RIGHT) * clamp(t / total):.1f}px;background:{INK};opacity:.9"></div>')
 
 
 def kicker(text, t, t0, top, color=GREY):
@@ -226,7 +226,7 @@ def chart_scene(t, t0, ch, dek):
             + f'<svg class="a" style="left:0;top:0" width="{W}" height="{H}" viewBox="0 0 {W} {H}">{grid}'
               f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>{ring}'
               f'<circle cx="{ex:.1f}" cy="{ey:.1f}" r="13" fill="{INK}"/></svg>'
-            + f'<div class="a" style="left:{LEFT}px;top:{box_t + box_h + 22}px;font-size:26px;font-weight:500;color:{DIM};opacity:{inout(p(t, t0 + 1.0, 0.5)):.3f}">{e(d0)} &ndash; {e(d1)} &middot; Source: {e(ch["source"].rstrip("."))}</div>'
+            + f'<div class="a" style="left:{LEFT}px;top:{box_t + box_h + 22}px;font-size:28px;font-weight:500;color:{GREY};opacity:{inout(p(t, t0 + 1.0, 0.5)):.3f}">{e(d0)} &ndash; {e(d1)} &middot; Source: {e(ch["source"].rstrip("."))}</div>'
             + extra)
     if dek:
         body += words(dek, t, t0 + 2.4, 42, 500, INK, -0.01, 1.28, 0.03, 0.5, f"position:absolute;left:{LEFT}px;top:1436px;width:{W - LEFT - RIGHT - 80}px;opacity:.92")
@@ -259,12 +259,12 @@ def dek_scene(t, t0, dek):
 
 
 def sources_scene(t, t0, sources, dark=True):
-    rows = kicker("Reported by", t, t0, 470)
+    rows = kicker("Reported by", t, t0, 510)
     for i, s in enumerate(sources):
         q = out5(p(t, t0 + 0.25 + i * 0.16, 0.6))
-        rows += (f'<div class="a" style="left:{LEFT}px;top:{560 + i * 118}px;overflow:hidden;height:112px;width:{W - LEFT - RIGHT}px">'
+        rows += (f'<div class="a" style="left:{LEFT}px;top:{600 + i * 118}px;overflow:hidden;height:112px;width:{W - LEFT - RIGHT}px">'
                  f'<div style="font-size:84px;font-weight:800;letter-spacing:-0.035em;line-height:112px;transform:translateY({(1 - q) * 112:.1f}px);opacity:{q:.3f}">{e(s)}</div></div>')
-    rows += (f'<div class="a" style="left:{LEFT}px;top:{560 + max(len(sources), 1) * 118 + 50}px;font-size:36px;font-weight:500;color:{GREY};'
+    rows += (f'<div class="a" style="left:{LEFT}px;top:{600 + max(len(sources), 1) * 118 + 50}px;font-size:36px;font-weight:500;color:{GREY};'
              f'opacity:{inout(p(t, t0 + 1.2, 0.5)):.3f}">Written by AI from these reports.</div>')
     return rows
 
@@ -290,8 +290,8 @@ def photo_layer(t, ph, t_end):
     return (f'<div class="a" style="left:0;top:0;width:{W}px;height:1250px;overflow:hidden;opacity:{a:.3f}">'
             f'<img src="{Path(ph["file"]).resolve().as_uri()}" style="width:100%;height:100%;object-fit:cover;object-position:{fx * 100:.0f}% {fy * 100:.0f}%;'
             f'transform:scale({scale:.4f}) translateX({dx:.2f}%);transform-origin:{fx * 100:.0f}% {fy * 100:.0f}%"></div>'
-            f'<div class="a" style="left:0;top:0;width:{W}px;height:1250px;opacity:{a:.3f};background:linear-gradient(to bottom,rgba(10,10,10,.72) 0,'
-            f'rgba(10,10,10,0) 22%,rgba(10,10,10,0) 38%,rgba(10,10,10,.92) 82%,{BG} 100%)"></div>')
+            f'<div class="a" style="left:0;top:0;width:{W}px;height:1250px;opacity:{a:.3f};background:linear-gradient(to bottom,rgba(10,10,10,.85) 0,'
+            f'rgba(10,10,10,0) 27%,rgba(10,10,10,0) 38%,rgba(10,10,10,.92) 82%,{BG} 100%)"></div>')
 
 
 # ---- one frame -------------------------------------------------------------------------------------------------
@@ -323,7 +323,7 @@ def frame_html(pl, t):
         scene = (header(t, total, pl["topic"], pl["date"])
                  + words(h, t, 0.35, s - 6, 800, INK, -0.035, 1.04, 0.06, 0.6, f"position:absolute;left:{LEFT}px;top:880px;width:{W - LEFT - RIGHT}px")
                  + (words(pl["dek"], t, 3.3, 42, 500, INK, -0.01, 1.28, 0.03, 0.5, f"position:absolute;left:{LEFT}px;top:1312px;width:{W - LEFT - RIGHT - 60}px;opacity:.92") if pl["dek"] else "")
-                 + f'<div class="a" style="left:{LEFT}px;top:1486px;font-size:24px;font-weight:500;color:{GREY};width:{W - LEFT - RIGHT - 60}px;opacity:{inout(p(t, 0.6, 0.5)):.3f}">{e(pl["photo"]["credit"])}</div>')
+                 + f'<div class="a" style="left:{LEFT}px;top:1486px;font-size:26px;font-weight:500;color:{GREY};width:{W - LEFT - RIGHT - 60}px;opacity:{inout(p(t, 0.6, 0.5)):.3f}">{e(pl["photo"]["credit"])}</div>')
         parts.append(group(scene, fade(t, 0, 7.6, 0.01, 0.4)))
         parts.append(group(sources_scene(t, 7.5, pl["sources"]), fade(t, 7.5, 9.7, 0.35, 0.4)))
         parts.append(header(t, total, pl["topic"], pl["date"]) if t >= 7.5 else "")
@@ -331,8 +331,10 @@ def frame_html(pl, t):
     else:
         hook_out = 3.5 if (pl["chart"] or pl["figure"]) else 4.4
         parts.append(header(t, total, pl["topic"], pl["date"]))
-        hook = (kicker(pl["topic"], t, 0.0, 470)
-                + words(h, t, 0.3, s, 800, INK, -0.04, 1.03, 0.065, 0.65, f"position:absolute;left:{LEFT}px;top:540px;width:{W - LEFT - RIGHT}px"))
+        ka = inout(p(t, 0.0, 0.4))
+        hook = (f'<div class="a" style="left:{LEFT}px;bottom:{H - 1330}px;width:{W - LEFT - RIGHT}px">'
+                f'<div style="font-size:34px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:{GREY};margin-bottom:34px;opacity:{ka:.3f}">{e(pl["topic"])}</div>'
+                + words(h, t, 0.1, s, 800, INK, -0.04, 1.03, 0.05, 0.55) + "</div>")
         parts.append(group(hook, fade(t, 0.0, hook_out, 0.01, 0.4), -14 * p(t, hook_out - 0.4, 0.4)))
         if pl["chart"]:
             parts.append(group(chart_scene(t, 3.3, pl["chart"], pl["dek"]), fade(t, 3.3, 7.6, 0.3, 0.4)))
@@ -359,7 +361,7 @@ def _shoot(html_text, png, transparent):
     Path(f.name).unlink()
 
 
-def render_frames(pl, out_dir, workers=8, fps=FPS):
+def render_frames(pl, out_dir, workers=12, fps=FPS):
     """PNG sequence 0001.png..; frames that came out as identical HTML are shot once and hard-linked."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -417,7 +419,7 @@ def assemble(pl, frames_dir, out_mp4, clip=None):
     return out_mp4
 
 
-def build(pl, out_mp4, clip=None, workers=8):
+def build(pl, out_mp4, clip=None, workers=12):
     with tempfile.TemporaryDirectory() as tmp:
         n, shot = render_frames(pl, tmp, workers)
         assemble(pl, tmp, out_mp4, clip)

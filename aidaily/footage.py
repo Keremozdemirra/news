@@ -211,6 +211,8 @@ def commons_check(c):
             out.append("'public domain' is the uploader's claim and no US federal author is named")
     else:
         out.append(f"licence {lic!r} is not CC0, CC BY or verified US-government public domain")
+    if lic.startswith("CC") and not re.search(r"own work", c["credit"], re.I) and not US_GOV.search(f"{c['creator']} {c['credit']}"):
+        out.append("not marked 'Own work' by the uploader: a CC licence on a re-upload cannot be traced to its owner")
     if c["restrictions"]:
         out.append(f"Commons marks a restriction: {c['restrictions']}")
     if THIRD_PARTY_CREATOR.search(f"{c['creator']} {c['credit']}") and not re.search(r"NASA", c["creator"] + c["credit"]):
@@ -280,3 +282,17 @@ def download(c, dest):
     subprocess.run(["curl", "-gfsSL", "--max-time", "300", "-A", UA["User-Agent"], "-o", str(dest), url],
                    check=True, capture_output=True, timeout=310)
     return dest
+
+
+def clip_ok(path):
+    """Checked on the downloaded file: long enough to cut 7.9 s from, not a feature film, at least 720 p. Returns problems."""
+    j = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)],
+                                  capture_output=True, text=True).stdout)
+    v = next((s for s in j["streams"] if s["codec_type"] == "video"), {})
+    dur = float(j["format"].get("duration") or 0)
+    out = []
+    if not MIN_SECONDS + 2 <= dur <= MAX_SECONDS:
+        out.append(f"duration {dur:.0f} s outside {MIN_SECONDS + 2} to {MAX_SECONDS} s")
+    if v.get("height", 0) < 720:
+        out.append(f"only {v.get('height')} p")
+    return out

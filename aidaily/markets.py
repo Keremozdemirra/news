@@ -81,12 +81,14 @@ def _text(raw):
     return (gzip.decompress(raw) if raw[:2] == b"\x1f\x8b" else raw).decode("utf-8", "replace")
 
 
-def _get(url, timeout=20):
+def _get(url, timeout=20, retry_curl=True):
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout, context=CTX) as r:  # noqa: S310 (fixed https endpoints)
             return _text(r.read())
     except OSError as e:
-        print(f"markets: urllib failed for {url.split('?')[0]} ({e!r}); trying curl")
+        print(f"markets: urllib failed for {url.split('?')[0]} ({e!r})" + ("; trying curl" if retry_curl else ""))
+        if not retry_curl:
+            raise
     # a CA file without the ECB's intermediate certificate (the desk's Mac) or a stalled connection: curl takes its own route
     out = subprocess.run(["curl", "-gfsS", "--compressed", "--max-time", str(timeout), "-A", UA["User-Agent"], url],
                          check=True, capture_output=True, timeout=timeout + 5).stdout
@@ -175,9 +177,9 @@ def fetch():
         for i, (route, freq, ids, days, n) in enumerate(EIA_GROUPS):
             def one(route=route, freq=freq, ids=ids, days=days, n=n):
                 url = eia_url(route, freq, ids, days, n)
-                for attempt in (1, 2):  # the EIA API is slow: a long timeout, then one more try
+                for attempt in (1, 2):  # the EIA data API answers slowly or with 504 at times: two tries of 30 s, no curl (it is the server, not TLS)
                     try:
-                        return parse_eia(json.loads(_get(url, timeout=45)))
+                        return parse_eia(json.loads(_get(url, timeout=30, retry_curl=False)))
                     except (OSError, subprocess.SubprocessError, ValueError):
                         if attempt == 2:
                             raise
