@@ -505,8 +505,10 @@ class MoreStories(Tmp):
             self.assertEqual(desk.scheduled_stories(), [])
         self.assertTrue({"company", "person", "quiz", "answer", "world"} <= made)
         quiz = next(v for k, v in seen.items() if k.endswith("-quiz"))
-        self.assertNotIn("ElevenLabs", quiz)
-        self.assertIn("$33B", quiz)
+        # the headline hides the company; the company is one of the four lettered options
+        self.assertNotIn("ElevenLabs in talks", quiz)
+        self.assertIn("in talks to raise at a $33B valuation", quiz)
+        self.assertEqual(quiz.count(">ElevenLabs<"), 1)
 
 
 class Render(unittest.TestCase):
