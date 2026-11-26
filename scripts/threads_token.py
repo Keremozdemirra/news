@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Renew the Threads credential in one step.
+
+Paste a short-lived Threads token (from the Meta app's Threads "User Token Generator") and the app secret.
+Both are read hidden, sent only to graph.threads.net, and handed to `gh secret set` on stdin: nothing is
+printed, written to disk, or put on a command line.
+
+    python3 scripts/threads_token.py
+"""
+import getpass
+import json
+import subprocess
+import sys
+import urllib.parse
+import urllib.request
+
+HOST = "https://graph.threads.net"
+
+
+def get(path, params):
+    # Meta documents both calls as GET over HTTPS; the query never leaves this process and graph.threads.net
+    req = urllib.request.Request(f"{HOST}/{path}?{urllib.parse.urlencode(params)}")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")
+        sys.exit(f"Threads refused ({e.code}): {json.loads(body).get('error', {}).get('message', body)[:200]}")
+
+
+def secret(name, value):
+    subprocess.run(["gh", "secret", "set", name, "--repo", "Keremozdemirra/news"], input=value.encode(), check=True)
+
+
+def main():
+    short = getpass.getpass("Short-lived Threads token (hidden): ").strip()
+    app_secret = getpass.getpass("Threads app secret (hidden): ").strip()
+    if not short or not app_secret:
+        sys.exit("both are needed")
+    long = get("access_token", {"grant_type": "th_exchange_token", "client_secret": app_secret, "access_token": short})
+    token = long.get("access_token")
+    if not token:
+        sys.exit("no long-lived token came back")
+    me = get("v1.0/me", {"fields": "id,username", "access_token": token})
+    if not me.get("id"):
+        sys.exit("the new token could not read its own profile")
+    secret("THREADS_TOKEN", token)
+    secret("THREADS_USER_ID", me["id"])
+    import datetime
+    until = datetime.date.today() + datetime.timedelta(seconds=int(long.get("expires_in", 0)))
+    print(f"done: @{me.get('username', '?')}, valid until about {until}")
+
+
+if __name__ == "__main__":
+    main()
