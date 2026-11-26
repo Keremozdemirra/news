@@ -331,20 +331,20 @@ def photo(person, fetch=True):
 
 
 NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|interface|extension|extention|seal|"
-                       r"coat of arms|signature|poster|banner|"
+                       r"coat of arms|signature|poster|banner|approved|official ball|match ball|"
                        # a made-up picture is not a news photo: "AI generated image of Loab" reached a Character.AI story
                        r"ai.generated|midjourney|dall.e|stable diffusion|\bflux\b|\bimagen\b|firefly|ai art|render|rendering|concept art|mockup", re.I)
 # a photo of a topic must not put a person on a story they are not in: a search for "press conference"
 # once returned the President of the United States for a story about state attorneys general
 PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"
                     r"press conference|holds|meets|meeting|speaks|speech|visit|delegation|representatives|portrait|"
-                    r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo|"
+                    r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo|match|players?|"
                     # scenes a reader takes as part of the news: a fighter jet beside an airliner is not "an airline"
                     r"military|fighter|interception|army|navy|war|weapon|missile|police|crash|accident|fire|"
                     r"explosion|disaster|flood|riot|emergency|defen[cs]e|drone|tank|soldier|troops|air force|airbase)\b", re.I)
 # a company search matches words, so "Amazon" found a parrot (Amazona aestiva); animals and plants are never the company
 NATURE = re.compile(r"\b(bird|parrot|animal|species|flower|plant|tree|insect|fish|mammal|reptile|wildlife|zoo|"
-                    r"forest|river|mountain|amazona|rainforest)\b|\([A-Z][a-z]+ [a-z]+\)")
+                    r"forest|river|mountain|amazona|rainforest|fungi|fungus|yeast|bacteria|moss|lichen|mushrooms?)\b|\([A-Z][a-z]+ [a-z]+\)")
 # a place the story does not name moves the news somewhere else: Taiwan's air defence on a Kuwait story,
 # an Irish copper mine on a Latin America story, another airline's jet on a Heathrow story
 PLACES = re.compile(r"\b(afghanistan|albania|algeria|argentina|armenia|australia|austria|azerbaijan|bahrain|bangladesh|"
@@ -379,7 +379,7 @@ WORD_ = re.compile(r"[a-z][a-z0-9]+")
 # company's side in its own title.
 AMBIGUOUS = frozenset({"amazon", "apple", "shell", "oracle", "jaguar", "puma", "mercury", "corona", "delta", "target",
                        "square", "block", "meta", "alphabet", "visa", "uber", "orange", "gap", "ford", "lotus", "snap",
-                       "nest", "mars"})
+                       "nest", "mars", "sap"})
 CORP_WORDS = re.compile(r"\b(headquarters|hq|offices?|stores?|storefront|buildings?|towers?|campus|warehouses?|"
                         r"fulfil+ments?|distribution|signage|sign|trucks?|vans?|aircraft|airliners?|planes?|jets?|"
                         r"data ?cent(?:er|re)s?|factory|showroom|dealership|inc|corp|corporation|ag|plc|ltd|gmbh|llc)\b", re.I)
@@ -401,8 +401,13 @@ def company_context(name, subject):
         return True
     if CORP_WORDS.search(name):
         return True
-    m = re.match(re.escape(sub) + r"(?![A-Za-z0-9])[\W_]*([A-Za-z]*)", name)
-    return bool(m) and m.group(1).lower() not in WRONG_SENSE
+    if len(sub) <= 3:  # "SAP" is too short to trust a title that merely starts with it
+        return False
+    for form in dict.fromkeys((sub, sub.capitalize())):  # "SAP" leads a title as "Sap"
+        m = re.match(re.escape(form) + r"(?![A-Za-z0-9])[\W_]*([A-Za-z]*)", name)
+        if m:
+            return m.group(1).lower() not in WRONG_SENSE
+    return False
 
 
 def _words(text):
@@ -606,7 +611,16 @@ def candidates(subject, person=False):
     return out
 
 
-def fresh_photo(subjects, used, fetch=True, allow="", teams=False):
+# what a photo of a place or an organisation found by name must not be: people on a street, a march, a talk
+STRICT_NOT = re.compile(r"\b(walking|walks?|talk|talking|giving|speaking|speech|standing|sitting|holding|wearing|march(?:ing)?|"
+                        r"protest\w*|queue|crowds?|selfie|portrait|interview|octopus|dog|cat|ceiling|interior|inside|detail)\b", re.I)
+
+
+# a map, chart or logo is filed under a category that says so even when the file name does not ("2026 FIFA World cup.jpg")
+GRAPHIC = re.compile(r"\b(maps?|diagrams?|infographics?|charts?|graphs?|logos?|icons?|flags?|svg|illustrations?)\b", re.I)
+
+
+def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False):
     """(path, credit, file) for the first reusable photo, across the subjects in order, that is not in `used`.
 
     Each subject is (text, is_person). Rotating through a person's whole Commons category is what keeps
@@ -625,6 +639,11 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False):
         for f in names[:30]:
             if f in used:
                 continue
+            # strict (a place or organisation named in the headline): the title leads with the name, shows no people
+            # doing things, and no longer gets the benefit of the doubt for naming other places or brands
+            if strict and (not re.match(r"^[\W\d_]*" + re.escape(text.strip()), f, re.I) or STRICT_NOT.search(f)
+                           or PEOPLE.search(f) or CROWD.search(f) or PEOPLE_ART.search(f)):
+                continue
             try:
                 info = _commons_info(f, width=1600)
             except Exception:  # noqa: BLE001
@@ -634,11 +653,13 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False):
             # the title says what is shown; a description is often a caption about something else, so it
             # is checked for brands only, and only when the file is not a photo of the story's own subject
             desc_brands = " ".join(BRANDS.findall(desc))
-            if foreign_brand(f, allow + " " + text, own=text) or (not is_person and foreign_names(f, allow + " " + text)) or (
+            if foreign_brand(f, allow + " " + text, own="" if strict else text) or (not is_person and foreign_names(f, allow + " " + text)) or (
                     not is_person and foreign_brand(desc_brands, allow + " " + text, own=f)):
                 continue
+            cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "").replace("|", " ")
+            if GRAPHIC.search(cats):
+                continue
             if teams:
-                cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "").replace("|", " ")
                 if foreign_team(f"{f} {desc} {cats}", allow + " " + text):
                     continue
             # an archive scan from 1920 is free to use and wrong for today's news

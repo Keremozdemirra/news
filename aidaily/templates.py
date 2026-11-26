@@ -77,7 +77,7 @@ def pick_photo(story, head_, co, fetch=True, sport=False):
         for name in entities.headline_names(title, skip=[story.get("person", ""), co]):
             if entities.is_human(name):
                 continue
-            ph, credit, file_ = entities.fresh_photo([(name, False)], USED, fetch=fetch, allow=allow)
+            ph, credit, file_ = entities.fresh_photo([(name, False)], USED, fetch=fetch, allow=allow, strict=True)
             if file_:
                 kind = "name"
                 break

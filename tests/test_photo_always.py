@@ -42,7 +42,8 @@ class WrongSense(unittest.TestCase):
             ("Delta Air Lines Boeing 757.jpg", "Delta", True), ("Times Square at night.jpg", "Square", False),
             ("Jaguar F-Type coupe.jpg", "Jaguar", True), ("jaguar cub in a tree.jpg", "Jaguar", False),
             ("Oracle office Austin.jpg", "Oracle", True), ("Mercury transit.jpg", "Mercury", True),
-            ("Uber car at the curb.jpg", "Uber", True),
+            ("Uber car at the curb.jpg", "Uber", True), ("Alice in Chains Sap gold album.jpg", "SAP", False),
+            ("SAP headquarters Walldorf.jpg", "SAP", True), ("Sap Yeast Cystofilobasidium Fungi.jpg", "SAP", False),
             # a name nobody confuses with anything else is never held to the rule
             ("Nvidia chip on a desk.jpg", "Nvidia", True)]:
             with self.subTest(name=name):
@@ -107,6 +108,30 @@ class OtherPeoplesNames(unittest.TestCase):
                 "company": "OpenAI", "photo_file": "Virginia Tech - data center.jpg", "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
         self.assertTrue(any("Virginia Tech" in p for p in desk.audit(base)))
         self.assertEqual(desk.audit({**base, "photo_kind": "scene"}), [])
+
+
+class FoundByName(unittest.TestCase):
+    """A place or organisation named in a headline: the file must lead with the name and show no people doing things."""
+
+    def run_fresh(self, names, cats="", strict=True, text="Ibiza"):
+        info = {"width": 3000, "height": 2000, "url": "u", "extmetadata": {
+            "LicenseShortName": {"value": "CC BY 4.0"}, "Artist": {"value": "A"}, "Categories": {"value": cats}}}
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(entities, "CACHE", Path(d)), \
+             mock.patch.object(entities, "candidates", return_value=names), \
+             mock.patch.object(entities, "_commons_info", return_value=info), mock.patch.object(entities, "_get", return_value=b"j"):
+            return entities.fresh_photo([(text, False)], set(), allow="Tanker capsizes off Ibiza", strict=strict)[2]
+
+    def test_the_title_must_lead_with_the_name(self):
+        self.assertEqual(self.run_fresh(["March to Ibiza Bangladesh.jpg", "Walking in Ibiza (1).jpg", "Ibiza harbour at dusk.jpg"]),
+                         "Ibiza harbour at dusk.jpg")
+
+    def test_another_place_in_the_title_is_not_forgiven(self):
+        self.assertEqual(self.run_fresh(["Ibiza and Spain from orbit.jpg"], strict=True), "")
+        self.assertEqual(self.run_fresh(["Ibiza and Spain from orbit.jpg"], strict=False), "Ibiza and Spain from orbit.jpg")
+
+    def test_a_map_is_rejected_by_its_category_whatever_the_file_is_called(self):
+        self.assertEqual(self.run_fresh(["Ibiza 2026.jpg"], cats="Maps of Europe|2026 FIFA World Cup"), "")
+        self.assertEqual(self.run_fresh(["Ibiza 2026.jpg"], cats="Beaches of Ibiza"), "Ibiza 2026.jpg")
 
 
 class Names(unittest.TestCase):
