@@ -388,13 +388,37 @@ def _s_last12(day, label):
                          refs=[p["id"] for p in top])]
 
 
+# Words that make a bare quantity mean something on their own, when one follows the number in the headline.
+# "42 state AGs" or "14 trading partners" is a count, not a figure: it is not in this list and is never used.
+UNIT_WORDS = """people jobs workers employees staff users customers subscribers members satellites units vehicles cars
+trucks barrels tons tonnes megawatts gigawatts chips gpus servers aircraft planes flights homes houses patients visitors
+stores acres miles kilometers""".split()
+SCALE = {"B": 10**9, "bn": 10**9, "billion": 10**9, "M": 10**6, "million": 10**6, "K": 10**3, "T": 10**12, "trillion": 10**12}
+
+
+def _meaningful(p):
+    """The post's figure as (number, unit) when it means something on its own: money, a percentage, or a quantity with
+    a unit word right after it in the headline. Bare years, small counts and anything else give None."""
+    fig, head_ = (p.get("figure") or "").strip(), _head(p)
+    parts = _fig_parts(fig) if fig else None
+    if not parts or not _in_text(fig, head_):
+        return None
+    pre, val, suf, comma, _ = parts
+    if pre or suf.strip() in ("%", "percent"):
+        return fig, ""
+    if not suf and (val < 1000 or (1900 <= val <= 2100 and not comma)):
+        return None
+    m = re.search(rf"(?<![\d.,$€£]){re.escape(fig)}\s+(?:[A-Za-z][\w'’-]*\s+){{0,2}}?({'|'.join(UNIT_WORDS)})\b", head_, re.I)
+    return (fig, m.group(1)) if m else None
+
+
 def _number(day, slot, label):
     used = {r for p in _story_posts("number1", 1) + _story_posts("number2", 1) for r in p.get("refs", [])}
-    nums = [p for p in _published(18) if re.search(r"\d", p.get("figure") or "") and p["id"] not in used]
+    nums = [(p, m) for p in _published(18) if p["id"] not in used and (m := _meaningful(p))]
     if not nums:
         return []
-    p = max(nums, key=_score)
-    return [_queue_story(f"{day}-{slot}", R.T.story_number(p["figure"], _head(p), label), "Number", refs=[p["id"]])]
+    p, (fig, unit) = max(nums, key=lambda x: _score(x[0]))
+    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit), "Number", refs=[p["id"]])]
 
 
 def _s_quiz(day, label):
@@ -447,33 +471,54 @@ def _s_complete(day, label):
     return []
 
 
-def _unit(fig):
-    parts = _fig_parts(fig)
-    if not parts:
-        return ""
-    pre, _, suf, _, _ = parts
-    return "$B" if pre == "$" and suf.strip() in ("B", "bn", "billion") else "%" if not pre and suf.strip() in ("%", "percent") else ""
+KINDS = (("valuation", r"valuation|valued"), ("raise", r"raises|raised|raise|funding|round"), ("revenue", r"revenues?|sales"))
+
+
+def _money_kind(p):
+    """valuation, raise or revenue, by the kind word nearest the figure in the headline (then the dek), or None
+    when no kind word sits within 40 characters of it or two kinds tie."""
+    fig = (p.get("figure") or "").strip()
+    for text in (_head(p), p.get("dek") if isinstance(p.get("dek"), str) else ""):
+        m = re.search(rf"(?<![\d.,$€£]){re.escape(fig)}(?!\d|[.,]\d)", text)
+        if not m:
+            continue
+        hits = sorted((max(k.start() - m.end(), m.start() - k.end(), 0), kind)
+                      for kind, rx in KINDS for k in re.finditer(rf"\b(?:{rx})\b", text, re.I))
+        if hits and hits[0][0] <= 40 and (len(hits) < 2 or hits[1][0] > hits[0][0] or hits[1][1] == hits[0][1]):
+            return hits[0][1]
+    return None
+
+
+def _money(p):
+    """(company, kind, currency, amount) for a post whose figure is a money amount of one clear kind, else None."""
+    co, fig = (p.get("company") or "").strip(), (p.get("figure") or "").strip()
+    parts = _fig_parts(fig) if fig else None
+    if not co or not parts or not parts[0] or not _in_text(fig, _head(p)):
+        return None
+    kind = _money_kind(p)
+    return (co, kind, parts[0], parts[1] * SCALE.get(parts[2].strip(), 1)) if kind else None
 
 
 def _s_bigger(day, label):
-    """Which is bigger?: two figures of the same unit from two posts, each blanked in its own headline."""
-    best = None
-    rows = [p for p in _published(24 * 7) if p.get("figure") and _unit(p["figure"]) and _in_text(p["figure"].strip(), _head(p))]
-    for i, a in enumerate(rows):
-        for b in rows[i + 1:]:
-            va, vb = _fig_parts(a["figure"])[1], _fig_parts(b["figure"])[1]
-            if _unit(a["figure"]) != _unit(b["figure"]) or min(va, vb) <= 0 or max(va, vb) / min(va, vb) < Decimal("1.25"):
+    """Which is bigger?: two different companies' money figures of the same kind (valuation, raise or revenue) and
+    currency from posts of the last 7 days. The question names the companies and the kind and shows no figure."""
+    best, rows = None, [(p, m) for p in _published(24 * 7) if (m := _money(p))]
+    for i, (a, ma) in enumerate(rows):
+        for b, mb in rows[i + 1:]:
+            lo, hi = sorted((ma[3], mb[3]))
+            if ma[1] != mb[1] or ma[2] != mb[2] or ma[0].lower() == mb[0].lower() or lo <= 0 or hi / lo < Decimal("1.25"):
                 continue
             if best is None or _score(a) + _score(b) > best[0]:
-                best = (_score(a) + _score(b), a, b)
+                best = (_score(a) + _score(b), (a, ma), (b, mb))
     if not best:
         return []
-    first, second = _order(day, [best[1], best[2]], key=lambda p: p["id"])
-    big = max((first, second), key=lambda p: _fig_parts(p["figure"])[1])
+    kind = best[1][1][1]
+    (first, mf), (second, ms) = _order(day, [best[1], best[2]], key=lambda x: x[0]["id"])
+    big, mbig = (first, mf) if mf[3] > ms[3] else (second, ms)
     letter = "A" if big is first else "B"
-    fig = lambda p: p["figure"].strip()  # noqa: E731
-    return _quiz_pair(day, "bigger", R.T.story_bigger(_blank(fig(first), _head(first)), _blank(fig(second), _head(second)), label),
-                      R.T.story_answer(letter, fig(big), [f"A. {_head(first)}", f"B. {_head(second)}"], label),
+    return _quiz_pair(day, "bigger", R.T.story_bigger(kind, (mf[0], _logo(first)), (ms[0], _logo(second)), label),
+                      R.T.story_answer(letter, mbig[0], [f"A. {first['figure'].strip()}: {_head(first)}", f"B. {second['figure'].strip()}: {_head(second)}"],
+                                       label, logo_uri=_logo(big)),
                       "Which is bigger", refs=[first["id"], second["id"]])
 
 
@@ -579,12 +624,11 @@ def _s_ranked(day, slot, label):
 
 
 def _s_numbers(day, label):
-    figs = sorted([p for p in _published(24 * 7) if re.search(r"\d", p.get("figure") or "") and _in_text(p["figure"].strip(), _head(p))],
-                  key=lambda q: -_score(q))[:5]
+    figs = sorted([(p, m) for p in _published(24 * 7) if (m := _meaningful(p))], key=lambda x: -_score(x[0]))[:5]
     if len(figs) < 3:
         return []
-    return [_queue_story(f"{day}-numbers", R.T.story_numbers([(q["figure"], _head(q)) for q in figs], label),
-                         "The week in numbers", refs=[q["id"] for q in figs])]
+    return [_queue_story(f"{day}-numbers", R.T.story_numbers([(m[0], _head(q), m[1]) for q, m in figs], label),
+                         "The week in numbers", refs=[q["id"] for q, _ in figs])]
 
 
 def _s_follow(day, label):

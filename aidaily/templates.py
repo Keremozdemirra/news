@@ -273,21 +273,22 @@ def story_list(title, headlines, label, compact=False, foot="On the feed"):
     return _story_shell(inner, label)
 
 
-def story_number(figure, headline, label):
-    """One figure from a published post, and the headline it belongs to."""
+def story_number(figure, headline, label, unit=""):
+    """One figure from a published post, and the headline it belongs to. A quantity carries its unit beside it."""
     size = 330 if len(figure) <= 4 else 270 if len(figure) <= 6 else 210
+    unit = f'<div style="margin-top:24px;font-size:100px;font-weight:800;letter-spacing:-4px;line-height:1">{e(unit)}</div>' if unit else ""
     inner = (f'{_story_tag("Number")}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">'
-             f'<div style="font-size:{size}px;font-weight:800;letter-spacing:-14px;line-height:.85">{e(figure)}</div>'
+             f'<div style="font-size:{size}px;font-weight:800;letter-spacing:-14px;line-height:.85">{e(figure)}</div>{unit}'
              f'<div style="margin-top:70px;font-size:60px;font-weight:800;line-height:1.08;letter-spacing:-2px">{e(headline)}</div></div>'
              f'{_story_foot("On the feed")}')
     return _story_shell(inner, label)
 
 
-def _logo_chip(uri, h=130):
+def _logo_chip(uri, h=130, pad="34px 44px"):
     if not uri:
         return ""
-    return (f'<div style="display:inline-flex;align-items:center;background:#fff;border-radius:28px;padding:34px 44px">'
+    return (f'<div style="display:inline-flex;align-self:flex-start;align-items:center;background:#fff;border-radius:28px;padding:{pad}">'
             f'<img src="{uri}" style="height:{h}px;max-width:620px;object-fit:contain"></div>')
 
 
@@ -343,13 +344,14 @@ def story_whois(photo_uri, label, options, credit=""):
     return _story_shell(inner, label)
 
 
-def story_bigger(a, b, label):
-    """Which is bigger?: two headlines with their figure blanked."""
-    def side(letter, text):
-        t = e(text).replace("___", BLANK)
-        return (f'<div style="padding:44px 0;border-top:1px solid #2a2c31;display:grid;grid-template-columns:96px 1fr;gap:20px">'
-                f'<span style="font-size:72px;font-weight:800;color:#9aa0a8;line-height:1">{letter}</span>'
-                f'<span style="font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-1.5px">{t}</span></div>')
+def story_bigger(kind, a, b, label):
+    """Which is bigger?: two companies and the kind of figure compared, each with its logo chip when there is one. No figure."""
+    def side(letter, co):
+        chip = _logo_chip(co[1], 84, "20px 30px")
+        chip = f'<div style="margin-bottom:22px">{chip}</div>' if chip else ""
+        return (f'<div style="padding:50px 0;border-top:1px solid #2a2c31;display:grid;grid-template-columns:110px 1fr;gap:20px;align-items:center">'
+                f'<span style="font-size:96px;font-weight:800;color:#9aa0a8;line-height:1">{letter}</span>'
+                f'<div>{chip}<span style="font-size:64px;font-weight:800;line-height:1.1;letter-spacing:-2px">{e(co[0])} {e(kind)}</span></div></div>')
     inner = (f'{_story_head("Which is<br>bigger?")}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{side("A", a)}{side("B", b)}</div>'
              f'{_story_foot("Answer on the next story")}')
@@ -373,8 +375,9 @@ def story_answer(letter, value, lines, label, logo_uri="", photo_uri="", credit=
 
 def story_numbers(rows, label):
     """The week in numbers: five figures from the week's posts, each with its headline."""
-    items = "".join(f'<div style="padding:30px 0;border-top:1px solid #2a2c31"><div style="font-size:104px;font-weight:800;letter-spacing:-5px;line-height:.95">{e(f)}</div>'
-                    f'<div style="margin-top:10px;font-size:36px;font-weight:700;line-height:1.15;color:#d6d6d4">{e(h)}</div></div>' for f, h in rows)
+    items = "".join(f'<div style="padding:30px 0;border-top:1px solid #2a2c31"><div style="font-size:104px;font-weight:800;letter-spacing:-5px;line-height:.95">{e(f)}'
+                    + (f'<span style="font-size:56px;letter-spacing:-2px"> {e(u[0])}</span>' if u and u[0] else "") + '</div>'
+                    f'<div style="margin-top:10px;font-size:36px;font-weight:700;line-height:1.15;color:#d6d6d4">{e(h)}</div></div>' for f, h, *u in rows)
     inner = (f'{_story_head("The week<br>in numbers.", 110)}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{items}</div>{_story_foot("keremozdemir.de/news")}')
     return _story_shell(inner, label)

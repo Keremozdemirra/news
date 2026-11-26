@@ -572,7 +572,7 @@ class Formats(Tmp):
         self.assertEqual(list(out), ["number1"])
         self.assertIn("5.25%", out["number1"])
         self.assertEqual(self.run_at(_at(3, 17, 36), "number1", "number2"), {})  # the only figure was already used
-        self.pub("b", "UK net migration falls to 77,000", _at(3, 17), 1, figure="77,000", score=5)
+        self.pub("b", "UK net migration falls to 77,000 people", _at(3, 17), 1, figure="77,000", score=5)
         self.assertEqual(list(self.run_at(_at(3, 17, 36), "number1", "number2")), ["number2"])
         self.assertEqual(self.run_at(_at(4, 7, 36), "number1", "number2"), {}) if False else None
 
@@ -719,27 +719,96 @@ class Formats(Tmp):
         self.assertIn("Sam Altman", out["person"])
         self.assertNotIn("Jensen Huang", out["person"].split("Sam Altman")[0])
 
-    def test_bigger_needs_two_figures_in_one_unit(self):
+    def test_bigger_compares_two_companies_valuations_and_shows_no_figure(self):
         w = _at(5, 13)  # Saturday
-        self.pub("a", "ElevenLabs in talks to raise at a $33B valuation", w, 3, figure="$33B", score=9)
+        self.pub("a", "ElevenLabs in talks to raise at a $33B valuation", w, 3, figure="$33B", company="ElevenLabs", logo=True, score=9)
         self.pub("b", "Fed holds rates at 5.25%", w, 3, figure="5.25%", score=9)
-        self.assertEqual(self.run_at(w, "bigger"), {})
-        self.pub("c", "Tano closes $4B funding round", w, 4, figure="$4B", score=8)
+        self.pub("x", "OpenAI limits hit 40% faster", w, 3, figure="40%", company="OpenAI", score=9)
+        self.assertEqual(self.run_at(w, "bigger"), {})  # one valuation, a percentage and a headline with no kind
+        self.pub("c", "Mistral valued at $12B after new round", w, 4, figure="$12B", company="Mistral", score=8)
         out = self.run_at(w, "bigger")
         self.assertEqual(sorted(out), ["bigger", "bigger-a"])
+        q = out["bigger"]
+        for text in ("ElevenLabs valuation", "Mistral valuation"):
+            self.assertIn(text, q)
+        for hidden in ("$33B", "$12B", "ElevenLabs in talks", "5.25"):
+            self.assertNotIn(hidden, q)
+        self.assertEqual(q.count("<img"), 1)  # only ElevenLabs has a logo
         letter, value = ANS.search(out["bigger-a"]).groups()
-        self.assertEqual(value, "$33B")
-        self.assertNotIn("$33B", out["bigger"])
-        self.assertNotIn("$4B", out["bigger"])
-        first = out["bigger"].index("ElevenLabs")
-        second = out["bigger"].index("Tano")
-        self.assertEqual(letter, "A" if first < second else "B")
+        self.assertEqual(value, "ElevenLabs")
+        self.assertEqual(letter, "A" if q.index("ElevenLabs") < q.index("Mistral") else "B")
+        for shown in ("$33B", "$12B", "ElevenLabs in talks to raise", "Mistral valued"):
+            self.assertIn(shown, out["bigger-a"])
 
-    def test_bigger_skips_close_figures(self):
+    def test_bigger_names_the_kind_from_the_words_next_to_the_figure(self):
         w = _at(5, 13)
-        self.pub("a", "Fund raises $10B this week", w, 3, figure="$10B")
-        self.pub("b", "Bank posts $11B profit", w, 3, figure="$11B")
+        self.pub("a", "Anthropic closes $4B funding round", w, 3, figure="$4B", company="Anthropic")
+        self.pub("b", "Mistral raises $1B", w, 3, figure="$1B", company="Mistral")
+        out = self.run_at(w, "bigger")
+        self.assertIn("Anthropic raise", out["bigger"])
+        self.assertIn("Mistral raise", out["bigger"])
+        self.assertNotIn("$4B", out["bigger"])
+
+    def test_bigger_never_mixes_kinds_or_currencies_or_percentages(self):
+        w = _at(5, 13)
+        self.pub("a", "ElevenLabs valued at $33B", w, 3, figure="$33B", company="ElevenLabs")
+        self.pub("b", "Mistral raises $1B", w, 3, figure="$1B", company="Mistral")
+        self.pub("c", "Klarna revenue hits $3B", w, 3, figure="$3B", company="Klarna")
+        self.pub("d", "Spotify valued at EUR 80B", w, 3, figure="€80B", company="Spotify")
+        self.pub("e", "Stripe valuation up 40%", w, 3, figure="40%", company="Stripe")
         self.assertEqual(self.run_at(w, "bigger"), {})
+
+    def test_bigger_never_compares_a_company_with_itself_or_close_figures(self):
+        w = _at(5, 13)
+        self.pub("a", "ElevenLabs valued at $33B", w, 3, figure="$33B", company="ElevenLabs")
+        self.pub("b", "ElevenLabs valuation reaches $40B", w, 3, figure="$40B", company="elevenlabs")
+        self.pub("c", "Mistral valued at $35B", w, 3, figure="$35B", company="Mistral")
+        self.assertEqual(self.run_at(w, "bigger"), {})
+
+    def test_bigger_needs_a_figure_that_parses_and_a_company(self):
+        w = _at(5, 13)
+        self.pub("a", "ElevenLabs valued at $33B", w, 3, figure="$33B", company="ElevenLabs")
+        self.pub("b", "Mistral valuation is high", w, 3, figure="high", company="Mistral")
+        self.pub("c", "Unknown valued at $5B", w, 3, figure="$5B")
+        self.assertEqual(self.run_at(w, "bigger"), {})
+
+    def test_number_uses_money_percent_and_quantities_with_their_unit(self):
+        w = _at(3, 7)
+        self.pub("a", "FCC clears up to 1 million Starmind satellites", w, 3, figure="1 million", score=9)
+        out = self.run_at(w, "number1")
+        self.assertIn("1 million", out["number1"])
+        self.assertIn("satellites", out["number1"])
+        for fig, head_ in (("$33B", "ElevenLabs valued at $33B"), ("5.25%", "Fed holds rates at 5.25%"), ("77,000", "UK migration falls to 77,000 people")):
+            self.assertTrue(desk._meaningful({"figure": fig, "headlines": [head_]}), fig)
+        self.assertEqual(desk._meaningful({"figure": "77,000", "headlines": ["UK migration falls to 77,000 people"]}), ("77,000", "people"))
+
+    def test_number_rejects_years_bare_counts_and_numbers_without_a_unit(self):
+        for fig, head_ in (("1997", "UK migration lowest level since 1997"), ("2026", "Plan runs to 2026"),
+                           ("42", "42 state AGs move to stop Character.AI"), ("14", "U.S. plans tariff hikes on 14 trading partners"),
+                           ("4", "Nvidia halts shipments to 4 countries"), ("5", "Firm cuts 5 jobs"),
+                           ("77,000", "UK net migration falls to 77,000"), ("AA-", "Fitch rates the bank AA-"), ("five-year", "five-year ban")):
+            self.assertIsNone(desk._meaningful({"figure": fig, "headlines": [head_]}), fig)
+
+    def test_number_stories_skip_what_means_nothing_alone(self):
+        w = _at(3, 7)
+        self.pub("a", "42 state AGs move to stop Character.AI", w, 3, figure="42", score=30)
+        self.pub("b", "UK migration lowest since 1997", w, 3, figure="1997", score=20)
+        self.assertEqual(self.run_at(w, "number1"), {})
+
+    def test_week_in_numbers_shows_units_and_drops_bare_counts(self):
+        w = _at(6, 16)
+        self.pub("a", "ElevenLabs valued at $33B", w, 20, figure="$33B", score=9)
+        self.pub("b", "Fed holds rates at 5.25%", w, 30, figure="5.25%", score=8)
+        self.pub("c", "FCC clears up to 1 million Starmind satellites", w, 40, figure="1 million", score=7)
+        self.pub("d", "42 state AGs move to stop Character.AI", w, 10, figure="42", score=99)
+        self.pub("e", "UK migration lowest since 1997", w, 10, figure="1997", score=98)
+        out = self.run_at(w, "numbers")
+        self.assertIn("1 million", out["numbers"])
+        self.assertIn("satellites", out["numbers"])
+        for gone in ("42 state", ">42<", "1997"):
+            self.assertNotIn(gone, out["numbers"])
+        self.pub("f", "Policy lasts five-year", w, 5, figure="five-year")
+        self.assertEqual(self.run_at(_at(6, 16, 1), "numbers"), {})  # already ran once today
 
     def test_company_file_monday_has_three_dated_headlines_and_a_logo(self):
         w = _at(0, 10)
@@ -831,7 +900,7 @@ class Formats(Tmp):
         self.assertEqual(self.run_at(w, "shared", "saved"), {})
 
     def test_week_in_numbers_on_sunday_only(self):
-        for i, f in enumerate(["5.25%", "$33B", "77,000"]):
+        for i, f in enumerate(["5.25%", "$33B", "7.5%"]):
             self.pub(f"f{i}", f"Headline with {f} inside", _at(6, 16), 30 + i, figure=f, score=9 - i)
         out = self.run_at(_at(6, 16), "numbers")
         self.assertEqual(list(out), ["numbers"])
@@ -879,10 +948,10 @@ class Render(unittest.TestCase):
         s["_assets"]["photo"] = ""
         self.assertIn("Nvidia", T.card(dict(s, _assets=dict(s["_assets"]))))
         self.assertIn("Nvidia", T.detail(s, "body", ["X"]))
-        for html in (T.story_frame("file:///c.jpg"), T.story_list("T", ["a"], "l"), T.story_number("$1B", "h", "l"),
+        for html in (T.story_frame("file:///c.jpg"), T.story_list("T", ["a"], "l"), T.story_number("$1B", "h", "l"), T.story_number("1 million", "h", "l", "satellites"),
                      T.story_company("", "Co", [("01 Nov", "h")], "l"), T.story_person("file:///p.jpg", "N", "h", "c", "l"),
-                     T.story_quiz("___ raises", "l"), T.story_answer("A", "Co", ["h"], "l"), T.story_numbers([("1", "h")], "l"),
-                     T.story_whois("file:///p.jpg", "l", ["a", "b", "c", "d"], "c"), T.story_bigger("a ___", "b ___", "l"),
+                     T.story_quiz("___ raises", "l"), T.story_answer("A", "Co", ["h"], "l"), T.story_numbers([("1 million", "h", "satellites"), ("$1B", "h")], "l"),
+                     T.story_whois("file:///p.jpg", "l", ["a", "b", "c", "d"], "c"), T.story_bigger("valuation", ("A Co", "file:///l.svg"), ("B Co", ""), "l"),
                      T.story_today(["file:///a.svg"] * 7, "l"), T.story_follow("@boardread", "line", "l")):
             self.assertIn("boardread.", html)
 
