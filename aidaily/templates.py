@@ -212,6 +212,39 @@ def detail(story, body, outlets, brand=BRAND):
 </div></body></html>"""
 
 
+STORY_BG = "#111214"
+
+
+def _story_shell(inner, kicker):
+    return head() + f"""
+<div style="width:1080px;height:1920px;background:{STORY_BG};color:#f2f2f0;font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column;padding:120px 60px 140px">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<span style="font-size:64px;font-weight:800;letter-spacing:-2.5px">boardread.</span>
+<span style="font-size:26px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#9aa0a8">{e(kicker)}</span></div>
+{inner}</div></body></html>"""
+
+
+def story_frame(card_uri, kicker="New post"):
+    """The post's card on the story canvas: the story says there is something new on the feed."""
+    inner = (f'<div style="flex:1;display:flex;align-items:center;justify-content:center">'
+             f'<img src="{card_uri}" style="width:900px;height:1125px;object-fit:cover;border-radius:22px;'
+             f'box-shadow:0 40px 120px rgba(0,0,0,.55)"></div>'
+             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Full story on the feed · comment SOURCE for the links</div>')
+    return _story_shell(inner, kicker)
+
+
+def story_digest(headlines, label):
+    """The evening story: the day's top stories as a numbered list."""
+    rows = "".join(f'<div style="display:grid;grid-template-columns:92px 1fr;gap:20px;padding:34px 0;border-top:1px solid #2a2c31">'
+                   f'<span style="font-size:52px;font-weight:800;color:#6b7078;letter-spacing:-2px">{i:02d}</span>'
+                   f'<span style="font-size:{50 if len(h) < 70 else 44}px;font-weight:800;line-height:1.08;letter-spacing:-1.5px">{e(h)}</span></div>'
+                   for i, h in enumerate(headlines, 1))
+    inner = (f'<div style="margin-top:110px;font-size:120px;font-weight:800;letter-spacing:-5px;line-height:.92">Today\'s<br>top {len(headlines)}.</div>'
+             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{rows}</div>'
+             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Every story with its sources: keremozdemir.de/news</div>')
+    return _story_shell(inner, label)
+
+
 def feed_card(story, brand=BRAND, tag=None):
     return card(story, brand)
 

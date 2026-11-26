@@ -13,7 +13,7 @@
   "ai_note": "Written by AI.",
   "media_branch": "media",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
-  "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[\u2019']m a|q&a|interview with|what .{0,30} daily routine|review:",
+  "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[’']m a|q&a|interview with|what .{0,30} daily routine|review:",
   "not_sources": [
     "Google News",
     "Google News AI Search",
@@ -69,5 +69,21 @@
       "name": "Facebook",
       "url": ""
     }
-  ]
+  ],
+  "source_replies": [
+    "Sent to your DMs.",
+    "Check your DMs, the sources are there.",
+    "Done, the links are in your inbox.",
+    "Sources sent. Have a look in your DMs.",
+    "In your DMs now.",
+    "Just sent you the full story.",
+    "Sent. It may be in your message requests.",
+    "The links are on their way to your DMs.",
+    "Check your inbox for the sources.",
+    "Sent you every source.",
+    "Delivered to your DMs.",
+    "Your DMs have the full story."
+  ],
+  "stories": true,
+  "digest_hour_utc": 18
 }

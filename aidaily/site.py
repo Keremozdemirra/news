@@ -23,7 +23,7 @@ BASE = "/" + SITE.split("/", 3)[3] if SITE.count("/") >= 3 else ""
 
 
 def published():
-    rows = [p for p, _ in desk.posts() if p.get("status") == "published" and p.get("published")]
+    rows = [p for p, _ in desk.posts() if p.get("status") == "published" and p.get("published") and p.get("kind") != "story"]
     return sorted(rows, key=lambda p: p["published"], reverse=True)
 
 

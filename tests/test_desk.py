@@ -343,19 +343,22 @@ class SourceDM(Tmp):
                 return "boardread"
 
             def comments(self, media):
-                return [{"id": "c1", "username": "ann", "text": "Source please"}]
+                return [{"id": "c1", "username": "ann", "text": "Source please"},
+                        {"id": "c2", "username": "bob", "text": "source"}]
 
             def private_reply(self, cid, msg):
                 self.dms.append((cid, msg))
 
             def reply(self, cid, msg):
-                self.replies.append(cid)
+                self.replies.append((cid, msg))
         ig = IG()
         desk.engage(client=ig, ask=lambda p: "SKIP")
         desk.engage(client=ig, ask=lambda p: "SKIP")
-        self.assertEqual(len(ig.dms), 1)
+        self.assertEqual(len(ig.dms), 2)
         self.assertIn("https://keremozdemir.de/news/s/2026-11-26-1300-1/", ig.dms[0][1])
-        self.assertEqual(ig.replies, [])
+        # every SOURCE comment gets a public note, and consecutive ones differ
+        self.assertEqual([c for c, _ in ig.replies], ["c1", "c2"])
+        self.assertNotEqual(ig.replies[0][1], ig.replies[1][1])
 
 
 class Media(Tmp):
@@ -416,3 +419,32 @@ class PhotoChoice(unittest.TestCase):
         with mock.patch.object(E, "_entity", return_value=("Elon Musk", {})), \
              mock.patch.object(E, "_get", return_value=self.search(hits)):
             self.assertEqual(E.candidates("Elon Musk", person=True), ["Elon Musk Royal Society (cropped).jpg"])
+
+
+class Stories(Tmp):
+    def test_story_follows_post_and_story_kind_publishes_alone(self):
+        class IG(FakeIG):
+            stories = []
+
+            def story(self, url):
+                self.stories.append(url)
+                return "s1"
+        ig = IG()
+        p = self.write_post("a", story="story.jpg")
+        self.assertEqual(desk.publish(client=ig), 1)
+        self.assertEqual(ig.stories, ["https://raw.example/r/main/a/story.jpg"])
+        self.assertEqual(json.loads(p.read_text())["story_id"], "s1")
+        d = self.write_post("2026-11-26-digest", kind="story", story="story.jpg", cards=[])
+        self.assertEqual(desk.publish(client=ig), 1)
+        self.assertEqual(json.loads(d.read_text())["status"], "published")
+        self.assertEqual(len(ig.posted), 1)  # the digest went out as a story, not a feed post
+
+    def test_failed_story_keeps_the_post_published(self):
+        class IG(FakeIG):
+            def story(self, url):
+                raise instagram.IGError("no stories today")
+        p = self.write_post("a", story="story.jpg")
+        desk.publish(client=IG())
+        d = json.loads(p.read_text())
+        self.assertEqual(d["status"], "published")
+        self.assertIn("no stories", d["story_error"])

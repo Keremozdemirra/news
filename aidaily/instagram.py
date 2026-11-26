@@ -69,6 +69,12 @@ class Client:
     def single(self, image_url, caption):
         return self.call("POST", f"{self.user_id}/media", {"image_url": image_url, "caption": caption})["id"]
 
+    def story(self, image_url, sleep=time.sleep):
+        """A 1080x1920 image story. Returns the media id. Stories carry no caption and no link via the API."""
+        c = self.call("POST", f"{self.user_id}/media", {"media_type": "STORIES", "image_url": image_url})["id"]
+        self.wait(c, sleep=sleep)
+        return self.publish(c)
+
     def wait(self, container, tries=6, pause=30, sleep=time.sleep):
         # Meta's advice: poll once a minute for at most five minutes; images finish sooner
         for _ in range(tries):

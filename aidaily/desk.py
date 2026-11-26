@@ -148,6 +148,39 @@ def caption(m, s):
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
+def story_frame(img):
+    """story.jpg beside the card: the card on a 9:16 canvas, posted as a story once the post is out."""
+    png = img / "story.png"
+    R.shoot(R.T.story_frame(f"file://{(img / 'card.jpg').resolve()}"), png, 1080, 1920)
+    R.jpeg(png)
+    png.unlink()
+
+
+def digest_story(min_posts=3):
+    """Once an evening (after 18:00 UTC): a story with the day's top five posts, published right away."""
+    day = now().strftime("%Y-%m-%d")
+    if now().hour < CONFIG["digest_hour_utc"] or (QUEUE / f"{day}-digest" / "post.json").exists() or paused():
+        return None
+    today = [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+             and p.get("published", "")[:10] == day]
+    if len(today) < min_posts:
+        return None
+    top = sorted(today, key=lambda p: -(p.get("score") or 0))[:5]
+    pid = f"{day}-digest"
+    img = MEDIA / pid
+    img.mkdir(parents=True, exist_ok=True)
+    png = img / "story.png"
+    R.shoot(R.T.story_digest([p["headlines"][0] for p in top], now().strftime("%-d %b")), png, 1080, 1920)
+    R.jpeg(png)
+    png.unlink()
+    post = {"id": pid, "kind": "story", "created": now().isoformat(timespec="seconds"),
+            "publish_after": now().isoformat(timespec="seconds"), "status": "queued", "story": "story.jpg",
+            "urls": [], "headlines": [f"Today's top {len(top)}"]}
+    _save(QUEUE / pid / "post.json", post)
+    print(f"queued {pid}: evening story with {len(top)} headlines")
+    return QUEUE / pid / "post.json"
+
+
 def used_photos(days=45):
     cut = now() - timedelta(days=days)
     return {p["photo_file"] for p, _ in posts() if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut}
@@ -218,13 +251,14 @@ def queue(day_dir, batch=None, render=True):
             R.jpeg(png)
             png.unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
+            story_frame(img)
             # the web pages show the clean photo, not the card with its text burnt in
             src = s.get("_assets", {}).get("photo", "")
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
-                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
+                "cards": ["card.jpg", "detail.jpg"], "story": "story.jpg" if render else "", "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
@@ -267,7 +301,8 @@ def notify():
 
 def published_last_24h():
     cut = now() - timedelta(hours=24)
-    return sum(1 for p, _ in posts() if p.get("status") == "published" and datetime.fromisoformat(p["published"]) > cut)
+    return sum(1 for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+               and datetime.fromisoformat(p["published"]) > cut)
 
 
 def configured():
@@ -292,6 +327,21 @@ def publish(client=None, dry=False):
     due = sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
                   and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
     for post, path in due:
+        if post.get("kind") == "story":
+            if dry:
+                print(f"{post['id']}: would publish a story")
+                return 0
+            if client is None:
+                from .instagram import Client
+                client = Client()
+            try:
+                post.update(status="published", published=now().isoformat(timespec="seconds"),
+                            media_id=client.story(media_url(post["id"], post["story"])))
+            except Exception as e:  # noqa: BLE001
+                post.update(status="failed", error=str(e)[:400])
+            _save(path, post)
+            print(f"{post['id']}: story {post['status']}")
+            return 1 if post["status"] == "published" else 0
         if post.get("issue") and github.enabled() and github.vetoed(post["issue"], post.get("n", 1)):
             post["status"] = "vetoed"
             _save(path, post)
@@ -319,6 +369,12 @@ def publish(client=None, dry=False):
             _close_if_done(post.get("issue"))
             continue
         post.update(status="published", published=now().isoformat(timespec="seconds"), media_id=media, permalink=link)
+        if post.get("story") and CONFIG.get("stories", True):
+            # the story follows the post; a failed story never undoes a published post
+            try:
+                post["story_id"] = client.story(media_url(post["id"], post["story"]))
+            except Exception as e:  # noqa: BLE001
+                post["story_error"] = str(e)[:300]
         _save(path, post)
         if post.get("issue") and github.enabled():
             github.comment(post["issue"], f"{post.get('n', 1)}. Published: {link}")
@@ -382,15 +438,11 @@ def engage(client=None, ask=copy.ask_text, dry=False):
     budget = CONFIG["reply_daily_cap"] - log["days"].get(day, 0)
     me = client.own_username()
     cut = now() - timedelta(days=CONFIG["reply_window_days"])
-    sent = 0
+    sent = dms = 0
     for post, _ in posts():
-        if budget <= 0:
-            break
         if post.get("status") != "published" or datetime.fromisoformat(post["published"]) < cut:
             continue
         for c in client.comments(post["media_id"]):
-            if budget <= 0:
-                break
             if c["id"] in log["answered"] or c.get("username") == me:
                 continue
             if any(r.get("username") == me for r in c.get("replies", {}).get("data", [])):
@@ -400,16 +452,25 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 # the reader asked for the links: one private reply, fixed text, sent once per comment
                 log["answered"].append(c["id"])
                 msg = CONFIG["source_dm"].format(headline=post["headlines"][0], url=story_url(post["id"]))
+                # the public reply tells the reader (and everyone after them) where the links went; it rotates
+                # through a fixed set so the thread does not read as one bot line pasted twenty times
+                note = CONFIG["source_replies"][log.get("source_n", 0) % len(CONFIG["source_replies"])]
                 if dry:
-                    print(f"comment {c['id']}: would DM: {msg}")
+                    print(f"comment {c['id']}: would DM: {msg} / reply: {note}")
                 else:
                     try:
                         client.private_reply(c["id"], msg)
                     except Exception as e:  # noqa: BLE001  a closed inbox or an expired window costs one DM
                         print(f"comment {c['id']}: DM failed: {str(e)[:160]}")
                         continue
-                sent += 1
-                budget -= 1
+                    try:
+                        client.reply(c["id"], note)
+                    except Exception as e:  # noqa: BLE001  the DM went out; a failed public note is cosmetic
+                        print(f"comment {c['id']}: public reply failed: {str(e)[:160]}")
+                log["source_n"] = log.get("source_n", 0) + 1
+                dms += 1
+                continue
+            if budget <= 0:
                 continue
             reply = ask(REPLY_PROMPT.format(caption=post["caption"], comment=c.get("text", "")[:600])).strip()
             problems = check_reply(reply, post["caption"])
@@ -426,8 +487,8 @@ def engage(client=None, ask=copy.ask_text, dry=False):
     log["days"][day] = log["days"].get(day, 0) + sent
     log["answered"] = log["answered"][-5000:]
     _save(STATE / "replies.json", log)
-    print(f"replies sent: {sent}")
-    return sent
+    print(f"source DMs: {dms}, replies sent: {sent}")
+    return sent + dms
 
 
 # weekly learning
