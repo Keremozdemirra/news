@@ -334,6 +334,14 @@ class FrontBuilt(Features):
         self.assertIn("br:theme", js)
         self.assertNotIn("matchMedia", js)
 
+    def test_section_rows_have_no_holes_and_no_empty_rules(self):
+        import re
+        h = self.read("index.html")
+        rows = re.findall(r'<div class="sects" style="--n:(\d+)">', h)
+        self.assertEqual(sum(map(int, rows)), h.count('<section class="sect">'))  # one column per section, no empty slots
+        for sect in re.findall(r'<section class="sect">(.*?)</section>', h, re.S):
+            self.assertIn("<article", sect)  # a section head always has an article under it
+
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)

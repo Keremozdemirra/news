@@ -151,7 +151,7 @@ def front(shown, cos, m):
     r2 = [x for x in (section(t) for t in ("Tech", "AI", "Culture")) if x]
     row1, row2 = "".join(r1), "".join(r2)
     return ('<p class="since" id="since" role="status" hidden></p>'
-            f'<div class="front">{latest}{lead_html}{rail}</div><div class="sects" style="--n:{max(len(r1), 4)}">{row1}</div>' + (f'<div class="sects" style="--n:{max(len(r2), 3)}">{row2}</div>' if row2 else ""))
+            f'<div class="front">{latest}{lead_html}{rail}</div>' + (f'<div class="sects" style="--n:{len(r1)}">{row1}</div>' if r1 else "") + (f'<div class="sects" style="--n:{len(r2)}">{row2}</div>' if r2 else ""))
 
 
 def edition_strip(rows):
