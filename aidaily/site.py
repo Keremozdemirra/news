@@ -174,7 +174,7 @@ def page(title, body, desc=""):
 <div class="bar"><div class="wrap"><a class="home" href="/">Kerem Özdemir</a>
 <nav class="nav" aria-label="Sections">{nav}</nav></div></div>
 <main class="wrap">{body}
-<footer class="mono"><span>boardread. · a news desk by Kerem Özdemir · written by AI from the reports each story links</span>
+<footer class="mono"><span>boardread. · Kerem Özdemir · Written by AI.</span>
 <nav><a href="/">Home</a><a href="{BASE}/feed.xml">RSS</a><a href="/impressum/">Impressum</a><a href="/privacy/">Privacy</a></nav></footer>
 </main></body></html>"""
 

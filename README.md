@@ -6,8 +6,8 @@ An Instagram account for the business, markets, politics, tech and AI news a con
 
 | Time (UTC) | Workflow | What happens |
 |---|---|---|
-| hourly, at :05 | `daily` | fetch, rank, keep new important stories, copy, check, render, queue in `queue/<id>/`, open the veto issue |
-| every 20 min | `publish` | post the oldest due post, one per run, unless vetoed |
+| every 30 min | `daily` | fetch, rank, keep new important stories, copy, check, render, queue in `queue/<id>/`, open the veto issue |
+| every 5 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | every 5 min | `engage` | DM the sources to anyone who comments SOURCE; answer other new comments, at most 20 a day |
 | Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
 | after each run | `site` | rebuild keremozdemir.de/news from the published posts |

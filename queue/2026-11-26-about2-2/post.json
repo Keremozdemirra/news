@@ -2,12 +2,12 @@
  "id": "2026-11-26-about2-2",
  "kind": "story",
  "created": "2026-11-26T15:42:00+00:00",
- "publish_after": "2026-11-26T14:42:02+00:00",
- "status": "failed",
+ "publish_after": "2026-11-26T13:47:22+00:00",
+ "status": "queued",
  "story": "story.jpg",
  "urls": [],
  "headlines": [
   "About 2/3"
  ],
- "error": "POST 17841480765165673/media: HTTP 400: {\"error\":{\"message\":\"Only photo or video can be accepted as media type.\",\"code\":9004,\"type\":\"OAuthException\",\"error_subcode\":2207052,\"is_transient\":false,\"error_user_msg\":\"The media could not be fetched from this URI: https://raw.githubusercontent.com/Keremozdemirra/news/media/2026-11-26-about2-2/story.jpg.Please check the limitations section in our developm"
+ "tries": 0
 }

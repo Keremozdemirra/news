@@ -76,13 +76,13 @@
     "Done, the links are in your inbox.",
     "Sources sent. Have a look in your DMs.",
     "In your DMs now.",
-    "Just sent you the full story.",
+    "Just sent you the sources.",
     "Sent. It may be in your message requests.",
     "The links are on their way to your DMs.",
     "Check your inbox for the sources.",
     "Sent you every source.",
     "Delivered to your DMs.",
-    "Your DMs have the full story."
+    "Your DMs have the sources."
   ],
   "stories": false,
   "story_quota_stop": 90,

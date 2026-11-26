@@ -84,7 +84,9 @@ def same_story(a, b):
     if set(a.get("links") or [a.get("url")]) & set(b.get("links") or [b.get("url")]):
         return True
     sa, sb = copy._stems(a.get("headline") or a.get("title")), copy._stems(b.get("headline") or b.get("title"))
-    return bool(sa and sb) and len(sa & sb) / min(len(sa), len(sb)) >= 0.6
+    # 0.5: "U.S. plans fresh tariff hikes on 14 trading partners" repeats "Trump signals he is ready to escalate
+    # tariffs on Asian trading partners" with no shared link
+    return bool(sa and sb) and len(sa & sb) / min(len(sa), len(sb)) >= 0.5
 
 
 def pick(manifest, stories, weights):
@@ -111,9 +113,13 @@ def pick(manifest, stories, weights):
 FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|Economy|Markets|Finance|Venture)$")
 
 
+ALIASES = {"FT": "Financial Times", "WSJ": "The Wall Street Journal", "NYT": "The New York Times"}
+
+
 def outlet(name):
-    """One outlet, however many of its feeds carried the story: "CNBC Technology" is CNBC."""
-    return FEED_SUFFIX.sub("", name or "").strip()
+    """One outlet, however many of its feeds carried the story: "CNBC Technology" is CNBC, "FT" is the Financial Times."""
+    n = FEED_SUFFIX.sub("", name or "").strip()
+    return ALIASES.get(n, n)
 
 
 def outlets(m, s):
@@ -415,7 +421,7 @@ def notify():
         return
     batches = {}
     for post, path in posts():
-        if post.get("status") == "queued" and not post.get("issue"):
+        if post.get("status") == "queued" and not post.get("issue") and post.get("kind") != "story":
             batches.setdefault(post.get("batch", post["id"]), []).append((post, path))
     for batch, rows in batches.items():
         rows.sort(key=lambda r: r[0].get("n", 0))
@@ -433,6 +439,9 @@ def notify():
 
 
 # publish
+
+FETCH_RETRY = re.compile(r"Only photo or video|media could not be fetched|2207052|2207003|Media download", re.I)
+
 
 def published_last_24h():
     cut = now() - timedelta(hours=24)
@@ -473,7 +482,10 @@ def publish(client=None, dry=False):
                 post.update(status="published", published=now().isoformat(timespec="seconds"),
                             media_id=client.story(media_url(post["id"], post["story"])))
             except Exception as e:  # noqa: BLE001
-                post.update(status="failed", error=str(e)[:400])
+                if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
+                    post["tries"] = post.get("tries", 0) + 1
+                else:
+                    post.update(status="failed", error=str(e)[:400])
             _save(path, post)
             print(f"{post['id']}: story {post['status']}")
             return 1 if post["status"] == "published" else 0
@@ -502,6 +514,11 @@ def publish(client=None, dry=False):
         try:
             media, link = client.post_carousel(urls, post["caption"])
         except Exception as e:  # noqa: BLE001  one failed post must not block the queue
+            if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
+                post["tries"] = post.get("tries", 0) + 1
+                _save(path, post)
+                print(f"{post['id']}: image not fetchable yet, retry {post['tries']}")
+                continue
             post["status"], post["error"] = "failed", str(e)[:400]
             _save(path, post)
             if post.get("issue") and github.enabled():
@@ -585,9 +602,15 @@ def engage(client=None, ask=copy.ask_text, dry=False):
     cut = now() - timedelta(days=CONFIG["reply_window_days"])
     sent = dms = 0
     for post, _ in posts():
-        if post.get("status") != "published" or datetime.fromisoformat(post["published"]) < cut:
+        if (post.get("status") != "published" or post.get("kind") == "story"
+                or datetime.fromisoformat(post["published"]) < cut):
             continue
-        for c in client.comments(post["media_id"]):
+        try:
+            comments = client.comments(post["media_id"])
+        except Exception as e:  # noqa: BLE001  one unreadable post must not stop replies on the others
+            print(f"{post['id']}: comments unreadable: {str(e)[:160]}")
+            continue
+        for c in comments:
             if c["id"] in log["answered"] or c.get("username") == me:
                 continue
             if any(r.get("username") == me for r in c.get("replies", {}).get("data", [])):

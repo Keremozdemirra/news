@@ -4,7 +4,7 @@
  "n": 8,
  "created": "2026-11-26T15:42:18+00:00",
  "publish_after": "2026-11-26T16:21:35+00:00",
- "status": "queued",
+ "status": "held",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -38,5 +38,8 @@
  "source_urls": [
   "https://www.cnbc.com/2026/11/26/us-tariffs-hike-trade-agreement.html"
  ],
- "credit": "Photo: Petar Milošević, CC BY-SA 4.0, via Wikimedia Commons"
+ "credit": "Photo: Petar Milošević, CC BY-SA 4.0, via Wikimedia Commons",
+ "held": [
+  "same news as 2026-11-26-1446-4 (tariffs)"
+ ]
 }
