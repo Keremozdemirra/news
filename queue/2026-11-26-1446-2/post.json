@@ -4,7 +4,7 @@
  "n": 2,
  "created": "2026-11-26T14:46:45+00:00",
  "publish_after": "2026-11-26T15:01:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -38,5 +38,9 @@
  ],
  "credit": "Photo: Ana Las Heras, CC BY-SA 4.0, via Wikimedia Commons",
  "issue": 2,
- "story": "story.jpg"
+ "story": "story.jpg",
+ "published": "2026-11-26T15:02:21+00:00",
+ "media_id": "18044469863684176",
+ "permalink": "https://www.instagram.com/p/DgNYWUJlxK9/",
+ "story_id": "18158225410520702"
 }
