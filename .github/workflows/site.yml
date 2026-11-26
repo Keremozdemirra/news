@@ -44,6 +44,8 @@ jobs:
       - name: Build
         if: steps.changed.outputs.build == 'yes'
         run: |
+          # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
           python3 -m aidaily site
           echo "${{ steps.changed.outputs.want }}" > _site/built-from.txt
       - if: steps.changed.outputs.build == 'yes'
