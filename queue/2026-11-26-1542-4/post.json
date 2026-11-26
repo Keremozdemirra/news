@@ -4,7 +4,7 @@
  "n": 4,
  "created": "2026-11-26T15:42:11+00:00",
  "publish_after": "2026-11-26T16:01:35+00:00",
- "status": "queued",
+ "status": "failed",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -46,5 +46,6 @@
   "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=pls_whats_news_us_business_f",
   "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=rss_markets_main"
  ],
- "credit": "Photo: Packer1028, CC0, via Wikimedia Commons"
+ "credit": "Photo: Packer1028, CC0, via Wikimedia Commons",
+ "error": "POST 17841480765165673/media_publish: HTTP 403: {\"error\":{\"message\":\"Application request limit reached\",\"code\":4,\"type\":\"OAuthException\",\"error_subcode\":2207051,\"is_transient\":false,\"error_user_msg\":\"We restrict certain activity to protect our community. Tell us if you think that we've made a mistake.\",\"error_user_title\":\"Action is blocked\",\"fbtrace_id\":\"AAZOpDNBhqtQ1y5LWE2gPT6\"}}"
 }
