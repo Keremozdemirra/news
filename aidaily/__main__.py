@@ -158,6 +158,8 @@ def main(argv=None):
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("site", help="build the news pages into _site/")
     sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
+    cp = sub.add_parser("crosspost", help="send posts already live on Instagram to the switched-on platforms")
+    cp.add_argument("ids", nargs="+", help="post ids, e.g. 2026-11-26-1446-2")
     dl = sub.add_parser("delete", help="delete posts or stories by queue id, and mark them deleted")
     dl.add_argument("ids", nargs="+")
     args = p.parse_args(argv)
@@ -179,6 +181,21 @@ def main(argv=None):
             post.update(status="deleted" if ok else post.get("status"), deleted=desk.now().isoformat(timespec="seconds") if ok else None)
             desk._save(path, post)
             print(f"{pid}: {'deleted' if ok else 'not deleted'}")
+        return 0
+    if args.cmd == "crosspost":
+        from . import desk
+        wanted = set(args.ids)
+        for post, path in desk.posts():
+            if post["id"] not in wanted:
+                continue
+            wanted.discard(post["id"])
+            # only what Instagram already carries: the other platforms mirror the feed, never lead it
+            if post.get("status") != "published" or post.get("kind") == "story":
+                print(f"{post['id']}: not a published feed post, skipped")
+                continue
+            desk._cross_post(post, path)
+        for pid in sorted(wanted):
+            print(f"{pid}: no such post")
         return 0
     if args.cmd == "ping":
         from .instagram import Client

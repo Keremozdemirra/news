@@ -1,0 +1,38 @@
+name: crosspost
+# Run by hand: sends posts that are already live on Instagram to the platforms switched on in desk.json.
+# Each platform posts a story at most once, so running it twice for the same id does nothing the second time.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "Post ids, separated by spaces"
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  crosspost:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Send
+        env:
+          IDS: ${{ inputs.ids }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
+        run: |
+          export DESK_MEDIA_REF=$(git ls-remote origin refs/heads/media | cut -f1)
+          python3 -m aidaily crosspost $IDS
+      - name: Commit
+        if: always()
+        run: |
+          scripts/commit.sh "desk: crosspost $(date -u +%F-%H%M)"

@@ -219,10 +219,11 @@ class CrossPost(Env):
         desk.cross_post(p, path, fs)
         return json.loads(path.read_text())
 
-    def test_off_by_default_in_desk_json(self):
+    def test_desk_json_names_every_platform_with_a_switch(self):
+        # each platform is switched on by hand once its account is connected, so only the shape is fixed here
         shipped = json.loads((Path(desk.__file__).parent.parent / "desk.json").read_text())["platforms"]
         self.assertEqual(set(shipped), set(platforms.NAMES))
-        self.assertFalse(any(shipped.values()))
+        self.assertTrue(all(isinstance(v, bool) for v in shipped.values()))
 
     def test_disabled_platform_is_not_called(self):
         with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}}):
