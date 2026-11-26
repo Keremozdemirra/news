@@ -369,7 +369,11 @@ def publish(client=None, dry=False):
             _close_if_done(post.get("issue"))
             continue
         post.update(status="published", published=now().isoformat(timespec="seconds"), media_id=media, permalink=link)
-        if post.get("story") and CONFIG.get("stories", True):
+        stories_24h = sum(1 for q, _ in posts() if q.get("story_id") or (q.get("kind") == "story" and q.get("status") == "published")
+                          and q.get("published", "") > (now() - timedelta(hours=24)).isoformat())
+        # Meta's 100-a-day limit counts stories too: near it, posts keep the room and stories wait
+        if (post.get("story") and CONFIG.get("stories", True)
+                and published_last_24h() + stories_24h < CONFIG["story_quota_stop"]):
             # the story follows the post; a failed story never undoes a published post
             try:
                 post["story_id"] = client.story(media_url(post["id"], post["story"]))

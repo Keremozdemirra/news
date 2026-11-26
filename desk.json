@@ -1,7 +1,7 @@
 {
   "name": "boardread",
   "handle": "@boardread",
-  "veto_hours": 2,
+  "veto_hours": 0,
   "repeat_window_days": 3,
   "reply_daily_cap": 20,
   "reply_window_days": 7,
@@ -22,8 +22,8 @@
     "Product Hunt"
   ],
   "max_per_run": 10,
-  "spacing_minutes": 20,
-  "max_hours_ahead": 6,
+  "spacing_minutes": 5,
+  "max_hours_ahead": 2,
   "api_daily_limit": 45,
   "min_score": 7.0,
   "max_age_hours": 24,
@@ -85,5 +85,6 @@
     "Your DMs have the full story."
   ],
   "stories": true,
-  "digest_hour_utc": 18
+  "digest_hour_utc": 18,
+  "story_quota_stop": 90
 }

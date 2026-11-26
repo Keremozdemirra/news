@@ -135,7 +135,7 @@ def counts():
     st = stats()
     parts = ["The news that moves business"]
     if st["stories"]:
-        parts.append(f"{st['stories']:,} {'story' if st['stories'] == 1 else 'stories'}")
+        parts.append(f"{st['stories']:,} {'article' if st['stories'] == 1 else 'articles'}")
     if st["sources"]:
         parts.append(f"{st['sources']} newsrooms cited")
     total = sum(v for v in st["followers"].values() if isinstance(v, int))
@@ -203,7 +203,7 @@ def row(p, n):
 
 def listing(rows):
     if not rows:
-        return '<div class="empty">The first stories are on their way.</div>'
+        return '<div class="empty">The first articles are on their way.</div>'
     first = next((p for p in rows[:3] if p.get("_photo")), None)
     rest = [p for p in rows if p is not first][:120]
     return (lead(first) if first else "") + '<ol class="rows">' + "".join(row(p, i) for i, p in enumerate(rest, 2 if first else 1)) + "</ol>"
@@ -217,7 +217,7 @@ def story(p, more=()):
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     fig = (f'<figure><img src="{img(p)}" alt=""></figure><div class="credit mono">{E(p.get("credit", ""))}</div>'
            if p.get("_photo") else "")
-    others = ('<section class="more"><div class="tabs mono"><nav><span>More stories</span></nav></div><ol class="rows">'
+    others = ('<section class="more"><div class="tabs mono"><nav><span>More news</span></nav></div><ol class="rows">'
               + "".join(row(o, i) for i, o in enumerate(more, 1)) + "</ol></section>") if more else ""
     return page(f'{p["headlines"][0]} · boardread.', f"""<article class="story">
 <div class="mono"><a href="{BASE}/">boardread.</a> · {E(topic(p))} · {clock(p['published'])} UTC</div>
@@ -256,7 +256,7 @@ def build(out=desk.HERE / "_site"):
             shutil.copy(photo, out / "img" / f"{p['id']}.jpg")
             p["_photo"] = True
         shown.append(p)
-    desc = "Business, markets, politics, tech and AI: every story that matters, with its sources."
+    desc = "Business, markets, politics, tech and AI: every article with its sources."
     (out / "index.html").write_text(page("boardread. · The news that moves business",
                                          head("boardread.", counts()) + listing(shown), desc))
     for t in TOPIC_ORDER:

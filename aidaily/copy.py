@@ -26,7 +26,10 @@ Fields:
 - relevant: false if a consultant or manager would not need it: crime and court cases about private
   people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
   and advice pieces, product deals and reviews; true otherwise
-- topic: one of AI, Tech, Business, Markets, Economy, Politics, World, Culture
+- topic: one of AI, Tech, Business, Markets, Economy, Politics, World, Culture. Business: companies, deals,
+  people moves, a company's marketing or products. Markets: stocks, bonds, ratings, funds. Economy: data, central
+  banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
+  what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any
 - dek: one sentence, max 140 characters, the most useful extra fact
 - company: the main company the story is about, as the company names itself ("" if none)

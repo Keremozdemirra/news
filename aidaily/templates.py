@@ -229,7 +229,7 @@ def story_frame(card_uri, kicker="New post"):
     inner = (f'<div style="flex:1;display:flex;align-items:center;justify-content:center">'
              f'<img src="{card_uri}" style="width:900px;height:1125px;object-fit:cover;border-radius:22px;'
              f'box-shadow:0 40px 120px rgba(0,0,0,.55)"></div>'
-             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Full story on the feed · comment SOURCE for the links</div>')
+             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Read it on the feed · comment SOURCE for the links</div>')
     return _story_shell(inner, kicker)
 
 
@@ -241,7 +241,7 @@ def story_digest(headlines, label):
                    for i, h in enumerate(headlines, 1))
     inner = (f'<div style="margin-top:110px;font-size:120px;font-weight:800;letter-spacing:-5px;line-height:.92">Today\'s<br>top {len(headlines)}.</div>'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{rows}</div>'
-             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Every story with its sources: keremozdemir.de/news</div>')
+             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Every article with its sources: keremozdemir.de/news</div>')
     return _story_shell(inner, label)
 
 
