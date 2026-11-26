@@ -303,14 +303,14 @@ def story_person(photo_uri, name, headline, credit, label):
 
 
 def story_quiz(hint, label, options=()):
-    """Guess the company: a headline with the company blanked and lettered options; the answer follows an hour later."""
+    """Guess the company: a headline with the company blanked and lettered options; the answer is the next story."""
     hint_html = e(hint).replace("___", '<span style="display:inline-block;min-width:220px;border-bottom:10px solid #f2f2f0">&nbsp;</span>')
     opts = "".join(f'<div style="display:flex;gap:30px;align-items:center;padding:26px 34px;border:3px solid #3a3d43;border-radius:22px;margin-top:22px">'
                    f'<span style="font-size:48px;font-weight:800;color:#9aa0a8">{"ABCD"[i]}</span>'
                    f'<span style="font-size:52px;font-weight:800;letter-spacing:-1.5px">{e(o)}</span></div>' for i, o in enumerate(options))
     inner = (f'<div style="margin-top:100px;font-size:120px;font-weight:800;letter-spacing:-6px;line-height:.9">Guess the<br>company.</div>'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center"><div style="font-size:64px;font-weight:800;line-height:1.12;letter-spacing:-2px">{hint_html}</div>'
-             f'<div style="margin-top:56px">{opts}</div></div>{_story_foot("Answer in an hour")}')
+             f'<div style="margin-top:56px">{opts}</div></div>{_story_foot("Answer on the next story")}')
     return _story_shell(inner, label)
 
 

@@ -282,7 +282,8 @@ def scheduled_stories():
                 ans = _queue_story(f"{day}-answer", T.story_answer(media(p, "logo.svg", "logo.png", "logo.jpg"), p["company"],
                                                                   p["headlines"][0], now().strftime("%-d %b"), letter), "The answer")
                 post = _load(ans, {})
-                post["publish_after"] = (now() + timedelta(hours=1)).isoformat(timespec="seconds")
+                # the answer is the very next story; a minute later only so it never goes out before the question
+                post["publish_after"] = (now() + timedelta(minutes=1)).isoformat(timespec="seconds")
                 _save(ans, post)
                 made.append(ans)
     if due("world", CONFIG["story_hours"]["world"]):
