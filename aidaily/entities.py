@@ -44,6 +44,39 @@ def _entity(name):
     return ent.get("labels", {}).get("en", {}).get("value", name), ent.get("claims", {})
 
 
+ROLE_STOP = set("the of and for a an in at to who is was former current born american british politician person "
+                "businessman businesswoman people official".split())
+
+
+def _role_words(text):
+    return {w[:6] for w in re.findall(r"[a-z]+", (text or "").lower()) if len(w) > 2 and w not in ROLE_STOP}
+
+
+def person_entity(name, role):
+    """(label, claims) of the person the story means, or (None, {}). Several people share a name: the top search
+    hit for "Andrew Bailey" is an FBI deputy director, and his portrait once ran on a Bank of England governor's
+    post. A hit is taken only when its Wikidata description shares a word with the role the copy step gives
+    ("Bank of England governor"); with no role, or no hit that matches it, there is no photo."""
+    want = _role_words(role)
+    if not want:
+        return None, {}
+    q = urllib.parse.quote(name)
+    hits = _get(f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=7&search={q}")["search"]
+    for h in hits:
+        label = h.get("label") or h.get("display", {}).get("label", {}).get("value", "")
+        if not _role_words(name) <= _role_words(label):
+            continue  # another name altogether
+        if want & _role_words(h.get("description", "")):
+            qid = h["id"]
+            ent = _get(f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json")["entities"][qid]
+            return ent.get("labels", {}).get("en", {}).get("value", name), ent.get("claims", {})
+    return None, {}
+
+
+# files a free-text search found for a person, which may show a namesake: each must prove itself (see fresh_photo)
+SEARCHED = set()
+
+
 def company_entity(name):
     """(label, claims) of the Wikidata entity for a company name, or LookupError when the top hit is not it.
 
@@ -51,7 +84,9 @@ def company_entity(name):
     both come from this one lookup, so they can never disagree about which entity is the company."""
     label, claims = _entity(name)
     extra = (label or "").lower().replace(name.lower(), "", 1) if label and name.lower() in label.lower() else None
-    if extra is None or re.search(r"\d", extra):
+    # beyond the name, only a legal form ("Altria Group", "Nvidia Corporation"): "Congress" found the United States
+    # Congress and its seal went on a car-import post as if it were a company logo
+    if extra is None or re.search(r"\d", extra) or not LEGAL_FORM.match(extra):
         raise LookupError(f"Wikidata's {label!r} is not {name!r}")
     return label, claims
 
@@ -358,6 +393,15 @@ ART = re.compile(r"\b(museum|painting|textile|fragment|sculpture|statue|artwork|
 CROWD = re.compile(r"\b(fan|fans|crowd|cosplay|cosplayer|visitors?|audience|attendees?|man|woman|men|women|girl|boy|"
                    r"people|person|kids?|child|children|queue|line outside|selfie)\b", re.I)
 FACE = re.compile(r"cropped|crop\b|portrait|official|headshot", re.I)
+# What a company photo may show: the company's own premises or its own sign. A file that only carries the name
+# shows whatever the uploader liked: an Nvidia graphics card from 2008 on a credit-rating story, a FIFA
+# merchandise truck on a FIFA data-breach story, a "biggest fan" on a Rockstar union vote.
+PREMISES = re.compile(r"\b(headquarters?|hq|head ?office|offices?|campus|building|tower|plant|factory|works|"
+                      r"refinery|store|shop|flagship|branch|sign|signage|entrance|exterior|facade|fa\u00e7ade|depot|"
+                      r"terminal|warehouse|fulfil+ment cent(?:er|re)|data cent(?:er|re))\b", re.I)
+# an airline's or a planemaker's news is about its aircraft, and a photo of its own jet names the company
+AIRCRAFT = re.compile(r"\b(boeing|airbus|embraer|bombardier|atr|a3\d\d|7[0-8]7|aircraft|airliner|jet)\b", re.I)
+AIR_COMPANY = re.compile(r"\b(air|airlines?|airways|aviation|aerospace|boeing|airbus|embraer)\b", re.I)
 PEOPLE_ART = re.compile(r"guilty|convicted|impeach|sign|poster|banner|placard|mural|cartoon|caricature|meme|graffiti|"
                         r"effigy|mask|costume|parody|protest|rally|march|vote|ballot|campaign|sticker|flag", re.I)
 GROUP = re.compile(r"\b(with|and|meets|meeting|delegation|visit|group|team|family|ceremony|summit|tweet|notes|"
@@ -383,6 +427,12 @@ BRANDS = re.compile(r"\b(amd|radeon|ati|intel|nvidia|geforce|qualcomm|snapdragon
                     r"morgan stanley|citi|hsbc|barclays|ubs|deutsche bank|visa|mastercard|paypal)\b", re.I)
 
 
+def phrase_in(name, text):
+    """The whole name, as a phrase, in a file name or title ("Rockstar Games", not "rockstar" in another word)."""
+    name = (name or "").strip()
+    return bool(name) and re.search(r"(?<![a-z0-9])" + re.escape(name) + r"(?![a-z0-9])", text or "", re.I) is not None
+
+
 def foreign_brand(text, allow, own=""):
     """The first brand or place named in `text` that `allow` (headline and subject) does not name, or ''.
 
@@ -405,12 +455,15 @@ def foreign_brand(text, allow, own=""):
     return ""
 
 
-def candidates(subject, person=False):
+def candidates(subject, person=False, company=False, role=None):
     """Commons JPEG names that may show the subject: a person's Wikidata image and category, or a search
-    whose hits must name the subject in their own title and must not be photos of people or events."""
+    whose hits must name the subject in their own title and must not be photos of people or events.
+    With `role`, the person is the Wikidata entity whose description matches it (see person_entity)."""
     files = []
     if person:
-        _, claims = _entity(subject)
+        _, claims = _entity(subject) if role is None else person_entity(subject, role)
+        if role is not None and not claims:
+            return []
         files += [x["mainsnak"]["datavalue"]["value"] for x in claims.get("P18", []) if "datavalue" in x["mainsnak"]]
         cats = [x["mainsnak"]["datavalue"]["value"] for x in claims.get("P373", []) if "datavalue" in x["mainsnak"]]
         for cat in cats[:1]:
@@ -419,13 +472,15 @@ def candidates(subject, person=False):
                        f"&cmtitle={t}&cmtype=file&cmlimit=50")["query"]["categorymembers"]
             # a photo of the person with someone else puts that someone on the story
             files += [m["title"][5:] for m in got]
+        category = set(files)
         # many people have a handful of files in their category and many more elsewhere; a title that
         # carries the full name and nobody else's is a photo of them
         q = urllib.parse.quote(f'"{subject}" filetype:bitmap')
         got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
                    f"&srnamespace=6&srlimit=50&srsearch={q}")["query"]["search"]
         need = _words(subject)
-        files += [m["title"][5:] for m in got]
+        searched = [m["title"][5:] for m in got]
+        files += searched
         # the title must name the person, and nobody else from a list of the people news photos pair them with
         own = re.compile(r"\b(" + "|".join(map(re.escape, need)) + r")\b", re.I)
         lead = files[:len([x for x in claims.get("P18", []) if "datavalue" in x["mainsnak"]])]
@@ -434,6 +489,7 @@ def candidates(subject, person=False):
         # about a politician, and one of those once landed on a tariff story.
         files = lead + [f for f in files[len(lead):] if need <= _words(f) and FACE.search(f)
                         and not GROUP.search(own.sub("", f)) and not PEOPLE_ART.search(f)]
+        SEARCHED.update(f for f in searched if f not in category)
     else:
         q = urllib.parse.quote(f"{subject} filetype:bitmap")
         got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
@@ -444,8 +500,14 @@ def candidates(subject, person=False):
         for m in got:
             name = m["title"][5:]
             # full-text search matches descriptions too; the title is the only part that says what is shown
-            if (subject.strip() and phrase.search(name) and not PEOPLE.search(name) and not NATURE.search(name)
-                    and not ART.search(name) and not CROWD.search(name)):
+            shows = (not company or PREMISES.search(phrase.sub(" ", name))
+                     or (AIR_COMPANY.search(subject) and AIRCRAFT.search(name)))
+            # a short name is many companies: "ABC" found the Australian broadcaster's Darwin office for a story
+            # about the US network
+            if company and len(re.sub(r"[^A-Za-z0-9]", "", subject)) <= 4:
+                shows = False
+            if (subject.strip() and phrase.search(name) and shows and not PEOPLE.search(name)
+                    and not NATURE.search(name) and not ART.search(name) and not CROWD.search(name)):
                 files.append(name)
     seen, out = set(), []
     for f in files:
@@ -464,11 +526,13 @@ def fresh_photo(subjects, used, fetch=True, allow=""):
     if not fetch:
         return None, "", ""
     CACHE.mkdir(parents=True, exist_ok=True)
-    for text, is_person in subjects:
+    for subject in subjects:
+        text, is_person = subject[0], subject[1]
+        role = subject[2] if len(subject) > 2 else None
         if not text:
             continue
         try:
-            names = candidates(text, is_person)
+            names = candidates(text, is_person, company=not is_person, role=role)
         except Exception:  # noqa: BLE001  one failed lookup moves on to the next subject
             continue
         for f in names[:30]:
@@ -483,10 +547,15 @@ def fresh_photo(subjects, used, fetch=True, allow=""):
             # the title says what is shown; a description is often a caption about something else, so it
             # is checked for brands only, and only when the file is not a photo of the story's own subject
             desc_brands = " ".join(BRANDS.findall(desc))
-            if foreign_brand(f, allow + " " + text, own=text) or (
+            # a person's own name does not excuse a place: "Claudia Sheinbaum Argentina v Spain" is a football match
+            if foreign_brand(f, allow + " " + text, own="" if is_person else text) or (
                     not is_person and foreign_brand(desc_brands, allow + " " + text, own=f)):
                 continue
-                continue
+            # a file found by name alone may show a namesake: its description or categories must carry the role
+            if is_person and role is not None and f in SEARCHED:
+                cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "")
+                if not _role_words(role) & _role_words(desc + " " + cats):
+                    continue
             # an archive scan from 1920 is free to use and wrong for today's news
             when = (info.get("extmetadata", {}).get("DateTimeOriginal") or {}).get("value", "")
             year = re.search(r"\b(1[89]\d\d|20\d\d)\b", re.sub(r"<[^>]+>", "", when))

@@ -119,10 +119,13 @@ def finish(args):
     # a story whose copy failed or that does not fit its slot stays off the cards
     by_url = {s["url"]: s for s in chosen if s.get("copy_status") == "ok"}
     slots = {k: [by_url[s["url"]] for s in v if s["url"] in by_url] for k, v in digest["slots"].items()}
-    # the ranked slots stay as prepare wrote them, so finish can run again
+    files = render.pack(slots, out / "pack")
+    # the ranked slots stay as prepare wrote them, so finish can run again. "final" is written after the cards,
+    # so each story keeps the photo, logo and credit its card was rendered with: written before, the queue step
+    # resolved them again, the card's photo was already "used", and the detail slide and credit line got
+    # another photo or none (two posts held on 2026-11-26 for "photo without a credit line").
     digest["final"], digest["copy_note"], digest["copy_rejected"] = slots, note, rejected
     (out / "digest.json").write_text(json.dumps(digest, indent=1))
-    files = render.pack(slots, out / "pack")
     page = review.write(out, slots, files, note)
     print(note)
     print(f"review: {page}")
@@ -280,7 +283,7 @@ def daily(args):
     # the model only sees stories that will be posted, so an hourly run costs one short call
     digest["slots"] = {"top": picked}
     (out / "digest.json").write_text(json.dumps(digest, indent=1))
-    (out / "copy-request.md").write_text(copy.request(picked))
+    (out / "copy-request.md").write_text(copy.request(picked, desk.recent_headlines()))
     (out / "chosen.json").write_text(json.dumps(picked, indent=1))
     try:
         rows = copy.ask_claude((out / "copy-request.md").read_text())

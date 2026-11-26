@@ -30,11 +30,28 @@ CATEGORIES = [
 ]
 CATEGORIES = [(n, re.compile(p, re.I)) for n, p in CATEGORIES]
 
-BIG = re.compile(r"\b(openai|anthropic|google|deepmind|meta|microsoft|apple|nvidia|amazon|xai|"
-                 r"mistral|deepseek|alibaba|tesla|sam altman|dario amodei|demis hassabis|"
-                 r"jensen huang|elon musk|satya nadella|sundar pichai|mark zuckerberg)\b", re.I)
+# Hard news: what changes money, law, jobs or power somewhere. A headline with one of these is news a manager
+# acts on; a lab's own launch post or a column is not, however big the company behind it.
+HARD = re.compile(r"\b(central bank|interest rates?|rate (cut|hike|rise)s?|raises? rates|cuts? rates|inflation|gdp|"
+                  r"recession|unemployment|jobs report|payrolls|tariffs?|sanctions?|trade (deal|war|talks)|"
+                  r"elections?|votes?|parliament|ceasefire|coup|resigns?|resignation|impeach\w*|indicted|"
+                  r"verdict|ruling|rules|judge|supreme court|antitrust|fines?|fined|bans?|banned|"
+                  r"mergers?|acquires?|acquisition|takeover|buyout|bids?|deal for|ipo|bankrupt\w*|insolven\w*|"
+                  r"collapse|default\w*|bailout|layoffs?|job cuts|cuts? \d[\d,]* jobs|strikes?|recall\w*|"
+                  r"earnings|profit|revenue|guidance|downgrade\w*|credit rating|bond|yields?|oil|opec|"
+                  r"breach|hack(ed|ers)?|cyber-?attack|outage|appoint\w*|"
+                  r"approves?|approval|clears?|blocks?|suspends?|halts?|probe|investigation)\b", re.I)
+# Soft formats: comment, advice, explainers, lists and lifestyle. They may still run on the site when they
+# clear the bar on breadth alone, but they never outrank the news itself.
+SOFT = re.compile(r"(^opinion\b|^analysis\b|^explainer\b|^photos?:|^watch:|^live:|\blive updates\b|"
+                  r"\bam i\b|\bshould i\b|\bi[’']m\b|\bi hate\b|\bmy (husband|wife|401)|\b(your|my) 401\(k\)|"
+                  r"\bwhat we learned\b|\bwhat is\b|\bhow to\b|\bwhy you\b|\bbest .{0,30}(deals|of 20\d\d)\b|"
+                  r"\bdeals?\b.{0,20}\b(black friday|cyber monday|prime day)\b|\b(black friday|cyber monday) deals\b|"
+                  r"\bmarket talk\b|\broundup\b|\bthe latest$|\bquiz\b|\bpodcast\b|\brecipe|\bnewsletter\b|"
+                  r"\bhere'?s what\b|\bthings to know\b|\bproves why\b|\b(a|one) (good|bad) thing\b|\|\s*[A-Z][a-z]+ [A-Z][a-z]+$|"
+                  r"\bwhat it means\b|\brecap\w*|\bexplained\b|\bhere'?s why\b|\?\s*$)", re.I)
 
-WEIGHT = {"lab": 3.0, "news": 2.0, "newsletter": 1.5, "funding": 2.0, "community": 1.0,
+WEIGHT = {"lab": 2.0, "news": 2.0, "newsletter": 1.5, "funding": 2.0, "community": 1.0,
           "research": 1.0, "business": 2.0, "world": 2.0, "politics": 2.0, "culture": 1.2}
 
 STOP = set("a an the of to in on for and or with by at from as is are was be its it this that "
@@ -72,18 +89,59 @@ def norm_url(url):
     return (p.netloc.lower().removeprefix("www.") + p.path.rstrip("/")).lower()
 
 
-def similar(a, b, threshold=0.34):
-    a, b = a - GENERIC, b - GENERIC
+SUFFIX = re.compile(r"(ations?|itions?|ings?|ers?|ed|es|s|al|ly)$")
+
+
+def stem(w):
+    """One stem for the forms of a word, so paraphrases of one event meet: "approved" and "approval",
+    "satellites" and "satellite". Seven letters after the suffix, so "investigations" and "investors" stay apart."""
+    return (SUFFIX.sub("", w) if len(w) > 5 else w)[:7]
+
+
+def similar(a, b, threshold=0.34, weight=None):
+    """Two titles report one event. With `weight` (token -> rarity), shared words count by how rare they are
+    that day: on the day Nvidia's CEO returned, forty different pieces shared "Jensen Huang Nvidia", and an
+    unweighted overlap chained a Denny's PR item, two columns and an investigation into one 16-outlet cluster."""
+    a, b = {stem(t) for t in a - GENERIC}, {stem(t) for t in b - GENERIC}
     if not a or not b:
         return False
-    if len(a & b) / len(a | b) >= threshold:
-        return True
-    # paraphrased headlines of one event share its names, not its wording
     shared = a & b
-    return len(shared) >= 3 and len(shared) / min(len(a), len(b)) >= 0.5
+    if weight is None:
+        if len(shared) / len(a | b) >= threshold:
+            return True
+        # paraphrased headlines of one event share its names, not its wording
+        return len(shared) >= 3 and len(shared) / min(len(a), len(b)) >= 0.5
+    w = lambda ts: sum(weight.get(t, 1.0) for t in ts)  # noqa: E731
+    if not shared:
+        return False
+    if w(shared) / w(a | b) >= threshold:
+        return True
+    # the paraphrase rule needs one shared word that is not among the day's common names: "Nvidia Jensen Huang"
+    # alone joins a Denny's plaque to an investigation
+    cut = getattr(weight, "cut", 0.0)
+    return len(shared) >= 3 and w(shared) / min(w(a), w(b)) >= 0.5 and any(weight.get(t, 9) >= cut for t in shared)
 
 
-SECTION = re.compile(r"\s+(AI|Main|Technology|Tech|Companies|Top ?Stories|Venture)$")
+def rarity(items):
+    """token -> weight, high for words few titles share today, low for the day's common names."""
+    df = {}
+    for it in items:
+        for t in {stem(x) for x in it["_tok"]}:
+            df[t] = df.get(t, 0) + 1
+    n = max(len(items), 1)
+    out = Weights({t: math.log((n + 1) / (c + 0.5)) for t, c in df.items()})
+    # a word in more than 0.4% of the day's titles (and at least 8) is one of the day's common names
+    out.cut = math.log((n + 1) / (max(8, 0.004 * n) + 0.5))
+    return out
+
+
+class Weights(dict):
+    cut = 0.0
+
+
+# a newsroom's section feeds are one newsroom: BBC World and BBC Business, Bloomberg Markets and Bloomberg Politics
+SECTION = re.compile(r"\s+(AI|Main|Technology|Tech|Companies|Top ?Stories|Top News|Venture|Business|World|"
+                     r"US Politics|Politics|Economy|Economics|Markets|Finance|Asia)$")
 
 
 def publisher(item, sources):
@@ -118,9 +176,13 @@ def cluster(items):
     for it in items:
         it["_tok"] = tokens(it["title"])
         it["_url"] = norm_url(it["url"])
+    weight = rarity(items) if len(items) >= 50 else None  # too few titles say nothing about which words are common
+    for it in items:
         home = None
         for s in stories:
-            if it["_url"] in s["urls"] or any(similar(it["_tok"], o["_tok"]) for o in s["items"]):
+            # joining needs the cluster's first item too, so one bridging title cannot chain two events together
+            if it["_url"] in s["urls"] or (similar(it["_tok"], s["items"][0]["_tok"], weight=weight) or
+                                           sum(similar(it["_tok"], o["_tok"], weight=weight) for o in s["items"]) * 3 >= len(s["items"])):
                 home = s
                 break
         if home is None:
@@ -135,7 +197,9 @@ def score_story(story, sources, now=None):
     now = now or datetime.now(timezone.utc)
     items = story["items"]
     cats = {sources.get(i["source_id"], {}).get("category", "news") for i in items}
-    outlets = {i["source_id"] for i in items}
+    # one newsroom counts once however many of its feeds ran the piece: BBC World, Business and Technology
+    # carrying one wire read as three outlets
+    outlets = {publisher(i, sources) for i in items}
     base = max(WEIGHT.get(c, 1.0) for c in cats)
     breadth = 2.0 * math.log2(1 + len(outlets))
     newest = max((i["published"] for i in items if i.get("published")), default=None)
@@ -143,20 +207,24 @@ def score_story(story, sources, now=None):
     recency = 3.0 * math.exp(-max(age_h, 0) / 18)
     engage = math.log10(1 + sum(i.get("points", 0) + 2 * i.get("comments", 0) for i in items))
     lead = pick_lead(items, sources)
-    big = 1.0 if BIG.search(lead["title"]) else 0.0
+    hard = 1.0 if any(HARD.search(i["title"]) for i in items) else 0.0
+    # a cluster whose every title is a column, an explainer or a list is commentary on the news
+    soft = 2.5 if all(SOFT.search(i["title"]) for i in items) else 0.0
     if all(sources.get(i["source_id"], {}).get("category") == "research" for i in items):
         # papers arrive fifty a day with identical timestamps; without this they bury the news
         return round(0.6 * (base + breadth + recency + engage), 3), "research", newest
     cat = classify(lead["title"], lead.get("summary", ""))
-    bonus = {"launch": 1.0, "funding": 0.8, "statement": 0.3}.get(cat, 0.0)
-    return round(base + breadth + recency + engage + big + bonus, 3), cat, newest
+    bonus = {"launch": 0.3, "funding": 0.5, "policy": 0.5, "markets": 0.3}.get(cat, 0.0)
+    return round(base + breadth + recency + engage + hard + bonus - soft, 3), cat, newest
 
 
 def pick_lead(items, sources):
     """The item whose outlet ranks highest carries the headline and the link."""
     order = {"lab": 0, "news": 1, "funding": 1, "world": 1, "politics": 1, "business": 1, "culture": 2,
              "newsletter": 2, "research": 3, "community": 4}
-    return min(items, key=lambda i: (order.get(sources.get(i["source_id"], {}).get("category"), 5),
+    # a column or an explainer never carries the headline while a news report of the same event is in the cluster
+    return min(items, key=lambda i: (bool(SOFT.search(i["title"])),
+                                     order.get(sources.get(i["source_id"], {}).get("category"), 5),
                                      -(i["published"].timestamp() if i.get("published") else 0)))
 
 
@@ -182,6 +250,10 @@ def rank(items, sources, now=None, max_age_h=36):
             "source": publisher(lead, sources),
             "published": newest.isoformat() if newest else None,
             "outlets": sorted({sources.get(i["source_id"], {}).get("name", i["source_id"]) for i in s["items"]}),
+            # who reported it, oldest first: one name per newsroom, never a discussion board or a search feed.
+            # The card's count and the detail slide's list both come from this, so they cannot disagree.
+            "newsrooms": [p for p, _ in trace([i for i in s["items"]
+                                               if sources.get(i["source_id"], {}).get("category") != "community"], sources)],
             "links": sorted({i["url"] for i in s["items"]}),
             # when each newsroom first ran it: the coverage trace printed on every card
             "timeline": trace(s["items"], sources),

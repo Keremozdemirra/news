@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from . import copy, github
+from . import copy, github, rank
 from . import render as R
 
 HERE = Path(__file__).resolve().parent.parent
@@ -89,6 +89,19 @@ def _recent_posts(days):
             and datetime.fromisoformat(p["created"]) > cut]
 
 
+def recent_headlines(days=None, limit=80):
+    """Headlines posted in the repeat window, newest first: the copy call marks a story that repeats one."""
+    rows = sorted(_recent_posts(days or CONFIG["repeat_window_days"]), key=lambda p: p.get("created", ""), reverse=True)
+    out = []
+    for p in rows:
+        if p.get("status") in ("vetoed", "deleted", "held", "expired", "failed") or p.get("kind"):
+            continue
+        for h in p.get("headlines") or []:
+            if h and h not in out:
+                out.append(h)
+    return out[:limit]
+
+
 def same_story(a, b):
     """Two runs cluster the same event under different lead links, so a shared link or a close
     headline both count as a repeat."""
@@ -121,7 +134,7 @@ def pick(manifest, stories, weights):
     return [(m, s) for _, m, s in rows]
 
 
-FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|Economy|Markets|Finance|Venture)$")
+FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|Economy|Economics|Markets|Finance|Venture|Asia)$")
 
 
 ALIASES = {"FT": "Financial Times", "WSJ": "The Wall Street Journal", "NYT": "The New York Times"}
@@ -134,12 +147,21 @@ def outlet(name):
 
 
 def outlets(m, s):
+    """Every newsroom that reported it, the lead first. Discussion boards and aggregators carry the news; they
+    are not the reporting."""
     out = []
-    for o in map(outlet, [m["source"]] + list(s.get("outlets", []))):
-        # discussion boards carry stories; they are not the reporting
+    names = s.get("newsrooms") or s.get("outlets") or []
+    for o in map(outlet, [m["source"]] + list(names)):
         if o and o not in out and o not in CONFIG["not_sources"]:
             out.append(o)
-    return out[:4]
+    return out
+
+
+def reported_by(names, cap=4):
+    """"A; B; C; D and 3 more": the list on the detail slide and in the caption, which the card's count matches."""
+    names = list(names)
+    head_ = "; ".join(names[:cap])
+    return head_ + (f" and {len(names) - cap} more" if len(names) > cap else "")
 
 
 def growth(name):
@@ -269,7 +291,7 @@ def caption(m, s, cta=True):
     mid = [lead, ""]
     if growth("so_what") and s.get("so_what"):
         mid += [f"{CONFIG.get('so_what_label', 'What it means')}: {s['so_what']}", ""]
-    lines = head_lines + mid + [f"Reported by {'; '.join(src)}. {CONFIG['ai_note']}", "",
+    lines = head_lines + mid + [f"Reported by {reported_by(src)}. {CONFIG['ai_note']}", "",
                                 CONFIG["source_line"] if cta else "", send_line(m, s), "", " ".join(hashtags(m, s))]
     text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
@@ -303,10 +325,37 @@ def audit(post):
     if pf and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
                or (not post.get("person") and E.CROWD.search(pf))):
         problems.append(f"photo {pf!r} is not a news photo of the subject")
-    if post.get("person") and post["person"].split()[-1].lower() not in (head_ + " " + post.get("body", "")).lower():
+    if pf and post.get("person") and post["person"].split()[-1].lower() not in (
+            head_ + " " + post.get("dek", "") + " " + post.get("body", "")).lower():
         problems.append(f"photo of {post['person']}, who the text does not name")
     if post.get("photo_file") and not post.get("credit"):
         problems.append("photo without a credit line")
+    # the credit line must be the card photo's own: a second lookup once paired one photo with another's credit
+    if pf and post.get("credit_file") is not None and post["credit_file"] != pf:
+        problems.append(f"credit belongs to {post['credit_file']!r}, the card shows {pf!r}")
+    # a company photo shows the company's own premises, sign or (for an airline or planemaker) its own aircraft
+    if pf and not post.get("person"):
+        subject = next((n for n in owners if R.T.entities.phrase_in(n, pf)), "")
+        if not subject:
+            problems.append(f"photo {pf!r} does not name the company the story is about")
+        elif not (E.PREMISES.search(pf.replace(subject, " ")) or (E.AIR_COMPANY.search(subject) and E.AIRCRAFT.search(pf))):
+            problems.append(f"photo {pf!r} shows something of {subject}'s, not its premises")
+    texts = (head_, post.get("dek", ""), post.get("body", ""))
+    for t in texts:
+        m = SKIP.search(t or "")
+        if m:
+            problems.append(f"skipped topic {m.group(0)!r}")
+            break
+    for t in texts:
+        m = rank.SOFT.search(t or "") or FORMAT.search(t or "")
+        if m and t is head_:
+            problems.append(f"not a news format: {m.group(0)!r}")
+    if len(head_) > copy.MAX_HEADLINE:
+        problems.append(f"headline over {copy.MAX_HEADLINE} characters")
+    if head_.rstrip().endswith("."):
+        problems.append("headline ends with a full stop")
+    if post.get("dek") and copy.repeats(post["dek"], head_):
+        problems.append("dek repeats the headline")
     cap = post.get("caption", "")
     tags = re.findall(r"#\w+", cap)
     if len(tags) > 5 or len(set(tags)) != len(tags):
@@ -314,9 +363,22 @@ def audit(post):
     if len(cap) > 2200:
         problems.append("caption over 2,200 characters")
     for text in (head_, post.get("dek", ""), post.get("body", ""), cap):
-        m = SLOP.search(text or "")
-        if m:
-            problems.append(f"stock phrase {m.group(0)!r}")
+        for rx, why in ((SLOP, "stock phrase"), (copy.HYPE, "hype word"), (copy.NOT_BUT, "not X but Y")):
+            m = rx.search(text or "")
+            if m:
+                problems.append(f"{why} {m.group(0)!r}")
+        if re.search("[\u2014\u2013]", text or ""):
+            problems.append("em or en dash")
+    # the lines the desk writes itself never call the news a "story" (Instagram Stories are something else)
+    own = cap
+    for t in (*texts, *(post.get("headlines") or [])):
+        for line in (t or "").splitlines():
+            own = own.replace(line, "") if line.strip() else own
+    m = re.search(r"\bstor(y|ies)\b", own, re.I)
+    if m:
+        problems.append(f"caption calls the news a {m.group(0)!r}")
+    if bool(post.get("source_cta")) != (CONFIG["source_line"] in cap):
+        problems.append("SOURCE ask and its flag disagree")
     return problems
 
 
@@ -900,7 +962,7 @@ def select(stories):
         newsroom = set(s.get("outlets", [])) - set(CONFIG["not_sources"]) or s.get("primary")
         me = {"url": s["url"], "links": s.get("links", []), "headline": s["title"]}
         if (s.get("score", 0) >= site_min_score() and fresh and newsroom
-                and not SKIP.search(s["title"]) and not FORMAT.search(s["title"])
+                and not SKIP.search(s["title"]) and not FORMAT.search(s["title"]) and not rank.SOFT.search(s["title"])
                 and not any(same_story(me, r) for r in recent + out)):
             out.append(s)
     return sorted(out, key=lambda s: -s["score"])[:CONFIG["max_per_run"]]
@@ -988,7 +1050,7 @@ def queue(day_dir, batch=None, render=True):
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
-                "credit": s.get("_assets", {}).get("credit", "")}
+                "credit": s.get("_assets", {}).get("credit", ""), "credit_file": s.get("_assets", {}).get("file", "")}
         ctas += bool(cta)
         if web:
             post.update(status="web", published=now().isoformat(timespec="seconds"), story="")

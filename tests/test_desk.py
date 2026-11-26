@@ -57,7 +57,7 @@ class Tmp(unittest.TestCase):
         d = desk.QUEUE / pid
         d.mkdir(parents=True)
         post = {"id": pid, "created": desk.now().isoformat(), "publish_after": (desk.now() - timedelta(minutes=1)).isoformat(),
-                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 stories.", "urls": ["u"],
+                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 reports.", "urls": ["u"],
                 "headlines": ["Lab ships a model"], "topic": "Tech"}
         post.update(kw)
         (d / "post.json").write_text(json.dumps(post))
@@ -1379,7 +1379,8 @@ class Audit(Tmp):
     def good(self, **kw):
         p = {"headlines": ["FCC clears SpaceX to deploy 1 million satellites"], "topic": "Tech", "logo_names": ["SpaceX"],
              "body": "The FCC authorized SpaceX. Boston Consulting Group estimates costs stay high.", "dek": "",
-             "caption": "FCC clears SpaceX\n\n#news #business #spacex", "photo_file": "Earth.jpg", "credit": "Photo: NASA"}
+             "caption": "FCC clears SpaceX\n\n#news #business #spacex", "photo_file": "SpaceX headquarters, Hawthorne.jpg",
+             "credit": "Photo: NASA"}
         p.update(kw)
         return p
 

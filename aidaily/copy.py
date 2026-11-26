@@ -28,35 +28,43 @@ Fields:
 - id: copy the id
 - relevant: false if a consultant or manager would not need it: crime and court cases about private
   people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
-  and advice pieces, product deals and reviews; true otherwise
+  and advice pieces, personal-finance columns, explainers, product deals and reviews, a brand's marketing
+  stunt or social-media post; true otherwise
+- same_event: the id of an EARLIER story in this list that reports the same event, or the R number of a
+  RECENT headline below that reports it with no new development ("R4"); "" when it is a new event
 - topic: one of AI, Tech, Business, Markets, Economy, Politics, World, Culture. Business: companies, deals,
   people moves, a company's marketing or products. Markets: stocks, bonds, ratings, funds. Economy: data, central
   banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
   what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture
-- headline: max 80 characters, present tense, names the actor and the action, the key figure if any
-- dek: one sentence, max 140 characters, the most useful extra fact
+- headline: max 80 characters, present tense, names the actor and the action, the key figure if any. Plain
+  words: "more than £400m", never "£400m+"; no question; no quote marks around a single word
+- dek: one sentence, max 140 characters, the most useful extra fact (not a restatement of the headline)
 - company: the main company the story is about, as the company names itself ("" if none)
 - company_domain: that company's website domain if you are certain of it, like "redqueen.bio" ("" if unsure;
   it is checked against the site's own title before use)
 - backer: a named investor or parent company in the story, like "OpenAI" ("" if none)
 - person: the one person the story is centrally about, full name ("" if none; never a person only quoted)
+- person_role: who that person is, 3 to 8 words: nationality, job, organisation, like "British economist,
+  Bank of England governor" ("" if no person). Only used to find the right photo among people who share
+  the name; never printed, so it may use what you know beyond the source
 - orgs: up to 3 companies or institutions the story names, main one first, each spelled as in the source
   ([] if none)
 - image_query: 2 to 4 words to search Wikimedia Commons for a photo of a physical thing the story is
   about: a named product, a named building, or a plain object or place such as "data center",
   "semiconductor wafer", "courthouse", "satellite". Never a person, a crowd, an event, a meeting or a
   press conference (the story's own person goes in "person"), never a logo, never an abstract idea
-- figure: the single key figure as written in the source, like "$36M" or "40%" ("" if none)
+- figure: the single key figure as written in the source, digits only, like "$36M", "40%" or "77,000" ("" if
+  none, if it is a word like "a quarter", or if the source qualifies it with "more than", "up to", "about")
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
-- linkedin_post: 2 to 3 short sentences: what happened, then the most useful further facts from the source;
-  end with the line "Source: <outlet>"
+- linkedin_post: 2 to 3 short sentences of the most useful facts from the source beyond the headline. Do not
+  open by repeating the headline: the reader has just read it. End with the line "Source: <outlet>"
 - fits_category: false if the story does not match its slot, e.g. a profile or retrospective in a funding
   slot, an opinion piece in a breaking slot; true otherwise{extra_fields}
 
 Return a JSON array only, no prose.
 
 STORIES:
-{stories}"""
+{stories}{recent}"""
 
 # Added to the prompt only while desk.json growth.so_what is true. It overrides the "do not interpret" rule above
 # for this one field, which is why the field text repeats the limits instead of leaning on them.
@@ -110,8 +118,25 @@ HYPE = re.compile(r"\b(huge|massive|incredible|stunning|shocking|explosive|game[
 GROUNDED = 0.6  # share of a sentence's content words that must come from the source
 
 
+INFLECTION = re.compile(r"(ing|ed|es|s)$")
+
+
+def _stem(w):
+    """"cutting", "cuts" and "cut", "jobs" and "job" are one word to the grounding check."""
+    st = INFLECTION.sub("", w) if len(w) > 4 else w
+    st = re.sub(r"([b-df-hj-np-tv-z])\1$", r"\1", st)
+    return st[:5]
+
+
 def _stems(text):
-    return {w[:5] for w in WORD.findall((text or "").lower()) if len(w) > 3 and w not in FILLER}
+    out = set()
+    for w in WORD.findall((text or "").lower()):
+        if w in FILLER or len(w) < 3:
+            continue
+        st = _stem(w)
+        if len(st) >= 3 and st not in FILLER:
+            out.add(st)
+    return out
 
 
 def ungrounded(sentence, source_text):
@@ -120,6 +145,12 @@ def ungrounded(sentence, source_text):
     if len(words) < 3:
         return False
     return len(words & _stems(source_text)) / len(words) < GROUNDED
+
+
+def repeats(text, other, share=0.7):
+    """Most of `text`'s content words are already in `other`: a dek that only restates its headline."""
+    a = _stems(text)
+    return len(a) >= 3 and len(a & _stems(other)) / len(a) >= share
 
 
 def _numbers(text):
@@ -131,12 +162,17 @@ def verify(story, copy):
     src = _numbers(story["title"] + " " + story.get("summary", ""))
     problems = []
     for field in ("headline", "dek", "figure", "x_post", "linkedin_post"):
-        extra = _numbers(copy.get(field, "")) - src
+        # the "Source: France 24" line names the outlet; its digits are not a claim
+        text = "\n".join(l for l in str(copy.get(field, "")).splitlines() if not l.startswith("Source:"))
+        extra = _numbers(text) - src
         if extra:
             problems.append(f"{field}: numbers not in source {sorted(extra)}")
     if len(copy.get("headline", "")) > MAX_HEADLINE:
         problems.append("headline too long")
-    text = story["title"] + " " + story.get("summary", "")
+    if re.search(r"\d[\d,.]*\s?(?:[%kKmMbBtn]|bn|tn)?\+", copy.get("headline", "") + " " + copy.get("dek", "")):
+        problems.append("a '+' after a number: write 'more than'")
+    # the outlet's own name is grounded: "the Buenos Aires Times reports" is attribution, not commentary
+    text = story["title"] + " " + story.get("summary", "") + " " + story.get("source", "")
     for field in ("dek", "x_post", "linkedin_post"):
         for sent in re.split(r"(?<=[.!?])\s+|\n+", copy.get(field, "")):
             if sent and not sent.startswith("Source:") and ungrounded(sent, text):
@@ -219,8 +255,10 @@ def ask_claude(prompt, runner=subprocess.run):
     return json.loads(m.group(0))
 
 
-def prompt(block):
-    return PROMPT.format(stories=block, extra_fields=SO_WHAT_FIELD if switch("so_what") else "")
+def prompt(block, recent=()):
+    tail = ("\n\nRECENT (already posted, for same_event only):\n" + "\n".join(f"R{i}: {h}" for i, h in enumerate(recent, 1))
+            if recent else "")
+    return PROMPT.format(stories=block, recent=tail, extra_fields=SO_WHAT_FIELD if switch("so_what") else "")
 
 
 def write(stories, runner=subprocess.run):
@@ -237,13 +275,49 @@ def write(stories, runner=subprocess.run):
     return apply(stories, ask_claude(prompt(block), runner))
 
 
-def request(stories):
-    """The prompt a Claude session answers when no headless call is available."""
+def request(stories, recent=()):
+    """The prompt for the copy call. `recent` are headlines already posted, so the model can say a story repeats one."""
     for i, s in enumerate(stories):
         s["id"] = i
     block = "\n\n".join(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
                         for i, s in enumerate(stories))
-    return prompt(block)
+    return prompt(block, recent)
+
+
+QUALIFIED = re.compile(r"\b(more than|over|up to|at least|about|around|nearly|almost|under|less than|roughly|"
+                       r"as many as|as much as|some|close to)\s+$", re.I)
+
+
+def figure_ok(fig, seen):
+    """A big figure must be a number (a word like "a quarter" set at 300 px says nothing), and the number the
+    reader finds in the headline or dek must not carry a qualifier the card would drop ("more than £400m")."""
+    if not fig or not re.search(r"\d", fig):
+        return False
+    m = re.search(re.escape(fig), seen, re.I)
+    if not m:
+        return True
+    return not QUALIFIED.search(seen[:m.start()]) and not seen[m.end():m.end() + 1] == "+"
+
+
+def sentences(text):
+    return [x for x in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"“‘'])", text or "") if x.strip()]
+
+
+def drop_restated_lead(post, headline):
+    """The report under a headline starts with news: a first sentence that only restates the headline is cut
+    when more follows ("SAP explores at least 10,000 job cuts." under "SAP explores at least 10,000 job cuts")."""
+    lines = (post or "").split("\n")
+    body = [l for l in lines if l.strip() and not l.startswith("Source:")]
+    tail = [l for l in lines if l.startswith("Source:")]
+    if not body:
+        return post
+    sents = sentences(" ".join(body))
+    # never when what follows leans on the cut sentence: "One share would come from SpaceX and one from him
+    # personally." lost its "Musk" that way
+    while (len(sents) > 1 and repeats(sents[0], headline, share=0.6)
+           and not re.search(r"\b(he|she|him|his|her|hers|they|them|their|it|its|this|that|these|those)\b", sents[1], re.I)):
+        sents = sents[1:]
+    return " ".join(sents) + ("\n\n" + "\n".join(tail) if tail else "")
 
 
 def apply(stories, reply_rows):
@@ -253,6 +327,20 @@ def apply(stories, reply_rows):
     rejected = []
     for i, s in enumerate(stories):
         c = {k: (v.translate(DASHES) if isinstance(v, str) else v) for k, v in rows.get(i, {}).items()}
+        # the same event reported twice in one run, or again with nothing new after a post: one post only, and
+        # the earlier story inherits the other newsrooms so its count stays true
+        same = str(c.get("same_event") or "").strip()
+        if same.isdigit() and int(same) < i and stories[int(same)].get("copy_status") == "ok":
+            first = stories[int(same)]
+            for key in ("newsrooms", "outlets", "links"):
+                first[key] = list(dict.fromkeys(list(first.get(key) or []) + list(s.get(key) or [])))
+            s["copy_status"] = "duplicate"
+            rejected.append((s["title"], [f"same event as story {same}"]))
+            continue
+        if re.fullmatch(r"R\d+", same):
+            s["copy_status"] = "repeat"
+            rejected.append((s["title"], [f"repeats recent headline {same}"]))
+            continue
         problems = verify(s, c) if c else ["no copy returned"]
         if problems:
             rejected.append((s["title"], problems))
@@ -260,8 +348,10 @@ def apply(stories, reply_rows):
                      linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback")
         else:
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
-                                                 "figure", "x_post", "linkedin_post", "image_query", "topic")},
+                                                 "person_role", "figure", "x_post", "linkedin_post", "image_query",
+                                                 "topic")},
                      copy_status="ok")
+            s["linkedin_post"] = drop_restated_lead(s["linkedin_post"], s["headline"])
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what"):
@@ -287,5 +377,7 @@ def apply(stories, reply_rows):
             seen = s["headline"] + " " + s["dek"]
             fig = s["figure"]
             if fig and not ((_numbers(fig) & _numbers(seen)) if _numbers(fig) else fig.lower() in seen.lower()):
+                s["figure"] = ""
+            if s["figure"] and not figure_ok(s["figure"], seen):
                 s["figure"] = ""
     return rejected

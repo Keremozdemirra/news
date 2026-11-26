@@ -27,6 +27,21 @@ def e(s):
     return html.escape(s or "", quote=True)
 
 
+def typo(s):
+    """Typographer's quotes and apostrophes for text set large on a card: 'fake' reads as a typo at 88 px."""
+    s = s or ""
+    s = re.sub(r"(?<=\w)'(?=\w)", "\u2019", s)               # it's, Nvidia's
+    s = re.sub(r"(^|[\s(\[{\u2014-])'", "\\1\u2018", s)     # opening single
+    s = s.replace("'", "\u2019")                               # closing single, and plural possessive
+    s = re.sub(r'(^|[\s(\[{\u2014-])"', "\\1\u201c", s)     # opening double
+    return s.replace('"', "\u201d")
+
+
+def t(s):
+    """Escaped, with typographer's quotes: every headline and report line on a card or slide goes through this."""
+    return e(typo(s))
+
+
 def key_figure(text):
     m = FIGURE.search(text or "")
     if not m:
@@ -69,6 +84,9 @@ def assets(story, fetch=True):
             if n and n.lower() not in {x.lower() for x in names} and in_headline(n, head_):
                 names.append(n)
         logos, logo_names = [], []
+        # the main company without a logo of its own: another organisation's logo alone would read as its story
+        if co and co in names and not lg:
+            names = []
         for n in names[:3]:
             f = lg if n == co else entities.logo(n, fetch=fetch)
             if f:
@@ -77,7 +95,8 @@ def assets(story, fetch=True):
         # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
         # a generic scene ("AI data center") put a stranger's wall on a story; no photo beats a wrong one,
         # so only the named person or the company's own photos are used
-        subjects = [(story.get("person", ""), True), (co, False)]
+        # the person's role picks the right one of several people with the name (person_entity)
+        subjects = [(story.get("person", ""), True, story.get("person_role", "")), (co, False)]
         ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
         if file_:
             USED.add(file_)
@@ -93,9 +112,18 @@ def layout(story):
     a = assets(story)
     if a["photo"]:
         return "photo"
-    if story.get("figure") or key_figure(story.get("headline") or story["title"]):
+    if story.get("figure") or _headline_figure(story):
         return "figure"
     return "headline"
+
+
+def _headline_figure(story):
+    """The headline's own figure, unless the copy step left the figure out on purpose (a word, or a number with a
+    qualifier such as "more than £400m" that a giant "£400m" would drop)."""
+    from . import copy
+    title = story.get("headline") or story["title"]
+    fig = key_figure(title)
+    return fig if fig and copy.figure_ok(fig, title) and copy.figure_ok(fig, story.get("dek", "")) else ""
 
 
 def head():
@@ -125,8 +153,10 @@ def _meta_card(story):
 def _sourceline(story):
     if story.get("primary"):
         return f"Announced by {re.sub(r' [Bb]log$', '', story['primary'])}"
-    n = len(story.get("timeline") or story.get("outlets") or [])
-    return f"Reported by {n} newsrooms" if n > 1 else f"Source: {story['source']}"
+    from . import desk  # resolved at call time: desk imports render, which imports this module
+    names = desk.outlets(story, story)
+    n = len(names)
+    return f"Reported by {n} newsrooms" if n > 1 else f"Source: {names[0] if names else desk.outlet(story['source'])}"
 
 
 def _logo_tile(uri, size):
@@ -194,10 +224,10 @@ def card(story, brand=BRAND):
 <div style="position:absolute;left:64px;right:64px;top:64px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column">
 <span style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
-<h1 style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{e(title)}</h1>
+<h1 style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{t(title)}</h1>
 {_foot(story, brand, dark=True)}</div></div></body></html>"""
     if kind == "figure":
-        fig = story.get("figure") or key_figure(title)
+        fig = story.get("figure") or _headline_figure(story)
         backer = (f'<div style="margin-top:26px;display:flex;align-items:center;gap:14px;font-size:26px;color:{GREY}"><span>Backed by</span>'
                   f'{_logo_block(a["backer"], story.get("backer", ""), 30)}</div>') if story.get("backer") else ""
         return head() + f"""
@@ -206,14 +236,14 @@ def card(story, brand=BRAND):
 <div style="margin-top:88px">{_logo_block(a['logo'], story.get('company', ''), 62)}</div>
 <div style="margin-top:52px;font-size:{300 if len(fig) <= 4 else 250 if len(fig) == 5 else 205}px;font-weight:800;line-height:0.82;letter-spacing:-12px">{e(fig)}</div>
 <div style="flex:1"></div>
-<h1 style="margin:0;font-size:{_size(title, 76, 70, 60)}px;font-weight:800;line-height:1.04;letter-spacing:-1.5px">{e(title)}</h1>
+<h1 style="margin:0;font-size:{_size(title, 76, 70, 60)}px;font-weight:800;line-height:1.04;letter-spacing:-1.5px">{t(title)}</h1>
 {backer}<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
 <div style="margin-top:88px">{_logo_block(a['logo'], story.get('company', ''), 62)}</div>
 <div style="flex:1"></div>
-<h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:-2px">{e(title)}</h1>
+<h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:-2px">{t(title)}</h1>
 <div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
 
 
@@ -222,7 +252,7 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
     A checked "what it means" sentence, when there is one, sits under the report with a small label."""
     a = assets(story)
     title = story.get("headline") or story["title"]
-    paras = "".join(f'<p style="margin:0 0 28px">{e(p)}</p>' for p in (body or story.get("dek", "")).split("\n") if p.strip())
+    paras = "".join(f'<p style="margin:0 0 28px">{t(p)}</p>' for p in (body or story.get("dek", "")).split("\n") if p.strip())
     n = len(body or "")
     size = 56 if n < 260 else 50 if n < 380 else 44 if n < 520 else 38
     meaning = ""
@@ -230,13 +260,14 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
         size = max(size - 6, 34)  # the extra block needs the room
         meaning = (f'<div style="margin-top:8px;padding-top:36px;border-top:1px solid {LINE}">'
                    f'<div style="font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:{GREY}">{e(label)}</div>'
-                   f'<div style="margin-top:16px;font-size:{max(size - 4, 34)}px;font-weight:700;line-height:1.28;letter-spacing:-0.3px">{e(so_what)}</div></div>')
-    src = "; ".join(outlets) if outlets else story.get("source", "")
+                   f'<div style="margin-top:16px;font-size:{max(size - 4, 34)}px;font-weight:700;line-height:1.28;letter-spacing:-0.3px">{t(so_what)}</div></div>')
+    from . import desk
+    src = desk.reported_by(outlets) if outlets else story.get("source", "")
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta(story))}</span>
 <div style="opacity:0.9">{_logo_block(a['logo'], '', 34) if a['logo'] else ''}</div></div>
-<h2 style="margin:72px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:-1px;text-wrap:balance">{e(title)}</h2>
+<h2 style="margin:72px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:-1px;text-wrap:balance">{t(title)}</h2>
 <div style="margin-top:44px;height:2px;width:96px;background:{BLACK}"></div>
 <div style="margin-top:44px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
 <div style="flex:1"></div>
