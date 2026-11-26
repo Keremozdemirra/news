@@ -760,13 +760,12 @@ MON_WED_FRI, TUE_THU, ALL, MON_SAT, SUN = (0, 2, 4), (1, 3), range(7), range(6),
 STORY_SLOTS = {
     "last12": (ALL, lambda d, s, l: _s_last12(d, l)),
     "number": (ALL, lambda d, s, l: _number(d, s, l)),
-    # quizzes: one a day. Each runs on its own days and "complete" backs them up on every day but Sunday, so a day
-    # whose preferred quiz has no data still gets one.
+    # quizzes: one a day, each on its own days. "Complete the headline" is out of the rotation: its decoy verbs can
+    # fit the headline too ("clears" for "corrects"), and a quiz with two right answers is an error.
     "bigger": ((5,), lambda d, s, l: _s_bigger(d, l)),
     "whois": ((0, 3), lambda d, s, l: _s_whois(d, l)),
     "quiz": ((1, 4), lambda d, s, l: _s_quiz(d, l)),
     "fill": ((2,), lambda d, s, l: _s_fill(d, l)),
-    "complete": (MON_SAT, lambda d, s, l: _s_complete(d, l)),
     # features: one a day, in this order of preference
     "company": (MON_WED_FRI, lambda d, s, l: _s_company(d, l)),
     "board": (TUE_THU, lambda d, s, l: _s_board(d, l)),
@@ -778,7 +777,7 @@ STORY_SLOTS = {
     "follow": ((1, 4), lambda d, s, l: _s_follow(d, l)),
     "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),
 }
-QUIZ_SLOTS = ("bigger", "whois", "quiz", "fill", "complete")
+QUIZ_SLOTS = ("bigger", "whois", "quiz", "fill")
 FEATURE_SLOTS = ("company", "board", "person")
 WEEKLY_SLOTS = ("shared", "saved", "numbers", "board")  # the ones whose date label reads "Week 48"
 

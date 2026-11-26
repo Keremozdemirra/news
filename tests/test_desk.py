@@ -935,6 +935,7 @@ class Formats(Tmp):
         self.assertEqual(desk.distractors("five-year"), [])
         self.assertEqual(desk.distractors("AA-"), [])
 
+    @unittest.skip("complete-the-headline is out of the rotation: its decoys can also fit the headline")
     def test_complete_the_headline_never_blanks_a_name_or_a_number(self):
         w = _at(3, 11)  # Thursday
         self.pub("a", "Nvidia halts chip shipments to 14 countries", w, 3, company="Nvidia", score=9)
@@ -1204,13 +1205,11 @@ class Formats(Tmp):
         self.assertEqual(post["user_tags"], [{"username": "boardread", "x": 0.5, "y": 0.5}])
 
     def test_one_quiz_and_one_feature_a_day_the_first_slot_with_data_wins(self):
-        w = _at(0, 11)  # Monday: whois is first, complete backs it up
+        w = _at(0, 11)  # Monday: whois is the quiz; with no portrait there is no quiz that day
         for i, h in enumerate(["Nvidia halts chip shipments", "Mistral suspends cloud shipments", "Intel delays factory plan amid weak demand",
                                "Google cuts costs across divisions", "Amazon limits warehouse hiring", "Meta raises investor payouts"]):
             self.pub(f"h{i}", h, w, 3 + i, company="Nvidia" if i == 0 else "", score=9)
-        got = self.run_at(w, "whois", "complete")
-        self.assertEqual(sorted(got), ["complete", "complete-a"])  # no portraits, so the backup ran
-        self.assertEqual(self.run_at(_at(0, 11, 50), "whois", "complete"), {})  # and nothing a second time that day
+        self.assertEqual(self.run_at(w, "whois"), {})  # no portraits, and no backup quiz any more
 
     def test_nothing_is_built_during_an_instagram_cooldown_or_near_the_daily_limit(self):
         w = _at(3, 6)
@@ -1243,7 +1242,7 @@ class ScheduledStories(Tmp):
         for slot in desk.STORY_SLOTS:
             self.assertRegex(real["story_hours"][slot], r"^\d\d:\d\d$", slot)
         self.assertEqual(set(real["story_hours"]), set(desk.STORY_SLOTS))
-        self.assertFalse(real["story_concepts"])
+        self.assertTrue(real["story_concepts"])  # switched on 2026-11-26 after review
         self.assertFalse(real["stories"])
         self.assertEqual(real["story_hours"]["last12"], "06:15")  # 07:15 CET
         self.assertEqual(real["story_hours"]["top5"], "19:30")  # 20:30 CET

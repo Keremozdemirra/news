@@ -453,6 +453,8 @@ def story_numbers(rows, label):
 
 def story_today(logo_uris, label):
     """In the news today: the logos of the companies in today's headlines, nothing else."""
+    # full rows only: a lone tile on the last row reads as a mistake (2x2, 2x3 or 3x2)
+    logo_uris = logo_uris[:6] if len(logo_uris) >= 6 else logo_uris[:4] if len(logo_uris) >= 4 else logo_uris
     n = len(logo_uris)
     cols = 2 if n <= 4 else 3
     side = (952 - 36 * (cols - 1)) // cols
