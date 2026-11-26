@@ -52,5 +52,12 @@
  "story": "story.jpg",
  "published": "2026-11-26T15:16:27+00:00",
  "media_id": "18113019265903749",
- "permalink": "https://www.instagram.com/p/DgNZ9qbEqxT/"
+ "permalink": "https://www.instagram.com/p/DgNZ9qbEqxT/",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3a5e54ajd2m",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3a5e54ajd2m",
+   "at": "2026-11-26T16:56:47+00:00"
+  }
+ }
 }
