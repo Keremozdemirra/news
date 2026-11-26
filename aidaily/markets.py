@@ -133,7 +133,15 @@ def fetch():
         return rows[-2:]
     jobs["ust"] = treasury
     if os.environ.get("EIA_API_KEY"):
-        jobs["oil"] = lambda: parse_eia(json.loads(_get(EIA.format(key=os.environ["EIA_API_KEY"]))))
+        def oil():
+            # the EIA API is slow (a 20 s limit timed out on the Actions runner); one patient try, then one more
+            for attempt in (1, 2):
+                try:
+                    return parse_eia(json.loads(_get(EIA.format(key=os.environ["EIA_API_KEY"]), timeout=50)))
+                except (OSError, subprocess.SubprocessError):
+                    if attempt == 2:
+                        raise
+        jobs["oil"] = oil
     for key, job in jobs.items():
         try:
             got[key] = job()
