@@ -13,7 +13,9 @@ MODEL = "sonnet"
 MAX_HEADLINE = 80
 DASHES = str.maketrans({"—": ",", "–": "-"})
 
-PROMPT = """You write copy for a daily AI news brand. Audience: people who build with or invest in AI.
+PROMPT = """You write copy for a news brand that posts every story a consultant, manager or business student
+needs to know: business, markets, the economy, politics and elections, world events, technology and AI, and
+the culture moments everyone at work talks about (a record-breaking launch, a viral phenomenon).
 For each story below, return one JSON object. Use ONLY facts present in that story's title and summary.
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
@@ -21,6 +23,10 @@ that sounds quotable. American English. No em or en dashes. No hype words. No "n
 
 Fields:
 - id: copy the id
+- relevant: false if a consultant or manager would not need it: crime and court cases about private
+  people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
+  and advice pieces, product deals and reviews; true otherwise
+- topic: one of AI, Tech, Business, Markets, Economy, Politics, World, Culture
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any
 - dek: one sentence, max 140 characters, the most useful extra fact
 - company: the main company the story is about, as the company names itself ("" if none)
@@ -88,6 +94,8 @@ def verify(story, copy):
                 problems.append(f"{field}: sentence not grounded in source: {sent[:80]}")
     if copy.get("fits_category") is False:
         problems.append("does not fit its slot")
+    if copy.get("relevant") is False:
+        problems.append("not relevant to the audience")
     return problems
 
 
@@ -146,7 +154,7 @@ def apply(stories, reply_rows):
                      linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback")
         else:
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
-                                                 "figure", "x_post", "linkedin_post", "image_query")},
+                                                 "figure", "x_post", "linkedin_post", "image_query", "topic")},
                      copy_status="ok")
             # a logo for an organisation the source never names would put a company on a story it is not in
             src = (s["title"] + " " + s.get("summary", "")).lower()

@@ -105,7 +105,7 @@ def pick(manifest, stories, weights):
     return [(m, s) for _, m, s in rows]
 
 
-FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|News)$")
+FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|Economy|Markets|Finance|Venture)$")
 
 
 def outlet(name):
@@ -122,15 +122,13 @@ def outlets(m, s):
     return out[:4]
 
 
-TOPIC_TAG = {"funding": "#startups", "policy": "#techpolicy", "launch": "#technews", "markets": "#business",
-             "business": "#business", "research": "#airesearch", "statement": "#technews", "news": "#technews"}
-
-
 def hashtags(m, s):
-    tags = list(CONFIG["hashtags"][:2])
+    """Two house tags, the story's topic, the main company: five at most, Instagram's cap."""
+    tags = list(CONFIG["hashtags"])
+    topic = CONFIG["topic_tags"].get(s.get("topic") or "", "")
     co = re.sub(r"[^a-z0-9]", "", (s.get("company") or "").lower())
-    for t in ([f"#{co}"] if 2 < len(co) < 25 else []) + [TOPIC_TAG.get(m["category"], "#technews")] + CONFIG["hashtags"][2:]:
-        if t not in tags:
+    for t in [topic] + ([f"#{co}"] if 2 < len(co) < 25 else []):
+        if t and t not in tags:
             tags.append(t)
     return tags[:5]
 
@@ -143,7 +141,7 @@ def body(s):
 def caption(m, s):
     src = outlets(m, s)
     lines = [m["headline"], "", body(s) or s.get("dek", ""), "",
-             f"Source{'s' if len(src) > 1 else ''}: {'; '.join(src)}.", CONFIG["ai_note"], "",
+             f"Reported by {'; '.join(src)}. {CONFIG['ai_note']}", "",
              CONFIG["source_line"], CONFIG["send_line"], "", " ".join(hashtags(m, s))]
     text = "\n".join(lines)
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
@@ -223,7 +221,7 @@ def queue(day_dir, batch=None, render=True):
                 "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
                 "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
-                "categories": [m["category"]], "photo_file": m.get("photo_file", ""),
+                "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]

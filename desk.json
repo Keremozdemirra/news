@@ -6,14 +6,11 @@
   "reply_daily_cap": 20,
   "reply_window_days": 7,
   "hashtags": [
-    "#ai",
-    "#ainews",
-    "#artificialintelligence",
-    "#technews",
-    "#machinelearning"
+    "#news",
+    "#business"
   ],
-  "send_line": "Follow for AI news through the day.",
-  "ai_note": "Summary written with AI from the reports named above and checked against them.",
+  "send_line": "Follow for the news that moves business.",
+  "ai_note": "Summary written with AI, checked against the reports.",
   "media_branch": "media",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
   "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[\u2019']m a|q&a|interview with|what .{0,30} daily routine|review:",
@@ -32,9 +29,45 @@
   "max_age_hours": 24,
   "site_url": "https://keremozdemir.de/news",
   "source_keyword": "SOURCE",
-  "source_line": "Comment SOURCE and we'll DM you the full story with links.",
-  "source_dm": "Here is the full story and every source for \"{headline}\": {url}",
+  "source_line": "Want the sources? Comment SOURCE and we'll send them to your DMs.",
+  "source_dm": "Sources for \"{headline}\": {url}",
   "newsletter_url": "",
   "media_keep_days": 3,
-  "thumb_keep_days": 120
+  "thumb_keep_days": 120,
+  "topic_tags": {
+    "AI": "#ai",
+    "Tech": "#tech",
+    "Business": "#business",
+    "Markets": "#markets",
+    "Economy": "#economy",
+    "Politics": "#politics",
+    "World": "#worldnews",
+    "Culture": "#entertainment"
+  },
+  "accounts": [
+    {
+      "name": "Instagram",
+      "url": ""
+    },
+    {
+      "name": "Threads",
+      "url": ""
+    },
+    {
+      "name": "X",
+      "url": ""
+    },
+    {
+      "name": "Bluesky",
+      "url": ""
+    },
+    {
+      "name": "Telegram",
+      "url": ""
+    },
+    {
+      "name": "Facebook",
+      "url": ""
+    }
+  ]
 }

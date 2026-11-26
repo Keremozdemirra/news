@@ -34,9 +34,13 @@ class Rank(unittest.TestCase):
         stories = rank.rank(many + one, SRC, now=NOW)
         self.assertIn("Rubin", stories[0]["title"])
 
-    def test_drops_old_and_off_topic(self):
-        items = [it("OpenAI launches something", "tc", hours=50), it("Best pizza in Berlin", "tc")]
-        self.assertEqual(rank.rank(items, SRC, now=NOW), [])
+    def test_drops_old_items_and_off_topic_board_posts(self):
+        # newsroom items stay whatever the topic (relevance is judged per story later); a discussion
+        # board's post stays only when it is about AI
+        src = dict(SRC, hn={"name": "HN Front Page", "category": "community"})
+        items = [it("OpenAI launches something", "tc", hours=50), it("Best pizza in Berlin", "hn"),
+                 it("Election results reshape parliament", "tc")]
+        self.assertEqual([s["title"] for s in rank.rank(items, src, now=NOW)], ["Election results reshape parliament"])
 
     def test_business_filler_kept_and_labelled(self):
         stories = rank.rank([it("Fed holds rates steady", "biz")], SRC, now=NOW)

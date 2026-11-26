@@ -35,7 +35,7 @@ BIG = re.compile(r"\b(openai|anthropic|google|deepmind|meta|microsoft|apple|nvid
                  r"jensen huang|elon musk|satya nadella|sundar pichai|mark zuckerberg)\b", re.I)
 
 WEIGHT = {"lab": 3.0, "news": 2.0, "newsletter": 1.5, "funding": 2.0, "community": 1.0,
-          "research": 1.0, "business": 0.8}
+          "research": 1.0, "business": 2.0, "world": 2.0, "politics": 2.0, "culture": 1.2}
 
 STOP = set("a an the of to in on for and or with by at from as is are was be its it this that "
            "after over new into how why what who will can up out about more than says said have has would "
@@ -154,7 +154,8 @@ def score_story(story, sources, now=None):
 
 def pick_lead(items, sources):
     """The item whose outlet ranks highest carries the headline and the link."""
-    order = {"lab": 0, "news": 1, "funding": 1, "newsletter": 2, "research": 3, "community": 4, "business": 2}
+    order = {"lab": 0, "news": 1, "funding": 1, "world": 1, "politics": 1, "business": 1, "culture": 2,
+             "newsletter": 2, "research": 3, "community": 4}
     return min(items, key=lambda i: (order.get(sources.get(i["source_id"], {}).get("category"), 5),
                                      -(i["published"].timestamp() if i.get("published") else 0)))
 
@@ -166,7 +167,9 @@ def rank(items, sources, now=None, max_age_h=36):
         cat = sources.get(it["source_id"], {}).get("category")
         if it.get("published") and (now - it["published"]).total_seconds() > max_age_h * 3600:
             continue
-        if cat in ("lab",) or cat == "business" or is_ai(it):
+        # the desk covers what a consultant or manager needs to know, not only AI: every newsroom item is
+        # kept, and discussion boards only when they are about AI (relevance is judged later, per story)
+        if cat != "community" or is_ai(it):
             keep.append(it)
     out = []
     for s in cluster(keep):

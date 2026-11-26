@@ -58,9 +58,40 @@ article img{width:100%;border:1px solid var(--line);border-radius:6px}
 article h1{font-size:38px;line-height:1.08;letter-spacing:-.8px;margin:0 0 18px}
 .sources li{margin:6px 0}.cta{margin-top:28px;padding:18px 20px;border:1px solid var(--line);border-radius:8px}
 ol.week{padding-left:22px}ol.week li{margin:0 0 26px}
+.strip{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:14px 0;border-bottom:1px solid var(--line);color:var(--grey);font-size:15px}
+.strip b{color:var(--ink)}.follow a{margin-left:16px;font-weight:600;color:var(--ink);text-decoration:none}.n{color:var(--grey);font-weight:400}
 footer{margin-top:64px;padding-top:18px;border-top:1px solid var(--line);color:var(--grey);font-size:14px}
 @media(max-width:760px){article{grid-template-columns:1fr}article h1{font-size:30px}}
 """
+
+
+def stats():
+    """Followers per platform from the latest weekly file, and the counts the desk itself keeps."""
+    latest = sorted((desk.STATE / "insights").glob("*.json"))
+    acct = desk._load(latest[-1], {}).get("account", {}) if latest else {}
+    followers = {"Instagram": acct.get("followers_count")} if acct.get("followers_count") else {}
+    followers.update(desk._load(desk.STATE / "followers.json", {}))
+    pub = published()
+    return {"followers": followers, "stories": len(pub),
+            "sources": len({x for p in pub for x in p.get("sources") or []})}
+
+
+def strip():
+    """Where to follow, and the numbers: only accounts that exist, only figures the desk measured."""
+    st = stats()
+    links = [f'<a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}'
+             + (f' <span class="n">{st["followers"][a["name"]]:,}</span>' if st["followers"].get(a["name"]) else "")
+             + "</a>" for a in desk.CONFIG.get("accounts", []) if a.get("url")]
+    total = sum(v for v in st["followers"].values() if isinstance(v, int))
+    nums = [f"<b>{st['stories']:,}</b> stories"] if st["stories"] else []
+    if st["sources"]:
+        nums.append(f"<b>{st['sources']}</b> newsrooms cited")
+    if total:
+        nums.append(f"<b>{total:,}</b> followers")
+    if not links and not nums:
+        return ""
+    return (f'<div class="strip"><span>{" · ".join(nums)}</span>'
+            f'<span class="follow">{"".join(links)}</span></div>')
 
 
 def page(title, body, desc=""):
@@ -73,17 +104,18 @@ def page(title, body, desc=""):
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 <link rel="alternate" type="application/rss+xml" title="loopbrief" href="{BASE}/feed.xml">
 <style>{CSS}</style></head><body><main>
-<header><div><a class="brand" href="{BASE}/">loopbrief</a> <span class="tag">AI news through the day</span></div>
-<nav><a href="{BASE}/week/">Weekly</a>{sub}<a href="{BASE}/feed.xml">RSS</a></nav></header>
+<header><div><a class="brand" href="{BASE}/">loopbrief</a> <span class="tag">The news that moves business</span></div>
+<nav><a href="{BASE}/week/">Top 10</a>{sub}<a href="{BASE}/feed.xml">RSS</a></nav></header>
+{strip()}
 {body}
-<footer>Summaries are written with AI from the reports they cite and checked against them. Every story links its sources.
+<footer>Summaries written with AI, checked against the reports they cite. Every story links its sources.
 <br><a href="/impressum/">Impressum</a> · <a href="/privacy/">Privacy</a> · <a href="/">keremozdemir.de</a></footer>
 </main></body></html>"""
 
 
 def card(p):
     return (f'<div class="item"><a href="{BASE}/s/{p["id"]}/"><img src="{BASE}/img/{p["id"]}.jpg" alt="" loading="lazy">'
-            f'<h2>{E(p["headlines"][0])}</h2></a><div class="meta">{E((p.get("categories") or [""])[0].title())} · '
+            f'<h2>{E(p["headlines"][0])}</h2></a><div class="meta">{E(p.get("topic") or (p.get("categories") or [""])[0].title())} · '
             f'{when(p["published"])}</div></div>')
 
 
@@ -94,10 +126,10 @@ def story(p):
     ig = f'<p><a href="{E(p["permalink"])}">See the post on Instagram</a></p>' if p.get("permalink") else ""
     credit = f'<p class="meta">{E(p["credit"])}</p>' if p.get("credit") else ""
     return page(p["headlines"][0], f"""<article><div><img src="{BASE}/img/{p['id']}.jpg" alt="">{credit}</div><div>
-<div class="meta">{E((p.get('categories') or [''])[0].title())} · {when(p['published'])}</div>
+<div class="meta">{E(p.get('topic') or (p.get('categories') or [''])[0].title())} · {when(p['published'])}</div>
 <h1>{E(p['headlines'][0])}</h1>{paras}
 <h3>Reported by {E('; '.join(p.get('sources') or []))}</h3><ul class="sources">{srcs}</ul>{ig}
-<div class="cta">Every week, the ten stories readers shared most: <a href="{BASE}/week/">read this week's issue</a>.</div>
+<div class="cta"><a href="{BASE}/week/">This week's Top 10</a>: the stories readers shared most.</div>
 </div></article>""", p.get("dek", ""))
 
 
@@ -105,14 +137,14 @@ def week_page(week, rows):
     items = "".join(f'<li><a href="{BASE}/s/{p["id"]}/"><strong>{E(p["headlines"][0])}</strong></a><br>'
                     f'{E(p.get("dek", ""))}<br><span class="meta">{E("; ".join(p.get("sources") or []))}</span></li>'
                     for p in rows)
-    return f'<h1>The week in AI, {week}</h1><p class="meta">The {len(rows)} stories readers shared most.</p><ol class="week">{items}</ol>'
+    return f'<h1>Top 10 · {week}</h1><p class="meta">Most shared this week.</p><ol class="week">{items}</ol>'
 
 
 def rss(title, link, items):
     body = "".join(f"<item><title>{E(t)}</title><link>{E(u)}</link><guid>{E(u)}</guid><pubDate>{d}</pubDate>"
                    f"<description>{E(desc)}</description></item>" for t, u, d, desc in items)
     return (f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>{E(title)}</title>'
-            f"<link>{E(link)}</link><description>AI news through the day</description>{body}</channel></rss>")
+            f"<link>{E(link)}</link><description>The news that moves business</description>{body}</channel></rss>")
 
 
 def build(out=desk.HERE / "_site"):
@@ -127,10 +159,10 @@ def build(out=desk.HERE / "_site"):
         if thumb.exists():
             shutil.copy(thumb, out / "img" / f"{p['id']}.jpg")
             shown.append(p)
-    (out / "index.html").write_text(page("loopbrief: AI news through the day",
+    (out / "index.html").write_text(page("loopbrief · The news that moves business",
                                          f'<div class="grid">{"".join(card(p) for p in shown[:120])}</div>'
                                          if shown else "<p>The first stories are on their way.</p>",
-                                         "Every important AI story, one post each, with its sources."))
+                                         "Business, markets, politics, tech and AI: every story that matters, with its sources."))
     for p in shown:
         d = out / "s" / p["id"]
         d.mkdir(parents=True)
@@ -144,19 +176,19 @@ def build(out=desk.HERE / "_site"):
         top = sorted(weeks[wk], key=shared, reverse=True)[:10]
         d = out / "week" / wk
         d.mkdir(parents=True)
-        (d / "index.html").write_text(page(f"The week in AI, {wk}", week_page(wk, top)))
+        (d / "index.html").write_text(page(f"Top 10 · {wk}", week_page(wk, top)))
         if wk != this_week:  # an unfinished week is not an issue yet
             issues.append((wk, top))
     latest = issues[0][0] if issues else (sorted(weeks)[-1] if weeks else None)
     (out / "week").mkdir(exist_ok=True)
-    (out / "week" / "index.html").write_text(page("The week in AI",
+    (out / "week" / "index.html").write_text(page("Top 10",
         (f'<p>Latest issue: <a href="{BASE}/week/{latest}/">{latest}</a></p>' if latest else "<p>No issue yet.</p>")
         + "<ul>" + "".join(f'<li><a href="{BASE}/week/{w}/">{w}</a></li>' for w in sorted(weeks, reverse=True)) + "</ul>"))
     (out / "feed.xml").write_text(rss("loopbrief", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(datetime.fromisoformat(p["published"])), p.get("dek", ""))
         for p in shown[:50]]))
     (out / "weekly.xml").write_text(rss("loopbrief weekly", SITE + "/week/", [
-        (f"The week in AI, {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/",
+        (f"Top 10 · {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/",
          format_datetime(datetime.fromisoformat(top[0]["published"]) + timedelta(days=1)),
          " · ".join(p["headlines"][0] for p in top)) for wk, top in issues[:12]]))
     (out / ".nojekyll").write_text("")

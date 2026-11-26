@@ -86,8 +86,12 @@ def head():
             "<style>body{margin:0}*{box-sizing:border-box}h1{text-wrap:balance}</style></head><body>")
 
 
+TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"}
+
+
 def _meta(story):
-    parts = [LABEL.get(story.get("category"), "News"), day(story)]
+    topic = story.get("topic") if story.get("topic") in TOPICS else LABEL.get(story.get("category"), "News")
+    parts = [topic, day(story)]
     return " · ".join(p for p in parts if p)
 
 
@@ -222,7 +226,7 @@ def daily_cover(day_label, headlines, brand=BRAND):
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="font-size:24px;font-weight:500;color:{GREY}">{e(day_label)}</div>
-<h1 style="margin:88px 0 0;font-size:128px;font-weight:800;line-height:0.95;letter-spacing:-3px">AI today, in {len(headlines)} stories</h1>
+<h1 style="margin:88px 0 0;font-size:128px;font-weight:800;line-height:0.95;letter-spacing:-3px">Today: {len(headlines)} stories</h1>
 <div style="flex:1"></div>
 <ol style="list-style:none;margin:0;padding:0;font-size:{30 if len(headlines) <= 5 else 27}px;font-weight:500;line-height:1.25">{items}</ol>
 <div style="margin-top:64px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
@@ -234,7 +238,7 @@ def carousel(stories, week_label, brand=BRAND):
     """LinkedIn document post: a cover, then one card per story, printed to PDF."""
     cover = f"""<section style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column;page-break-after:always">
 <div style="font-size:24px;font-weight:500;color:{GREY}">{e(week_label)}</div><div style="flex:1"></div>
-<h1 style="margin:0;font-size:120px;font-weight:800;line-height:0.95;letter-spacing:-3px">The week in AI, in {len(stories)} stories</h1>
+<h1 style="margin:0;font-size:120px;font-weight:800;line-height:0.95;letter-spacing:-3px">Top {len(stories)} this week</h1>
 <div style="margin-top:64px;font-size:34px;font-weight:800">{e(brand['name'])}</div></section>"""
     pages = [cover]
     for s in stories:
