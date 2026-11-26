@@ -23,7 +23,7 @@
   "sport"
  ],
  "topic": "Sport",
- "photo_file": "Bubbles - Vitality Stadium - geograph.org.uk - 7675247.jpg",
+ "photo_file": "Boxing ring, MGM Grand.jpg",
  "score": 9.473,
  "figure": "five",
  "company": "Bournemouth",
@@ -39,9 +39,10 @@
  "source_urls": [
   "https://www.bbc.co.uk/sport/football/articles/cmq5v84vw818o?at_medium=RSS&at_campaign=rss"
  ],
- "credit": "Photo: Mr Ignavy, CC BY-SA 2.0, via Wikimedia Commons",
- "photo_kind": "photo",
+ "credit": "Photo: Alan Kotok, CC BY 2.0, via Wikimedia Commons",
+ "photo_kind": "scene",
  "status": "web",
  "published": "2026-11-26T23:41:58+00:00",
- "story": ""
+ "story": "",
+ "photo_alt": "A boxing ring"
 }

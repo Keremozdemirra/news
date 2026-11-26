@@ -23,7 +23,7 @@
   "sport"
  ],
  "topic": "Sport",
- "photo_file": "Team buses - Vitality Stadium - geograph.org.uk - 7881628.jpg",
+ "photo_file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg",
  "score": 9.625,
  "figure": "2-1",
  "company": "Bournemouth",
@@ -39,9 +39,10 @@
  "source_urls": [
   "https://www.theguardian.com/football/2026/nov/26/europa-league-roundup-bournemouth-celta-vigo-celtic-milan-benfica"
  ],
- "credit": "Photo: Mr Ignavy, CC BY-SA 2.0, via Wikimedia Commons",
- "photo_kind": "photo",
+ "credit": "Photo: Tom Reynolds from Melbourne, Australia, CC BY 2.0, via Wikimedia Commons",
+ "photo_kind": "scene",
  "status": "web",
  "published": "2026-11-26T23:41:56+00:00",
- "story": ""
+ "story": "",
+ "photo_alt": "An empty pit straight at a racing circuit"
 }
