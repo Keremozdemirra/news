@@ -41,6 +41,14 @@ jobs:
       - name: Media branch
         if: steps.changed.outputs.build == 'yes'
         run: scripts/media.sh pull
+      - name: EIA reachability (status and time only, never the key)
+        if: steps.changed.outputs.build == 'yes'
+        continue-on-error: true
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: |
+          curl -sS -m 40 -o /dev/null -w 'eia root: http %{http_code} in %{time_total}s\n' "https://api.eia.gov/v2/?api_key=$EIA_API_KEY" || echo "eia root: curl failed ($?)"
+          curl -sS -m 40 -o /dev/null -w 'eia spot: http %{http_code} in %{time_total}s\n' "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&frequency=daily&data[0]=value&facets[series][]=RBRTE&length=1" -g || echo "eia spot: curl failed ($?)"
       - name: Build
         if: steps.changed.outputs.build == 'yes'
         env:
