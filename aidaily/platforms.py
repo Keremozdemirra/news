@@ -237,8 +237,15 @@ class Facebook(Client):
                 me = self.form("GET", f"{self.host}/{self.version}/me",
                                {"fields": "id,name", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET me")
                 self.env["FB_PAGE_ID"] = str(me["id"])
-            got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
-                            {"fields": "name,access_token", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
+            try:
+                got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
+                                {"fields": "name,access_token", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
+            except PlatformError as e:
+                # a Page token cannot read its own access_token field: then the stored token is already the Page's
+                if "nonexisting field (access_token)" not in str(e):
+                    raise
+                got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
+                                {"fields": "name", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
             self._page_token = got.get("access_token") or self.env["FB_PAGE_TOKEN"]
             self.env["_page_token"] = self._page_token  # scrubbed from errors like the stored secrets
             self.page_name = got.get("name", "")
