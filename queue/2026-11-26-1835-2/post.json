@@ -1,0 +1,46 @@
+{
+ "id": "2026-11-26-1835-2",
+ "batch": "2026-11-26-1835",
+ "n": 2,
+ "created": "2026-11-26T18:35:27+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Hugging Face introduces llama.cpp benchmark dashboard for AMD Ryzen and Radeon\n\nHugging Face has introduced a llama.cpp benchmark dashboard for AMD Ryzen and Radeon. The dashboard covers AMD Ryzen and Radeon hardware.\n\nReported by Hugging Face Blog. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #ai",
+ "urls": [
+  "https://huggingface.co/blog/ggml-org/llamacpp-amd-bench"
+ ],
+ "links": [
+  "https://huggingface.co/blog/ggml-org/llamacpp-amd-bench"
+ ],
+ "headlines": [
+  "Hugging Face introduces llama.cpp benchmark dashboard for AMD Ryzen and Radeon"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "AI",
+ "photo_file": "",
+ "score": 8.038,
+ "figure": "",
+ "company": "",
+ "person": "",
+ "logo_names": [
+  "AMD"
+ ],
+ "dek": "The dashboard covers AMD Ryzen and Radeon hardware.",
+ "body": "Hugging Face has introduced a llama.cpp benchmark dashboard for AMD Ryzen and Radeon. The dashboard covers AMD Ryzen and Radeon hardware.",
+ "so_what": "",
+ "sources": [
+  "Hugging Face Blog"
+ ],
+ "source_urls": [
+  "https://huggingface.co/blog/ggml-org/llamacpp-amd-bench"
+ ],
+ "credit": "",
+ "status": "web",
+ "published": "2026-11-26T18:35:27+00:00",
+ "story": ""
+}
