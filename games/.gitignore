@@ -1,1 +1,3 @@
 .cache/
+# the repo-wide "assets/" rule is for generated output; a game keeps its fonts and puzzle under assets/
+!assets/

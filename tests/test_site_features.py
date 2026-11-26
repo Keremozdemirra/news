@@ -418,3 +418,10 @@ class Play(Features):
         from aidaily import play
         with mock.patch.object(play, "GAMES", [("topfloor", "T", "x", False), ("ghost", "G", "x", True)]):
             self.assertEqual(play.live(), [])
+
+    def test_no_game_file_is_git_ignored(self):
+        import subprocess
+        from aidaily import play
+        files = [str(f) for f in play.GAMES_DIR.rglob("*") if f.is_file() and ".cache" not in f.parts]
+        r = subprocess.run(["git", "check-ignore", *files], capture_output=True, text=True, cwd=play.GAMES_DIR)
+        self.assertEqual(r.stdout.strip(), "", "ignored by .gitignore, so they would be missing on the deployed site")
