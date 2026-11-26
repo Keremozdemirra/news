@@ -20,7 +20,10 @@ def on(**names):
 ST = {"title": "Norse Atlantic suspends all flights as it faces potential collapse",
       "summary": "The carrier is looking for urgent funding, but will file for bankruptcy without a financial lifeline."}
 ROW = {"headline": "Norse Atlantic suspends all flights as it faces potential collapse",
-       "dek": "The carrier seeks urgent funding and will file for bankruptcy without it."}
+       "dek": "The carrier seeks urgent funding and will file for bankruptcy without it.",
+       "linkedin_post": "Norse Atlantic has suspended all flights as it faces potential collapse. The carrier is looking for "
+                        "urgent funding. It will file for bankruptcy without a financial lifeline.\n\nSource: BBC"}
+GOOD = "Passengers booked with the carrier cannot fly while all of its flights are suspended."
 
 
 class Defaults(unittest.TestCase):
@@ -42,19 +45,31 @@ class SoWhat(unittest.TestCase):
         return copy.check_so_what(st, row, text)
 
     def test_accepts_a_grounded_consequence(self):
-        self.assertEqual(self.check("The airline has stopped flying and faces bankruptcy unless it secures funding."), [])
+        self.assertEqual(self.check(GOOD), [])
 
-    def test_rejects_restatement(self):
-        self.assertIn("repeats the headline or dek", self.check("Norse Atlantic suspends all flights as it faces collapse."))
+    def test_rejects_restatement_of_headline_dek_or_any_body_sentence(self):
+        for t in ("Norse Atlantic suspends all flights as it faces collapse for passengers.",
+                  "The carrier is looking for urgent funding from lenders.",  # a body sentence
+                  "Passengers see it file for bankruptcy without a financial lifeline."):  # another body sentence
+            self.assertTrue(any("repeats" in p for p in self.check(t)), t)
+
+    def test_rejects_a_line_that_names_no_group(self):
+        self.assertIn("names no affected group", self.check("The airline has stopped flying and faces bankruptcy unless it secures funding."))
+
+    def test_a_consequence_with_sell_or_buy_is_not_advice(self):
+        st = {"title": "New York bans sale of chatbot toys", "summary": "The ban lasts five years."}
+        row = {"headline": "New York bans sale of chatbot toys", "dek": "The ban lasts five years."}
+        got = copy.check_so_what(st, row, "Retailers cannot sell the toys to buy-side clients there.")
+        self.assertFalse([p for p in got if "advice" in p], got)
 
     def test_rejects_new_number_and_new_name(self):
         self.assertTrue(any("numbers" in p for p in self.check("Customers face delays on 40 routes without funding.")))
-        self.assertTrue(any("name not in source" in p for p in self.check("Customers of the carrier will turn to Lufthansa without funding.")))
+        self.assertTrue(any("name not in source" in p for p in self.check("Customers of the carrier turn to Lufthansa without funding.")))
 
     def test_rejects_advice_speculation_slop_and_shape(self):
-        for t in ("Investors should avoid the carrier without funding.", "The carrier could collapse without funding.",
-                  "Delays hit the carrier, not just its funding, but its customers.", "What happens to the carrier without funding?",
-                  "The carrier unlocks a landscape of funding trouble without a lifeline."):
+        for t in ("Investors should avoid the carrier without funding.", "Customers of the carrier could lose out without funding.",
+                  "Delays hit the carrier, not just its funding, but its customers.", "What happens to customers without funding?",
+                  "Customers face a landscape of funding trouble without a lifeline."):
             self.assertTrue(self.check(t), t)
 
     def test_rejects_long_and_empty(self):
@@ -62,7 +77,7 @@ class SoWhat(unittest.TestCase):
         self.assertEqual(self.check(""), ["empty"])
 
     def test_apply_keeps_the_line_only_when_on_and_clean(self):
-        good = "The airline has stopped flying and faces bankruptcy unless it secures funding."
+        good = GOOD
         rows = [{"id": 0, **ROW, "topic": "Business", "so_what": good, "relevant": True, "fits_category": True}]
         for state, want in ((True, good), (False, "")):
             story = dict(ST, source="BBC")

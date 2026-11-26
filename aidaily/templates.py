@@ -445,36 +445,39 @@ def carousel(stories, week_label, brand=BRAND):
     return head().replace("</style>", "@page{size:1080px 1350px;margin:0}</style>") + "".join(pages) + "</body></html>"
 
 
-# The daily recap reel: 1080x1920 frames in the card style (white ground, Libre Franklin, no accent colour).
-# The opening line is the brand and the date, nothing that announces the video.
+# The daily recap reel: 1080x1920 frames on the story canvas (near-black ground, light type, Libre Franklin),
+# the same dark the stories use. The opening frame is the wordmark and the date, nothing that announces the video.
 
 def _reel_shell(inner):
-    return head() + (f'<div style="width:1080px;height:1920px;background:{WHITE};color:{BLACK};'
-                     f"font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column;padding:0\">{inner}</div></body></html>")
+    return head() + (f'<div style="width:1080px;height:1920px;background:{STORY_BG};color:#f2f2f0;'
+                     f"font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column\">{inner}</div></body></html>")
 
 
-def reel_cover(date_label):
-    """date_label is the whole opening line, "Boardread · 26 Nov"."""
+def reel_cover(date_label, brand=BRAND):
+    """date_label is the day, "26 Nov"."""
     return _reel_shell(
-        f'<div style="flex:1;display:flex;align-items:center;padding:0 72px">'
-        f'<div style="font-size:92px;font-weight:800;letter-spacing:-3px;line-height:1.05">{e(date_label)}</div></div>')
+        f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 72px">'
+        f'<div style="font-size:150px;font-weight:800;letter-spacing:-6px;line-height:1">{e(brand["name"])}</div>'
+        f'<div style="margin-top:36px;font-size:84px;font-weight:600;color:#9aa0a8;letter-spacing:-2px">{e(date_label)}</div></div>')
 
 
 def reel_card(n, total, headline, topic, card_uri=""):
-    """One story. With the post's own card image it is shown whole under a counter; without it the headline is set big."""
-    top = (f'<div style="padding:120px 72px 0;display:flex;justify-content:space-between;align-items:baseline;'
-           f'font-size:34px;font-weight:600;color:{GREY}"><span>{n:02d} / {total:02d}</span><span>{e(topic)}</span></div>')
+    """One story: the card at full width, centred, under a kicker big enough to read on a phone. Without the card
+    image the headline is set large instead."""
+    kicker = (f'<div style="padding:150px 72px 0;display:flex;justify-content:space-between;align-items:baseline;'
+              f'font-size:46px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#9aa0a8">'
+              f'<span>{n:02d} / {total:02d}</span><span>{e(topic)}</span></div>')
     if card_uri:
         mid = (f'<div style="flex:1;display:flex;align-items:center"><img src="{card_uri}" '
                f'style="width:1080px;height:1350px;display:block"></div>')
     else:
         mid = (f'<div style="flex:1;display:flex;align-items:center;padding:0 72px"><h1 style="margin:0;'
                f'font-size:{_size(headline, 104, 92, 78)}px;font-weight:800;line-height:1.02;letter-spacing:-2px">{e(headline)}</h1></div>')
-    # the card already carries the brand; the frame needs only the counter above it
-    return _reel_shell(top + mid + '<div style="height:120px"></div>')
+    return _reel_shell(kicker + mid + '<div style="height:150px"></div>')
 
 
-def reel_end(url="keremozdemir.de/news"):
+def reel_end(url="keremozdemir.de/news", line="Sources for every story"):
     return _reel_shell(
         f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 72px">'
-        f'<div style="font-size:84px;font-weight:800;letter-spacing:-3px;line-height:1.05">{e(url)}</div></div>')
+        f'<div style="font-size:92px;font-weight:800;letter-spacing:-3px;line-height:1.05">{e(url)}</div>'
+        f'<div style="margin-top:36px;font-size:64px;font-weight:600;color:#9aa0a8;letter-spacing:-1.5px">{e(line)}</div></div>')

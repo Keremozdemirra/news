@@ -39,7 +39,7 @@ def today():
 
 
 def date_label(now=None):
-    return f"Boardread · {(now or desk.now()):%-d %b}"
+    return f"{(now or desk.now()):%-d %b}"
 
 
 def cfg(name, default):
@@ -87,7 +87,7 @@ def frames(posts, out_dir, now=None):
     """Cover, one frame per post, end frame, as 1080x1920 PNGs. Returns the paths in order."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    pages = [("00-cover", T.reel_cover(date_label(now)))]
+    pages = [("00-cover", T.reel_cover(date_label(now)))]  # wordmark "boardread." above the date
     for i, p in enumerate(posts, 1):
         card = desk.MEDIA / p["id"] / "card.jpg"
         uri = card.resolve().as_uri() if card.exists() else ""
@@ -101,31 +101,32 @@ def frames(posts, out_dir, now=None):
     return paths
 
 
-def assemble(pngs, out_mp4, seconds=3, cover_seconds=2, end_seconds=2):
-    """Hard cuts, 30 fps. Built to Instagram's Reels spec: MP4, H.264 4:2:0 progressive with a closed GOP,
-    AAC 48 kHz mono (a silent track: some clients refuse a Reel with no audio stream), 1080x1920, no edit
-    lists (-use_editlist 0), moov atom first (+faststart)."""
+def assemble(pngs, out_mp4, seconds=3, cover_seconds=2, end_seconds=2, fade=0.3):
+    """Frames joined by a short crossfade (ffmpeg xfade), 30 fps. Built to Instagram's Reels spec: MP4, H.264
+    4:2:0 progressive with a closed GOP, AAC 48 kHz mono (a silent track: some clients refuse a Reel with no audio
+    stream), 1080x1920, no edit lists (-use_editlist 0), moov atom first (+faststart). Each frame holds for its
+    full time; the fade overlaps the start of the next one, so the total is the sum of the holds."""
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
     out_mp4 = Path(out_mp4)
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     holds = [cover_seconds] + [seconds] * (len(pngs) - 2) + [end_seconds]
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
-        for png, d in zip(pngs, holds):
-            f.write(f"file '{Path(png).resolve()}'\nduration {d}\n")
-        f.write(f"file '{Path(pngs[-1]).resolve()}'\n")  # the concat demuxer drops the last duration without a repeat
-        listing = f.name
-    try:
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listing,
-                        "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono",
-                        "-vf", "scale=1080:1920,fps=30,format=yuv420p",
-                        "-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "20",
-                        "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-sc_threshold", "0",
-                        "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "1", "-shortest",
-                        "-movflags", "+faststart", "-use_editlist", "0", str(out_mp4)],
-                       check=True, capture_output=True, text=True, timeout=300)
-    finally:
-        Path(listing).unlink(missing_ok=True)
+    cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+    for i, (png, d) in enumerate(zip(pngs, holds)):
+        cmd += ["-framerate", "30", "-loop", "1", "-t", f"{d + (fade if i < len(pngs) - 1 else 0):.2f}", "-i", str(png)]
+    chain, label, at = [], "[0:v]", 0.0
+    for i in range(1, len(pngs)):
+        at += holds[i - 1]
+        out = f"[x{i}]"
+        chain.append(f"{label}[{i}:v]xfade=transition=fade:duration={fade}:offset={at:.2f}{out}")
+        label = out
+    chain.append(f"{label}scale=1080:1920,fps=30,format=yuv420p[v]")
+    cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-filter_complex", ";".join(chain), "-map", "[v]",
+            "-map", f"{len(pngs)}:a", "-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "20",
+            "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-sc_threshold", "0",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "1", "-shortest",
+            "-movflags", "+faststart", "-use_editlist", "0", str(out_mp4)]
+    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
     return out_mp4
 
 

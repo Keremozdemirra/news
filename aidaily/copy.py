@@ -61,12 +61,19 @@ STORIES:
 # Added to the prompt only while desk.json growth.so_what is true. It overrides the "do not interpret" rule above
 # for this one field, which is why the field text repeats the limits instead of leaning on them.
 SO_WHAT_FIELD = """
-- so_what: the one field where you do say what the story means, overriding the rule above. ONE plain sentence,
-  max 22 words, for a manager, investor or business student: the practical consequence that follows from facts
-  in the source, stated as fact. Do not restate the headline or dek. Use only words and facts from the source plus
-  plain connecting words. No advice ("should", "must"), no prediction ("could", "might", "likely", "will"), no
-  question, no new number or name. Example for "Bank X cuts 3,000 jobs after profit falls": "The bank is lowering
-  its costs after weaker profit." Return "" only when the source gives nothing to build on"""
+- so_what: the one field where you do say what the story means, overriding the rule above. Most stories
+  support one. ONE plain sentence, max 22 words, naming what the story changes for a specific group: customers,
+  passengers, creditors, lenders, competitors, suppliers, investors, shareholders, employees, a market, a
+  regulator, a country. The consequence must follow directly from a fact stated in the source, and you state it
+  as fact: no advice ("should", "must"), no prediction ("could", "might", "likely", "will"), no question, no
+  new number or name. It must say something the headline, dek and body do not already say. Return "" only when
+  the source gives no consequence beyond what those already say.
+  Good, for "Bank X cuts 3,000 jobs after profit falls": "Employees at the bank lose positions while it
+  lowers costs."
+  Good, for "Takeover bid would delist Company Z, the source says it leaves the exchange with fewer large
+  companies": "The exchange loses one of its large listed companies."
+  Bad: "The airline has stopped flying and faces bankruptcy." (restates the story, names no group)
+  Bad: "Investors should avoid airline stocks." (advice, not in the source)"""
 
 
 def switch(name):
@@ -87,10 +94,16 @@ CULTURE = re.compile(r"\b(film|films|movie|movies|box office|game|games|gaming|c
                      r"concert|tour|sport|sports|football|soccer|nba|nfl|olympic\w*|series|streaming|netflix|"
                      r"festival|art|artist|museum|celebrity|actor|actress|oscar\w*|grammy|book|novel|tv|show)\b", re.I)
 SO_WHAT_MAX_WORDS = 24  # the prompt asks for 22; two words of slack for a hyphenated or possessive count
-SO_WHAT_OVERLAP = 0.6   # share of the sentence's content words already in the headline or dek
+SO_WHAT_OVERLAP = 0.5   # share of the sentence's content words already in any single headline, dek, body or source sentence
+SO_WHAT_UNION = 0.7     # the same, against all of them together
+GROUP = re.compile(r"\b(customers?|passengers?|travell?ers?|consumers?|users?|buyers?|clients?|creditors?|lenders?|"
+                   r"banks?|competitors?|rivals?|suppliers?|vendors?|investors?|shareholders?|savers?|borrowers?|"
+                   r"employees?|workers?|staff|jobs?|managers?|regulators?|governments?|countries|markets?|"
+                   r"companies|firms|businesses|airlines|carriers|households?|taxpayers?|voters?|drivers?|patients?|"
+                   r"students?|farmers?|importers?|exporters?|retailers?|developers?|creators?|advertisers?)\b", re.I)
 SO_WHAT_ANCHOR = 0.3    # share that must come from the source, so a consequence still hangs on the report
 ADVICE = re.compile(r"\b(should|must|ought|need to|needs to|could|might|may|likely|unlikely|probably|perhaps|"
-                    r"expected to|bullish|bearish|buy|sell|recommend\w*|advis\w*)\b", re.I)
+                    r"expected to|bullish|bearish|recommend\w*|advis\w*)\b", re.I)
 NOT_BUT = re.compile(r"\bnot\b[^.;]{0,50}\bbut\b|\bnot just\b|\bisn['’]t\b[^.;]{0,50}\bit['’]s\b", re.I)
 HYPE = re.compile(r"\b(huge|massive|incredible|stunning|shocking|explosive|game[- ]changing|groundbreaking|"
                   r"seismic|earth-shattering|unprecedented)\b", re.I)
@@ -156,10 +169,18 @@ def check_so_what(story, copy, text):
         if re.sub(r"['’]s$", "", w.lower()) not in low_src:
             problems.append(f"name not in source: {w}")
             break
-    seen = _stems(copy.get("headline", "") + " " + copy.get("dek", ""))
     mine = _stems(text)
-    if mine and len(mine & seen) / len(mine) >= SO_WHAT_OVERLAP:
-        problems.append("repeats the headline or dek")
+    # a restatement of any single sentence the reader has already had, or of all of them together
+    units = [copy.get("headline", ""), copy.get("dek", "")]
+    for field in (copy.get("linkedin_post", ""), story.get("summary", "")):
+        units += [x for x in re.split(r"(?<=[.!?])\s+|\n+", field) if x.strip() and not x.startswith("Source:")]
+    if mine:
+        if any(len(mine & _stems(u)) / len(mine) >= SO_WHAT_OVERLAP for u in units if _stems(u)):
+            problems.append("repeats the headline, dek or a sentence of the story")
+        elif len(mine & _stems(" ".join(units))) / len(mine) >= SO_WHAT_UNION:
+            problems.append("repeats the story")
+    if not GROUP.search(text):
+        problems.append("names no affected group")
     if mine and len(mine & _stems(src_text)) / len(mine) < SO_WHAT_ANCHOR:
         problems.append("not tied to the source text")
     for rx, why in ((desk.SLOP, "stock phrase"), (ADVICE, "advice or speculation"), (NOT_BUT, "not X but Y"), (HYPE, "hype")):
