@@ -8,9 +8,14 @@ branch, so a reader's browser talks to one origin. Only published posts appear.
   /news/week/<YYYY-Www>/ the week's ten most shared stories (the newsletter's issue)
   /news/feed.xml         every story, for readers
   /news/weekly.xml       one item per finished week, for the newsletter tool's RSS-to-email
+  /news/sitemap.xml      every story, topic and week page with its lastmod
+  /news/news-sitemap.xml the last 48 hours of stories, in Google News' format
+  /news/og/<id>.jpg      the 1200x630 link-preview image of a story, cut from its photo at build time
 """
 import html
+import json
 import shutil
+import subprocess
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
 from pathlib import Path
@@ -20,6 +25,10 @@ from . import desk
 E = lambda s: html.escape(s or "", quote=True)  # noqa: E731
 SITE = desk.CONFIG["site_url"]
 BASE = "/" + SITE.split("/", 3)[3] if SITE.count("/") >= 3 else ""
+ORIGIN = "/".join(SITE.split("/")[:3])
+NAME = "Boardread"
+ASSETS = Path(__file__).resolve().parent.parent / "assets-site"
+OG_W, OG_H = 1200, 630
 
 
 def published():
@@ -158,8 +167,28 @@ def tabs(active=""):
     return f'<div class="tabs mono"><nav>{links}</nav><nav>{follow()}</nav></div>'
 
 
-def page(title, body, desc=""):
-    """Every page: the main site's bar (its name back home, its sections), then the desk."""
+DEFAULT_OG = f"{BASE}/og-default.png"
+
+
+def clip(text, n):
+    """At most n characters, cut at a word and marked, for fields a consumer truncates or rejects (JSON-LD headline: 110)."""
+    text = " ".join((text or "").split())
+    return text if len(text) <= n else text[:n - 1].rsplit(" ", 1)[0].rstrip(" ,;:-") + "…"
+
+
+def ld_json(data):
+    # "<" escaped so no text inside a field can close the script element
+    return '<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False).replace("<", "\\u003c") + "</script>"
+
+
+def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None):
+    """Every page: the main site's bar (its name back home, its sections), then the desk.
+
+    path is relative to the news root and becomes the canonical and og:url; image is the site-relative
+    link-preview image (the shared default when a story has no photo)."""
+    url = SITE + path
+    og_dims = f'<meta property="og:image:width" content="{OG_W}"><meta property="og:image:height" content="{OG_H}">\n' \
+        if image in (None, DEFAULT_OG) or image.startswith(f"{BASE}/og/") else ""
     nav = "".join(f'<a href="{h}"{" class=\"on\"" if n == "News" else (" class=\"x\"" if n not in ("About", "Contact") else "")}>{n}</a>'
                   for h, n in SECTIONS)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -168,8 +197,17 @@ def page(title, body, desc=""):
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
+<link rel="canonical" href="{E(url)}">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="boardread." href="{BASE}/feed.xml">
+<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
+<meta property="og:site_name" content="{NAME}"><meta property="og:type" content="{og_type}">
+<meta property="og:title" content="{E(og_title or title)}"><meta property="og:description" content="{E(desc)}">
+<meta property="og:url" content="{E(url)}"><meta property="og:image" content="{E(ORIGIN + (image or DEFAULT_OG))}">
+{og_dims}<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(og_title or title)}">
+<meta name="twitter:description" content="{E(desc)}"><meta name="twitter:image" content="{E(ORIGIN + (image or DEFAULT_OG))}">
+{ld_json(ld) if ld else ""}
 <style>{CSS}</style></head><body>
 <div class="bar"><div class="wrap"><a class="home" href="/">Kerem Özdemir</a>
 <nav class="nav" aria-label="Sections">{nav}</nav></div></div>
@@ -209,6 +247,36 @@ def listing(rows):
     return (lead(first) if first else "") + '<ol class="rows">' + "".join(row(p, i) for i, p in enumerate(rest, 2 if first else 1)) + "</ol>"
 
 
+def og_image(photo, dest):
+    """A 1200x630 JPEG cut from the story's photo, for link previews (Facebook, Telegram, Threads, X).
+
+    The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop, biased to the top
+    third because the subject of a portrait photo sits there. ffmpeg is on the Actions image and on the desk's Mac."""
+    vf = f"scale={OG_W}:{OG_H}:force_original_aspect_ratio=increase,crop={OG_W}:{OG_H}:(iw-{OG_W})/2:(ih-{OG_H})*0.3"
+    try:
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "3", str(dest)],
+                       check=True, capture_output=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False  # the story still builds; its preview falls back to the shared image
+    return True
+
+
+def iso(s):
+    return datetime.fromisoformat(s).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def article_ld(p, image):
+    # Fields follow Google's Article structured data: https://developers.google.com/search/docs/appearance/structured-data/article
+    # (headline kept under the ~110 characters it recommends; author and publisher are the Organization, not a person)
+    url = f"{SITE}/s/{p['id']}/"
+    return {"@context": "https://schema.org", "@type": "NewsArticle", "mainEntityOfPage": {"@type": "WebPage", "@id": url},
+            "headline": clip(p["headlines"][0], 110), "description": p.get("dek", ""),
+            "image": [ORIGIN + (image or DEFAULT_OG)], "datePublished": iso(p["published"]), "dateModified": iso(p["published"]),
+            "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
+            "author": {"@type": "Organization", "name": NAME, "url": SITE + "/"},
+            "publisher": {"@type": "Organization", "name": NAME, "url": SITE + "/", "logo": {"@type": "ImageObject", "url": f"{SITE}/logo.png"}}}
+
+
 def story(p, more=()):
     srcs = "".join(f'<a href="{E(u)}" rel="nofollow noopener">{E(u.split("/")[2].removeprefix("www."))}<span>↗</span></a>'
                    for u in p.get("source_urls") or p.get("urls", []))
@@ -219,12 +287,14 @@ def story(p, more=()):
            if p.get("_photo") else "")
     others = ('<section class="more"><div class="tabs mono"><nav><span>More news</span></nav></div><ol class="rows">'
               + "".join(row(o, i) for i, o in enumerate(more, 1)) + "</ol></section>") if more else ""
+    image = f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None
     return page(f'{p["headlines"][0]} · boardread.', f"""<article class="story">
 <div class="mono"><a href="{BASE}/">boardread.</a> · {E(topic(p))} · {clock(p['published'])} UTC</div>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>{fig}
 <div class="body">{paras}</div>
 <div class="srcs"><div class="mono" style="padding:16px 0">Reported by {E('; '.join(p.get('sources') or []))}</div>{srcs}</div>
-</article>{others}""", p.get("dek", ""))
+<div class="mono" style="padding:20px 0 0;text-transform:none;letter-spacing:.02em">Written by AI from the sources listed. <a href="/contact/" style="text-decoration:underline">Corrections: contact</a></div>
+</article>{others}""", p.get("dek", ""), f"/s/{p['id']}/", image, "article", article_ld(p, image), p["headlines"][0])
 
 
 def week_page(week, rows):
@@ -234,10 +304,39 @@ def week_page(week, rows):
 
 
 def rss(title, link, items):
-    body = "".join(f"<item><title>{E(t)}</title><link>{E(u)}</link><guid>{E(u)}</guid><pubDate>{d}</pubDate>"
-                   f"<description>{E(desc)}</description></item>" for t, u, d, desc in items)
-    return (f'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>{E(title)}</title>'
-            f"<link>{E(link)}</link><description>The news that moves business</description>{body}</channel></rss>")
+    """items: (title, url, pubDate, description, extra) where extra may carry category, image (site path) and image_bytes."""
+    def item(t, u, d, desc, extra):
+        pic = extra.get("image")
+        return (f'<item><title>{E(t)}</title><link>{E(u)}</link><guid isPermaLink="true">{E(u)}</guid><pubDate>{d}</pubDate>'
+                f"<description>{E(desc)}</description>"
+                + (f"<category>{E(extra['category'])}</category>" if extra.get("category") else "")
+                + f"<dc:creator>{NAME}</dc:creator>"
+                + (f'<enclosure url="{E(ORIGIN + pic)}" length="{extra.get("image_bytes", 0)}" type="image/jpeg"/>'
+                   f'<media:content url="{E(ORIGIN + pic)}" medium="image" type="image/jpeg" width="{OG_W}" height="{OG_H}"/>' if pic else "")
+                + "</item>")
+    body = "".join(item(*i) for i in items)
+    return ('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" '
+            'xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">'
+            f'<channel><title>{E(title)}</title><link>{E(link)}</link><description>The news that moves business</description>'
+            f"<language>en</language>{body}</channel></rss>")
+
+
+def urlset(rows):
+    """Sitemap protocol: https://www.sitemaps.org/protocol.html"""
+    return ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            + "".join(f"<url><loc>{E(u)}</loc><lastmod>{m}</lastmod></url>" for u, m in rows) + "</urlset>")
+
+
+def news_sitemap(rows, now):
+    """Google News sitemap, only articles from the last 48 hours:
+    https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap"""
+    recent = [p for p in rows if now - datetime.fromisoformat(p["published"]) <= timedelta(hours=48)]
+    return ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+            'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">'
+            + "".join(f"<url><loc>{E(f'{SITE}/s/{p['id']}/')}</loc><news:news><news:publication><news:name>{NAME}</news:name>"
+                      f"<news:language>en</news:language></news:publication><news:publication_date>{iso(p['published'])}</news:publication_date>"
+                      f"<news:title>{E(p['headlines'][0])}</news:title></news:news></url>" for p in recent)
+            + "</urlset>")
 
 
 def build(out=desk.HERE / "_site"):
@@ -245,7 +344,8 @@ def build(out=desk.HERE / "_site"):
     if out.exists():
         shutil.rmtree(out)
     (out / "img").mkdir(parents=True)
-    shutil.copytree(Path(__file__).resolve().parent.parent / "assets-site" / "fonts", out / "fonts")  # Libre Franklin + its OFL licence
+    (out / "og").mkdir()
+    shutil.copytree(ASSETS / "fonts", out / "fonts")  # Libre Franklin + its OFL licence
     rows = published()
     shown = []
     for p in rows:
@@ -255,15 +355,19 @@ def build(out=desk.HERE / "_site"):
         if photo.exists():
             shutil.copy(photo, out / "img" / f"{p['id']}.jpg")
             p["_photo"] = True
+            if og_image(photo, out / "og" / f"{p['id']}.jpg"):
+                p["_og"] = True
         shown.append(p)
+    for f in ("og-default.png", "logo.png"):  # the preview image of every non-story page, and the publisher logo
+        shutil.copy(ASSETS / f, out / f)
     desc = "Business, markets, politics, tech and AI: every article with its sources."
     (out / "index.html").write_text(page("boardread. · The news that moves business",
-                                         head("boardread.", counts()) + listing(shown), desc))
+                                         head("boardread.", counts()) + listing(shown), desc, "/"))
     for t in TOPIC_ORDER:
         d = out / "t" / t.lower()
         d.mkdir(parents=True)
         (d / "index.html").write_text(page(f"{t} · boardread.", head(f"{t}.", counts(), t.lower())
-                                           + listing([p for p in shown if topic(p) == t]), desc))
+                                           + listing([p for p in shown if topic(p) == t]), desc, f"/t/{t.lower()}/"))
     for i, p in enumerate(shown):
         d = out / "s" / p["id"]
         d.mkdir(parents=True)
@@ -278,7 +382,8 @@ def build(out=desk.HERE / "_site"):
         top = sorted(weeks[wk], key=shared, reverse=True)[:10]
         d = out / "week" / wk
         d.mkdir(parents=True)
-        (d / "index.html").write_text(page(f"Top 10 · {wk} · boardread.", week_page(wk, top)))
+        (d / "index.html").write_text(page(f"Top 10 · {wk} · boardread.", week_page(wk, top),
+                                          "The ten most shared stories of the week, each with its sources.", f"/week/{wk}/"))
         if wk != this_week:  # an unfinished week is not an issue yet
             issues.append((wk, top))
     latest = issues[0][0] if issues else (sorted(weeks)[-1] if weeks else None)
@@ -286,14 +391,24 @@ def build(out=desk.HERE / "_site"):
     this_top = sorted(weeks.get(this_week, []), key=shared, reverse=True)[:10]
     past = "".join(f'<a href="{BASE}/week/{w}/">Week {w[-2:]} · {w[:4]}</a>' for w in sorted(weeks, reverse=True) if w != this_week)
     (out / "week" / "index.html").write_text(page("Top 10 · boardread.", week_page(this_week, this_top)
-        + (f'<div class="tabs mono" style="margin-top:48px"><nav>{past}</nav></div>' if past else "")))
+        + (f'<div class="tabs mono" style="margin-top:48px"><nav>{past}</nav></div>' if past else ""),
+        "The ten most shared stories of the week, each with its sources.", "/week/"))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
-        (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(datetime.fromisoformat(p["published"])), p.get("dek", ""))
+        (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(datetime.fromisoformat(p["published"])), p.get("dek", ""),
+         {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,
+          "image_bytes": (out / "og" / f"{p['id']}.jpg").stat().st_size if p.get("_og") else 0})
         for p in shown[:50]]))
     (out / "weekly.xml").write_text(rss("boardread weekly", SITE + "/week/", [
         (f"Top 10 · {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/",
          format_datetime(datetime.fromisoformat(top[0]["published"]) + timedelta(days=1)),
-         " · ".join(p["headlines"][0] for p in top)) for wk, top in issues[:12]]))
+         " · ".join(p["headlines"][0] for p in top), {"category": "Weekly"}) for wk, top in issues[:12]]))
+    stamp = lambda ps: iso(max(p["published"] for p in ps))  # noqa: E731
+    pages = [(SITE + "/", stamp(shown) if shown else None), (SITE + "/week/", stamp(shown) if shown else None)]
+    pages += [(f"{SITE}/t/{t.lower()}/", stamp(ps)) for t in TOPIC_ORDER if (ps := [p for p in shown if topic(p) == t])]
+    pages += [(f"{SITE}/week/{wk}/", stamp(ps)) for wk, ps in weeks.items()]
+    pages += [(f"{SITE}/s/{p['id']}/", iso(p["published"])) for p in shown]
+    (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in pages if m]))
+    (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
     (out / ".nojekyll").write_text("")
     print(f"site: {len(shown)} stories, {len(weeks)} weeks -> {out}")
     return out

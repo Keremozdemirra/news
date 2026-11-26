@@ -660,7 +660,8 @@ class Site(Tmp):
         self.assertNotIn("Not yet", index)
         page = (out / "s" / "2026-11-26-1300-1" / "index.html").read_text()
         self.assertIn("https://www.cnbc.com/x", page)
-        self.assertNotIn("<script", page)
+        self.assertEqual(page.count("<script"), 1)  # only the inert JSON-LD block, never an executable script
+        self.assertIn("application/ld+json", page)
         self.assertFalse((out / "s" / "2026-11-26-1300-2").exists())
         self.assertIn("<rss", (out / "feed.xml").read_text())
 
