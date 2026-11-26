@@ -931,7 +931,7 @@ def queue(day_dir, batch=None, render=True):
                 "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "so_what": so_what(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
-                                if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],
+                                if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
                 "credit": s.get("_assets", {}).get("credit", "")}
         ctas += bool(cta)
         if web:

@@ -118,7 +118,7 @@ class Text(Env):
         self.assertNotIn("…", t)
 
     def test_threads_reply_text_is_the_story_page(self):
-        self.assertEqual(platforms.threads_reply_text(post()), "Sources: https://keremozdemir.de/news/s/2026-11-26-1446-1/")
+        self.assertEqual(platforms.threads_reply_text(post()), "Sources: https://boardread.news/s/2026-11-26-1446-1/")
 
     def test_threads_counts_emoji_by_bytes(self):
         t = platforms.threads_text(post(dek="\U0001F600" * 200, body=""))
@@ -141,7 +141,7 @@ class Text(Env):
     def test_digest_text_lists_headlines_with_story_links(self):
         t = platforms.digest_text([post(), post(id="b", headlines=["Second"])])
         self.assertTrue(t.startswith("Today on Boardread\n\n1. Denny's"))
-        self.assertIn("\nhttps://keremozdemir.de/news/s/b/\n", t + "\n")
+        self.assertIn("\nhttps://boardread.news/s/b/\n", t + "\n")
         self.assertIn("2. Second", t)
 
     def test_telegram_caption_1024(self):
@@ -189,7 +189,7 @@ class Clients(Env):
         reply = urllib.parse.parse_qs([c for c in calls if b"reply_to_id" in (c.data or b"")][0].data.decode())
         self.assertEqual(reply["media_type"], ["TEXT"])
         self.assertEqual(reply["reply_to_id"], ["m9"])
-        self.assertEqual(reply["text"], ["Sources: https://keremozdemir.de/news/s/2026-11-26-1446-1/"])
+        self.assertEqual(reply["text"], ["Sources: https://boardread.news/s/2026-11-26-1446-1/"])
         self.assertNotIn("topic_tag", reply)
 
     def test_threads_reply_failure_leaves_the_post_done_and_is_stored_scrubbed(self):
@@ -260,7 +260,7 @@ class Clients(Env):
         self.assertEqual(rec["embed"]["$type"], "app.bsky.embed.external")
         ext = rec["embed"]["external"]
         self.assertEqual((ext["uri"], ext["title"], ext["description"]),
-                         ("https://keremozdemir.de/news/s/2026-11-26-1446-1/", post()["headlines"][0], post()["dek"]))
+                         ("https://boardread.news/s/2026-11-26-1446-1/", post()["headlines"][0], post()["dek"]))
         self.assertEqual(ext["thumb"]["mimeType"], "image/jpeg")
         self.assertNotIn("facets", rec)
         self.assertLessEqual(len(rec["text"]), 300)
@@ -279,7 +279,7 @@ class Clients(Env):
         platforms.Bluesky(opener=fake).post(post())
         ext = self.bsky_record(fake)["embed"]["external"]
         self.assertNotIn("thumb", ext)
-        self.assertEqual(ext["uri"], "https://keremozdemir.de/news/s/2026-11-26-1446-1/")
+        self.assertEqual(ext["uri"], "https://boardread.news/s/2026-11-26-1446-1/")
         self.assertFalse([r for r in fake.seen if "uploadBlob" in r.full_url])
 
     def test_telegram_album_caption_on_first_photo(self):

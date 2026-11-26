@@ -22,6 +22,7 @@ import hashlib
 import html
 import json
 import os
+import re
 import shutil
 import subprocess
 import urllib.parse
@@ -400,7 +401,10 @@ def related(p, rows, n=4):
 
 def story(p, rows):
     """One story page. rows is every shown story, newest first."""
-    srcs_u = p.get("source_urls") or p.get("urls", [])
+    # aggregators and social reposts point at reporting; a reader should land on the reporting itself
+    srcs_u = [u for u in (p.get("source_urls") or p.get("urls", []))
+              if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)] \
+        or (p.get("source_urls") or p.get("urls", []))
     names = p.get("sources") or []
     # the outlet names and the links are two lists that do not line up one to one, so each link shows its own host
     srcs = "".join(f'<li><a href="{E(u)}" rel="nofollow noopener" target="_blank"><b>{E(short(u))}</b><span>Read the original &nearr;</span></a></li>'

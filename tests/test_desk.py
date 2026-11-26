@@ -637,7 +637,7 @@ class SourceDM(Tmp):
         desk.engage(client=ig, ask=lambda p: "SKIP")
         desk.engage(client=ig, ask=lambda p: "SKIP")
         self.assertEqual(len(ig.dms), 2)
-        self.assertIn("https://keremozdemir.de/news/s/2026-11-26-1300-1/", ig.dms[0][1])
+        self.assertIn("https://boardread.news/s/2026-11-26-1300-1/", ig.dms[0][1])
         # every SOURCE comment gets a public note, and consecutive ones differ
         self.assertEqual([c for c, _ in ig.replies], ["c1", "c2"])
         self.assertNotEqual(ig.replies[0][1], ig.replies[1][1])
