@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-1613-4",
+ "batch": "2026-11-26-1613",
+ "n": 4,
+ "created": "2026-11-26T16:13:46+00:00",
+ "publish_after": "2026-11-26T16:36:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "US judge blocks FCC attempt to target Disney's ABC stations\n\nA US judge blocked an attempt by the FCC to target Disney's ABC stations. The judge said the FCC chair has taken US President Donald Trump's rhetoric as his 'marching orders.'\n\nReported by Al Jazeera; The Guardian; The New York Times. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #politics #disney",
+ "urls": [
+  "https://www.aljazeera.com/news/2026/11/26/us-judge-blocks-trumps-fcc-attempt-to-target-disneys-abc-stations?traffic_source=rss"
+ ],
+ "links": [
+  "https://www.aljazeera.com/news/2026/11/26/us-judge-blocks-trumps-fcc-attempt-to-target-disneys-abc-stations?traffic_source=rss",
+  "https://www.nytimes.com/2026/11/25/business/media/disney-fcc-abc-ruling.html",
+  "https://www.theguardian.com/us-news/2026/nov/25/brendan-carr-fcc-abc-licenses"
+ ],
+ "headlines": [
+  "US judge blocks FCC attempt to target Disney's ABC stations"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Politics",
+ "photo_file": "Walt Disney Studios Alameda Entrance.jpg",
+ "score": 9.183,
+ "figure": "",
+ "company": "Disney",
+ "person": "",
+ "logo_names": [
+  "Disney"
+ ],
+ "dek": "The judge said the FCC chair has taken President Donald Trump's rhetoric as his 'marching orders.'",
+ "body": "A US judge blocked an attempt by the FCC to target Disney's ABC stations. The judge said the FCC chair has taken US President Donald Trump's rhetoric as his 'marching orders.'",
+ "sources": [
+  "Al Jazeera",
+  "The Guardian",
+  "The New York Times"
+ ],
+ "source_urls": [
+  "https://www.aljazeera.com/news/2026/11/26/us-judge-blocks-trumps-fcc-attempt-to-target-disneys-abc-stations?traffic_source=rss",
+  "https://www.nytimes.com/2026/11/25/business/media/disney-fcc-abc-ruling.html",
+  "https://www.theguardian.com/us-news/2026/nov/25/brendan-carr-fcc-abc-licenses"
+ ],
+ "credit": "Photo: Smuckola, CC BY-SA 4.0, via Wikimedia Commons"
+}

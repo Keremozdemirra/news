@@ -1,0 +1,44 @@
+{
+ "id": "2026-11-26-1613-6",
+ "batch": "2026-11-26-1613",
+ "n": 6,
+ "created": "2026-11-26T16:13:51+00:00",
+ "publish_after": "2026-11-26T16:46:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "S&P warns it could cut Nvidia's credit rating by one notch\n\nS&P Global Ratings warned that Nvidia's credit rating could be cut by one notch. It flagged 'rising' management and governance risk at the chipmaker.\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #markets #nvidia",
+ "urls": [
+  "https://www.cnbc.com/2026/11/26/nvidia-market-governance-risk.html"
+ ],
+ "links": [
+  "https://www.cnbc.com/2026/11/26/nvidia-market-governance-risk.html"
+ ],
+ "headlines": [
+  "S&P warns it could cut Nvidia's credit rating by one notch"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "Nvidia SLI GTX280.jpg",
+ "score": 8.467,
+ "figure": "one notch",
+ "company": "Nvidia",
+ "person": "",
+ "logo_names": [
+  "Nvidia"
+ ],
+ "dek": "S&P Global Ratings flagged 'rising' management and governance risk at the chipmaker.",
+ "body": "S&P Global Ratings warned that Nvidia's credit rating could be cut by one notch. It flagged 'rising' management and governance risk at the chipmaker.",
+ "sources": [
+  "CNBC"
+ ],
+ "source_urls": [
+  "https://www.cnbc.com/2026/11/26/nvidia-market-governance-risk.html"
+ ],
+ "credit": "Photo: Flickr - Fritzchens Fritz, CC0, via Wikimedia Commons"
+}

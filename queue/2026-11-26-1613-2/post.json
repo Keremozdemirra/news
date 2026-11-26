@@ -1,0 +1,51 @@
+{
+ "id": "2026-11-26-1613-2",
+ "batch": "2026-11-26-1613",
+ "n": 2,
+ "created": "2026-11-26T16:13:41+00:00",
+ "publish_after": "2026-11-26T16:26:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "Iranian drone attack in Kuwait kills two Italians\n\nAn Iranian drone attack in Kuwait killed two Italians. The attack hit as technicians from Rheinmetall Italia were working on an air-defense system.\n\nReported by The Wall Street Journal; Al Jazeera; BBC; Financial Times. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #worldnews #rheinmetallitalia",
+ "urls": [
+  "https://www.wsj.com/world/middle-east/iranian-drone-attack-kills-two-italians-in-kuwait-5e360a35?mod=rss_worldnews"
+ ],
+ "links": [
+  "https://www.aljazeera.com/video/newsfeed/2026/11/26/two-dead-after-iranian-drone-attack-on-kuwait?traffic_source=rss",
+  "https://www.bbc.co.uk/news/articles/c39w9y5dx4k5o?at_medium=RSS&at_campaign=rss",
+  "https://www.ft.com/content/e5f3128d-5f8b-416c-90d1-2549175cb091?syn-25a6b1a6=1",
+  "https://www.wsj.com/world/middle-east/iranian-drone-attack-kills-two-italians-in-kuwait-5e360a35?mod=rss_worldnews"
+ ],
+ "headlines": [
+  "Iranian drone attack in Kuwait kills two Italians"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "World",
+ "photo_file": "Antelope Air Defense System in CCK Air Force Base 20111112.jpg",
+ "score": 9.624,
+ "figure": "",
+ "company": "Rheinmetall Italia",
+ "person": "",
+ "logo_names": [],
+ "dek": "The attack hit as technicians from Rheinmetall Italia worked on an air-defense system.",
+ "body": "An Iranian drone attack in Kuwait killed two Italians. The attack hit as technicians from Rheinmetall Italia were working on an air-defense system.",
+ "sources": [
+  "The Wall Street Journal",
+  "Al Jazeera",
+  "BBC",
+  "Financial Times"
+ ],
+ "source_urls": [
+  "https://www.wsj.com/world/middle-east/iranian-drone-attack-kills-two-italians-in-kuwait-5e360a35?mod=rss_worldnews",
+  "https://www.aljazeera.com/video/newsfeed/2026/11/26/two-dead-after-iranian-drone-attack-on-kuwait?traffic_source=rss",
+  "https://www.bbc.co.uk/news/articles/c39w9y5dx4k5o?at_medium=RSS&at_campaign=rss",
+  "https://www.ft.com/content/e5f3128d-5f8b-416c-90d1-2549175cb091?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: 玄史生, CC0, via Wikimedia Commons"
+}

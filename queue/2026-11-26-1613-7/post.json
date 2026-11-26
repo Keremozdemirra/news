@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-1613-7",
+ "batch": "2026-11-26-1613",
+ "n": 7,
+ "created": "2026-11-26T16:13:53+00:00",
+ "publish_after": "2026-11-26T16:51:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "Amazon and Meta talk about lifting the block on Meta's Muse shopping agent\n\nAmazon and Meta are in talks to bring back Muse, Meta's AI shopping agent that Amazon kicked off its platform in September. The two sides are stuck on ad revenue and who controls search results. Amazon's ad business generates $68.6 billion a year, and Muse commands 51 percent of all agentic shopping orders.\n\nReported by The Decoder; TechCrunch; The Verge. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #amazon",
+ "urls": [
+  "https://the-decoder.com/amazon-and-meta-are-in-talks-to-end-the-block-on-metas-ai-shopping-agent-muse-in-amazons-online-store/"
+ ],
+ "links": [
+  "https://techcrunch.com/2026/11/25/amazon-and-meta-reportedly-in-talks-to-lift-blockade-on-ai-agent-muse/",
+  "https://the-decoder.com/amazon-and-meta-are-in-talks-to-end-the-block-on-metas-ai-shopping-agent-muse-in-amazons-online-store/",
+  "https://www.theverge.com/tech/1042071/meta-amazon-muse-ai-shopping-discussions"
+ ],
+ "headlines": [
+  "Amazon and Meta talk about lifting the block on Meta's Muse shopping agent"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Business",
+ "photo_file": "Turquoise-fronted amazon (Amazona aestiva) head.JPG",
+ "score": 8.459,
+ "figure": "$68.6 billion",
+ "company": "Amazon",
+ "person": "",
+ "logo_names": [
+  "Amazon"
+ ],
+ "dek": "The sides are stuck on ad revenue and control of search results; Amazon's ad business generates $68.6 billion a year.",
+ "body": "Amazon and Meta are in talks to bring back Muse, Meta's AI shopping agent that Amazon kicked off its platform in September. The two sides are stuck on ad revenue and who controls search results. Amazon's ad business generates $68.6 billion a year, and Muse commands 51 percent of all agentic shopping orders.",
+ "sources": [
+  "The Decoder",
+  "TechCrunch",
+  "The Verge"
+ ],
+ "source_urls": [
+  "https://the-decoder.com/amazon-and-meta-are-in-talks-to-end-the-block-on-metas-ai-shopping-agent-muse-in-amazons-online-store/",
+  "https://techcrunch.com/2026/11/25/amazon-and-meta-reportedly-in-talks-to-lift-blockade-on-ai-agent-muse/",
+  "https://www.theverge.com/tech/1042071/meta-amazon-muse-ai-shopping-discussions"
+ ],
+ "credit": "Photo: WrS.tm.pl, Public domain, via Wikimedia Commons"
+}
