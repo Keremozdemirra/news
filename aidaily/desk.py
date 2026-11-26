@@ -79,7 +79,7 @@ FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 def _recent_posts(days):
     cut = now() - timedelta(days=days)
-    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed", "deleted", "held", "expired")
+    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "web", "vetoed", "failed", "deleted", "held", "expired")
             and datetime.fromisoformat(p["created"]) > cut]
 
 
@@ -758,8 +758,14 @@ def used_photos(days=45):
     return {p["photo_file"] for p, _ in posts() if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut}
 
 
+def site_min_score():
+    """The lowest bar of any channel: a story at or above it reaches the website. Falls back to min_score
+    so a desk.json without tiers behaves as before."""
+    return CONFIG.get("site_min_score", CONFIG["min_score"])
+
+
 def select(stories):
-    """The stories worth a post this hour: above the importance bar, from the last day, carried by a
+    """The stories worth a post this hour: above the website bar, from the last day, carried by a
     newsroom or lab (not only a discussion board), not a format we skip, not already posted or queued."""
     cut = now() - timedelta(hours=CONFIG["max_age_hours"])
     recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
@@ -772,7 +778,7 @@ def select(stories):
             fresh = False
         newsroom = set(s.get("outlets", [])) - set(CONFIG["not_sources"]) or s.get("primary")
         me = {"url": s["url"], "links": s.get("links", []), "headline": s["title"]}
-        if (s.get("score", 0) >= CONFIG["min_score"] and fresh and newsroom
+        if (s.get("score", 0) >= site_min_score() and fresh and newsroom
                 and not SKIP.search(s["title"]) and not FORMAT.search(s["title"])
                 and not any(same_story(me, r) for r in recent + out)):
             out.append(s)
@@ -784,34 +790,50 @@ def _last_slot():
     return max(slots) if slots else None
 
 
+def _row_score(row):
+    m, s = row
+    return m.get("score", s.get("score", 0)) or 0
+
+
 def queue(day_dir, batch=None, render=True):
     """One post per story: the story's card, then a detail slide. There is no daily quota: every story
-    that clears the bar goes out, spaced apart, and none is scheduled so far ahead that it goes stale.
-    The only ceiling is Meta's publishing limit. Returns the new post.json paths."""
+    that clears the website bar is queued, in two tiers. The most important stories take Instagram's
+    remaining room for the day, as many as fit the schedule: spaced apart, none so far ahead that it goes
+    stale (tier "instagram", status queued). Every other story is tier "web": published to the website at once
+    (status "web"), and the publish step later sends it to Bluesky and Threads when it clears
+    social_min_score. The ceiling on Instagram is Meta's publishing limit. Returns the new post.json paths."""
     if paused():
         print("paused: nothing queued")
         return []
     pending = sum(1 for p, _ in posts() if p.get("status") == "queued")
-    room = min(daily_cap() - published_last_24h() - pending, CONFIG["max_per_run"])
-    if room <= 0:
-        print(f"Instagram's 24-hour publishing limit is in reach ({pending} queued); waiting")
-        return []
+    ig_room = max(0, daily_cap() - published_last_24h() - pending)
+    if ig_room == 0:
+        print(f"Instagram's 24-hour publishing limit is in reach ({pending} queued); new stories go to the web tier")
     day_dir = Path(day_dir)
     manifest = _load(day_dir / "pack" / "manifest.json", [])
     # finish keeps the checked copy in digest.json "final"; chosen.json is the pre-copy list
     final = _load(day_dir / "digest.json", {}).get("final", {})
     stories = [s for rows in final.values() for s in rows]
-    picked = pick(manifest, stories, _load(STATE / "weights.json", {}))[:room]
+    picked = pick(manifest, stories, _load(STATE / "weights.json", {}))[:CONFIG["max_per_run"]]
+    # importance decides who gets Instagram's room, not the order the cards were rendered in
+    ranked = sorted(picked, key=lambda r: -_row_score(r))
+    room_urls = {m["url"] for m, s in [r for r in ranked if _row_score(r) >= CONFIG["min_score"]][:ig_room]}
     batch = batch or now().strftime("%Y-%m-%d-%H%M")
     earliest = now() + timedelta(hours=CONFIG["veto_hours"])
     horizon = earliest + timedelta(hours=CONFIG["max_hours_ahead"])
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
-    made = []
-    for n, (m, s) in enumerate(picked, 1):
-        slot = max(earliest, slot + gap) if slot else earliest
-        if slot > horizon:
-            print(f"schedule full until {slot:%H:%M} UTC; {len(picked) - n + 1} stories left for a later run")
-            break
+    made, n = [], 0
+    for m, s in ranked:
+        web = m["url"] not in room_urls
+        if not web:
+            when = max(earliest, slot + gap) if slot else earliest
+            if when > horizon:
+                # no slot left before the story would go stale on Instagram; it must still reach the site today
+                print(f"schedule full until {when:%H:%M} UTC; {m['headline'][:60]} goes to the web tier")
+                web = True
+            else:
+                slot = when
+        n += 1
         out = QUEUE / f"{batch}-{n}"
         out.mkdir(parents=True, exist_ok=True)
         if render:
@@ -823,7 +845,7 @@ def queue(day_dir, batch=None, render=True):
             R.jpeg(png)
             png.unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
-            if CONFIG.get("stories"):
+            if CONFIG.get("stories") and not web:  # a story is an Instagram format
                 story_frame(img, "Breaking" if m.get("score", 0) >= CONFIG["breaking_score"] else "New post")
             logo = (s.get("_assets", {}).get("logos") or [""])[0]
             if logo.startswith("file://"):
@@ -834,8 +856,8 @@ def queue(day_dir, batch=None, render=True):
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
-                "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
-                "cards": ["card.jpg", "detail.jpg"], "story": "story.jpg" if render and CONFIG.get("stories") else "", "caption": caption(m, s),
+                "tier": "web" if web else "instagram",
+                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
@@ -844,13 +866,20 @@ def queue(day_dir, batch=None, render=True):
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],
                 "credit": s.get("_assets", {}).get("credit", "")}
+        if web:
+            post.update(status="web", published=now().isoformat(timespec="seconds"), story="")
+        else:
+            post.update(status="queued", publish_after=slot.isoformat(timespec="seconds"),
+                        story="story.jpg" if render and CONFIG.get("stories") else "")
         problems = audit(post)
         if problems:
             post.update(status="held", held=problems)
+            post.pop("published", None)  # held means nothing reached any channel
             print(f"held {out.name}: {'; '.join(problems)}")
         _save(out / "post.json", post)
         made.append(out / "post.json")
-        print(f"queued {out.name}: {m['headline'][:60]} at {slot:%H:%M} UTC")
+        print(f"web {out.name}: {m['headline'][:60]}" if web
+              else f"queued {out.name}: {m['headline'][:60]} at {slot:%H:%M} UTC")
     if not made:
         print("no new story passed the checks")
     return made
@@ -1046,14 +1075,15 @@ def evening_digest(factories=None):
     _save(STATE / "digest.json", state)
 
 
-def cross_post(post, path, factories=None):
-    """Send a published feed post to the other platforms that are switched on in desk.json and have their secrets.
+def cross_post(post, path, factories=None, names=None):
+    """Send a published feed post to the other platforms that are switched on in desk.json and have their secrets
+    (`names` narrows them: a web-tier post only goes to WEB_PLATFORMS).
 
     Each platform is on its own: a failure, a block or a missing secret never touches Instagram or the others.
     A stored result means done for good. A marker without a result means a send may have gone out, so a person
     looks; it is never retried here, which is what keeps a platform from showing the post twice."""
     from . import platforms
-    for name in platforms.NAMES:
+    for name in names or platforms.NAMES:
         if not CONFIG.get("platforms", {}).get(name):
             continue
         slot = post.setdefault("platforms", {}).get(name, {})
@@ -1108,6 +1138,43 @@ def _cross_post(post, path):
         print(f"{post.get('id')}: cross-post failed: {str(e)[:200]}")
 
 
+# The channels without tight limits: web-tier posts go here and nowhere else. Facebook and Telegram stay with
+# what Instagram published.
+WEB_PLATFORMS = ("threads", "bluesky")
+
+
+def _slot_done(post, name):
+    slot = (post.get("platforms") or {}).get(name) or {}
+    return bool(slot.get("id") or slot.get("skipped") or slot.get("attempted"))
+
+
+def web_social(factories=None):
+    """One web-tier post per run to Bluesky and Threads, spaced social_spacing_minutes apart so they never burst.
+
+    Only posts at or above social_min_score and still younger than max_publish_age_hours; the highest score first.
+    A platform in cooldown is left alone. The per-platform markers in cross_post keep every post from going
+    out twice. Returns 1 when a post was offered to the platforms, else 0."""
+    names = [n for n in WEB_PLATFORMS if CONFIG.get("platforms", {}).get(n)]
+    if not names:
+        return 0
+    web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST]
+    stamps = [_stamp(((p.get("platforms") or {}).get(n) or {}).get(k) or "") for p, _ in web for n in WEB_PLATFORMS for k in ("at", "attempted")]
+    last = max((s for s in stamps if s), default=None)
+    gap = timedelta(minutes=CONFIG.get("social_spacing_minutes", 0))
+    if last and now() - last < gap:
+        print(f"web posts: spacing, next after {last + gap:%H:%M} UTC")
+        return 0
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    ready = [(p, path) for p, path in web
+             if (p.get("score") or 0) >= CONFIG["social_min_score"] and (_stamp(p.get("published", "")) or cut) > cut
+             and any(not _slot_done(p, n) and not platform_cooldown(n) for n in names)]
+    if not ready:
+        return 0
+    post, path = min(ready, key=lambda r: (-(r[0].get("score") or 0), r[0].get("published", "")))
+    cross_post(post, path, factories, names=WEB_PLATFORMS)
+    return 1
+
+
 def _mark_live(post, path, m):
     post.update(status="published", published=(_stamp(m.get("timestamp", "")) or now()).isoformat(timespec="seconds"),
                 media_id=m["id"], permalink=m.get("permalink", ""), found_live=True)
@@ -1130,13 +1197,18 @@ def configured():
 
 
 def expire_stale():
-    """Queued feed posts older than max_publish_age_hours are old news: mark them expired, never publish them."""
+    """Queued feed posts older than max_publish_age_hours are too old for Instagram, never published there.
+    They drop to the web tier, so the story still reaches the site and Bluesky/Threads. A post with a send
+    marker may already be on Instagram, so it is only marked expired and a person looks."""
     cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
     for post, path in posts():
         if post.get("status") == "queued" and post.get("kind") != "story" and datetime.fromisoformat(post["created"]) < cut:
-            post["status"] = "expired"
+            if post.get("attempted"):
+                post["status"] = "expired"
+            else:
+                post.update(status="web", tier="web", published=now().isoformat(timespec="seconds"), story="")
             _save(path, post)
-            print(f"{post['id']}: expired, older than {CONFIG['max_publish_age_hours']}h")
+            print(f"{post['id']}: older than {CONFIG['max_publish_age_hours']}h, {post['status']}")
             _close_if_done(post.get("issue"))
 
 
@@ -1176,9 +1248,13 @@ def _send_story(client, post):
 
 def publish(client=None, dry=False):
     """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0.
-    The evening digest follows, so it also goes out when nothing was due or Instagram is cooling down."""
+    Then one web-tier post goes to Bluesky and Threads. The evening digest follows, so it also goes out when nothing was due or Instagram is cooling down."""
     sent = _publish(client, dry)
     if not dry and not paused():
+        try:
+            web_social()
+        except Exception as e:  # noqa: BLE001  a web-tier problem never reaches the Instagram flow
+            print(f"web posts crashed: {str(e)[:200]}")
         try:
             evening_digest()
         except Exception as e:  # noqa: BLE001
@@ -1190,6 +1266,9 @@ def _publish(client, dry):
     if paused():
         print("paused: nothing published")
         return 0
+    if not dry:
+        # before the connection and cooldown checks: an Instagram block must not keep an old story off the site and Bluesky
+        expire_stale()
     if client is None and not dry and not configured():
         print("Instagram not connected yet (IG_TOKEN, IG_USER_ID): nothing published")
         return 0
@@ -1199,8 +1278,6 @@ def _publish(client, dry):
         return 0
 
     ramp()
-    if not dry:
-        expire_stale()
 
     def due_posts():
         return sorted(((p, path) for p, path in posts() if p.get("status") == "queued"

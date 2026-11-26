@@ -15,8 +15,9 @@ WORDS = ["Anthropic releases coding agent", "Mistral raises funding round", "Nvi
 
 def story(i, cat="launch", status="ok", headline=None):
     h = headline or WORDS[(i - 1) % len(WORDS)]
-    return ({"file": f"card-{i:02d}.png", "url": f"https://x/{i}", "headline": h, "category": cat, "source": f"Outlet {i}"},
-            {"url": f"https://x/{i}", "title": h, "dek": f"It does thing {i}.", "copy_status": status, "outlets": [f"Outlet {i}"]})
+    return ({"file": f"card-{i:02d}.png", "url": f"https://x/{i}", "headline": h, "category": cat, "source": f"Outlet {i}", "score": 9.0},
+            {"url": f"https://x/{i}", "title": h, "dek": f"It does thing {i}.", "copy_status": status, "outlets": [f"Outlet {i}"],
+             "score": 9.0})
 
 
 class Tmp(unittest.TestCase):
@@ -511,13 +512,18 @@ class Schedule(Tmp):
     def test_spaced_capped_per_run_and_not_too_far_ahead(self):
         made = desk.queue(self.day_dir(6), batch="b", render=False)
         fits = desk.CONFIG["max_hours_ahead"] * 60 // desk.CONFIG["spacing_minutes"] + 1
-        self.assertEqual(len(made), min(6, desk.CONFIG["max_per_run"], fits))
-        times = [json.loads(p.read_text())["publish_after"] for p in made]
+        rows = [json.loads(p.read_text()) for p in made]
+        self.assertEqual(len(made), min(6, desk.CONFIG["max_per_run"]))
+        # what does not fit the schedule is not delayed: it goes to the web tier (see test_tiers)
+        slotted = [r for r in rows if r["tier"] == "instagram"]  # held by the audit here: the test stories have no topic
+        self.assertEqual(len(slotted), min(6, fits))
+        times = [r["publish_after"] for r in slotted]
         gaps = {(desk.datetime.fromisoformat(b) - desk.datetime.fromisoformat(a)).seconds // 60 for a, b in zip(times, times[1:])}
         self.assertEqual(gaps, {desk.CONFIG["spacing_minutes"]})
-        # the second run starts after the last slot; once the horizon is full it stops
+        # the second run starts after the last slot; once the horizon is full nothing new is scheduled
         again = desk.queue(self.day_dir_more(), batch="c", render=False)
-        last = max(desk.datetime.fromisoformat(json.loads(p.read_text())["publish_after"]) for p in made + again)
+        slots = [json.loads(p.read_text()) for p in made + again]
+        last = max(desk.datetime.fromisoformat(r["publish_after"]) for r in slots if r["tier"] == "instagram")
         horizon = desk.now() + timedelta(hours=desk.CONFIG["veto_hours"] + desk.CONFIG["max_hours_ahead"])
         self.assertLessEqual(last, horizon)
 
@@ -1362,7 +1368,7 @@ class Hardening(Tmp):
         fresh = self.write_post("fresh")
         ig = FakeIG()
         self.assertEqual(desk.publish(client=ig), 1)
-        self.assertEqual(json.loads(stale.read_text())["status"], "expired")
+        self.assertEqual(json.loads(stale.read_text())["status"], "web")  # too old for Instagram, still news for the site
         self.assertEqual(json.loads(fresh.read_text())["status"], "published")
         self.assertEqual(len(ig.posted), 1)
         self.assertEqual(desk.published_last_24h(), 1)

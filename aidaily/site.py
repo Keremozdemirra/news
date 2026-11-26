@@ -1,7 +1,8 @@
 """The news pages at keremozdemir.de/news: built from the committed posts after every run.
 
 Static files only, no scripts, no third-party requests: thumbnails are copied in from the media
-branch, so a reader's browser talks to one origin. Only published posts appear.
+branch, so a reader's browser talks to one origin. Every post that reached a channel appears: published on
+Instagram, or web tier (status "web"), which is the site and the social channels only.
 
   /news/                 the latest stories
   /news/s/<id>/          one story: card, report, every source link (what the SOURCE DM points to)
@@ -32,7 +33,9 @@ OG_W, OG_H = 1200, 630
 
 
 def published():
-    rows = [p for p, _ in desk.posts() if p.get("status") == "published" and p.get("published") and p.get("kind") != "story"]
+    """Posts live on the site: published on Instagram or published to the web tier. Nothing on a page may say
+    which one it was, except the Instagram link a post carries only when it has a permalink."""
+    rows = [p for p, _ in desk.posts() if p.get("status") in ("published", "web") and p.get("published") and p.get("kind") != "story"]
     return sorted(rows, key=lambda p: p["published"], reverse=True)
 
 
