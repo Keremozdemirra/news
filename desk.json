@@ -132,6 +132,13 @@
     "bluesky": true,
     "telegram": true
   },
+  "video": {
+    "on": true,
+    "per_day": 2,
+    "format": "alternate",
+    "trial": "",
+    "seconds": 8
+  },
   "growth": {
     "so_what": false,
     "send_prompt": true,

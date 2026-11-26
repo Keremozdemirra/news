@@ -1116,7 +1116,8 @@ def queue(day_dir, batch=None, render=True):
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
             # videos_last_24h reads the queue on disk, which already holds this run's earlier posts
-            if not web and video_cfg("on") and videos_last_24h() < int(video_cfg("per_day", 0)):
+            # no render while Instagram is blocked: the post would expire on Instagram before it could go out
+            if not web and video_cfg("on") and not cooldown_until() and videos_last_24h() < int(video_cfg("per_day", 0)):
                 video = make_video(s, img, out.name)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",

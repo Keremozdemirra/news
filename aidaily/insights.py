@@ -306,6 +306,9 @@ def visual(p):
 def fmt(p):
     if p.get("kind"):
         return p["kind"]
+    shape = (p.get("video") or {}).get("shape")
+    if shape:  # the video card A/B: desk.json video.format alternates the two shapes until these rows decide
+        return "video reel" if shape == "reel" else "video carousel"
     n = len(p.get("cards") or [])
     return "web only" if p.get("status") == "web" else ("carousel" if n > 1 else "single image")
 
