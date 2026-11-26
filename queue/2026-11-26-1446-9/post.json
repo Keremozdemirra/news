@@ -3,7 +3,7 @@
  "batch": "2026-11-26-1446",
  "n": 9,
  "created": "2026-11-26T14:47:00+00:00",
- "publish_after": "2026-11-26T15:36:35+00:00",
+ "publish_after": "2026-11-26T15:15:36+00:00",
  "status": "queued",
  "cards": [
   "card.jpg",
@@ -24,7 +24,7 @@
   "news"
  ],
  "topic": "Economy",
- "photo_file": "Seat of the European Central Bank and Frankfurt Skyline at dawn 20150422 1.jpg",
+ "photo_file": "European Central Bank Frankfurt Germany 18 Feb 2023.jpg",
  "score": 9.64,
  "dek": "The Spanish economist is set to succeed Christine Lagarde after the Dutch government ends support for rival Klaas Knot.",
  "body": "Pablo Hernández de Cos has won the race for the ECB presidency. The Spanish economist is set to succeed Christine Lagarde. The Dutch government ended its support for rival candidate Klaas Knot.",
@@ -36,7 +36,7 @@
   "https://www.ft.com/content/88a0691a-6ce8-4c97-abf4-7aee0351fd51?syn-25a6b1a6=1",
   "https://www.cnbc.com/2026/11/26/pablo-hernandez-de-cos-ecb-president.html"
  ],
- "credit": "Photo: Norbert Nagel, CC BY-SA 3.0, via Wikimedia Commons",
- "issue": 2,
- "story": "story.jpg"
+ "credit": "Photo: Norbert Nagel, CC BY-SA 4.0, via Wikimedia Commons",
+ "story": "",
+ "person": ""
 }

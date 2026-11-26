@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-1530-1",
+ "batch": "2026-11-26-1530",
+ "n": 3,
+ "created": "2026-11-26T15:15:06+00:00",
+ "publish_after": "2026-11-26T15:15:06+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "FCC clears SpaceX to deploy up to 1 million Starmind satellites\n\nThe FCC has authorized SpaceX to deploy up to 1 million Starmind satellites to process AI data as orbital data centers. SpaceX is targeting its first launches in 2027, with the full constellation operating by 2040. Google and Blue Origin are also working on AI infrastructure in space, and Boston Consulting Group estimates costs will stay well above ground-based data centers for now.\n\nReported by The Decoder; BBC; CNBC; Engadget. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #tech #spacex",
+ "urls": [
+  "https://the-decoder.com/fcc-clears-spacex-to-deploy-up-to-1-million-starmind-satellites-for-orbital-ai-data-centers-by-2040/"
+ ],
+ "links": [
+  "https://the-decoder.com/fcc-clears-spacex-to-deploy-up-to-1-million-starmind-satellites-for-orbital-ai-data-centers-by-2040/",
+  "https://www.bbc.co.uk/news/articles/cwp836l8n1jgo?at_medium=RSS&at_campaign=rss",
+  "https://www.cnbc.com/2026/11/25/spacex-fcc-satellite-approval.html",
+  "https://www.engadget.com/2329071/spacex-gets-fcc-approval-to-deploy-1-million-satellites-for-its-ai-orbital-data-center/",
+  "https://www.theverge.com/science/1042278/spacex-fcc-starmind-ai-space-data-centers",
+  "https://www.wsj.com/business/fcc-authorizes-spacex-to-build-1-million-data-centers-in-space-0eb20ee7?mod=pls_whats_news_us_business_f"
+ ],
+ "headlines": [
+  "FCC clears SpaceX to deploy up to 1 million Starmind satellites"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "Tech",
+ "photo_file": "North America from low orbiting satellite Suomi NPP.jpg",
+ "score": 12.47,
+ "dek": "SpaceX targets first launches in 2027 and full operation by 2040, while BCG estimates costs stay well above ground-based centers.",
+ "body": "The FCC has authorized SpaceX to deploy up to 1 million Starmind satellites to process AI data as orbital data centers. SpaceX is targeting its first launches in 2027, with the full constellation operating by 2040. Google and Blue Origin are also working on AI infrastructure in space, and Boston Consulting Group estimates costs will stay well above ground-based data centers for now.",
+ "sources": [
+  "The Decoder",
+  "BBC",
+  "CNBC",
+  "Engadget"
+ ],
+ "source_urls": [
+  "https://the-decoder.com/fcc-clears-spacex-to-deploy-up-to-1-million-starmind-satellites-for-orbital-ai-data-centers-by-2040/",
+  "https://www.bbc.co.uk/news/articles/cwp836l8n1jgo?at_medium=RSS&at_campaign=rss",
+  "https://www.cnbc.com/2026/11/25/spacex-fcc-satellite-approval.html",
+  "https://www.engadget.com/2329071/spacex-gets-fcc-approval-to-deploy-1-million-satellites-for-its-ai-orbital-data-center/",
+  "https://www.theverge.com/science/1042278/spacex-fcc-starmind-ai-space-data-centers"
+ ],
+ "credit": "Photo: NASA/NOAA/GSFC/Suomi NPP/VIIRS/Norman Kuring, Public domain, via Wikimedia Commons",
+ "story": ""
+}

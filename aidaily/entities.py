@@ -171,7 +171,10 @@ NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|in
 # once returned the President of the United States for a story about state attorneys general
 PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"
                     r"press conference|holds|meets|meeting|speaks|speech|visit|delegation|representatives|portrait|"
-                    r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo)\b", re.I)
+                    r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo|"
+                    # scenes a reader takes as part of the news: a fighter jet beside an airliner is not "an airline"
+                    r"military|fighter|interception|army|navy|war|weapon|missile|police|crash|accident|fire|"
+                    r"explosion|disaster|flood|riot|emergency)\b", re.I)
 FACE = re.compile(r"cropped|crop\b|portrait|official|headshot", re.I)
 PEOPLE_ART = re.compile(r"guilty|convicted|impeach|sign|poster|banner|placard|mural|cartoon|caricature|meme|graffiti|"
                         r"effigy|mask|costume|parody|protest|rally|march|vote|ballot|campaign|sticker|flag", re.I)

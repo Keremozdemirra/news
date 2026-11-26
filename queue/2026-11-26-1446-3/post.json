@@ -4,7 +4,7 @@
  "n": 3,
  "created": "2026-11-26T14:46:48+00:00",
  "publish_after": "2026-11-26T15:06:35+00:00",
- "status": "published",
+ "status": "deleted",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -51,5 +51,6 @@
  "published": "2026-11-26T15:09:30+00:00",
  "media_id": "18174376132460480",
  "permalink": "https://www.instagram.com/p/DgNZK-OlwiX/",
- "story_id": "18116158283146357"
+ "story_id": "18116158283146357",
+ "note": "wrong logo (BCG on an FCC story); to be deleted by hand on Instagram; reposted as 2026-11-26-1530-1"
 }

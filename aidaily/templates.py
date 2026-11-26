@@ -63,7 +63,8 @@ def assets(story, fetch=True):
             f = lg if n == co else entities.logo(n, fetch=fetch)
             if f:
                 logos.append(f.as_uri())
-        subjects = [(story.get("person", ""), True), (story.get("image_query", ""), False), (co, False)]
+        # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
+        subjects = [(story.get("person", ""), True), (co, False), (story.get("image_query", ""), False)]
         ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch)
         if file_:
             USED.add(file_)
@@ -162,7 +163,7 @@ def card(story, brand=BRAND):
             f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
         return head() + f"""
 <div style="position:relative;width:1080px;height:1350px;background:{BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
-<img src="{a['photo']}" style="position:absolute;inset:0;width:1080px;height:1350px;object-fit:cover;object-position:50% 25%">
+<img src="{a['photo']}" style="position:absolute;inset:0;width:1080px;height:1350px;object-fit:cover;object-position:50% {'25%' if story.get('person') else '50%'}">
 <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%)"></div>
 <div style="position:absolute;left:64px;right:64px;top:64px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column">
