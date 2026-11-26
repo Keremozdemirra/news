@@ -97,5 +97,6 @@
     "world": 20,
     "numbers": 10
   },
-  "breaking_score": 11
+  "breaking_score": 11,
+  "story_concepts": false
 }

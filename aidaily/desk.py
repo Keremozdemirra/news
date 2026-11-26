@@ -216,7 +216,7 @@ def _queue_story(pid, html, title):
 def scheduled_stories():
     """Stories of their own, each once a day after its hour (UTC), from posts already published and checked:
     a morning brief, the number of the day, the evening top five, and on Sundays the week's top ten."""
-    if paused():
+    if paused() or not CONFIG.get("story_concepts", True):
         return []
     day, hour, made = now().strftime("%Y-%m-%d"), now().hour, []
     T = R.T

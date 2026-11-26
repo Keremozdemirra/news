@@ -25,7 +25,8 @@ class Tmp(unittest.TestCase):
         self.patches = [mock.patch.object(desk, "QUEUE", root / "queue"), mock.patch.object(desk, "STATE", root / "state"),
                         mock.patch.object(desk, "PAUSED", root / "PAUSED"), mock.patch.object(desk, "HERE", root),
                         mock.patch.object(desk, "MEDIA", root / "media"),
-                        mock.patch.dict("os.environ", {"GITHUB_TOKEN": "", "DESK_MEDIA_BASE": "https://raw.example/r/main"})]
+                        mock.patch.dict("os.environ", {"GITHUB_TOKEN": "", "DESK_MEDIA_BASE": "https://raw.example/r/main"}),
+                        mock.patch.dict(desk.CONFIG, {"story_concepts": True})]
         for p in self.patches:
             p.start()
         self.root = root
