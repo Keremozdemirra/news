@@ -117,7 +117,7 @@
   "platforms": {
     "threads": false,
     "facebook": false,
-    "bluesky": false,
+    "bluesky": true,
     "telegram": false
   }
 }
