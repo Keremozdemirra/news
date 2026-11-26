@@ -175,6 +175,23 @@ def alt_texts(post):
     return [head_[:1000], detail[:1000]][:len(post.get("cards", []))] or None
 
 
+def source_cta_count(hours=24):
+    """Captions that asked for a SOURCE comment in the last day, queued or published."""
+    cut = now() - timedelta(hours=hours)
+    return sum(1 for p, _ in posts() if p.get("source_cta") and _stamp(p.get("created", "")) and _stamp(p["created"]) > cut)
+
+
+def wants_source_cta(m, web, given):
+    """Only a few Instagram posts a day ask for a SOURCE comment: Instagram may keep a post that asks for a set
+    word out of recommendations (creators guidance as reported by Social Media Today, 2024), so the ask goes on
+    the day's biggest stories, scored at or above source_cta_min_score, at most source_cta_daily of them."""
+    if web:
+        return False
+    if (m.get("score") or 0) < CONFIG.get("source_cta_min_score", 12):
+        return False
+    return source_cta_count() + given < CONFIG.get("source_cta_daily", 3)
+
+
 def send_line(m, s):
     """The closing line. With send_prompt on, one of the approved lines in desk.json that names a kind of colleague
     close to the topic; the pick is a hash of the headline, so a rerun of the same story gives the same line
@@ -212,7 +229,7 @@ def keyword_line(headline, lead, s):
     return f"{', '.join(chosen)} · {topic}" if topic and topic.lower() not in opening else ", ".join(chosen)
 
 
-def caption(m, s):
+def caption(m, s, cta=True):
     src = outlets(m, s)
     lead = body(s) or s.get("dek", "")
     head_lines = [m["headline"], ""]
@@ -225,8 +242,8 @@ def caption(m, s):
     if growth("so_what") and s.get("so_what"):
         mid += [f"{CONFIG.get('so_what_label', 'What it means')}: {s['so_what']}", ""]
     lines = head_lines + mid + [f"Reported by {'; '.join(src)}. {CONFIG['ai_note']}", "",
-                                CONFIG["source_line"], send_line(m, s), "", " ".join(hashtags(m, s))]
-    text = "\n".join(lines)
+                                CONFIG["source_line"] if cta else "", send_line(m, s), "", " ".join(hashtags(m, s))]
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
@@ -823,7 +840,7 @@ def queue(day_dir, batch=None, render=True):
     earliest = now() + timedelta(hours=CONFIG["veto_hours"])
     horizon = earliest + timedelta(hours=CONFIG["max_hours_ahead"])
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
-    made, n = [], 0
+    made, n, ctas = [], 0, 0
     for m, s in ranked:
         web = m["url"] not in room_urls
         if not web:
@@ -858,7 +875,8 @@ def queue(day_dir, batch=None, render=True):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
-                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
+                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
+                "source_cta": cta,
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
@@ -867,6 +885,7 @@ def queue(day_dir, batch=None, render=True):
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],
                 "credit": s.get("_assets", {}).get("credit", "")}
+        ctas += bool(cta)
         if web:
             post.update(status="web", published=now().isoformat(timespec="seconds"), story="")
         else:
@@ -1636,8 +1655,29 @@ def weights(rows):
     return {c: round(min(1.25, max(0.8, (sum(v) / len(v)) / avg)), 3) for c, v in per.items() if len(v) >= 3}
 
 
+def platform_token_reminders(today=None):
+    """Threads and Facebook user tokens last about 60 days and cannot be renewed from here (a new secret needs
+    the owner), so the weekly run opens an issue ten days before the date recorded in desk.json token_expiry."""
+    today = today or now().date()
+    due = []
+    for name, day in (CONFIG.get("token_expiry") or {}).items():
+        left = (datetime.fromisoformat(day).date() - today).days
+        if left <= 10:
+            due.append((name, day, left))
+            if github.enabled():
+                github.open_issue(f"{name.capitalize()} token expires {day}",
+                                  f"The {name} token expires on {day} ({left} days). Generate a new long-lived token, "
+                                  f"store it with gh secret set, and update token_expiry in desk.json.")
+    return due
+
+
 def token_check(client=None):
     """Extend the token and say how long it has. Opens an issue when it needs the owner."""
+    try:
+        for name, day, left in platform_token_reminders():
+            print(f"{name} token: {left} days left (expires {day})")
+    except Exception as e:  # noqa: BLE001  a reminder must never stop the Instagram check
+        print(f"token reminders failed: {str(e)[:200]}")
     if client is None and not configured():
         print("Instagram not connected yet: no token to check")
         return None

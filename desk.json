@@ -128,8 +128,8 @@
   "growth": {
     "so_what": false,
     "send_prompt": false,
-    "alt_text": false,
-    "keyword_caption": false,
+    "alt_text": true,
+    "keyword_caption": true,
     "daily_reel": false,
     "reel_hour": 18,
     "reel_size": 5,
@@ -189,5 +189,11 @@
       ]
     }
   ],
-  "so_what_label": "What it means"
+  "so_what_label": "What it means",
+  "source_cta_min_score": 12,
+  "source_cta_daily": 3,
+  "token_expiry": {
+    "threads": "2027-01-25",
+    "facebook": "2027-01-25"
+  }
 }

@@ -11,6 +11,17 @@ from unittest import mock
 
 from aidaily import desk, platforms
 
+# the shipped desk.json switches some growth features on; these tests turn on only what each test needs
+_growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG["growth"] if isinstance(desk.CONFIG["growth"][k], bool)})
+
+
+def setUpModule():
+    _growth.start()
+
+
+def tearDownModule():
+    _growth.stop()
+
 SECRETS = {"THREADS_TOKEN": "tt-secret", "THREADS_USER_ID": "u1", "FB_PAGE_TOKEN": "fb-secret", "FB_PAGE_ID": "111",
            "BSKY_HANDLE": "me.bsky.social", "BSKY_APP_PASSWORD": "app-pass-secret", "TG_BOT_TOKEN": "tg-secret", "TG_CHANNEL": "@chan"}
 

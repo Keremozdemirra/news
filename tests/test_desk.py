@@ -8,6 +8,17 @@ from unittest import mock
 
 from aidaily import desk, instagram
 
+# the shipped desk.json switches growth features on; these tests pin the plain behaviour they were written for
+_growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG["growth"] if isinstance(desk.CONFIG["growth"][k], bool)})
+
+
+def setUpModule():
+    _growth.start()
+
+
+def tearDownModule():
+    _growth.stop()
+
 
 WORDS = ["Anthropic releases coding agent", "Mistral raises funding round", "Nvidia halts chip shipments",
          "Court blocks chatbot data sale", "Google previews robotics model", "Senate debates compute rules"]
@@ -1456,3 +1467,29 @@ class Hardening(Tmp):
         real = json.loads((Path(__file__).resolve().parent.parent / "state" / "cooldown.json").read_text())
         self.assertEqual(real["until"], "2026-11-27T16:15:00+00:00")
         self.assertEqual(real["error"], "manual: Instagram action block 2026-11-26")
+
+
+class SourceCtaAndReminders(unittest.TestCase):
+    def test_only_big_instagram_stories_ask_for_source(self):
+        with mock.patch.object(desk, "source_cta_count", return_value=0):
+            self.assertTrue(desk.wants_source_cta({"score": 12.5}, False, 0))
+            self.assertFalse(desk.wants_source_cta({"score": 11.9}, False, 0))
+            self.assertFalse(desk.wants_source_cta({"score": 13}, True, 0))
+            self.assertFalse(desk.wants_source_cta({"score": 13}, False, 3))
+        with mock.patch.object(desk, "source_cta_count", return_value=3):
+            self.assertFalse(desk.wants_source_cta({"score": 13}, False, 0))
+
+    def test_caption_without_cta_has_no_source_line(self):
+        m = {"headline": "Nvidia halts chip shipments", "url": "u", "category": "news"}
+        s = {"dek": "A dek.", "topic": "Tech"}
+        with mock.patch.object(desk, "outlets", return_value=["Reuters"]):
+            self.assertIn(desk.CONFIG["source_line"], desk.caption(m, s, cta=True))
+            self.assertNotIn(desk.CONFIG["source_line"], desk.caption(m, s, cta=False))
+            self.assertNotIn("\n\n\n", desk.caption(m, s, cta=False))
+
+    def test_token_reminder_ten_days_before(self):
+        from datetime import date
+        with mock.patch.dict(desk.CONFIG, {"token_expiry": {"threads": "2027-01-25"}}), \
+                mock.patch.object(desk.github, "enabled", return_value=False):
+            self.assertEqual(desk.platform_token_reminders(date(2027, 1, 10)), [])
+            self.assertEqual(desk.platform_token_reminders(date(2027, 1, 15))[0][2], 10)

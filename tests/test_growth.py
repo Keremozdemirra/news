@@ -12,6 +12,17 @@ from aidaily import copy, desk, instagram, reel
 from aidaily import templates as T
 from test_desk import FakeIG, Tmp
 
+# the shipped desk.json switches some growth features on; these tests turn on only what each test needs
+_growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG["growth"] if isinstance(desk.CONFIG["growth"][k], bool)})
+
+
+def setUpModule():
+    _growth.start()
+
+
+def tearDownModule():
+    _growth.stop()
+
 
 def on(**names):
     return mock.patch.dict(desk.CONFIG["growth"], {k: True for k in names})
@@ -27,10 +38,13 @@ GOOD = "Passengers booked with the carrier cannot fly while all of its flights a
 
 
 class Defaults(unittest.TestCase):
-    def test_every_switch_ships_off(self):
+    def test_shipped_switches_match_the_owners_choices(self):
+        # approved 2026-11-26: alt text and keyword captions on; what-it-means off; send lines and the reel wait
         cfg = json.loads((desk.HERE / "desk.json").read_text())["growth"]
-        for name in ("so_what", "send_prompt", "alt_text", "keyword_caption", "daily_reel"):
+        for name in ("so_what", "send_prompt", "daily_reel"):
             self.assertIs(cfg[name], False, name)
+        for name in ("alt_text", "keyword_caption"):
+            self.assertIs(cfg[name], True, name)
         self.assertEqual(cfg["reel_trial"], "")
 
     def test_prompt_has_no_so_what_field_while_off(self):
