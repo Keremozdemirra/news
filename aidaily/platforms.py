@@ -229,26 +229,34 @@ class Facebook(Client):
     _page_token = None
 
     def page_token(self):
-        """The Page's own token. A system-user token is stored once and never expires; posting as the Page
-        needs the Page token it can read (developers.facebook.com/docs/pages-api/getting-started)."""
-        if self._page_token is None:
-            if not self.env["FB_PAGE_ID"].strip().isdigit():
-                # a Page token answers /me with its own Page, so a mistyped or placeholder id is recovered here
-                me = self.form("GET", f"{self.host}/{self.version}/me",
-                               {"fields": "id,name", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET me")
-                self.env["FB_PAGE_ID"] = str(me["id"])
-            try:
-                got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
-                                {"fields": "name,access_token", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
-            except PlatformError as e:
-                # a Page token cannot read its own access_token field: then the stored token is already the Page's
-                if "nonexisting field (access_token)" not in str(e):
-                    raise
-                got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
-                                {"fields": "name", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
-            self._page_token = got.get("access_token") or self.env["FB_PAGE_TOKEN"]
-            self.env["_page_token"] = self._page_token  # scrubbed from errors like the stored secrets
-            self.page_name = got.get("name", "")
+        """The Boardread Page's own token, never a person's.
+
+        The stored token may be the Page token itself or a user token that manages the Page; with a user token
+        the Page token is read from /me/accounts (a Page token got through a long-lived user token does not
+        expire: developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived). Posting
+        with a user token would put the news on someone's personal profile, so that is refused."""
+        if self._page_token is not None:
+            return self._page_token
+        base, tok = f"{self.host}/{self.version}", self.env["FB_PAGE_TOKEN"]
+        try:
+            pages = self.form("GET", f"{base}/me/accounts", {"fields": "id,name,access_token", "access_token": tok},
+                              "facebook GET accounts").get("data", [])
+        except PlatformError:
+            pages = None  # a Page token has no /me/accounts
+        want = self.env["FB_PAGE_ID"].strip()
+        if pages is not None:
+            pick = [p for p in pages if p.get("id") == want] or [p for p in pages if "boardread" in p.get("name", "").lower()]
+            if len(pick) != 1 or not pick[0].get("access_token"):
+                raise PlatformError(f"facebook: the token manages {len(pages)} Page(s) and none is clearly Boardread")
+            self._page_token, self.page_name = pick[0]["access_token"], pick[0].get("name", "")
+            self.env["FB_PAGE_ID"] = str(pick[0]["id"])
+        else:
+            me = self.form("GET", f"{base}/me", {"fields": "id,name,category", "access_token": tok}, "facebook GET me")
+            if not me.get("category"):
+                raise PlatformError("facebook: the stored token is neither a Page token nor a user token that manages a Page")
+            self._page_token, self.page_name = tok, me.get("name", "")
+            self.env["FB_PAGE_ID"] = str(me["id"])
+        self.env["_page_token"] = self._page_token  # scrubbed from errors like the stored secrets
         return self._page_token
 
     def call(self, path, params):
@@ -258,7 +266,7 @@ class Facebook(Client):
     def check(self):
         """Reads the Page and posts nothing."""
         self.page_token()
-        return f"page {self.page_name!r} reachable" + ("" if self._page_token != self.env["FB_PAGE_TOKEN"] else " (stored token used as is)")
+        return f"page {self.page_name!r} reachable" + (" (stored token is the Page token)" if self._page_token == self.env["FB_PAGE_TOKEN"] else " (Page token read through the user token)")
 
     def post(self, post):
         self.page_token()

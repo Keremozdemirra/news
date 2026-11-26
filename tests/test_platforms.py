@@ -149,7 +149,7 @@ class Clients(Env):
         def out(req):
             n.append(req.data.decode())
             return {"id": "ph1"} if "/photos" in req.full_url else {"id": "111_99"}
-        fake = Fake({"fields=name": {"name": "Boardread", "access_token": "page-tok"}, "/111/": out})
+        fake = Fake({"me/accounts": {"data": [{"id": "111", "name": "Boardread", "access_token": "page-tok"}]}, "/111/": out})
         got = platforms.Facebook(opener=fake).post(post())
         self.assertEqual(got["url"], "https://www.facebook.com/111_99")
         # the stored system-user token only reads the Page; the posts go out with the Page's own token
@@ -162,12 +162,28 @@ class Clients(Env):
         old = os.environ.get("FB_PAGE_ID")
         os.environ["FB_PAGE_ID"] = "BURAYA_ID"
         try:
-            fake = Fake({"/me?": {"id": "777", "name": "Boardread"}, "fields=name": {"name": "Boardread", "access_token": "pt"},
+            fake = Fake({"me/accounts": {"data": [{"id": "777", "name": "Boardread", "access_token": "pt"}]},
                          "/777/": lambda r: {"id": "ph"} if "/photos" in r.full_url else {"id": "777_1"}})
             got = platforms.Facebook(opener=fake).post(post())
             self.assertEqual(got["id"], "777_1")
         finally:
             os.environ["FB_PAGE_ID"] = old
+
+    def test_facebook_never_posts_with_a_personal_token(self):
+        # a user token that manages no Page must not post to the person's own profile
+        fake = Fake({"me/accounts": {"data": []}})
+        with self.assertRaises(platforms.PlatformError):
+            platforms.Facebook(opener=fake).post(post())
+        self.assertFalse([r for r in fake.seen if "/feed" in r.full_url or "/photos" in r.full_url])
+
+    def test_facebook_page_token_used_as_is_only_for_a_page(self):
+        fake = Fake({"me/accounts": http_error(400, "nonexisting edge accounts"),
+                     "/me?": {"id": "111", "name": "Boardread", "category": "News & media website"},
+                     "/111/": lambda r: {"id": "ph"} if "/photos" in r.full_url else {"id": "111_5"}})
+        self.assertEqual(platforms.Facebook(opener=fake).post(post())["id"], "111_5")
+        person = Fake({"me/accounts": http_error(400, "x"), "/me?": {"id": "9", "name": "Someone"}})
+        with self.assertRaises(platforms.PlatformError):
+            platforms.Facebook(opener=person).post(post())
 
     def test_bluesky_flow_and_oversize_second_image_dropped(self):
         small, big = b"j" * 1000, b"j" * 1_000_001
@@ -198,7 +214,7 @@ class Clients(Env):
         self.assertNotIn("caption", media[1])
 
     def test_errors_never_carry_secrets(self):
-        fake = Fake({"fields=name": {"access_token": "page-secret"},
+        fake = Fake({"me/accounts": {"data": [{"id": "111", "name": "Boardread", "access_token": "page-secret"}]},
                      "/photos": http_error(400, "bad token fb-secret here and page-secret")})
         with self.assertRaises(platforms.PlatformError) as cm:
             platforms.Facebook(opener=fake).post(post())
