@@ -121,5 +121,70 @@
     "facebook": true,
     "bluesky": true,
     "telegram": true
-  }
+  },
+  "growth": {
+    "so_what": false,
+    "send_prompt": false,
+    "alt_text": false,
+    "keyword_caption": false,
+    "daily_reel": false,
+    "reel_hour": 18,
+    "reel_size": 5,
+    "reel_min": 3,
+    "reel_seconds": 3,
+    "reel_trial": ""
+  },
+  "send_prompts": [
+    {
+      "line": "Send this to someone who trades.",
+      "topics": [
+        "Markets",
+        "Economy"
+      ]
+    },
+    {
+      "line": "Send this to a colleague who follows the economy.",
+      "topics": [
+        "Economy",
+        "Markets",
+        "Politics",
+        "World"
+      ]
+    },
+    {
+      "line": "Send this to someone who works with AI.",
+      "topics": [
+        "AI",
+        "Tech"
+      ]
+    },
+    {
+      "line": "Send this to a teammate who works in tech.",
+      "topics": [
+        "Tech",
+        "AI"
+      ]
+    },
+    {
+      "line": "Send this to a colleague who runs a team.",
+      "topics": [
+        "Business",
+        "Culture",
+        "Politics",
+        "World",
+        "Economy"
+      ]
+    },
+    {
+      "line": "Send this to a colleague who follows this industry.",
+      "topics": [
+        "Business",
+        "Culture",
+        "Markets",
+        "Tech",
+        "AI"
+      ]
+    }
+  ],
+  "so_what_label": "What it means"
 }

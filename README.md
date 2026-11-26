@@ -28,6 +28,20 @@ GitHub may start a scheduled run up to half an hour late.
 - No daily quota: every story with a score of 7 or more, under 24 hours old and carried by a newsroom or lab, goes out. The ceiling is Meta's publishing limit (kept at 45 a day). Posts are 20 minutes apart and none is scheduled more than 6 hours past its veto window. A story is not posted again within 3 days, even when a later run clusters it under a different link. 20 replies a day.
 - It never follows, likes, comments elsewhere or sends DMs: Instagram's terms forbid automated interaction.
 
+## Growth switches
+
+`desk.json` holds five switches under `growth`, all off. Each can be turned on alone; with all off the posts are what they were.
+
+| Switch | Effect |
+|---|---|
+| `so_what` | the copy call returns one more field, a one-sentence consequence; fixed checks drop it if it adds a number or name, repeats the headline, gives advice or guesses. Shown on the detail slide under "What it means" and as one caption line |
+| `send_prompt` | the closing caption line comes from the six approved `send_prompts`, picked by topic |
+| `alt_text` | alt text on each carousel image: the headline on the card, headline and dek on the detail slide |
+| `keyword_caption` | the company and person go into the first 125 characters when the headline lacks them; hashtags drop to the topic tag and `#news` |
+| `daily_reel` | once a day, from `reel_hour` UTC, a 1080x1920 recap video of the day's top five posts, published as a Reel by the `publish` workflow (`aidaily reel due`, `build`, `send`); state in `state/reel.json`; never cross-posted |
+
+`python3 scripts/growth_preview.py` writes `brand/preview/growth.html` with all five on, from real posts, without calling Instagram.
+
 ## Secrets and settings
 
 | Name | Kind | Used by |

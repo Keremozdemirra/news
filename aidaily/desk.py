@@ -136,10 +136,18 @@ def outlets(m, s):
     return out[:4]
 
 
+def growth(name):
+    """A switch under desk.json "growth". All of them ship off; a missing key reads as off."""
+    return bool(CONFIG.get("growth", {}).get(name))
+
+
 def hashtags(m, s):
-    """Two house tags, the story's topic, the main company: five at most, Instagram's cap."""
-    tags = list(CONFIG["hashtags"])
+    """Two house tags, the story's topic, the main company: five at most, Instagram's cap.
+    With keyword_caption on: the topic tag and #news only. Names belong in the text, where search reads them."""
     topic = CONFIG["topic_tags"].get(s.get("topic") or "", "")
+    if growth("keyword_caption"):
+        return [t for t in dict.fromkeys([topic, "#news"]) if t][:2]
+    tags = list(CONFIG["hashtags"])
     co = re.sub(r"[^a-z0-9]", "", (s.get("company") or "").lower())
     for t in [topic] + ([f"#{co}"] if 2 < len(co) < 25 else []):
         if t and t not in tags:
@@ -152,11 +160,72 @@ def body(s):
     return "\n".join(l for l in (s.get("linkedin_post") or "").splitlines() if l.strip() and not l.startswith("Source:"))
 
 
+def so_what(s):
+    """The checked "what it means" sentence, or "" while the switch is off or the sentence failed its checks."""
+    return (s.get("so_what") or "") if growth("so_what") else ""
+
+
+def alt_texts(post):
+    """Alt text per carousel image, in card order, or None while the switch is off. Card: the headline.
+    Detail slide: headline and dek. Instagram allows 1,000 characters."""
+    if not growth("alt_text"):
+        return None
+    head_ = (post.get("headlines") or [""])[0]
+    detail = " ".join(x for x in (head_.rstrip(". ") + ".", post.get("dek", "")) if x.strip(". "))
+    return [head_[:1000], detail[:1000]][:len(post.get("cards", []))] or None
+
+
+def send_line(m, s):
+    """The closing line. With send_prompt on, one of the approved lines in desk.json that names a kind of colleague
+    close to the topic; the pick is a hash of the headline, so a rerun of the same story gives the same line
+    and different stories rotate through the set."""
+    if not growth("send_prompt"):
+        return CONFIG["send_line"]
+    topic = s.get("topic") or ""
+    rows = [r["line"] for r in CONFIG.get("send_prompts", []) if topic in r.get("topics", [])]
+    rows = rows or [r["line"] for r in CONFIG.get("send_prompts", [])]
+    if not rows:
+        return CONFIG["send_line"]
+    return rows[zlib.crc32((m.get("headline") or "").encode()) % len(rows)]
+
+
+KEY_WINDOW = 125  # what Instagram shows before "more", and roughly what search snippets read
+
+
+def keyword_line(headline, lead, s):
+    """A short "Company, Person · Topic" line that puts the story's names into the first 125 characters when
+    the headline and the first sentence do not already. Empty when no name is missing, or none fits: the topic
+    word alone would be filler, and the topic hashtag already carries it. Only names the checked copy holds
+    (company, person, the first org the source names) are used."""
+    topic = s.get("topic") or ""
+    opening = f"{headline}\n\n{lead}"[:KEY_WINDOW].lower()
+    names = [n for n in dict.fromkeys([s.get("company") or "", s.get("person") or ""] + list(s.get("orgs") or [])[:1]) if n]
+    room = KEY_WINDOW - len(headline) - 2 - len(" · ") - len(topic)  # the line follows the headline and a blank line
+    chosen = []
+    for n in (n for n in names if n.lower() not in opening):
+        cost = len(n) + (2 if chosen else 0)
+        if cost <= room:
+            chosen.append(n)
+            room -= cost
+    if not chosen:
+        return ""
+    return f"{', '.join(chosen)} · {topic}" if topic and topic.lower() not in opening else ", ".join(chosen)
+
+
 def caption(m, s):
     src = outlets(m, s)
-    lines = [m["headline"], "", body(s) or s.get("dek", ""), "",
-             f"Reported by {'; '.join(src)}. {CONFIG['ai_note']}", "",
-             CONFIG["source_line"], CONFIG["send_line"], "", " ".join(hashtags(m, s))]
+    lead = body(s) or s.get("dek", "")
+    head_lines = [m["headline"], ""]
+    if growth("keyword_caption"):
+        kw = keyword_line(m["headline"], lead, s)
+        # the keyword line goes straight under the headline so it sits inside the first 125 characters
+        if kw:
+            head_lines += [kw, ""]
+    mid = [lead, ""]
+    if growth("so_what") and s.get("so_what"):
+        mid += [f"{CONFIG.get('so_what_label', 'What it means')}: {s['so_what']}", ""]
+    lines = head_lines + mid + [f"Reported by {'; '.join(src)}. {CONFIG['ai_note']}", "",
+                                CONFIG["source_line"], send_line(m, s), "", " ".join(hashtags(m, s))]
     text = "\n".join(lines)
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
@@ -750,7 +819,7 @@ def queue(day_dir, batch=None, render=True):
             img.mkdir(parents=True, exist_ok=True)
             R.jpeg(day_dir / "pack" / m["file"]).replace(img / "card.jpg")
             png = img / "detail.png"
-            R.shoot(R.T.detail(s, body(s), outlets(m, s)), png, 1080, 1350)
+            R.shoot(R.T.detail(s, body(s), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
             R.jpeg(png)
             png.unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
@@ -770,7 +839,7 @@ def queue(day_dir, batch=None, render=True):
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
-                "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
+                "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "so_what": so_what(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],
@@ -1025,9 +1094,13 @@ def cross_post(post, path, factories=None):
         _save(path, post)
 
 
+# Instagram-only formats: the other platforms mirror the feed carousels, never stories or the daily recap reel
+NO_CROSSPOST = ("story", "reel")
+
+
 def _cross_post(post, path):
     """Never let a cross-post problem reach the Instagram flow that called it."""
-    if post.get("kind") == "story":
+    if post.get("kind") in NO_CROSSPOST:
         return
     try:
         cross_post(post, path)
@@ -1228,7 +1301,9 @@ def _publish(client, dry):
         post["attempted"] = now().isoformat(timespec="seconds")
         _save(path, post)  # on disk before the call: a killed run still leaves the trace for the next check
         try:
-            media, link = client.post_carousel(urls, post["caption"])
+            alts = alt_texts(post)
+            # the keyword is passed only when on, so a client written before alt text keeps working
+            media, link = client.post_carousel(urls, post["caption"], **({"alt_texts": alts} if alts else {}))
         except Exception as e:  # noqa: BLE001  one failed post must not block the queue
             blocked = note_block(e)
             if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
@@ -1522,5 +1597,5 @@ def prune_media():
                 f.unlink()
             d.rmdir()
         elif age > CONFIG["media_keep_days"]:
-            for name in ("card.jpg", "detail.jpg"):
+            for name in ("card.jpg", "detail.jpg", "reel.mp4"):
                 (d / name).unlink(missing_ok=True)

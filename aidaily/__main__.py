@@ -154,6 +154,8 @@ def main(argv=None):
     pb.add_argument("--dry", action="store_true")
     en = sub.add_parser("engage", help="answer new comments on recent posts")
     en.add_argument("--dry", action="store_true")
+    rl = sub.add_parser("reel", help="the daily recap Reel (switch growth.daily_reel): stage due, build or send")
+    rl.add_argument("stage", choices=["due", "build", "send"])
     sub.add_parser("insights", help="weekly numbers and category weights")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("site", help="build the news pages into _site/")
@@ -190,7 +192,7 @@ def main(argv=None):
                 continue
             wanted.discard(post["id"])
             # only what Instagram already carries: the other platforms mirror the feed, never lead it
-            if post.get("status") != "published" or post.get("kind") == "story":
+            if post.get("status") != "published" or post.get("kind") in desk.NO_CROSSPOST:
                 print(f"{post['id']}: not a published feed post, skipped")
                 continue
             desk._cross_post(post, path)
@@ -216,6 +218,16 @@ def main(argv=None):
                 print(f"{name}: {client.check()}")
             except Exception as e:  # noqa: BLE001  report every platform, not only the first broken one
                 print(f"{name}: FAILED {e}")
+        return 0
+    if args.cmd == "reel":
+        from . import reel
+        if args.stage == "due":
+            ok, why = reel.due()
+            print("reel due" if ok else f"reel not due: {why}")
+            return 0 if ok else 1  # the workflow runs the next stages only on 0
+        if args.stage == "build":
+            return 0 if reel.build() else 1
+        reel.send()
         return 0
     if args.cmd == "site":
         from . import site

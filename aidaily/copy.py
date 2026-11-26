@@ -9,7 +9,9 @@ import json
 import os
 import re
 import subprocess
+from pathlib import Path
 
+HERE = Path(__file__).resolve().parent.parent
 MODEL = "sonnet"
 MAX_HEADLINE = 80
 DASHES = str.maketrans({"—": ",", "–": "-"})
@@ -49,12 +51,31 @@ Fields:
 - linkedin_post: 2 to 3 short sentences: what happened, then the most useful further facts from the source;
   end with the line "Source: <outlet>"
 - fits_category: false if the story does not match its slot, e.g. a profile or retrospective in a funding
-  slot, an opinion piece in a breaking slot; true otherwise
+  slot, an opinion piece in a breaking slot; true otherwise{extra_fields}
 
 Return a JSON array only, no prose.
 
 STORIES:
 {stories}"""
+
+# Added to the prompt only while desk.json growth.so_what is true. It overrides the "do not interpret" rule above
+# for this one field, which is why the field text repeats the limits instead of leaning on them.
+SO_WHAT_FIELD = """
+- so_what: the one field where you do say what the story means, overriding the rule above. ONE plain sentence,
+  max 22 words, for a manager, investor or business student: the practical consequence that follows from facts
+  in the source, stated as fact. Do not restate the headline or dek. Use only words and facts from the source plus
+  plain connecting words. No advice ("should", "must"), no prediction ("could", "might", "likely", "will"), no
+  question, no new number or name. Example for "Bank X cuts 3,000 jobs after profit falls": "The bank is lowering
+  its costs after weaker profit." Return "" only when the source gives nothing to build on"""
+
+
+def switch(name):
+    """A growth switch from desk.json; read on each call so a test or a config edit takes effect at once."""
+    try:
+        return bool(json.loads((HERE / "desk.json").read_text()).get("growth", {}).get(name))
+    except (OSError, ValueError):
+        return False
+
 
 NUM = re.compile(r"\d+(?:[.,]\d+)?")
 WORD = re.compile(r"[a-z][a-z'’]+")
@@ -65,6 +86,14 @@ FILLER = set("that this with from their they have been will would could about in
 CULTURE = re.compile(r"\b(film|films|movie|movies|box office|game|games|gaming|console|music|album|song|singer|"
                      r"concert|tour|sport|sports|football|soccer|nba|nfl|olympic\w*|series|streaming|netflix|"
                      r"festival|art|artist|museum|celebrity|actor|actress|oscar\w*|grammy|book|novel|tv|show)\b", re.I)
+SO_WHAT_MAX_WORDS = 24  # the prompt asks for 22; two words of slack for a hyphenated or possessive count
+SO_WHAT_OVERLAP = 0.6   # share of the sentence's content words already in the headline or dek
+SO_WHAT_ANCHOR = 0.3    # share that must come from the source, so a consequence still hangs on the report
+ADVICE = re.compile(r"\b(should|must|ought|need to|needs to|could|might|may|likely|unlikely|probably|perhaps|"
+                    r"expected to|bullish|bearish|buy|sell|recommend\w*|advis\w*)\b", re.I)
+NOT_BUT = re.compile(r"\bnot\b[^.;]{0,50}\bbut\b|\bnot just\b|\bisn['’]t\b[^.;]{0,50}\bit['’]s\b", re.I)
+HYPE = re.compile(r"\b(huge|massive|incredible|stunning|shocking|explosive|game[- ]changing|groundbreaking|"
+                  r"seismic|earth-shattering|unprecedented)\b", re.I)
 GROUNDED = 0.6  # share of a sentence's content words that must come from the source
 
 
@@ -106,6 +135,40 @@ def verify(story, copy):
     return problems
 
 
+def check_so_what(story, copy, text):
+    """Problems with the "what it means" sentence; empty means it may be shown. A bad sentence costs only
+    itself: the story keeps its checked copy and the line is simply absent."""
+    from . import desk  # the house slop list lives in desk; imported here because desk imports this module
+    if not isinstance(text, str) or not text.strip():
+        return ["empty"]
+    problems = []
+    if len(text.split()) > SO_WHAT_MAX_WORDS:
+        problems.append("too long")
+    if "?" in text or "\n" in text or len(re.findall(r"[.!]\s+\S", text)) > 0:
+        problems.append("not one plain sentence")
+    src_text = story["title"] + " " + story.get("summary", "")
+    extra = _numbers(text) - _numbers(src_text)
+    if extra:
+        problems.append(f"numbers not in source {sorted(extra)}")
+    low_src = src_text.lower()
+    # a capitalised word that is not the first word is a name; every name must come from the source
+    for w in re.findall(r"(?<![.!?]\s)(?<!^)\b[A-Z][A-Za-z0-9&'’-]+", text):
+        if re.sub(r"['’]s$", "", w.lower()) not in low_src:
+            problems.append(f"name not in source: {w}")
+            break
+    seen = _stems(copy.get("headline", "") + " " + copy.get("dek", ""))
+    mine = _stems(text)
+    if mine and len(mine & seen) / len(mine) >= SO_WHAT_OVERLAP:
+        problems.append("repeats the headline or dek")
+    if mine and len(mine & _stems(src_text)) / len(mine) < SO_WHAT_ANCHOR:
+        problems.append("not tied to the source text")
+    for rx, why in ((desk.SLOP, "stock phrase"), (ADVICE, "advice or speculation"), (NOT_BUT, "not X but Y"), (HYPE, "hype")):
+        m = rx.search(text)
+        if m:
+            problems.append(f"{why}: {m.group(0)!r}")
+    return problems
+
+
 # The model reads untrusted text, so the CLI gets only what it needs to run: never the Instagram or GitHub tokens
 # that sit in the same job's environment.
 CLI_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "CLAUDE_CODE_OAUTH_TOKEN",
@@ -135,6 +198,10 @@ def ask_claude(prompt, runner=subprocess.run):
     return json.loads(m.group(0))
 
 
+def prompt(block):
+    return PROMPT.format(stories=block, extra_fields=SO_WHAT_FIELD if switch("so_what") else "")
+
+
 def write(stories, runner=subprocess.run):
     """Adds headline, dek, company, figure, x_post, linkedin_post to each story in place.
 
@@ -146,7 +213,7 @@ def write(stories, runner=subprocess.run):
         s["id"] = i
     block = "\n\n".join(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
                         for i, s in enumerate(stories))
-    return apply(stories, ask_claude(PROMPT.format(stories=block), runner))
+    return apply(stories, ask_claude(prompt(block), runner))
 
 
 def request(stories):
@@ -155,7 +222,7 @@ def request(stories):
         s["id"] = i
     block = "\n\n".join(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
                         for i, s in enumerate(stories))
-    return PROMPT.format(stories=block)
+    return prompt(block)
 
 
 def apply(stories, reply_rows):
@@ -174,6 +241,12 @@ def apply(stories, reply_rows):
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
                                                  "figure", "x_post", "linkedin_post", "image_query", "topic")},
                      copy_status="ok")
+            # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
+            s["so_what"] = ""
+            if switch("so_what"):
+                sw = (c.get("so_what") or "").strip()
+                if sw and not check_so_what(s, c, sw):
+                    s["so_what"] = sw
             # "Culture" only when the story is about culture: a company's viral marketing is a business story
             if s.get("topic") == "Culture" and not CULTURE.search(s["title"] + " " + s.get("summary", "")):
                 s["topic"] = "Business"

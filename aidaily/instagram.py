@@ -10,6 +10,7 @@ Docs read 2026-11-26: developers.facebook.com/docs/instagram-platform/content-pu
 """
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -26,6 +27,9 @@ VERSION = os.environ.get("IG_API_VERSION", "v27.0")
 
 class IGError(RuntimeError):
     pass
+
+
+ALT_REJECTED = re.compile(r"alt_text|invalid parameter|\(#100\)", re.I)
 
 
 class Client:
@@ -59,15 +63,33 @@ class Client:
 
     # publishing
 
-    def image_item(self, image_url):
-        return self.call("POST", f"{self.user_id}/media", {"image_url": image_url, "is_carousel_item": "true"})["id"]
+    def image_item(self, image_url, alt_text=None):
+        """alt_text (up to 1,000 characters) is accepted on a single image or an image in a carousel, not on
+        Reels or Stories: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media
+        (added 2025-03-24 per the content-publishing changelog). Alt text is an extra: if Instagram refuses the
+        field, the image is created without it rather than losing the post."""
+        params = {"image_url": image_url, "is_carousel_item": "true"}
+        if alt_text:
+            try:
+                return self.call("POST", f"{self.user_id}/media", {**params, "alt_text": alt_text})["id"]
+            except IGError as e:
+                if not ALT_REJECTED.search(str(e)):
+                    raise
+        return self.call("POST", f"{self.user_id}/media", params)["id"]
 
     def carousel(self, children, caption):
         return self.call("POST", f"{self.user_id}/media",
                          {"media_type": "CAROUSEL", "children": ",".join(children), "caption": caption})["id"]
 
-    def single(self, image_url, caption):
-        return self.call("POST", f"{self.user_id}/media", {"image_url": image_url, "caption": caption})["id"]
+    def single(self, image_url, caption, alt_text=None):
+        params = {"image_url": image_url, "caption": caption}
+        if alt_text:
+            try:
+                return self.call("POST", f"{self.user_id}/media", {**params, "alt_text": alt_text})["id"]
+            except IGError as e:
+                if not ALT_REJECTED.search(str(e)):
+                    raise
+        return self.call("POST", f"{self.user_id}/media", params)["id"]
 
     def story(self, image_url, sleep=time.sleep, user_tags=None):
         """A 1080x1920 image story. Returns the media id. Stories carry no caption and no link via the API;
@@ -105,12 +127,34 @@ class Client:
         rows = self.call("GET", f"{self.user_id}/content_publishing_limit", {"fields": "quota_usage,config"}).get("data", [])
         return rows[0] if rows else {}
 
-    def post_carousel(self, image_urls, caption, sleep=time.sleep):
-        """Returns (media_id, permalink). One image goes up as a single post."""
+    def reel(self, video_url, caption, share_to_feed=True, trial="", sleep=time.sleep):
+        """A Reel from a public MP4. Returns (media_id, permalink). share_to_feed true shows it on the grid and
+        in Feed as well as the Reels tab. trial ("MANUAL" or "SS_PERFORMANCE", the graduation_strategy) makes it a
+        trial Reel shown to non-followers first. Both parameters and the video spec (MP4/MOV without edit lists,
+        moov first, H.264 or HEVC, AAC up to 48 kHz, 23-60 fps, 3 s to 15 min, 9:16 recommended) are in
+        https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media
+        and the trial_params section of the content-publishing guide. Video is processed on Meta's side, so the
+        wait is longer than for an image."""
+        params = {"media_type": "REELS", "video_url": video_url, "caption": caption,
+                  "share_to_feed": "true" if share_to_feed else "false"}
+        if trial:
+            params["trial_params"] = json.dumps({"graduation_strategy": trial})
+        c = self.call("POST", f"{self.user_id}/media", params)["id"]
+        self.wait(c, tries=12, pause=30, sleep=sleep)
+        media = self.publish(c)
+        try:
+            link = self.permalink(media)
+        except IGError:
+            link = ""
+        return media, link
+
+    def post_carousel(self, image_urls, caption, sleep=time.sleep, alt_texts=None):
+        """Returns (media_id, permalink). One image goes up as a single post. alt_texts: one string per image."""
+        alts = list(alt_texts or [])
         if len(image_urls) == 1:
-            c = self.single(image_urls[0], caption)
+            c = self.single(image_urls[0], caption, alts[0] if alts else None)
         else:
-            kids = [self.image_item(u) for u in image_urls[:20]]
+            kids = [self.image_item(u, alts[i] if i < len(alts) else None) for i, u in enumerate(image_urls[:20])]
             for k in kids:
                 self.wait(k, sleep=sleep)
             c = self.carousel(kids, caption)

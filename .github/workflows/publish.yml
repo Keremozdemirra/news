@@ -34,6 +34,23 @@ jobs:
         run: |
           export DESK_MEDIA_REF=$(git ls-remote origin refs/heads/media | cut -f1)
           python3 -m aidaily publish
+      # Off unless desk.json growth.daily_reel is true: `reel due` then exits 1 and nothing below runs.
+      - name: Daily reel
+        if: always()
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if python3 -m aidaily reel due; then
+            command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+            scripts/media.sh pull
+            if python3 -m aidaily reel build; then
+              scripts/media.sh push
+              export DESK_MEDIA_REF=$(git ls-remote origin refs/heads/media | cut -f1)
+              python3 -m aidaily reel send
+            fi
+          fi
       - name: Commit
         if: always()
         run: |
