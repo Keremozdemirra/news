@@ -40,7 +40,7 @@ jobs:
             elif [ $(( $(date +%s) / 300 % 2 )) = 0 ]; then echo publish.yml
             else echo engage.yml; fi
           }
-          fails=0
+          fails=0; worst=0
           end=$(( $(date +%s) + 335*60 ))
           while [ "$(date +%s)" -lt "$end" ]; do
             if ! next=$(pick); then
@@ -52,10 +52,13 @@ jobs:
             else
               fails=$((fails + 1)); echo "$(date -u +%H:%M) $next not started ($fails in a row)"
             fi
-            # a clock that does nothing must not look healthy: red run, then tick-restart starts a fresh one
-            if [ "$fails" -ge 20 ]; then echo "::error::20 dispatches in a row failed"; exit 1; fi
+            # A GitHub outage fails every dispatch; quitting early only turned each outage into a red run (an e-mail)
+            # every 100 minutes. The loop rides it out, and the run turns red once, at the end, if it never recovered.
+            [ "$fails" -gt "$worst" ] && worst=$fails
+            if [ "$fails" = 20 ]; then echo "::warning::20 dispatches in a row failed; still trying"; fi
             sleep $(( 300 - $(date +%s) % 300 ))
           done
+          echo "worst=$worst" >> "$GITHUB_ENV"
       - name: Next
         if: ${{ !cancelled() }}
         run: |
@@ -64,3 +67,8 @@ jobs:
             sleep $((i * 10))
           done
           echo "::error::could not dispatch the next tick"; exit 1
+      - name: Report
+        if: ${{ !cancelled() }}
+        run: |
+          # red only when the clock was down for over 100 minutes at a stretch: one e-mail per six-hour run at most
+          if [ "${worst:-0}" -ge 20 ]; then echo "::error::$worst dispatches in a row failed during this run"; exit 1; fi

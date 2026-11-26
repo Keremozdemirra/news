@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: read   # the health report reads the run list
 concurrency:
   group: desk
   cancel-in-progress: false
@@ -31,6 +32,15 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 -m aidaily token
+      - name: Health report
+        if: ${{ !cancelled() }}
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m aidaily health --weekly
       - name: Commit
         if: always()
         run: |
