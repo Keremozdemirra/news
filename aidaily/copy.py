@@ -285,6 +285,12 @@ QUALIFIED = re.compile(r"\b(more than|over|up to|at least|about|around|nearly|al
                        r"as many as|as much as|some|close to)\s+$", re.I)
 
 
+# a source phrase pasted into another sentence: "called an “underhanded” the push", "Justice described as a
+# landmark ruling convicted". Such a sentence is cut like commentary.
+MALFORMED = re.compile(r"\b(a|an|the)\s+[\"“‘'][^\"”’']{1,40}[\"”’']\s+(the|a|an)\b|"
+                       r"\b[A-Z][a-z]+ described as an? [a-z]+ [a-z]+ [a-z]+ed\b", re.I)
+
+
 def strip_ungrounded(story, copy):
     """Removes every dek, x_post and report sentence whose words are mostly not the source's: commentary is never
     shown, and the story keeps its checked facts. It used to cost the whole story, so one padded sentence
@@ -301,7 +307,7 @@ def strip_ungrounded(story, copy):
                 continue
             kept = []
             for sent in sentences(line):
-                (cut.append(sent) if ungrounded(sent, text) else kept.append(sent))
+                (cut.append(sent) if ungrounded(sent, text) or MALFORMED.search(sent) else kept.append(sent))
             if kept:
                 keep_lines.append(" ".join(kept))
         copy[field] = re.sub(r"\n{3,}", "\n\n", "\n".join(keep_lines)).strip()
@@ -388,6 +394,11 @@ def apply(stories, reply_rows):
             # a dek that only says the headline again is no dek ("Congress passed the overhaul ... in its final vote")
             if s.get("dek") and repeats(s["dek"], s["headline"]):
                 s["dek"] = ""
+            # a report that only says the headline again gives way to the dek when the dek adds something
+            report = "\n".join(l for l in s["linkedin_post"].splitlines() if l.strip() and not l.startswith("Source:"))
+            if s.get("dek") and (not report or repeats(report, s["headline"], share=0.6)):
+                src_line = [l for l in s["linkedin_post"].splitlines() if l.startswith("Source:")]
+                s["linkedin_post"] = s["dek"] + ("\n\n" + src_line[0] if src_line else "")
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what"):
@@ -403,7 +414,8 @@ def apply(stories, reply_rows):
             s["orgs"] = [o for o in orgs if isinstance(o, str) and o.strip() and o.lower() in src][:3]
             # the same holds for a face: only a person the source names may be pictured, and only when our own text
             # names them too, or the reader sees a face nobody on the card is
-            shown = (s["headline"] + " " + s.get("dek", "") + " " + s.get("linkedin_post", "")).lower()
+            # the card shows the headline, the detail slide the report: the dek alone is not on either
+            shown = (s["headline"] + " " + s.get("linkedin_post", "")).lower()
             if s.get("person") and (s["person"].split()[-1].lower() not in src or s["person"].split()[-1].lower() not in shown):
                 s["person"] = ""
             # and for every logo: a company or backer the source does not name gets no logo on the card. An

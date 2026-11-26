@@ -159,6 +159,23 @@ class Copy(unittest.TestCase):
         copy.apply([s], rows)
         self.assertEqual(s["person"], "")
 
+    def test_a_malformed_sentence_is_cut(self):
+        s = {"title": "Le Pen slams push for EU budget deal", "summary": "Le Pen called the push to lock in spending plans "
+             "underhanded. EU leaders clashed over the budget.", "source": "France 24"}
+        c = {"headline": "Le Pen slams push for EU budget deal", "dek": "", "x_post": "",
+             "linkedin_post": "EU leaders clashed over the budget. Le Pen called an “underhanded” the push to lock "
+                              "in spending plans.\n\nSource: France 24"}
+        copy.strip_ungrounded(s, c)
+        self.assertEqual(c["linkedin_post"], "EU leaders clashed over the budget.\n\nSource: France 24")
+
+    def test_a_report_that_restates_the_headline_gives_way_to_the_dek(self):
+        s = {"title": "Senate approves bill to suspend primaries in vote that is a boost for Milei", "summary": "", "source": "Buenos Aires Times"}
+        rows = [{"id": 0, "headline": "Argentina's Senate approves bill to suspend primaries",
+                 "dek": "The Buenos Aires Times reports the vote as a boost for Milei.", "x_post": "",
+                 "linkedin_post": "The Senate approved the bill to suspend primaries.\n\nSource: Buenos Aires Times", "figure": ""}]
+        copy.apply([s], rows)
+        self.assertTrue(s["linkedin_post"].startswith("The Buenos Aires Times reports"))
+
     def test_outlet_digits_are_not_a_claim(self):
         s = {"title": "Spain's De Cos chosen as next ECB president", "summary": "", "source": "France 24"}
         self.assertEqual(copy.verify(s, {"headline": "De Cos chosen as next ECB president", "dek": "",
