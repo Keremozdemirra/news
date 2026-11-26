@@ -4,7 +4,7 @@
  "n": 5,
  "created": "2026-11-26T15:42:13+00:00",
  "publish_after": "2026-11-26T16:06:35+00:00",
- "status": "queued",
+ "status": "failed",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -38,5 +38,6 @@
  "source_urls": [
   "https://www.ft.com/content/6e217409-9fbb-456c-b405-2eb15bb69679?syn-25a6b1a6=1"
  ],
- "credit": "Photo: Myrmux, CC BY-SA 4.0, via Wikimedia Commons"
+ "credit": "Photo: Myrmux, CC BY-SA 4.0, via Wikimedia Commons",
+ "error": "POST 17841480765165673/media_publish: HTTP 403: {\"error\":{\"message\":\"Application request limit reached\",\"code\":4,\"type\":\"OAuthException\",\"error_subcode\":2207051,\"is_transient\":false,\"error_user_msg\":\"We restrict certain activity to protect our community. Tell us if you think that we've made a mistake.\",\"error_user_title\":\"Action is blocked\",\"fbtrace_id\":\"Ad0_gUANzYlA0GTdqZH-M1b\"}}"
 }
