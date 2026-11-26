@@ -170,9 +170,11 @@ def _logo_block(uri, name, h=60, invert=False):
     return _logo_tile(uri, int(h * 2.4))
 
 
-def _foot(story, brand, dark=False):
+def _foot(story, brand, dark=False, edited=False):
     grey = GREY_DARK if dark else GREY
     credit = assets(story)["credit"]
+    if edited and credit and re.search(r"\bCC BY\b", credit):
+        credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
     c = f'<div style="margin-top:10px;font-size:16px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
     return (f'<div><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
             f'<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand["name"])}</span>'
@@ -184,8 +186,12 @@ def _size(text, big, mid, small):
     return big if n < 55 else mid if n < 85 else small
 
 
-def card(story, brand=BRAND):
-    """4:5 card for every platform."""
+def card(story, brand=BRAND, motion=False, height=1350):
+    """4:5 card for every platform.
+
+    motion: the photo layout without its photo, on a transparent ground, for cardvideo.py to lay over the moving
+    photo; its parts carry class names so the video can bring them in one by one. height 1920 is the same card as a
+    9:16 Reel, with the text kept clear of the bands Instagram draws its own buttons and caption over."""
     a = assets(story)
     title = story.get("headline") or story["title"]
     kind = layout(story)
@@ -195,15 +201,21 @@ def card(story, brand=BRAND):
             f'<div style="height:96px;padding:0 26px;background:#fff;border-radius:20px;display:flex;align-items:center;'
             f'box-shadow:0 6px 24px rgba(0,0,0,.25)"><img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
             f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
-        return head() + f"""
-<div style="position:relative;width:1080px;height:1350px;background:{BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
-<img src="{a['photo']}" style="position:absolute;inset:0;width:1080px;height:1350px;object-fit:cover;object-position:50% {'25%' if story.get('person') else '50%'}">
-<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%)"></div>
-<div style="position:absolute;left:64px;right:64px;top:64px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
-<div style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column">
-<span style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
-<h1 style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{e(title)}</h1>
-{_foot(story, brand, dark=True)}</div></div></body></html>"""
+        tall = height > 1350
+        top, side, bottom = (240, 150, 420) if tall else (64, 72, 64)
+        grad = ("rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.84) 58%,rgba(0,0,0,.94) 100%" if tall else
+                "rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%")
+        photo = "" if motion else (f'<img src="{a["photo"]}" style="position:absolute;inset:0;width:1080px;height:{height}px;object-fit:cover;'
+                                   f'object-position:50% {"25%" if story.get("person") else "50%"}">')
+        return head().replace("<body>", "<body style=\"background:transparent\">" if motion else "<body>") + f"""
+<div style="position:relative;width:1080px;height:{height}px;background:{'transparent' if motion else BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
+{photo}
+<div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
+<div class="c-chips" style="position:absolute;left:64px;right:64px;top:{top}px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
+<div style="position:absolute;left:72px;right:{side}px;bottom:{bottom}px;display:flex;flex-direction:column">
+<span class="c-meta" style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
+<h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{e(title)}</h1>
+<div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div></div></body></html>"""
     if kind == "figure":
         fig = story.get("figure") or key_figure(title)
         backer = (f'<div style="margin-top:26px;display:flex;align-items:center;gap:14px;font-size:26px;color:{GREY}"><span>Backed by</span>'

@@ -69,6 +69,15 @@ def media_url(post_id, name):
     return f"{base}/{post_id}/{name}"
 
 
+def video_url(post_id, name):
+    """Instagram fetches a video from a public URL too, but raw.githubusercontent.com serves MP4 as
+    application/octet-stream; jsDelivr serves the same file from the same commit as video/mp4 (checked 2026-11-27).
+    Files up to 20 MB; ours are under 8 MB."""
+    ref = os.environ.get("DESK_MEDIA_REF") or CONFIG["media_branch"]
+    base = os.environ.get("DESK_VIDEO_BASE") or f"https://cdn.jsdelivr.net/gh/{os.environ.get('GITHUB_REPOSITORY', '')}@{ref}"
+    return f"{base}/{post_id}/{name}"
+
+
 def story_url(post_id, channel=None):
     """The article page. With growth.utm on, a link posted to a channel carries utm_source=<channel>: one label per
     channel, the same for every reader, never a per-person identifier (brand/growth/MEASUREMENT.md)."""
@@ -293,6 +302,93 @@ def caption(m, s, cta=True):
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
+# video cards: the post's photo card with the photo moving behind the same text (cardvideo.py)
+
+def video_cfg(name, default=None):
+    return (CONFIG.get("video") or {}).get(name, default)
+
+
+def videos_last_24h():
+    """Video posts published in the last 24 hours plus those queued: the daily cap counts both."""
+    cut = now() - timedelta(hours=24)
+    n = 0
+    for p, _ in posts():
+        if not p.get("video"):
+            continue
+        if p.get("status") == "queued" or (p.get("status") == "published" and (_stamp(p.get("published", "")) or cut) > cut):
+            n += 1
+    return n
+
+
+def video_shape():
+    """card (first child of the carousel) or reel. "alternate" takes whichever shape the last 14 days used less, so
+    the weekly insights compare the two on the same kind of story; "card" or "reel" fixes it once the numbers decide."""
+    fmt = video_cfg("format", "alternate")
+    if fmt in ("card", "reel"):
+        return fmt
+    cut = now() - timedelta(days=14)
+    used = {"card": 0, "reel": 0}
+    for p, _ in posts():
+        v = p.get("video") or {}
+        if v.get("shape") in used and (_stamp(p.get("created", "")) or cut) > cut:
+            used[v["shape"]] += 1
+    return "reel" if used["reel"] < used["card"] else "card"
+
+
+def video_problems(post):
+    """What holds a post's video. Licence: the photo under CC0, CC BY or public domain, with its credit (a video is an
+    adaptation; share-alike, no-derivatives and non-commercial photos never move). Spec: the file passed Instagram's
+    video spec when it was rendered. Subject: the video was made from this post's headline, photo and credit, so it
+    shows nothing the audited still card does not."""
+    v = post.get("video")
+    if not v:
+        return []
+    from . import video as V
+    out = []
+    if v.get("shape") not in ("card", "reel") or not v.get("file") or not v.get("cover"):
+        out.append("video record incomplete")
+    if not post.get("credit") or not V.photo_ok(post):
+        out.append("photo licence does not allow an edited video")
+    if v.get("spec") != []:
+        out.append(f"video failed the spec check: {'; '.join(v.get('spec') or ['not checked'])}")
+    if v.get("headline") != post["headlines"][0] or v.get("photo_file") != post.get("photo_file") or v.get("credit") != post.get("credit"):
+        out.append("video was made from another headline, photo or credit than the post")
+    return out
+
+
+def check_video(post):
+    """Drop a video that fails its checks; the post goes out as its still carousel. Returns True when it was dropped."""
+    problems = video_problems(post)
+    if problems:
+        post.pop("video", None)
+        post["video_held"] = problems
+        print(f"{post.get('id')}: video held, stills instead: {'; '.join(problems)}")
+    return bool(problems)
+
+
+def make_video(s, img, post_id):
+    """Render the story's video card into the media folder. Returns the post's video record, or None (and why it
+    was skipped is printed); a failed render never touches the still card."""
+    from . import cardvideo as CV
+    why = CV.eligible(s)
+    if why:
+        print(f"{post_id}: no video card: {why}")
+        return None
+    shape = video_shape()
+    try:
+        mp4 = CV.build(s, img / "video.mp4", shape, seconds=float(video_cfg("seconds", CV.SECONDS)))
+        CV.cover(mp4, img / "cover.jpg")
+    except Exception as e:  # noqa: BLE001  a render failure costs the video, never the post
+        print(f"{post_id}: video render failed, stills only: {str(e)[:300]}")
+        for f in ("video.mp4", "cover.jpg"):
+            (img / f).unlink(missing_ok=True)
+        return None
+    a = s.get("_assets") or {}
+    return {"shape": shape, "file": "video.mp4", "cover": "cover.jpg", "spec": CV.audit_file(mp4, shape),
+            "headline": s.get("headline") or s["title"], "photo_file": a.get("file", ""), "credit": a.get("credit", ""),
+            "focus": list(CV.focus(s)), "seconds": float(video_cfg("seconds", CV.SECONDS))}
+
+
 SLOP = re.compile(r"\b(delve|game[- ]changer|landscape|unlock|revolutioni[sz]e|it'?s worth noting|in today'?s|"
                   r"buckle up|here'?s what|everything you need to know|must[- ]read|you won'?t believe|"
                   r"not just|a testament|navigat(e|ing) the)\b", re.I)
@@ -330,6 +426,8 @@ def audit(post):
         problems.append(f"photo file names {E.foreign_team(pf, head_ + ' ' + post.get('body', ''))}, a team the article does not name")
     if post.get("photo_file") and not post.get("credit"):
         problems.append("photo without a credit line")
+    # check_video() drops a failing video before audit runs; reaching here with one means a path skipped it
+    problems += [f"video: {p}" for p in video_problems(post)]
     cap = post.get("caption", "")
     tags = re.findall(r"#\w+", cap)
     if len(tags) > 5 or len(set(tags)) != len(tags):
@@ -985,6 +1083,7 @@ def queue(day_dir, batch=None, render=True):
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
     made, n, ctas = [], 0, 0
     for m, s in ranked:
+        video = None
         web = m["url"] not in room_urls or not social_allowed(s)
         if not web:
             when = max(earliest, slot + gap) if slot else earliest
@@ -1016,6 +1115,9 @@ def queue(day_dir, batch=None, render=True):
             src = s.get("_assets", {}).get("photo", "")
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
+            # videos_last_24h reads the queue on disk, which already holds this run's earlier posts
+            if not web and video_cfg("on") and videos_last_24h() < int(video_cfg("per_day", 0)):
+                video = make_video(s, img, out.name)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
                 "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
@@ -1030,6 +1132,9 @@ def queue(day_dir, batch=None, render=True):
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
                 "credit": s.get("_assets", {}).get("credit", ""), "photo_kind": s.get("_assets", {}).get("kind", "")}
         ctas += bool(cta)
+        if video:
+            post["video"] = video
+            check_video(post)
         if web:
             post.update(status="web", published=now().isoformat(timespec="seconds"), story="")
         else:
@@ -1769,6 +1874,8 @@ def _publish(client, dry):
             print(f"{post['id']}: vetoed")
             _close_if_done(post.get("issue"))
             continue
+        if check_video(post):
+            _save(path, post)
         problems = audit(post)
         if problems:
             post.update(status="held", held=problems)
@@ -1802,7 +1909,27 @@ def _publish(client, dry):
         try:
             alts = alt_texts(post)
             # the keyword is passed only when on, so a client written before alt text keeps working
-            media, link = client.post_carousel(urls, post["caption"], **({"alt_texts": alts} if alts else {}))
+            extra = {"alt_texts": alts} if alts else {}
+            media = None
+            v = post.get("video")
+            if v:
+                from .instagram import VideoRejected
+                try:
+                    if v["shape"] == "reel":
+                        media, link = client.reel(video_url(post["id"], v["file"]), post["caption"], share_to_feed=True,
+                                                  trial=video_cfg("trial", ""), cover_url=media_url(post["id"], v["cover"]))
+                    else:
+                        media, link = client.post_carousel(urls, post["caption"], video_first=video_url(post["id"], v["file"]),
+                                                           thumb_offset=1600, **extra)
+                except VideoRejected as ve:
+                    # the video never reached a publish call: the same post goes out as its stills, now
+                    post["video_error"] = str(ve)[:300]
+                    post["video_shape_tried"] = v.get("shape")
+                    post.pop("video")
+                    _save(path, post)
+                    print(f"{post['id']}: video refused by Instagram, publishing stills: {str(ve)[:160]}")
+            if media is None:
+                media, link = client.post_carousel(urls, post["caption"], **extra)
         except Exception as e:  # noqa: BLE001  one failed post must not block the queue
             blocked = note_block(e)
             if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
