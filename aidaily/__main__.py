@@ -155,10 +155,15 @@ def main(argv=None):
     en.add_argument("--dry", action="store_true")
     sub.add_parser("insights", help="weekly numbers and category weights")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
+    sub.add_parser("site", help="build the news pages into _site/")
     args = p.parse_args(argv)
     if args.cmd == "serve":
         from . import server
         server.serve(args.port)
+        return 0
+    if args.cmd == "site":
+        from . import site
+        site.build()
         return 0
     if args.cmd in ("daily", "notify", "publish", "engage", "insights", "token"):
         from . import desk

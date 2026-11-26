@@ -10,6 +10,7 @@ An Instagram account for AI news that runs itself on GitHub Actions. Every hour 
 | every 20 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | hourly | `engage` | answer new comments on the last 7 days of posts, at most 20 a day |
 | Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
+| after each run | `site` | rebuild keremozdemir.de/news from the published posts |
 
 GitHub may start a scheduled run up to half an hour late.
 
@@ -36,7 +37,7 @@ GitHub may start a scheduled run up to half an hour late.
 | `IG_USER_ID` | secret, the account's Instagram user id | publish, engage, weekly |
 | `DESK_PAUSED` | variable, optional | all |
 
-Instagram fetches each JPEG from its raw URL in this repository, which is why the repository is public.
+Instagram fetches each JPEG from its raw URL on the `media` branch, which is why the repository is public. A reader who comments SOURCE gets one DM with the story's page; that needs the `instagram_business_manage_messages` permission. The repository is named `news` because GitHub serves it under the owner's Pages domain, keremozdemir.de/news.
 
 ## Files
 
@@ -49,6 +50,8 @@ Instagram fetches each JPEG from its raw URL in this repository, which is why th
 | `aidaily/instagram.py` | the Instagram API calls (graph.instagram.com, v27.0) |
 | `aidaily/github.py` | the veto issues |
 | `desk.json` | caps, window, hashtags, skipped topics |
+| `aidaily/site.py` | the pages at keremozdemir.de/news: latest stories, one page per story, weekly issues, RSS |
+| `scripts/media.sh` | the `media` branch: one commit of the JPEGs Instagram fetches and the thumbnails the pages show, pruned by age |
 | `queue/`, `state/` | every post, reply and weekly number, committed by the workflows |
 
 ## Local run

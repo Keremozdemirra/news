@@ -109,6 +109,12 @@ class Client:
     def reply(self, comment_id, message):
         return self.call("POST", f"{comment_id}/replies", {"message": message})["id"]
 
+    def private_reply(self, comment_id, text):
+        """One DM to the person who wrote a comment: Meta's private replies, allowed once per comment within
+        7 days. Needs instagram_business_manage_messages."""
+        return self.call("POST", f"{self.user_id}/messages",
+                         {"recipient": json.dumps({"comment_id": comment_id}), "message": json.dumps({"text": text})})
+
     def own_username(self):
         return self.call("GET", "me", {"fields": "username"}).get("username", "")
 

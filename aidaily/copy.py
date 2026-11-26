@@ -30,9 +30,10 @@ Fields:
 - person: the one person the story is centrally about, full name ("" if none; never a person only quoted)
 - orgs: up to 3 companies or institutions the story names, main one first, each spelled as in the source
   ([] if none)
-- image_query: 2 to 5 words to search Wikimedia Commons for a photo of the story's subject: the person's
-  name, a named product or building, or a plain physical subject such as "data center servers" or
-  "semiconductor wafer". Never a logo, never an abstract idea
+- image_query: 2 to 4 words to search Wikimedia Commons for a photo of a physical thing the story is
+  about: a named product, a named building, or a plain object or place such as "data center",
+  "semiconductor wafer", "courthouse", "satellite". Never a person, a crowd, an event, a meeting or a
+  press conference (the story's own person goes in "person"), never a logo, never an abstract idea
 - figure: the single key figure as written in the source, like "$36M" or "40%" ("" if none)
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
 - linkedin_post: 2 to 3 short sentences: what happened, then the most useful further facts from the source;
@@ -151,6 +152,9 @@ def apply(stories, reply_rows):
             src = (s["title"] + " " + s.get("summary", "")).lower()
             orgs = c.get("orgs") if isinstance(c.get("orgs"), list) else []
             s["orgs"] = [o for o in orgs if isinstance(o, str) and o.strip() and o.lower() in src][:3]
+            # the same holds for a face: only a person the source names may be pictured
+            if s.get("person") and s["person"].split()[-1].lower() not in src:
+                s["person"] = ""
             # a big figure the reader cannot find in the headline or dek reads as the story's number when it is not
             seen = s["headline"] + " " + s["dek"]
             fig = s["figure"]

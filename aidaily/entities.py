@@ -165,11 +165,27 @@ def photo(person, fetch=True):
         return None, ""
 
 
-NOT_PHOTO = re.compile(r"logo|icon|wordmark|\.svg$|map|flag|diagram|chart|screenshot|seal|coat of arms|signature", re.I)
+NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|interface|extension|extention|seal|"
+                       r"coat of arms|signature|poster|banner", re.I)
+# a photo of a topic must not put a person on a story they are not in: a search for "press conference"
+# once returned the President of the United States for a story about state attorneys general
+PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"
+                    r"press conference|holds|meets|meeting|speaks|speech|visit|delegation|representatives|portrait|"
+                    r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo)\b", re.I)
+GROUP = re.compile(r"\b(with|and|meets|meeting|delegation|visit|group|team|family|ceremony|summit|tweet|notes|"
+                   r"endorsed|cartoon|meme|caricature|parody|drawing|illustration|graffiti|mural|protest|sign|"
+                   r"trump|biden|putin|xi|modi|obama|harris|vance|zuckerberg|bezos|gates|altman|musk|huang|"
+                   r"nadella|pichai|amodei|hassabis)\b|[A-Z][a-z]+-[A-Z][a-z]+", re.I)
+WORD_ = re.compile(r"[a-z][a-z0-9]+")
+
+
+def _words(text):
+    return {w for w in WORD_.findall((text or "").lower()) if len(w) > 2}
 
 
 def candidates(subject, person=False):
-    """Commons file names that may show the subject: a person's Wikidata image and category, or a search."""
+    """Commons JPEG names that may show the subject: a person's Wikidata image and category, or a search
+    whose hits must name the subject in their own title and must not be photos of people or events."""
     files = []
     if person:
         _, claims = _entity(subject)
@@ -179,15 +195,32 @@ def candidates(subject, person=False):
             t = urllib.parse.quote("Category:" + cat)
             got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=categorymembers"
                        f"&cmtitle={t}&cmtype=file&cmlimit=50")["query"]["categorymembers"]
+            # a photo of the person with someone else puts that someone on the story
             files += [m["title"][5:] for m in got]
+        # many people have a handful of files in their category and many more elsewhere; a title that
+        # carries the full name and nobody else's is a photo of them
+        q = urllib.parse.quote(f'"{subject}" filetype:bitmap')
+        got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
+                   f"&srnamespace=6&srlimit=50&srsearch={q}")["query"]["search"]
+        need = _words(subject)
+        files += [m["title"][5:] for m in got]
+        # the title must name the person, and nobody else from a list of the people news photos pair them with
+        own = re.compile(r"\b(" + "|".join(map(re.escape, need)) + r")\b", re.I)
+        files = [f for f in files if need <= _words(f) and not GROUP.search(own.sub("", f))]
     else:
         q = urllib.parse.quote(f"{subject} filetype:bitmap")
         got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
-                   f"&srnamespace=6&srlimit=40&srsearch={q}")["query"]["search"]
-        files += [m["title"][5:] for m in got]
+                   f"&srnamespace=6&srlimit=50&srsearch={q}")["query"]["search"]
+        want = _words(subject) - {"photo", "image", "picture", "building", "the"}
+        for m in got:
+            name = m["title"][5:]
+            have = _words(name)
+            # full-text search matches descriptions too; the title is the only part that says what is shown
+            if want and len(want & have) * 2 >= len(want) and not PEOPLE.search(name):
+                files.append(name)
     seen, out = set(), []
     for f in files:
-        if f not in seen and f.lower().endswith((".jpg", ".jpeg", ".png")) and not NOT_PHOTO.search(f):
+        if f not in seen and f.lower().endswith((".jpg", ".jpeg")) and not NOT_PHOTO.search(f):
             seen.add(f)
             out.append(f)
     return out

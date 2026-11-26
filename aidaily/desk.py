@@ -26,6 +26,8 @@ CONFIG = json.loads((HERE / "desk.json").read_text())
 QUEUE = HERE / "queue"
 STATE = HERE / "state"
 PAUSED = HERE / "PAUSED"
+# images live on the `media` branch, checked out here by scripts/media.sh, so main's history stays small
+MEDIA = HERE / "media"
 
 
 def now():
@@ -49,11 +51,15 @@ def posts():
     return [(_load(p, {}), p) for p in sorted(QUEUE.glob("*/post.json"))]
 
 
-def media_url(path):
-    """Instagram fetches each JPEG from a public URL: the raw file in this public repository."""
+def media_url(post_id, name):
+    """Instagram fetches each JPEG from a public URL: the raw file on this public repository's media branch."""
     base = os.environ.get("DESK_MEDIA_BASE") or (
         f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', '')}/{CONFIG['media_branch']}")
-    return f"{base}/{Path(path).relative_to(HERE).as_posix()}"
+    return f"{base}/{post_id}/{name}"
+
+
+def story_url(post_id):
+    return f"{CONFIG['site_url']}/s/{post_id}/"
 
 
 # queue
@@ -138,7 +144,7 @@ def caption(m, s):
     src = outlets(m, s)
     lines = [m["headline"], "", body(s) or s.get("dek", ""), "",
              f"Source{'s' if len(src) > 1 else ''}: {'; '.join(src)}.", CONFIG["ai_note"], "",
-             CONFIG["send_line"], "", " ".join(hashtags(m, s))]
+             CONFIG["source_line"], CONFIG["send_line"], "", " ".join(hashtags(m, s))]
     text = "\n".join(lines)
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
@@ -205,16 +211,24 @@ def queue(day_dir, batch=None, render=True):
         out = QUEUE / f"{batch}-{n}"
         out.mkdir(parents=True, exist_ok=True)
         if render:
-            R.jpeg(day_dir / "pack" / m["file"]).replace(out / "card.jpg")
-            png = out / "detail.png"
+            img = MEDIA / out.name
+            img.mkdir(parents=True, exist_ok=True)
+            R.jpeg(day_dir / "pack" / m["file"]).replace(img / "card.jpg")
+            png = img / "detail.png"
             R.shoot(R.T.detail(s, body(s), outlets(m, s)), png, 1080, 1350)
             R.jpeg(png)
             png.unlink()
+            R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
                 "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
-                "categories": [m["category"]], "photo_file": m.get("photo_file", "")}
+                "categories": [m["category"]], "photo_file": m.get("photo_file", ""),
+                "score": m.get("score", 0), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
+                # aggregators and discussion boards point at reporting; the page links the reporting itself
+                "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
+                                if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],
+                "credit": s.get("_assets", {}).get("credit", "")}
         _save(out / "post.json", post)
         made.append(out / "post.json")
         print(f"queued {out.name}: {m['headline'][:60]} at {slot:%H:%M} UTC")
@@ -235,7 +249,7 @@ def notify():
         rows.sort(key=lambda r: r[0].get("n", 0))
         parts = []
         for post, path in rows:
-            imgs = " ".join(f'<img src="{media_url(path.parent / c)}" width="260">' for c in post["cards"])
+            imgs = " ".join(f'<img src="{media_url(post["id"], c)}" width="260">' for c in post["cards"])
             parts.append(f"### {post.get('n', 1)}. {post['headlines'][0]}\nPublishes after **{post['publish_after']} UTC**\n\n"
                          f"{imgs}\n\n<details><summary>Caption</summary>\n\n```\n{post['caption']}\n```\n</details>\n\n{post['urls'][0]}")
         body_ = ("To stop one post, comment `veto 2` (or `veto 1, 3`). To stop all of them, comment `veto all` "
@@ -284,7 +298,7 @@ def publish(client=None, dry=False):
         if published_last_24h() >= CONFIG["api_daily_limit"]:
             print("Instagram's 24-hour publishing limit reached; waiting")
             return 0
-        urls = [media_url(path.parent / c) for c in post["cards"]]
+        urls = [media_url(post["id"], c) for c in post["cards"]]
         if dry:
             print(f"{post['id']}: would publish {len(urls)} slides\n{post['caption']}")
             return 0
@@ -328,6 +342,7 @@ POST CAPTION:
 COMMENT:
 {comment}"""
 
+KEYWORD = re.compile(rf"\b{CONFIG['source_keyword']}\b", re.I)
 LINK = re.compile(r"https?://|www\.|\.(com|io|ai|net|org)\b|@\w", re.I)
 
 
@@ -377,6 +392,21 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 continue
             if any(r.get("username") == me for r in c.get("replies", {}).get("data", [])):
                 log["answered"].append(c["id"])
+                continue
+            if KEYWORD.search(c.get("text", "")):
+                # the reader asked for the links: one private reply, fixed text, sent once per comment
+                log["answered"].append(c["id"])
+                msg = CONFIG["source_dm"].format(headline=post["headlines"][0], url=story_url(post["id"]))
+                if dry:
+                    print(f"comment {c['id']}: would DM: {msg}")
+                else:
+                    try:
+                        client.private_reply(c["id"], msg)
+                    except Exception as e:  # noqa: BLE001  a closed inbox or an expired window costs one DM
+                        print(f"comment {c['id']}: DM failed: {str(e)[:160]}")
+                        continue
+                sent += 1
+                budget -= 1
                 continue
             reply = ask(REPLY_PROMPT.format(caption=post["caption"], comment=c.get("text", "")[:600])).strip()
             problems = check_reply(reply, post["caption"])
@@ -471,3 +501,25 @@ def token_check(client=None):
         github.open_issue("Instagram token needs attention", msg)
     print(f"token: {days} days left{' (needs attention)' if msg else ''}")
     return days
+
+
+def prune_media():
+    """Full-size cards are only needed until Instagram has fetched them; thumbnails serve the web pages
+    for a few months. Folder names start with the run's date, so age needs no file times."""
+    if not MEDIA.exists():
+        return
+    for d in MEDIA.iterdir():
+        if not d.is_dir() or d.name.startswith("."):
+            continue
+        try:
+            born = datetime.strptime(d.name[:15], "%Y-%m-%d-%H%M").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        age = (now() - born).days
+        if age > CONFIG["thumb_keep_days"]:
+            for f in d.iterdir():
+                f.unlink()
+            d.rmdir()
+        elif age > CONFIG["media_keep_days"]:
+            for name in ("card.jpg", "detail.jpg"):
+                (d / name).unlink(missing_ok=True)

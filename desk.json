@@ -14,12 +14,14 @@
   ],
   "send_line": "Follow for AI news through the day.",
   "ai_note": "Summary written with AI from the reports named above and checked against them.",
-  "media_branch": "main",
+  "media_branch": "media",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
   "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[\u2019']m a|q&a|interview with|what .{0,30} daily routine|review:",
   "not_sources": [
-    "HN Front Page",
+    "Google News",
+    "Google News AI Search",
     "HN Algolia Search AI",
+    "HN Front Page",
     "Product Hunt"
   ],
   "max_per_run": 10,
@@ -27,5 +29,12 @@
   "max_hours_ahead": 6,
   "api_daily_limit": 45,
   "min_score": 7.0,
-  "max_age_hours": 24
+  "max_age_hours": 24,
+  "site_url": "https://keremozdemir.de/news",
+  "source_keyword": "SOURCE",
+  "source_line": "Comment SOURCE and we'll DM you the full story with links.",
+  "source_dm": "Here is the full story and every source for \"{headline}\": {url}",
+  "newsletter_url": "",
+  "media_keep_days": 3,
+  "thumb_keep_days": 120
 }

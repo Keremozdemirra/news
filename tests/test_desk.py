@@ -24,6 +24,7 @@ class Tmp(unittest.TestCase):
         root = Path(self.tmp.name)
         self.patches = [mock.patch.object(desk, "QUEUE", root / "queue"), mock.patch.object(desk, "STATE", root / "state"),
                         mock.patch.object(desk, "PAUSED", root / "PAUSED"), mock.patch.object(desk, "HERE", root),
+                        mock.patch.object(desk, "MEDIA", root / "media"),
                         mock.patch.dict("os.environ", {"GITHUB_TOKEN": "", "DESK_MEDIA_BASE": "https://raw.example/r/main"})]
         for p in self.patches:
             p.start()
@@ -109,7 +110,7 @@ class Publish(Tmp):
         p = self.write_post("a")
         ig = FakeIG()
         self.assertEqual(desk.publish(client=ig), 1)
-        self.assertEqual(ig.posted[0][0], "https://raw.example/r/main/queue/a/card-01.jpg")
+        self.assertEqual(ig.posted[0][0], "https://raw.example/r/main/a/card-01.jpg")
         self.assertEqual(json.loads(p.read_text())["status"], "published")
 
     def test_waits_inside_window(self):
@@ -328,3 +329,90 @@ class Select(Tmp):
                 st("Google previews new robotics model", url="other")]
         self.write_post("p", status="published", published=fresh, urls=["x"], headlines=["Google previews robotics model"])
         self.assertEqual([s["title"] for s in desk.select(rows)], ["Anthropic releases coding agent"])
+
+
+class SourceDM(Tmp):
+    def test_keyword_gets_one_private_reply_with_the_story_page(self):
+        self.write_post("2026-11-26-1300-1", status="published", published=desk.now().isoformat(), media_id="m1",
+                        headlines=["Nvidia halts shipments"], caption="Nvidia halts shipments.")
+
+        class IG:
+            dms, replies = [], []
+
+            def own_username(self):
+                return "loopbrief"
+
+            def comments(self, media):
+                return [{"id": "c1", "username": "ann", "text": "Source please"}]
+
+            def private_reply(self, cid, msg):
+                self.dms.append((cid, msg))
+
+            def reply(self, cid, msg):
+                self.replies.append(cid)
+        ig = IG()
+        desk.engage(client=ig, ask=lambda p: "SKIP")
+        desk.engage(client=ig, ask=lambda p: "SKIP")
+        self.assertEqual(len(ig.dms), 1)
+        self.assertIn("https://keremozdemir.de/news/s/2026-11-26-1300-1/", ig.dms[0][1])
+        self.assertEqual(ig.replies, [])
+
+
+class Media(Tmp):
+    def test_prune_keeps_thumbs_drops_old_cards_and_ancient_folders(self):
+        def mk(name):
+            d = desk.MEDIA / name
+            d.mkdir(parents=True)
+            for f in ("card.jpg", "detail.jpg", "thumb.jpg"):
+                (d / f).write_text("x")
+            return d
+        fresh = mk(desk.now().strftime("%Y-%m-%d-%H%M") + "-1")
+        week = mk((desk.now() - timedelta(days=8)).strftime("%Y-%m-%d-%H%M") + "-1")
+        old = mk((desk.now() - timedelta(days=400)).strftime("%Y-%m-%d-%H%M") + "-1")
+        desk.prune_media()
+        self.assertTrue((fresh / "card.jpg").exists())
+        self.assertEqual(sorted(f.name for f in week.iterdir()), ["thumb.jpg"])
+        self.assertFalse(old.exists())
+
+
+class Site(Tmp):
+    def test_only_published_stories_with_thumbs_become_pages(self):
+        from aidaily import site
+        pub = desk.now().isoformat()
+        self.write_post("2026-11-26-1300-1", status="published", published=pub, headlines=["Nvidia halts shipments"],
+                        dek="Dealers seek buyers.", body="Nvidia halted shipments.", sources=["CNBC"],
+                        source_urls=["https://www.cnbc.com/x"], categories=["policy"], permalink="https://instagram.com/p/x")
+        self.write_post("2026-11-26-1300-2", status="queued", headlines=["Not yet"])
+        for pid in ("2026-11-26-1300-1", "2026-11-26-1300-2"):
+            (desk.MEDIA / pid).mkdir(parents=True)
+            (desk.MEDIA / pid / "thumb.jpg").write_text("x")
+        out = site.build(self.root / "_site")
+        index = (out / "index.html").read_text()
+        self.assertIn("Nvidia halts shipments", index)
+        self.assertNotIn("Not yet", index)
+        page = (out / "s" / "2026-11-26-1300-1" / "index.html").read_text()
+        self.assertIn("https://www.cnbc.com/x", page)
+        self.assertNotIn("<script", page)
+        self.assertFalse((out / "s" / "2026-11-26-1300-2").exists())
+        self.assertIn("<rss", (out / "feed.xml").read_text())
+
+
+class PhotoChoice(unittest.TestCase):
+    def search(self, titles):
+        return {"query": {"search": [{"title": "File:" + t} for t in titles]}}
+
+    def test_topic_photos_name_the_topic_and_show_no_people(self):
+        from aidaily import entities as E
+        hits = ["P2025 President Donald Trump holds a press conference.jpg", "Toconao Seen From Above.jpg",
+                "Courthouse in Aurillac 01.jpg", "Courthouse map.jpg", "Courthouse front.png"]
+        with mock.patch.object(E, "_get", return_value=self.search(hits)):
+            self.assertEqual(E.candidates("courthouse"), ["Courthouse in Aurillac 01.jpg"])
+            self.assertEqual(E.candidates("attorney general press conference"), [])
+
+    def test_person_photos_name_them_and_nobody_else(self):
+        from aidaily import entities as E
+        hits = ["Elon Musk Royal Society (crop2).jpg", "Trump-Musk-Xi-Putin.jpg", "Elon Musk with Donald Trump.jpg",
+                "Community Notes under Elon Musk free speech tweet.jpg", "Tesla factory.jpg"]
+        with mock.patch.object(E, "_entity", return_value=("Elon Musk", {})), \
+             mock.patch.object(E, "_get", return_value=self.search(hits)):
+            self.assertEqual(E.candidates("Elon Musk", person=True), ["Elon Musk Royal Society (crop2).jpg"])

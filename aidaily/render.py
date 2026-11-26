@@ -15,6 +15,16 @@ MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 CHROME = MAC_CHROME if Path(MAC_CHROME).exists() else (shutil.which("google-chrome") or shutil.which("chromium") or "google-chrome")
 
 
+def thumb(src, out, width):
+    """A smaller JPEG for the web pages, so a reader on a phone does not pull the 1080 px card."""
+    if shutil.which("sips"):
+        cmd = ["sips", "-Z", str(width), "-s", "format", "jpeg", "-s", "formatOptions", "80", str(src), "--out", str(out)]
+    else:
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(src), "-vf", f"scale={width}:-2", "-q:v", "4", str(out)]
+    subprocess.run(cmd, check=True, capture_output=True, timeout=60)
+    return out
+
+
 def jpeg(png, quality=92):
     """Instagram takes JPEG only. sips on macOS, ffmpeg elsewhere; no Python image package needed."""
     out = Path(png).with_suffix(".jpg")
