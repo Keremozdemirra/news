@@ -96,7 +96,7 @@ def rel_time(p):
     return f'<time class="rel" datetime="{S.iso(p["published"])}" data-age>{S.hhmm(p["published"])}</time>'
 
 
-def front(shown, cos, m):
+def front(shown, cos, m, sport=()):
     """The front page: the lead (8 columns) and the rail (4: two seconds, the markets block, Latest), then the sections.
     Each article appears once; the lead and the seconds come from the news-value ranking above."""
     today = S.window(shown)
@@ -119,7 +119,7 @@ def front(shown, cos, m):
     fig = (f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
            f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
     first = next((x for x in (lead.get("body") or "").split("\n") if x.strip()), "")
-    lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}/t/{S.topic(lead).lower()}/">{E(S.topic(lead))}</a>'
+    lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}{S.topic_path(S.topic(lead))}">{E(S.topic(lead))}</a>'
                  f'<h2 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h2><p class="dk">{E(lead.get("dek", ""))}</p>'
                  f'<div class="mt">{rel_time(lead)} &middot; {nroom(lead)}</div>{fig}'
                  f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{markets.rates_box(m, S.BASE)}</div>')
@@ -133,17 +133,30 @@ def front(shown, cos, m):
     rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + "</div>"
 
     blocks = ""
-    for t in S.TOPIC_ORDER:
+    for t in S.NEWS_ORDER:
         rows = [p for p in shown if S.topic(p) == t and p["id"] not in used][:4]
         if not rows:
             continue  # a section without articles leaves no head and no hole
         used.update(p["id"] for p in rows)
         top, rest = rows[0], rows[1:]
         photo = img(top, "3/2") if ph(top) else ""
-        blocks += (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}/t/{t.lower()}/">{t}</a></h2>'
+        blocks += (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
                    f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
                    + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
-    return ('<p class="since" id="since" role="status" hidden></p>' f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else ""))
+    return ('<p class="since" id="since" role="status" hidden></p>' f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else "")
+            + sport_block(list(sport), ph))
+
+
+def sport_block(rows, ph, n=4):
+    """Sport on the front page: one row of the newest articles below the business sections, so the front stays business news.
+    A section without articles leaves no head and no hole."""
+    rows = rows[:n]
+    if not rows:
+        return ""
+    cells = "".join(f'<article class="slead"><a href="{S.href(p)}">{img(p, "3/2") if ph(p) else ""}<h3>{E(p["headlines"][0])}</h3></a>'
+                    f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)}</div></article>' for p in rows)
+    return (f'<section class="sportblk" aria-label="Sport"><h2 class="sh"><a href="{S.BASE}/sport/">Sport</a></h2><div class="sportgrid">{cells}</div>'
+            f'<p class="sportmore"><a href="{S.BASE}/sport/">More sport</a></p></section>')
 
 
 

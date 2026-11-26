@@ -219,6 +219,6 @@ def build(out, shown, sm, cos):
                                          feed=(f"boardread. {name}", f"/c/{slug}/feed.xml")))
         feed_for(out, rows, f"/c/{slug}/", f"boardread. {name}", f"{S.SITE}/c/{slug}/")
         sm.append((f"{S.SITE}/c/{slug}/", S.iso(rows[0]["published"])))
-    for t in S.TOPIC_ORDER:
+    for t in S.NEWS_ORDER:  # Sport is built by site.build, which has its articles
         rows = [p for p in shown if S.topic(p) == t]
-        feed_for(out, rows, f"/t/{t.lower()}/", f"boardread. {t}", f"{S.SITE}/t/{t.lower()}/")
+        feed_for(out, rows, S.topic_path(t), f"boardread. {t}", f"{S.SITE}{S.topic_path(t)}")

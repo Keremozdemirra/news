@@ -225,7 +225,7 @@ class SiteBuild(Tmp):
         out = self.build()
         for f in ("latest/index.html", "feed.xml", "brief/index.html"):
             self.assertNotIn("Arsenal", (out / f).read_text(), f)
-        lead = re.search(r'<h1 class="lh">(.*?)</h1>', (out / "index.html").read_text(), re.S).group(1)
+        lead = re.search(r'<h[12] class="lh">(.*?)</h[12]>', (out / "index.html").read_text(), re.S).group(1)
         self.assertNotIn("Arsenal", lead)
 
     def test_sport_article_page_links_its_section_and_its_sources(self):

@@ -54,8 +54,20 @@ TOPICS = {
     "Tech": "The technology industry and the products behind it.",
     "AI": "Models, chips, products and the money around artificial intelligence.",
     "Culture": "Media, entertainment and consumer trends that move business.",
+    "Sport": "Football, Formula 1, the NBA and NFL, tennis, golf, cricket, boxing and the Olympics.",
 }
-TOPIC_ORDER = list(TOPICS)
+SPORT = "Sport"
+TOPIC_ORDER = list(TOPICS)  # the section bar and the footer
+NEWS_ORDER = [t for t in TOPIC_ORDER if t != SPORT]  # the business sections: the front page blocks come from these, Sport follows them
+
+
+def is_sport(p):
+    return p.get("topic") == SPORT
+
+
+def topic_path(t):
+    """Where a section lives: Sport at /sport/, every other topic at /t/<topic>/."""
+    return f"/{t.lower()}/" if t == SPORT else f"/t/{t.lower()}/"
 # Same operator as keremozdemir.de, whose Impressum and Privacy pages are the legal notice of this site too.
 LEGAL = {"impressum": "https://keremozdemir.de/impressum/", "privacy": "https://keremozdemir.de/privacy/"}
 CONTACT_ISSUES = "https://github.com/Keremozdemirra/news/issues"
@@ -225,7 +237,7 @@ def menu_html(active):
 
 
 def section_nav(active):
-    links = "".join(f'<a href="{BASE}/t/{t.lower()}/"{" aria-current=\"page\"" if active == t.lower() else ""}>{t}</a>' for t in TOPIC_ORDER)
+    links = "".join(f'<a href="{BASE}{topic_path(t)}"{" aria-current=\"page\"" if active == t.lower() else ""}>{t}</a>' for t in TOPIC_ORDER)
     return f'<nav class="sections" aria-label="Sections">{links}</nav>'
 
 
@@ -251,7 +263,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
     word = (f'<h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>' if front
             else f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>')
     nl = desk.CONFIG.get("newsletter_url")
-    foot_sections = "".join(f'<li><a href="{BASE}/t/{t.lower()}/">{t}</a></li>' for t in TOPIC_ORDER)
+    foot_sections = "".join(f'<li><a href="{BASE}{topic_path(t)}">{t}</a></li>' for t in TOPIC_ORDER)
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     css = "".join(f'<link rel="stylesheet" href="{BASE}/assets/{n}.css?v={ASSET_V}">' for n in styles)
     js = "".join(f'<script src="{BASE}/assets/{n}.js?v={ASSET_V}" defer></script>' for n in scripts)
@@ -386,7 +398,7 @@ def topic_block(t, rows, used=()):
     if isinstance(used, list):
         used.append(feat)
     rest = [p for p in rows if p is not feat][:3]
-    return (f'<section class="block" aria-label="{t}">{sec_head(t, f"{BASE}/t/{t.lower()}/", f"More {t}")}'
+    return (f'<section class="block" aria-label="{t}">{sec_head(t, f"{BASE}{topic_path(t)}", f"More {t}")}'
             f'<div class="block-grid{"" if rest else " solo"}"><article class="feat"><a class="story-link" href="{href(feat)}">{pic(feat, thumb=True)}'
             f'<h3 class="h-l">{E(feat["headlines"][0])}</h3><p class="dek">{E(feat.get("dek", ""))}</p>'
             f'{meta(t_tag(feat), cover(feat))}</a></article><ul class="list">{"".join(item(p) for p in rest)}</ul></div></section>')
@@ -658,7 +670,7 @@ def story(p, rows, cos=None, counts=None):
             company += f"<span>{ticker_html(ticker_of(p))}</span>"
     ctx = markets.context_for(p, MARKETS, BASE)
     body = f"""<article class="art">
-<header class="art-head"><a class="kick" href="{BASE}/t/{topic(p).lower()}/">{E(topic(p))}</a>
+<header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>
 <div class="byline">{reported}<span>Boardread desk, written by AI</span></div>
 <div class="mt art-meta"><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div></header>
@@ -672,7 +684,7 @@ def story(p, rows, cos=None, counts=None):
 {more}{prevnext}</article>"""
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": NAME, "item": SITE + "/"},
-        {"@type": "ListItem", "position": 2, "name": topic(p), "item": f"{SITE}/t/{topic(p).lower()}/"},
+        {"@type": "ListItem", "position": 2, "name": topic(p), "item": f"{SITE}{topic_path(topic(p))}"},
         {"@type": "ListItem", "position": 3, "name": clip(p["headlines"][0], 110)}]}
     return page(f'{p["headlines"][0]} · boardread.', body, p.get("dek", ""), f"/s/{p['id']}/", image, "article",
                 [article_ld(p, image), crumbs], p["headlines"][0], active=topic(p).lower())
@@ -909,25 +921,29 @@ def build(out=desk.HERE / "_site"):
     # DESK_SITE_OFFLINE=1 builds from the last good copy of the rates without touching the network (tests, a plane)
     MARKETS = markets.load(live=os.environ.get("DESK_SITE_OFFLINE") != "1")
     sm = []
+    # Business stays the core: the front page, Latest, the brief, the feeds and every view are made from `news`; sport has
+    # its own block on the front page, its own section page and feed, and appears in the archive, search and sitemap.
+    news = [p for p in shown if not is_sport(p)]
+    sport = [p for p in shown if is_sport(p)]
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
-    if shown:
+    if news:
         site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/", "inLanguage": "en",
                    "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"},
                    "publisher": seo.organization(SITE, NAME, accounts())}
-        put(out, "/", page(f"boardread. · {TAGLINE}", views.front(shown, companies(shown), MARKETS), desc, "/", ld=site_ld, front=True))
+        put(out, "/", page(f"boardread. · {TAGLINE}", views.front(news, companies(news), MARKETS, sport), desc, "/", ld=site_ld, front=True))
     else:
         put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first articles are on their way.</div>', desc, "/", front=True))
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", shown, "Latest", desc, pagehead("Latest", "Every article, newest first. Times are UTC."), "latest", aside(shown), sm)
+    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Every business and news article, newest first. Times are UTC. Sport has its own section."), "latest", aside(news), sm)
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
-        paged(out, f"/t/{t.lower()}/", rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
-              feed=(f"boardread. {t}", f"/t/{t.lower()}/feed.xml"))
-    cos, counts = companies(shown), desk_counts(shown)
+        paged(out, topic_path(t), rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
+              feed=(f"boardread. {t}", f"{topic_path(t)}feed.xml"))
+    cos, counts = companies(news), desk_counts(shown)
     for p in shown:
-        put(out, f"/s/{p['id']}/", story(p, shown, cos, counts))
+        put(out, f"/s/{p['id']}/", story(p, sport if is_sport(p) else news, cos, counts))
         sm.append((f"{SITE}/s/{p['id']}/", iso(p["published"])))
     days = {}
     for p in shown:
@@ -940,7 +956,7 @@ def build(out=desk.HERE / "_site"):
         paged(out, f"/archive/{d}/", ps, day_label(d), f"Boardread articles of {day_label(d)}.", pagehead(day_label(d), f"{len(ps)} articles, newest first."), "", "", sm)
     # weeks: one page per ISO week (the newsletter's issues), and /week/ for the last seven days
     weeks = {}
-    for p in shown:
+    for p in news:
         weeks.setdefault(week_of(p["published"]), []).append(p)
     this_week = datetime.now(timezone.utc).strftime("%G-W%V")
     wdesc = "The ten most shared articles of the week, each with its sources."
@@ -958,9 +974,9 @@ def build(out=desk.HERE / "_site"):
         sm.append((f"{SITE}/week/{wk}/", iso(max(p["published"] for p in weeks[wk]))))
         if wk != this_week:  # an unfinished week is not an issue yet
             issues.append((wk, top))
-    last7 = [p for p in shown if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or shown[:10]
+    last7 = [p for p in news if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or news[:10]
     past = "".join(f'<li><a href="{BASE}/week/{w}/">Week {w[-2:]}, {w[:4]}</a></li>' for w in sorted(weeks, reverse=True) if w != this_week)
-    mc = covered_list(shown, companies(shown), 10)
+    mc = covered_list(news, companies(news), 10)
     put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten most shared articles of the last seven days", "week")
         + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many articles named them in the last seven days.</p>{mc}</div>' if mc else "")
         + (f'<div class="prose"><h2>Past weeks</h2><ul>{past}</ul></div>' if past else ""), wdesc, "/week/", active="week"))
@@ -977,12 +993,13 @@ def build(out=desk.HERE / "_site"):
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(dt(p["published"])), p.get("dek", ""),
          {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,
           "image_bytes": (out / "og" / f"{p['id']}.jpg").stat().st_size if p.get("_og") else 0})
-        for p in shown[:50]]))
+        for p in news[:50]]))
     (out / "weekly.xml").write_text(rss("boardread weekly", SITE + "/week/", [
         (f"Top 10 · {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/", format_datetime(dt(top[0]["published"]) + timedelta(days=1)),
          " · ".join(p["headlines"][0] for p in top), {"category": "Weekly"}) for wk, top in issues[:12]]))
     from . import sitepages  # imports this module, so only once it is loaded
-    sitepages.build(out, shown, sm, cos)
+    sitepages.build(out, news, sm, cos)
+    sitepages.feed_for(out, sport, "/sport/", "boardread. Sport", f"{SITE}/sport/")
     (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m]))
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
     (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
@@ -999,7 +1016,7 @@ def redirects(out, old_base="/news"):
     after the cut-over: every article, topic and week page, plus the front page, sends the reader to the new address
     with a meta refresh, a canonical link and a script. Feeds cannot be redirected this way and are not stubbed."""
     out = Path(out)
-    paths = ["/", "/latest/", "/week/", "/search/", "/about/", "/archive/"] + [f"/t/{t.lower()}/" for t in TOPIC_ORDER]
+    paths = ["/", "/latest/", "/week/", "/search/", "/about/", "/archive/"] + [topic_path(t) for t in TOPIC_ORDER]
     paths += [f"/s/{p['id']}/" for p in published()] + [f"/week/{w}/" for w in {week_of(p["published"]) for p in published()}]
     for path in paths:
         new = f"{SITE}{path}"
