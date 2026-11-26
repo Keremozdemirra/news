@@ -4,7 +4,7 @@
  "n": 5,
  "created": "2026-11-26T14:46:52+00:00",
  "publish_after": "2026-11-26T15:16:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -41,5 +41,8 @@
  ],
  "credit": "Photo: U.S. Air Force / Trevor Cokley, Public domain, via Wikimedia Commons",
  "issue": 2,
- "story": "story.jpg"
+ "story": "story.jpg",
+ "published": "2026-11-26T15:27:30+00:00",
+ "media_id": "17979814824159403",
+ "permalink": "https://www.instagram.com/p/DgNbK7HknFg/"
 }
