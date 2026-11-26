@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 import urllib.error
+import urllib.parse
 from datetime import timedelta
 from pathlib import Path
 from unittest import mock
@@ -45,7 +46,7 @@ class Fake:
 
 def post(**kw):
     p = {"id": "2026-11-26-1446-1", "created": desk.now().isoformat(), "status": "published", "cards": ["card.jpg", "detail.jpg"],
-         "headlines": ["Denny's reshares Nvidia origin story after Jensen Huang's return"], "topic": "Business",
+         "headlines": ["Denny's reshares Nvidia origin story after Jensen Huang's return"], "topic": "Business", "score": 12.5,
          "dek": "The chain says it reinstalled a plaque at the booth where Nvidia's three founders first met.",
          "body": "Denny's used Jensen Huang's return to Nvidia to reshare its role in the company's origin story.",
          "caption": "x\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE"}
@@ -80,42 +81,65 @@ class Env(unittest.TestCase):
 
 
 class Text(Env):
-    def test_threads_within_500_bytes_with_story_link_and_ai_note(self):
-        t = platforms.threads_text(post(dek="word " * 200))
-        self.assertLessEqual(len(t.encode()), 500)
-        self.assertTrue(t.endswith("Written by AI. Sources: https://keremozdemir.de/news/s/2026-11-26-1446-1/"))
-        self.assertNotIn("SOURCE ", t)
+    def test_threads_text_is_headline_why_it_matters_and_ai_note_without_a_link(self):
+        t = platforms.threads_text(post())
+        head, why, note = t.split("\n\n")
+        self.assertEqual(head, "Denny's reshares Nvidia origin story after Jensen Huang's return")
+        self.assertTrue(why.startswith("The chain says it reinstalled a plaque"))
+        self.assertEqual(note, "Written by AI.")
+        self.assertNotIn("http", t)
         self.assertNotIn("#", t)
 
+    def test_why_it_matters_uses_two_to_three_sentences_and_skips_the_headline_restated(self):
+        p = {"headlines": ["Pablo Hernandez de Cos wins race for ECB presidency"],
+             "dek": "The Spanish economist is set to succeed Christine Lagarde.",
+             "body": "Pablo Hernandez de Cos has won the race for the ECB presidency. The Spanish economist is set to succeed "
+                     "Christine Lagarde. The Dutch government ended its support for rival Klaas Knot. Markets barely moved."}
+        self.assertEqual(platforms.why_it_matters(p), ["The Spanish economist is set to succeed Christine Lagarde.",
+                                                       "The Dutch government ended its support for rival Klaas Knot.",
+                                                       "Markets barely moved."])
+
+    def test_threads_drops_whole_sentences_before_cutting_words_and_stays_in_500_bytes(self):
+        body = " ".join(f"Sentence number {i} says something quite different about topic{i}." for i in range(30))
+        t = platforms.threads_text(post(dek="", body=body))
+        self.assertLessEqual(len(t.encode()), 500)
+        self.assertTrue(t.endswith("Written by AI."))
+        self.assertNotIn("…", t)
+
+    def test_threads_reply_text_is_the_story_page(self):
+        self.assertEqual(platforms.threads_reply_text(post()), "Sources: https://keremozdemir.de/news/s/2026-11-26-1446-1/")
+
     def test_threads_counts_emoji_by_bytes(self):
-        t = platforms.threads_text(post(dek="\U0001F600" * 200))
+        t = platforms.threads_text(post(dek="\U0001F600" * 200, body=""))
         self.assertLessEqual(len(t.encode()), 500)
 
     def test_ai_note_only_where_instagram_has_it(self):
         self.assertNotIn("Written by AI", platforms.threads_text(post(caption="plain")))
+        self.assertIn("Written by AI", platforms.threads_text(post()))
 
     def test_threads_one_tag_clean(self):
         self.assertEqual(platforms.threads_tag(post(topic="Markets")), "markets")
 
-    def test_bluesky_300_and_link_facet_points_at_the_link(self):
-        text, facets = platforms.bluesky_text(post(dek="word " * 200))
-        self.assertLessEqual(len(text), 300)
-        i = facets[0]["index"]
-        self.assertEqual(text.encode()[i["byteStart"]:i["byteEnd"]].decode(), "keremozdemir.de/news/s/2026-11-26-1446-1/")
-        self.assertEqual(facets[0]["features"][0]["uri"], "https://keremozdemir.de/news/s/2026-11-26-1446-1/")
+    def test_bluesky_text_is_headline_and_dek_within_300_with_no_url(self):
+        t = platforms.bluesky_text(post(dek="word " * 200))
+        self.assertLessEqual(len(t), 300)
+        self.assertTrue(t.startswith("Denny's reshares"))
+        self.assertNotIn("keremozdemir", t)
+        self.assertNotIn("http", platforms.bluesky_text(post()))
 
-    def test_bluesky_offsets_are_bytes_after_non_ascii(self):
-        text, facets = platforms.bluesky_text(post(headlines=["Zürich éè \U0001F600 bank"]))
-        i = facets[0]["index"]
-        self.assertTrue(text.encode()[i["byteStart"]:i["byteEnd"]].decode().startswith("keremozdemir.de"))
+    def test_digest_text_lists_headlines_with_story_links(self):
+        t = platforms.digest_text([post(), post(id="b", headlines=["Second"])])
+        self.assertTrue(t.startswith("Today on Boardread\n\n1. Denny's"))
+        self.assertIn("\nhttps://keremozdemir.de/news/s/b/\n", t + "\n")
+        self.assertIn("2. Second", t)
 
     def test_telegram_caption_1024(self):
         self.assertLessEqual(len(platforms.telegram_caption(post(body="word " * 500))), 1024)
 
-    def test_overlong_headline_is_cut_but_link_stays(self):
+    def test_overlong_headline_is_cut_but_the_ai_note_stays(self):
         t = platforms.threads_text(post(headlines=["long " * 200]))
         self.assertLessEqual(len(t.encode()), 500)
-        self.assertIn("/news/s/", t)
+        self.assertTrue(t.endswith("Written by AI."))
 
 
 class Clients(Env):
@@ -124,24 +148,46 @@ class Clients(Env):
             with self.assertRaises(platforms.Missing):
                 platforms.Bluesky()
 
-    def test_threads_carousel_flow(self):
+    def threads_fake(self, reply_fails=False):
         calls = []
 
         def out(req):
-            calls.append(req.full_url.split("/v1.0/")[1].split("?")[0])
+            calls.append(req)
             if "threads_publish" in req.full_url:
-                return {"id": "m9"}
+                return {"id": "r9" if b"creation_id=rc" in req.data else "m9"}
             if req.get_method() == "GET":
                 return {"status": "FINISHED", "permalink": "https://www.threads.com/@x/post/abc"} if "m9" in req.full_url \
                     else {"status": "FINISHED"}
-            return {"id": f"c{len(calls)}"}
-        fake = Fake({"/v1.0/": out})
+            if b"reply_to_id" in req.data:
+                if reply_fails:
+                    raise http_error(400, "no threads_manage_replies tt-secret")
+                return {"id": "rc1"}
+            return {"id": "c1"}
+        return Fake({"/v1.0/": out}), calls
+
+    def test_threads_one_image_then_a_sources_reply(self):
+        fake, calls = self.threads_fake()
         got = platforms.Threads(opener=fake, sleep=lambda s: None).post(post())
-        self.assertEqual(got, {"id": "m9", "url": "https://www.threads.com/@x/post/abc"})
-        parent = [r for r in fake.seen if b"CAROUSEL" in (r.data or b"")][0].data.decode()
-        self.assertIn("children=c1%2Cc2", parent)
-        self.assertIn("topic_tag=business", parent)
-        self.assertNotIn("is_made_with_ai", parent)
+        self.assertEqual(got, {"id": "m9", "url": "https://www.threads.com/@x/post/abc", "reply": {"id": "r9"}})
+        first = urllib.parse.parse_qs(calls[0].data.decode())
+        self.assertEqual(first["media_type"], ["IMAGE"])
+        self.assertEqual(first["image_url"], ["https://raw.example/r/media/2026-11-26-1446-1/card.jpg"])
+        self.assertEqual(first["topic_tag"], ["business"])
+        self.assertNotIn("http", first["text"][0])
+        self.assertFalse([c for c in calls if b"CAROUSEL" in (c.data or b"") or b"is_carousel_item" in (c.data or b"")])
+        reply = urllib.parse.parse_qs([c for c in calls if b"reply_to_id" in (c.data or b"")][0].data.decode())
+        self.assertEqual(reply["media_type"], ["TEXT"])
+        self.assertEqual(reply["reply_to_id"], ["m9"])
+        self.assertEqual(reply["text"], ["Sources: https://keremozdemir.de/news/s/2026-11-26-1446-1/"])
+        self.assertNotIn("topic_tag", reply)
+
+    def test_threads_reply_failure_leaves_the_post_done_and_is_stored_scrubbed(self):
+        fake, _ = self.threads_fake(reply_fails=True)
+        got = platforms.Threads(opener=fake, sleep=lambda s: None).post(post())
+        self.assertEqual(got["id"], "m9")
+        self.assertNotIn("reply", got)
+        self.assertIn("threads_manage_replies", got["reply_error"])
+        self.assertNotIn("tt-secret", got["reply_error"])
 
     def test_facebook_attaches_unpublished_photos(self):
         n = []
@@ -185,25 +231,45 @@ class Clients(Env):
         with self.assertRaises(platforms.PlatformError):
             platforms.Facebook(opener=person).post(post())
 
-    def test_bluesky_flow_and_oversize_second_image_dropped(self):
-        small, big = b"j" * 1000, b"j" * 1_000_001
-        images = iter([small, big])
-        fake = Fake({
+    def bsky_fake(self, card):
+        return Fake({
             "createSession": {"accessJwt": "jwt", "did": "did:plc:z"},
-            "raw.example": lambda r: next(images),
+            "raw.example": card,
             "uploadBlob": {"blob": {"$type": "blob", "ref": {"$link": "b"}, "mimeType": "image/jpeg", "size": 1000}},
             "createRecord": {"uri": "at://did:plc:z/app.bsky.feed.post/3kabc", "cid": "c"}})
+
+    def bsky_record(self, fake):
+        return json.loads([r for r in fake.seen if "createRecord" in r.full_url][0].data)["record"]
+
+    def test_bluesky_posts_an_external_link_card_with_the_card_image_as_thumb(self):
+        fake = self.bsky_fake(b"j" * 1000)
         got = platforms.Bluesky(opener=fake).post(post())
         self.assertEqual(got["url"], "https://bsky.app/profile/me.bsky.social/post/3kabc")
-        rec = json.loads([r for r in fake.seen if "createRecord" in r.full_url][0].data)["record"]
-        self.assertEqual(len(rec["embed"]["images"]), 1)
+        rec = self.bsky_record(fake)
+        self.assertEqual(rec["embed"]["$type"], "app.bsky.embed.external")
+        ext = rec["embed"]["external"]
+        self.assertEqual((ext["uri"], ext["title"], ext["description"]),
+                         ("https://keremozdemir.de/news/s/2026-11-26-1446-1/", post()["headlines"][0], post()["dek"]))
+        self.assertEqual(ext["thumb"]["mimeType"], "image/jpeg")
+        self.assertNotIn("facets", rec)
         self.assertLessEqual(len(rec["text"]), 300)
+        # one image fetched and uploaded: the card, not the detail slide
+        self.assertEqual(len([r for r in fake.seen if "uploadBlob" in r.full_url]), 1)
+        self.assertEqual([r.full_url for r in fake.seen if "raw.example" in r.full_url],
+                         ["https://raw.example/r/media/2026-11-26-1446-1/card.jpg"])
 
-    def test_bluesky_oversize_card_fails_without_posting(self):
-        fake = Fake({"createSession": {"accessJwt": "j", "did": "d"}, "raw.example": b"j" * 1_000_001})
-        with self.assertRaises(platforms.PlatformError):
-            platforms.Bluesky(opener=fake).post(post())
-        self.assertFalse([r for r in fake.seen if "createRecord" in r.full_url])
+    def test_bluesky_thumb_limit_is_one_million_bytes(self):
+        fake = self.bsky_fake(b"j" * 1_000_000)
+        platforms.Bluesky(opener=fake).post(post())
+        self.assertIn("thumb", self.bsky_record(fake)["embed"]["external"])
+
+    def test_bluesky_oversize_card_is_posted_without_a_thumb(self):
+        fake = self.bsky_fake(b"j" * 1_000_001)
+        platforms.Bluesky(opener=fake).post(post())
+        ext = self.bsky_record(fake)["embed"]["external"]
+        self.assertNotIn("thumb", ext)
+        self.assertEqual(ext["uri"], "https://keremozdemir.de/news/s/2026-11-26-1446-1/")
+        self.assertFalse([r for r in fake.seen if "uploadBlob" in r.full_url])
 
     def test_telegram_album_caption_on_first_photo(self):
         fake = Fake({"sendMediaGroup": {"ok": True, "result": [{"message_id": 7, "chat": {"username": "chan"}}, {"message_id": 8}]}})
@@ -212,6 +278,31 @@ class Clients(Env):
         media = json.loads(fake.seen[0].data)["media"]
         self.assertIn("caption", media[0])
         self.assertNotIn("caption", media[1])
+
+    def tg_sent(self, **kw):
+        fake = Fake({"sendMediaGroup": {"ok": True, "result": [{"message_id": 7, "chat": {"username": "chan"}}]},
+                     "sendPhoto": {"ok": True, "result": {"message_id": 7, "chat": {"username": "chan"}}}})
+        platforms.Telegram(opener=fake).post(post(**kw))
+        return json.loads(fake.seen[0].data)
+
+    def test_telegram_routine_post_is_silent(self):
+        self.assertIs(self.tg_sent(score=10.9)["disable_notification"], True)
+        self.assertIs(self.tg_sent(score=None)["disable_notification"], True)
+        self.assertIs(self.tg_sent(score=10.9, cards=["card.jpg"])["disable_notification"], True)
+
+    def test_telegram_breaking_post_notifies_at_the_breaking_score(self):
+        self.assertIs(self.tg_sent(score=desk.CONFIG["breaking_score"])["disable_notification"], False)
+        self.assertIs(self.tg_sent(score=13.3, cards=["card.jpg"])["disable_notification"], False)
+
+    def test_telegram_digest_is_one_silent_text_without_previews(self):
+        fake = Fake({"sendMessage": {"ok": True, "result": {"message_id": 41}}})
+        got = platforms.Telegram(opener=fake).digest([post(), post(id="b")])
+        self.assertEqual(got, {"id": "41"})
+        body = json.loads(fake.seen[0].data)
+        self.assertTrue(body["text"].startswith("Today on Boardread"))
+        self.assertIs(body["disable_notification"], True)
+        self.assertIs(body["disable_web_page_preview"], True)
+        self.assertEqual(body["link_preview_options"], {"is_disabled": True})
 
     def test_errors_never_carry_secrets(self):
         fake = Fake({"me/accounts": {"data": [{"id": "111", "name": "Boardread", "access_token": "page-secret"}]},
@@ -314,6 +405,171 @@ class CrossPost(Env):
     def test_cooldown_expires(self):
         desk._save(desk.STATE / "cooldown-threads.json", {"until": (desk.now() - timedelta(minutes=1)).isoformat()})
         self.assertIsNone(desk.platform_cooldown("threads"))
+
+
+class FacebookGate(CrossPost):
+    def test_shipped_bar_and_daily_max_are_set(self):
+        shipped = json.loads((Path(desk.__file__).parent.parent / "desk.json").read_text())
+        self.assertGreater(shipped["facebook_min_score"], shipped["breaking_score"] - 2)
+        self.assertEqual(shipped["facebook_daily_max"], 4)
+
+    def test_below_the_bar_is_skipped_recorded_and_never_retried(self):
+        fb = Good("facebook")
+        got = self.run_cross(post(score=desk.CONFIG["facebook_min_score"] - 0.1), facebook=lambda: fb)
+        self.assertEqual(got["platforms"]["facebook"], {"skipped": "below facebook_min_score"})
+        self.assertIn("id", got["platforms"]["bluesky"])
+        self.run_cross(got, facebook=lambda: fb)
+        self.assertEqual(fb.sent, 0)
+
+    def test_a_post_without_a_score_is_skipped(self):
+        got = self.run_cross(post(score=None))
+        self.assertEqual(got["platforms"]["facebook"]["skipped"], "below facebook_min_score")
+
+    def test_at_the_bar_is_posted(self):
+        got = self.run_cross(post(score=desk.CONFIG["facebook_min_score"]))
+        self.assertIn("id", got["platforms"]["facebook"])
+
+    def test_daily_max_then_skipped_and_yesterdays_do_not_count(self):
+        with mock.patch.dict(desk.CONFIG, {"facebook_daily_max": 2}):
+            for i in range(2):
+                got = self.run_cross(post(id=f"p{i}"))
+                self.assertIn("id", got["platforms"]["facebook"])
+            third = self.run_cross(post(id="p2"))
+            self.assertEqual(third["platforms"]["facebook"], {"skipped": "above facebook_daily_max"})
+            self.assertEqual(desk.platform_sent_last_24h("facebook"), 2)
+            old = json.loads((desk.QUEUE / "p0" / "post.json").read_text())
+            old["platforms"]["facebook"]["at"] = (desk.now() - timedelta(hours=25)).isoformat()
+            (desk.QUEUE / "p0" / "post.json").write_text(json.dumps(old))
+            self.assertIn("id", self.run_cross(post(id="p3"))["platforms"]["facebook"])
+
+    def test_skip_does_not_depend_on_secrets_or_the_other_platforms(self):
+        def missing():
+            raise platforms.Missing("FB")
+        got = self.run_cross(post(score=1), facebook=missing)
+        self.assertEqual(got["platforms"]["facebook"]["skipped"], "below facebook_min_score")
+
+
+class ThreadsResult(CrossPost):
+    def test_reply_result_and_error_are_stored_beside_the_post(self):
+        class WithReply(Good):
+            def post(self, p):
+                return {**super().post(p), "reply": {"id": "r1"}}
+
+        class ReplyFailed(Good):
+            def post(self, p):
+                return {**super().post(p), "reply_error": "HTTP 400: nope"}
+        ok = self.run_cross(post(), threads=lambda: WithReply("threads"))
+        self.assertEqual(ok["platforms"]["threads"]["reply"], {"id": "r1"})
+        bad = self.run_cross(post(id="two"), threads=lambda: ReplyFailed("threads"))
+        self.assertEqual(bad["platforms"]["threads"]["id"], "threads1")
+        self.assertEqual(bad["platforms"]["threads"]["reply_error"], "HTTP 400: nope")
+
+
+class Digest(Env):
+    def setUp(self):
+        super().setUp()
+        self.sent = []
+        digest = self
+
+        class TG:
+            def digest(self_, posts):
+                digest.sent.append(posts)
+                return {"id": "d1"}
+        self.factories = {"telegram": TG}
+
+    def seed(self, n, **kw):
+        for i in range(n):
+            self.stored(post(id=f"p{i}", score=float(i), published=(desk.now() - timedelta(hours=1)).isoformat(), **kw))
+
+    def at(self, hour):
+        t = desk.now().replace(hour=hour, minute=5)
+        return mock.patch.object(desk, "now", lambda: t)
+
+    def test_top_five_by_score_from_the_last_24_hours(self):
+        self.seed(7)
+        self.stored(post(id="old", score=99.0, published=(desk.now() - timedelta(hours=30)).isoformat()))
+        self.stored(post(id="story", score=98.0, kind="story", published=desk.now().isoformat()))
+        self.stored(post(id="queued", score=97.0, status="queued"))
+        with self.at(19):
+            desk.evening_digest(self.factories)
+        self.assertEqual([p["id"] for p in self.sent[0]], ["p6", "p5", "p4", "p3", "p2"])
+
+    def test_sent_once_a_day(self):
+        self.seed(4)
+        with self.at(19):
+            desk.evening_digest(self.factories)
+            desk.evening_digest(self.factories)
+        with self.at(23):
+            desk.evening_digest(self.factories)
+        self.assertEqual(len(self.sent), 1)
+        state = json.loads((desk.STATE / "digest.json").read_text())
+        self.assertEqual((state["date"], state["id"]), (f"{desk.now():%Y-%m-%d}", "d1"))
+
+    def test_sent_again_the_next_day(self):
+        self.seed(3)
+        desk._save(desk.STATE / "digest.json", {"date": "2000-01-01"})
+        with self.at(20):
+            desk.evening_digest(self.factories)
+        self.assertEqual(len(self.sent), 1)
+
+    def test_not_before_19_utc(self):
+        self.seed(5)
+        with self.at(18):
+            desk.evening_digest(self.factories)
+        self.assertEqual(self.sent, [])
+
+    def test_fewer_than_three_posts_sends_nothing_and_marks_nothing(self):
+        self.seed(2)
+        with self.at(19):
+            desk.evening_digest(self.factories)
+        self.assertEqual(self.sent, [])
+        self.assertFalse((desk.STATE / "digest.json").exists())
+        self.seed(3)
+        with self.at(20):
+            desk.evening_digest(self.factories)
+        self.assertEqual(len(self.sent), 1)
+
+    def test_telegram_off_or_missing_secrets_sends_nothing(self):
+        self.seed(5)
+
+        def missing():
+            raise platforms.Missing("TG")
+        with self.at(19):
+            with mock.patch.dict(desk.CONFIG, {"platforms": {"telegram": False}}):
+                desk.evening_digest(self.factories)
+            desk.evening_digest({"telegram": missing})
+        self.assertEqual(self.sent, [])
+        self.assertFalse((desk.STATE / "digest.json").exists())
+
+    def test_failure_is_recorded_and_not_retried(self):
+        self.seed(5)
+
+        class Bad:
+            def digest(self_, posts):
+                raise platforms.PlatformError("HTTP 500: oops")
+        with self.at(19):
+            desk.evening_digest({"telegram": Bad})
+            desk.evening_digest(self.factories)
+        self.assertEqual(self.sent, [])
+        self.assertIn("oops", json.loads((desk.STATE / "digest.json").read_text())["error"])
+
+    def test_publish_runs_the_digest_even_when_nothing_is_due_or_instagram_cools_down(self):
+        self.seed(5)
+        desk._save(desk.STATE / "cooldown.json", {"until": (desk.now() + timedelta(hours=5)).isoformat()})
+        calls = []
+        with self.at(19), mock.patch.object(desk, "evening_digest", lambda: calls.append(1)), \
+             mock.patch.object(desk, "PAUSED", Path(self.tmp.name) / "PAUSED"):
+            self.assertEqual(desk.publish(client=object()), 0)
+            self.assertEqual(desk.publish(client=object(), dry=True), 0)
+        self.assertEqual(calls, [1])  # the dry run sends nothing
+
+    def test_paused_desk_sends_no_digest(self):
+        paused = Path(self.tmp.name) / "PAUSED"
+        paused.write_text("")
+        calls = []
+        with mock.patch.object(desk, "evening_digest", lambda: calls.append(1)), mock.patch.object(desk, "PAUSED", paused):
+            desk.publish(client=object())
+        self.assertEqual(calls, [])
 
 
 class Isolation(Env):

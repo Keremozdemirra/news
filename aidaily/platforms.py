@@ -83,9 +83,44 @@ def _utf8(text):
     return len(text.encode("utf-8"))
 
 
+def _sentences(text):
+    return [x for x in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if x]
+
+
+def _words(text):
+    return set(re.findall(r"[a-z0-9]+", text.casefold()))
+
+
+def why_it_matters(post, count=3):
+    """Up to `count` sentences from the existing dek and body, without a model call. A sentence that mostly
+    repeats the headline or an earlier pick is dropped: the body usually opens by restating the headline."""
+    head, picked = _words(_head(post)), []
+    for s in _sentences(post.get("dek")) + _sentences(post.get("body")):
+        w = _words(s)
+        if not w or any(len(w & other) / len(w) >= 0.6 for other in [head] + [_words(x) for x in picked]):
+            continue
+        picked.append(s)
+        if len(picked) == count:
+            break
+    return picked
+
+
 def threads_text(post):
-    # 500 characters, emoji counted by UTF-8 bytes; the topic goes in topic_tag, not as a hashtag in the text
-    return _fit(_head(post), post.get("dek", ""), _tail(post, story_page(post)), 500, measure=_utf8)
+    """Headline, a short why-it-matters, then the AI note. No link: Threads shows links poorly in the main post,
+    so the story page goes in a reply. 500 characters, emoji counted by UTF-8 bytes; the topic goes in
+    topic_tag, not as a hashtag in the text."""
+    head, tail = _head(post), _ai(post)
+    sentences = why_it_matters(post) or _sentences(post.get("dek"))[:1]
+    while sentences:  # whole sentences give way before any word is cut
+        text = "\n\n".join(x for x in (head, " ".join(sentences), tail) if x)
+        if _utf8(text) <= 500:
+            return text
+        sentences = sentences[:-1]
+    return _fit(head, "", tail, 500, measure=_utf8)
+
+
+def threads_reply_text(post):
+    return f"Sources: {story_page(post)}"
 
 
 def threads_tag(post):
@@ -95,19 +130,37 @@ def threads_tag(post):
 
 
 def bluesky_text(post):
-    """(text, facets): 300 graphemes; the link shows without its scheme and carries the full URI in a facet.
+    """Headline and dek within 300 graphemes. No link and no facets: the link card carries the URL.
     len() counts code points, which is never fewer than graphemes, so the cap holds."""
-    url = story_page(post)
-    shown = url.split("://", 1)[1]
-    text = _fit(_head(post), post.get("dek", ""), _tail(post, shown), 300)
-    start = text.encode("utf-8").rindex(shown.encode("utf-8"))
-    facets = [{"index": {"byteStart": start, "byteEnd": start + len(shown.encode("utf-8"))},
-               "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]}]
-    return text, facets
+    return _fit(_head(post), post.get("dek", ""), "", 300)
+
+
+def bluesky_description(post):
+    return post.get("dek") or post.get("body") or ""
 
 
 def _long_text(post, limit):
     return _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post)), limit)
+
+
+def is_breaking(post):
+    return (post.get("score") or 0) >= desk.CONFIG["breaking_score"]
+
+
+def digest_text(posts):
+    lines = ["Today on Boardread", ""]
+    for i, p in enumerate(posts, 1):
+        lines += [f"{i}. {_head(p)}", story_page(p), ""]
+    return "\n".join(lines).rstrip()
+
+
+def facebook_skip(post):
+    """Why a post stays off the Facebook Page, or "": only the day's most important stories go there."""
+    if (post.get("score") or 0) < desk.CONFIG["facebook_min_score"]:
+        return "below facebook_min_score"
+    if desk.platform_sent_last_24h("facebook") >= desk.CONFIG["facebook_daily_max"]:
+        return "above facebook_daily_max"
+    return ""
 
 
 def telegram_caption(post):
@@ -169,9 +222,10 @@ class Client:
 
 
 # Threads
-# Docs read 2026-11-26: developers.facebook.com/docs/threads/posts (container + threads_publish, carousel of
-# 2-20 items via is_carousel_item and children, text 500 characters by UTF-8 bytes, JPEG/PNG up to 8 MB,
-# topic_tag, is_made_with_ai), developers.facebook.com/docs/threads/troubleshooting (container status),
+# Docs read 2026-11-26: developers.facebook.com/docs/threads/posts (container + threads_publish, text 500
+# characters by UTF-8 bytes, JPEG/PNG up to 8 MB, topic_tag, is_made_with_ai), .../retrieve-and-manage-replies/
+# create-replies (TEXT container with reply_to_id, then threads_publish; needs threads_manage_replies),
+# developers.facebook.com/docs/threads/troubleshooting (container status),
 # developers.facebook.com/docs/threads/threads-media (permalink field; token as access_token parameter).
 
 class Threads(Client):
@@ -200,26 +254,32 @@ class Threads(Client):
 
     def post(self, post):
         uid = self.env["THREADS_USER_ID"]
-        urls = _images(post)
-        # no is_made_with_ai label: it marks the media as AI-made, and the photos are real; the text says "Written by AI."
-        extra = {"text": threads_text(post)}
+        # text first, one image only: the card. No is_made_with_ai label: it marks the media as AI-made, and the
+        # photos are real; the text says "Written by AI."
+        params = {"media_type": "IMAGE", "image_url": _images(post)[0], "text": threads_text(post)}
         if threads_tag(post):
-            extra["topic_tag"] = threads_tag(post)
-        if len(urls) == 1:
-            container = self.call("POST", f"{uid}/threads", {"media_type": "IMAGE", "image_url": urls[0], **extra})["id"]
-        else:
-            kids = [self.call("POST", f"{uid}/threads", {"media_type": "IMAGE", "image_url": u, "is_carousel_item": "true"})["id"]
-                    for u in urls[:20]]
-            for k in kids:
-                self.wait(k)
-            container = self.call("POST", f"{uid}/threads", {"media_type": "CAROUSEL", "children": ",".join(kids), **extra})["id"]
+            params["topic_tag"] = threads_tag(post)
+        container = self.call("POST", f"{uid}/threads", params)["id"]
         self.wait(container)
         media = self.call("POST", f"{uid}/threads_publish", {"creation_id": container})["id"]
         try:
             link = self.call("GET", media, {"fields": "permalink"}).get("permalink", "")
         except PlatformError:
             link = ""  # the post is live; losing its id here would make the desk post it again
-        return {"id": media, "url": link}
+        got = {"id": media, "url": link}
+        # the reply never undoes the post: its outcome is stored beside it, and it is not retried
+        try:
+            got["reply"] = self.reply(media, threads_reply_text(post))
+        except Exception as e:  # noqa: BLE001
+            got["reply_error"] = self._scrub(str(e))[:300]
+        return got
+
+    def reply(self, to_id, text):
+        """A reply is a TEXT container with reply_to_id, published like any post (needs threads_manage_replies)."""
+        uid = self.env["THREADS_USER_ID"]
+        container = self.call("POST", f"{uid}/threads", {"media_type": "TEXT", "text": text, "reply_to_id": to_id})["id"]
+        self.wait(container)
+        return {"id": self.call("POST", f"{uid}/threads_publish", {"creation_id": container})["id"]}
 
 
 # Facebook Page
@@ -287,15 +347,14 @@ class Facebook(Client):
 
 # Bluesky
 # Docs read 2026-11-26: docs.bsky.app/docs/advanced-guides/posts and docs.bsky.app/docs/tutorials/creating-a-post
-# (app.bsky.feed.post, app.bsky.embed.images up to 4 images, link facets with UTF-8 byte offsets, uploadBlob),
+# (app.bsky.feed.post, app.bsky.embed.external with uri, title, description and an optional thumb blob, uploadBlob),
 # atproto lexicon com.atproto.server.createSession (identifier + app password -> accessJwt, did).
-# The two pages disagree on the per-image cap (1,000,000 bytes and 2 MB); the stricter one is used.
+# The two pages disagree on the per-image cap (1,000,000 bytes and 2 MB); the stricter one is used for the thumb.
 
 class Bluesky(Client):
     secrets = ("BSKY_HANDLE", "BSKY_APP_PASSWORD")
     host = os.environ.get("BSKY_PDS", "https://bsky.social")
     MAX_BYTES = 1_000_000
-    MAX_IMAGES = 4
 
     def xrpc(self, name, body, jwt=None, raw=None, mime=None):
         headers = {"Authorization": f"Bearer {jwt}"} if jwt else {}
@@ -315,20 +374,14 @@ class Bluesky(Client):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         jwt, did = sess["accessJwt"], sess["did"]
-        images = []
-        for url in _images(post)[:self.MAX_IMAGES]:
-            data = self.fetch(url)
-            if len(data) > self.MAX_BYTES:
-                # nothing in the workflow can re-encode a JPEG; the first image is the card, so only the later ones are dropped
-                if images:
-                    continue
-                raise PlatformError(f"bluesky: card is {len(data)} bytes, over the {self.MAX_BYTES} limit")
-            blob = self.xrpc("com.atproto.repo.uploadBlob", None, jwt, raw=data, mime="image/jpeg")["blob"]
-            images.append({"alt": _head(post), "image": blob})
-        text, facets = bluesky_text(post)
-        record = {"$type": "app.bsky.feed.post", "text": text, "facets": facets, "langs": ["en"],
+        card = {"uri": story_page(post), "title": _head(post), "description": bluesky_description(post)}
+        data = self.fetch(_images(post)[0])
+        # a link card without a thumbnail still works, so an oversize card is skipped rather than failing the post
+        if len(data) <= self.MAX_BYTES:
+            card["thumb"] = self.xrpc("com.atproto.repo.uploadBlob", None, jwt, raw=data, mime="image/jpeg")["blob"]
+        record = {"$type": "app.bsky.feed.post", "text": bluesky_text(post), "langs": ["en"],
                   "createdAt": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-                  "embed": {"$type": "app.bsky.embed.images", "images": images}}
+                  "embed": {"$type": "app.bsky.embed.external", "external": card}}
         got = self.xrpc("com.atproto.repo.createRecord",
                         {"repo": did, "collection": "app.bsky.feed.post", "record": record}, jwt)
         # the web URL of an at:// URI is bsky.app/profile/<handle>/post/<rkey>
@@ -337,8 +390,9 @@ class Bluesky(Client):
 
 
 # Telegram channel
-# Docs read 2026-11-26: core.telegram.org/bots/api (sendPhoto, sendMediaGroup with 2-10 InputMediaPhoto, caption
-# 0-1024 characters, photo by HTTP URL up to 5 MB per "Sending files", ResponseParameters.retry_after).
+# Docs read 2026-11-26: core.telegram.org/bots/api (sendPhoto, sendMediaGroup with 2-10 InputMediaPhoto, sendMessage, disable_notification,
+# link_preview_options (disable_web_page_preview is no longer listed; both are sent),
+# caption 0-1024 characters, photo by HTTP URL up to 5 MB per "Sending files", ResponseParameters.retry_after).
 # The bot must be an administrator of the channel with permission to post.
 
 class Telegram(Client):
@@ -363,14 +417,23 @@ class Telegram(Client):
     def post(self, post):
         urls = _images(post)[:10]
         chat, caption = self.env["TG_CHANNEL"], telegram_caption(post)
+        # routine posts are silent; only a breaking story (score at the desk's breaking bar) notifies subscribers
+        silent = {"disable_notification": not is_breaking(post)}
         if len(urls) == 1:
-            first = self.call("sendPhoto", {"chat_id": chat, "photo": urls[0], "caption": caption})
+            first = self.call("sendPhoto", {"chat_id": chat, "photo": urls[0], "caption": caption, **silent})
         else:
             media = [{"type": "photo", "media": u} for u in urls]
             media[0]["caption"] = caption  # an album shows the caption of its first photo
-            first = self.call("sendMediaGroup", {"chat_id": chat, "media": media})[0]
+            first = self.call("sendMediaGroup", {"chat_id": chat, "media": media, **silent})[0]
         username = (first.get("chat") or {}).get("username") or (chat.lstrip("@") if chat.startswith("@") else "")
         return {"id": str(first["message_id"]), "url": f"https://t.me/{username}/{first['message_id']}" if username else ""}
+
+    def digest(self, posts):
+        """The evening digest: one silent text message, links not expanded."""
+        got = self.call("sendMessage", {"chat_id": self.env["TG_CHANNEL"], "text": digest_text(posts),
+                                        "disable_notification": True, "disable_web_page_preview": True,
+                                        "link_preview_options": {"is_disabled": True}})
+        return {"id": str(got["message_id"])}
 
 
 CLIENTS = {"threads": Threads, "facebook": Facebook, "bluesky": Bluesky, "telegram": Telegram}

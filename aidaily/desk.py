@@ -924,6 +924,59 @@ def platform_cooldown(name):
     return datetime.fromisoformat(until) if until and datetime.fromisoformat(until) > now() else None
 
 
+def platform_sent_last_24h(name):
+    """Posts a platform took (or may have taken: a marker without a result counts) in the last 24 hours."""
+    cut = now() - timedelta(hours=24)
+    n = 0
+    for p, _ in posts():
+        slot = (p.get("platforms") or {}).get(name) or {}
+        stamp = _stamp(slot.get("at") or slot.get("attempted") or "")
+        if stamp and stamp > cut:
+            n += 1
+    return n
+
+
+DIGEST_HOUR = 19
+DIGEST_SIZE = 5
+DIGEST_MIN = 3
+
+
+def evening_digest(factories=None):
+    """Once a day, the first run at or after 19:00 UTC: a silent Telegram message with the day's top feed posts.
+
+    It runs whatever the Instagram state, cooldown included: it only reads posts that are already published and
+    talks to Telegram, which has its own cooldown. The day is marked before the send, like every send here, so
+    a failure or a killed run never produces a second digest; fewer than DIGEST_MIN posts marks nothing."""
+    from . import platforms
+    today = f"{now():%Y-%m-%d}"
+    if not CONFIG.get("platforms", {}).get("telegram") or now().hour < DIGEST_HOUR:
+        return
+    if _load(STATE / "digest.json", {}).get("date") == today or platform_cooldown("telegram"):
+        return
+    cut = now() - timedelta(hours=24)
+    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+                  and p.get("headlines") and (_stamp(p.get("published", "")) or cut) > cut),
+                 key=lambda p: p.get("score") or 0, reverse=True)[:DIGEST_SIZE]
+    if len(top) < DIGEST_MIN:
+        return
+    try:
+        client = (factories or platforms.CLIENTS)["telegram"]()
+    except platforms.Missing:
+        return
+    state = {"date": today, "attempted": now().isoformat(timespec="seconds"), "posts": [p["id"] for p in top]}
+    _save(STATE / "digest.json", state)
+    try:
+        state.update(id=client.digest(top)["id"], at=now().isoformat(timespec="seconds"))
+        print(f"evening digest sent with {len(top)} posts")
+    except Exception as e:  # noqa: BLE001
+        state["error"] = str(e)[:300]
+        if platforms.BLOCKED.search(str(e)):
+            _save(STATE / "cooldown-telegram.json", {"until": (now() + timedelta(hours=COOLDOWN_HOURS)).isoformat(timespec="seconds"),
+                                                     "error": str(e)[:300]})
+        print(f"evening digest failed, not retried: {str(e)[:200]}")
+    _save(STATE / "digest.json", state)
+
+
 def cross_post(post, path, factories=None):
     """Send a published feed post to the other platforms that are switched on in desk.json and have their secrets.
 
@@ -935,10 +988,16 @@ def cross_post(post, path, factories=None):
         if not CONFIG.get("platforms", {}).get(name):
             continue
         slot = post.setdefault("platforms", {}).get(name, {})
-        if slot.get("id"):
+        if slot.get("id") or slot.get("skipped"):
             continue
         if slot.get("attempted"):
             print(f"{post['id']}: {name}: a send was attempted {slot['attempted']} and its result is unknown; check the account")
+            continue
+        reason = platforms.facebook_skip(post) if name == "facebook" else ""
+        if reason:
+            post["platforms"][name] = {"skipped": reason}  # recorded, so the post is not looked at again
+            _save(path, post)
+            print(f"{post['id']}: {name} skipped: {reason}")
             continue
         blocked = platform_cooldown(name)
         if blocked:
@@ -952,7 +1011,9 @@ def cross_post(post, path, factories=None):
         _save(path, post)  # on disk before the call, same as Instagram
         try:
             got = client.post(post)
-            post["platforms"][name] = {"id": got["id"], "url": got.get("url", ""), "at": now().isoformat(timespec="seconds")}
+            # extras a client reports (the Threads reply, or why it failed) are kept beside the result
+            post["platforms"][name] = {"id": got["id"], "url": got.get("url", ""), "at": now().isoformat(timespec="seconds"),
+                                       **{k: v for k, v in got.items() if k not in ("id", "url")}}
             print(f"{post['id']}: {name}: posted {got.get('url', '')}")
         except Exception as e:  # noqa: BLE001
             text = str(e)
@@ -1041,7 +1102,18 @@ def _send_story(client, post):
 
 
 def publish(client=None, dry=False):
-    """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0."""
+    """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0.
+    The evening digest follows, so it also goes out when nothing was due or Instagram is cooling down."""
+    sent = _publish(client, dry)
+    if not dry and not paused():
+        try:
+            evening_digest()
+        except Exception as e:  # noqa: BLE001
+            print(f"evening digest crashed: {str(e)[:200]}")
+    return sent
+
+
+def _publish(client, dry):
     if paused():
         print("paused: nothing published")
         return 0

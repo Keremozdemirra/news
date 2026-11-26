@@ -113,6 +113,8 @@
   },
   "story_grace_hours": 3,
   "breaking_score": 11,
+  "facebook_min_score": 12,
+  "facebook_daily_max": 4,
   "story_concepts": false,
   "platforms": {
     "threads": false,
