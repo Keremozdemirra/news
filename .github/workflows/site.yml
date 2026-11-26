@@ -43,6 +43,9 @@ jobs:
         run: scripts/media.sh pull
       - name: Build
         if: steps.changed.outputs.build == 'yes'
+        env:
+          # Brent and WTI rows: the EIA key is used at build time only; without it the rows are left out of the pages
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: |
           # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship
           command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }

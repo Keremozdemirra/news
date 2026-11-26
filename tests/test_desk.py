@@ -1,5 +1,6 @@
 import json
 import re
+import os
 import tempfile
 import unittest
 from datetime import timedelta
@@ -35,6 +36,9 @@ class Tmp(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
+        env = mock.patch.dict(os.environ, {"DESK_SITE_OFFLINE": "1"})  # site builds in tests never fetch the market data
+        env.start()
+        self.addCleanup(env.stop)
         self.patches = [mock.patch.object(desk, "QUEUE", root / "queue"), mock.patch.object(desk, "STATE", root / "state"),
                         mock.patch.object(desk, "PAUSED", root / "PAUSED"), mock.patch.object(desk, "HERE", root),
                         mock.patch.object(desk, "MEDIA", root / "media"),
