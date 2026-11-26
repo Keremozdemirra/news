@@ -10,7 +10,7 @@
     "#business"
   ],
   "send_line": "Follow for the news that moves business.",
-  "ai_note": "Summary written with AI, checked against the reports.",
+  "ai_note": "Written by AI.",
   "media_branch": "media",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
   "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[\u2019']m a|q&a|interview with|what .{0,30} daily routine|review:",

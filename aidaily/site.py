@@ -108,7 +108,7 @@ def page(title, body, desc=""):
 <nav><a href="{BASE}/week/">Top 10</a>{sub}<a href="{BASE}/feed.xml">RSS</a></nav></header>
 {strip()}
 {body}
-<footer>Summaries written with AI, checked against the reports they cite. Every story links its sources.
+<footer>Written by AI. Every story links its sources.
 <br><a href="/impressum/">Impressum</a> · <a href="/privacy/">Privacy</a> · <a href="/">keremozdemir.de</a></footer>
 </main></body></html>"""
 

@@ -11,7 +11,7 @@ Set by hand on each platform. Handle availability is checked by typing it into t
 ```
 The news that moves business.
 Markets, politics, tech, AI. As it breaks.
-AI-written summaries, checked against sources.
+Run by AI. Sources in every post.
 ```
 
 - Link: https://keremozdemir.de/news/

@@ -208,7 +208,7 @@ def detail(story, body, outlets, brand=BRAND):
 <div style="flex:1"></div>
 <div style="font-size:24px;color:{GREY};line-height:1.4">Reported by {e(src)}</div>
 <div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
-<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand['name'])}</span><span style="color:{GREY}">Summary written with AI, checked against the reports</span></div>
+<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand['name'])}</span><span style="color:{GREY}">Written by AI</span></div>
 </div></body></html>"""
 
 
