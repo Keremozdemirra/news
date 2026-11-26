@@ -56,8 +56,11 @@ def posts():
 
 def media_url(post_id, name):
     """Instagram fetches each JPEG from a public URL: the raw file on this public repository's media branch."""
+    # pinned to the media commit when the workflow knows it: a branch URL can be served from a stale cache
+    # (a 404 from minutes before the push), a commit URL never changes
+    ref = os.environ.get("DESK_MEDIA_REF") or CONFIG["media_branch"]
     base = os.environ.get("DESK_MEDIA_BASE") or (
-        f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', '')}/{CONFIG['media_branch']}")
+        f"https://raw.githubusercontent.com/{os.environ.get('GITHUB_REPOSITORY', '')}/{ref}")
     return f"{base}/{post_id}/{name}"
 
 

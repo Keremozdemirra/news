@@ -23,7 +23,9 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           GITHUB_TOKEN: ${{ github.token }}
           DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
-        run: python3 -m aidaily publish
+        run: |
+          export DESK_MEDIA_REF=$(git ls-remote origin refs/heads/media | cut -f1)
+          python3 -m aidaily publish
       - name: Commit
         if: always()
         run: |
