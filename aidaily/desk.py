@@ -69,8 +69,13 @@ def media_url(post_id, name):
     return f"{base}/{post_id}/{name}"
 
 
-def story_url(post_id):
-    return f"{CONFIG['site_url']}/s/{post_id}/"
+def story_url(post_id, channel=None):
+    """The article page. With growth.utm on, a link posted to a channel carries utm_source=<channel>: one label per
+    channel, the same for every reader, never a per-person identifier (brand/growth/MEASUREMENT.md)."""
+    url = f"{CONFIG['site_url']}/s/{post_id}/"
+    if channel and growth("utm"):
+        url += f"?utm_source={channel}&utm_medium=social"
+    return url
 
 
 def brand_domain():
@@ -1089,7 +1094,12 @@ def ramp():
     got = pace()
     window = timedelta(days=CONFIG["daily_posts_ramp_days"])
     since, blocked = _stamp(got["since"]), _stamp(got.get("last_block", ""))
-    if (since and now() - since >= window and not (blocked and now() - blocked < window)
+    from . import insights
+    held = insights.learned_value("ramp_hold", False)  # the weekly insights saw per-post sends fall: hold, never cut
+    if held and since and now() - since >= window and got.get("held_noted") != f"{now():%Y-%m-%d}":
+        got["held_noted"] = f"{now():%Y-%m-%d}"  # ramp runs every publish; say it once a day
+        print(f"daily post cap held at {got['cap']}: per-post Instagram sends fell last week (state/learned.json)")
+    if (since and now() - since >= window and not (blocked and now() - blocked < window) and not held
             and got["cap"] < CONFIG["daily_posts_max"]):
         got.update(cap=min(got["cap"] + CONFIG["daily_posts_step"], CONFIG["daily_posts_max"]),
                    since=now().isoformat(timespec="seconds"))
@@ -1193,7 +1203,8 @@ def evening_digest(factories=None):
     a failure or a killed run never produces a second digest; fewer than DIGEST_MIN posts marks nothing."""
     from . import platforms
     today = f"{now():%Y-%m-%d}"
-    if not CONFIG.get("platforms", {}).get("telegram") or now().hour < DIGEST_HOUR:
+    from . import insights
+    if not CONFIG.get("platforms", {}).get("telegram") or now().hour < insights.learned_value("digest_hour", DIGEST_HOUR):
         return
     if _load(STATE / "digest.json", {}).get("date") == today or platform_cooldown("telegram"):
         return
@@ -1363,6 +1374,11 @@ def web_social(factories=None):
     ready = [(p, path) for p, path in web
              if (p.get("score") or 0) >= CONFIG["social_min_score"] and (_stamp(p.get("published", "")) or cut) > cut
              and any(not _slot_done(p, n) and not platform_cooldown(n) for n in names)]
+    # hours where web posts earned clearly less on Threads and Bluesky (weekly insights, at most six a day) wait,
+    # except a breaking story
+    from . import insights
+    if now().hour in set(insights.learned_value("quiet_hours", [])):
+        ready = [(p, path) for p, path in ready if (p.get("score") or 0) >= CONFIG["breaking_score"]]
     if not ready:
         return 0
     post, path = min(ready, key=lambda r: (-(r[0].get("score") or 0), r[0].get("published", "")))

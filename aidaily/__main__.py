@@ -162,7 +162,16 @@ def main(argv=None):
     en.add_argument("--dry", action="store_true")
     rl = sub.add_parser("reel", help="the daily recap Reel (switch growth.daily_reel): stage due, build or send")
     rl.add_argument("stage", choices=["due", "build", "send"])
-    sub.add_parser("insights", help="weekly numbers and category weights")
+    sub.add_parser("insights", help="weekly numbers from every connected platform, weights and learned timing")
+    so = sub.add_parser("seo", help="audit a built site directory for Google News, Discover and Search")
+    so.add_argument("dir", nargs="?", default="_site")
+    tp = sub.add_parser("telegram-pin", help="print the Telegram pinned post; --send posts it silently and pins it")
+    tp.add_argument("--send", action="store_true")
+    bf = sub.add_parser("bsky-feed", help="write bsky-feed.json (the Bluesky custom feed's post list) into DIR")
+    bf.add_argument("dir", nargs="?", default="_site")
+    bg = sub.add_parser("bsky-feed-record", help="print, or with --send write, the Bluesky feed generator record")
+    bg.add_argument("host", help="the Worker's hostname, e.g. feed.boardread.news")
+    bg.add_argument("--send", action="store_true")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("markets", help="refresh state/markets.json from the official sources (never fails)")
     sub.add_parser("site", help="build the news pages into _site/, the status page included")
@@ -304,6 +313,21 @@ def main(argv=None):
         except Exception as e:  # noqa: BLE001
             print(f"health check crashed: {str(e)[:200]}")
         return 0
+    if args.cmd == "seo":
+        from . import seo, site
+        return seo.main(args.dir, site.SITE)
+    if args.cmd == "telegram-pin":
+        from . import distribution
+        distribution.pin(send=args.send)
+        return 0
+    if args.cmd == "bsky-feed":
+        from . import distribution
+        distribution.write_skeleton(args.dir)
+        return 0
+    if args.cmd == "bsky-feed-record":
+        from . import distribution
+        distribution.publish_generator(args.host, send=args.send)
+        return 0
     if args.cmd == "redirects":
         from . import site
         site.redirects(args.dir)
@@ -322,7 +346,11 @@ def main(argv=None):
             desk.engage(dry=args.dry)
             return 0
         if args.cmd == "insights":
-            desk.insights()
+            from . import insights
+            report = insights.run()
+            if os.environ.get("GITHUB_STEP_SUMMARY"):
+                with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+                    f.write(insights.summary_md(report))
             return 0
         desk.token_check()
         return 0

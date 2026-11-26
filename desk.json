@@ -135,7 +135,8 @@
     "reel_size": 5,
     "reel_min": 3,
     "reel_seconds": 3,
-    "reel_trial": ""
+    "reel_trial": "",
+    "utm": false
   },
   "send_prompts": [
     {

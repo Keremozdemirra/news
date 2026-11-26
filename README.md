@@ -9,7 +9,7 @@ An Instagram account for the business, markets, politics, tech and AI news a con
 | every 30 min | `daily` | fetch, rank, keep new important stories, copy, check, render, queue in `queue/<id>/`, open the veto issue |
 | every 5 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | every 5 min | `engage` | DM the sources to anyone who comments SOURCE; answer other new comments, at most 20 a day |
-| Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
+| Monday 06:00 | `weekly` | pull every platform's numbers; set category weights and learned timing; extend the token |
 | after each run | `site` | rebuild the news site from the published posts |
 
 GitHub may start a scheduled run up to half an hour late.
@@ -49,6 +49,10 @@ GitHub may start a scheduled run up to half an hour late.
 
 `python3 scripts/growth_preview.py` writes `brand/preview/growth.html` with all five on, from real posts, without calling Instagram.
 
+## Growth loop
+
+Each Monday `python3 -m aidaily insights` reads per-post numbers from every connected platform into `post.json` (`metrics`) and writes `state/insights/<week>.json`. Each number is compared with that platform's 30-day median. The results feed three things, each inside fixed limits: category weights for ranking, the Telegram digest hour, and quiet hours for web-tier social posts. When per-post Instagram sends fall, the volume ramp holds. `python3 -m aidaily seo _site` audits a build for Google; the site workflow prints it on every run. Plans, the legal reasoning and the owner's checklists are in `brand/growth/`.
+
 ## Secrets and settings
 
 | Name | Kind | Used by |
@@ -67,7 +71,9 @@ Instagram fetches each JPEG from its raw URL on the `media` branch, which is why
 | `aidaily/feeds.py`, `rank.py` | fetch 82 feeds, cluster items into stories, score them |
 | `aidaily/copy.py` | the copy prompt and the checks against the source text |
 | `aidaily/templates.py`, `render.py` | 1080x1350 cards and the daily cover, rendered by headless Chrome, saved as JPEG |
-| `aidaily/desk.py` | queue, publish, replies, weekly weights, token check |
+| `aidaily/desk.py` | queue, publish, replies, token check |
+| `aidaily/insights.py` | the weekly numbers from Instagram, Threads, Facebook, Bluesky and Telegram, and the guarded feedback into weights and timing |
+| `aidaily/seo.py`, `distribution.py` | the SEO audit of a built site; the Telegram pinned post and the Bluesky custom feed |
 | `aidaily/instagram.py` | the Instagram API calls (graph.facebook.com with a unified-login system-user token, v27.0) |
 | `aidaily/github.py` | the veto issues |
 | `aidaily/status.py` | the status page, `status.json`, the health and weekly issues |
