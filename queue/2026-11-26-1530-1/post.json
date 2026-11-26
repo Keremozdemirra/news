@@ -4,7 +4,7 @@
  "n": 3,
  "created": "2026-11-26T15:15:06+00:00",
  "publish_after": "2026-11-26T15:15:06+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -46,5 +46,8 @@
   "https://www.theverge.com/science/1042278/spacex-fcc-starmind-ai-space-data-centers"
  ],
  "credit": "Photo: NASA/NOAA/GSFC/Suomi NPP/VIIRS/Norman Kuring, Public domain, via Wikimedia Commons",
- "story": ""
+ "story": "",
+ "published": "2026-11-26T15:24:49+00:00",
+ "media_id": "18122955578052987",
+ "permalink": "https://www.instagram.com/p/DgNa6oujW2L/"
 }
