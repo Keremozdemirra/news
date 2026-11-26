@@ -202,7 +202,7 @@ NAV = [("/", "Front page", "front"), ("/board/", "Board", "board"), ("/feed/", "
 
 
 # Pages that have shipped. A view is built, linked from the menu, the footer and the front page only while its key is here.
-SHIPPED = {"numbers"}
+SHIPPED = {"numbers", "board", "feed"}
 
 
 def nav_items():

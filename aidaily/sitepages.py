@@ -42,7 +42,7 @@ def brief_page(shown, day, m=None):
     more = len([p for p in shown if S.day_of(p["published"]) == day]) - len(rows)
     stop = (f'<div class="stop"><b>&ndash; 30 &ndash;</b><p>End of the brief. {V.PLURAL(len(rows), "article")}, {words} words, about {sec // 60} minute{"" if sec // 60 == 1 else "s"} '
             f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
-            f'<a class="btn" href="{S.BASE}/board/">The Board</a> <a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a></div>')
+            f'<a class="btn" href="{S.BASE}/board/">The Board</a> <a class="btn alt" href="{S.BASE}{"/play/" if "play" in S.SHIPPED else "/quiz/"}">{"Play today\'s games" if "play" in S.SHIPPED else "Take today\'s quiz"}</a></div>')
     head = V.head(S.day_label(day), "In<br>brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read. It ends.")
     return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 

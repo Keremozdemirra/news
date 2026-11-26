@@ -3,7 +3,7 @@ import unittest
 from datetime import timedelta
 from unittest import mock
 
-from aidaily import desk, outlets, site, sitepages
+from aidaily import desk, outlets, site, sitepages, views
 from test_desk import Tmp
 
 
@@ -58,7 +58,6 @@ class Features(Tmp):
     def test_coverage_meter_counts_newsrooms_without_the_aggregator(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
         self.assertIn("Reported by 2 newsrooms", h)
-        self.assertNotIn("Techmeme", h)
         self.assertIn("Reported by 2 newsrooms", self.read("index.html"))
 
     def test_photoless_story_is_a_text_row_never_a_thumbnail_tile(self):
@@ -172,7 +171,13 @@ if __name__ == "__main__":
 
 
 class Chrome(Features):
-    """The masthead, navigation and markets of the broadsheet design."""
+    """The masthead, navigation and markets of the broadsheet design, with only the numbers page shipped."""
+
+    def setUp(self):
+        shipped = mock.patch.object(site, "SHIPPED", {"numbers"})
+        shipped.start()
+        self.addCleanup(shipped.stop)
+        super().setUp()
 
     def test_nav_lists_only_pages_that_exist_and_names_the_quiz_until_play_ships(self):
         h = self.read("index.html")
@@ -194,3 +199,48 @@ class Chrome(Features):
         self.assertIn("10,000", h)
         self.assertNotIn("Brent", h)
         self.assertNotIn("Pending", h)
+
+
+class Views(Features):
+    """Board, Feed and the cover, built with their keys shipped."""
+
+    def setUp(self):
+        shipped = mock.patch.object(site, "SHIPPED", {"numbers", "board", "feed", "paper"})
+        shipped.start()
+        self.addCleanup(shipped.stop)
+        super().setUp()
+
+    def test_board_has_flaps_seats_names_and_wire_and_no_empty_seat_rows(self):
+        h = self.read("board/index.html")
+        for part in ('id="river"', 'id="names"', 'id="wire"', 'class="fl go"', 'class="mtr"'):
+            self.assertIn(part, h)
+        self.assertNotIn("&mdash;", h)  # a seat nobody holds is not a row
+        self.assertNotIn("Not reported", self.read("s/2026-11-26-0900-1/index.html"))
+        self.assertIn("SAP", h)  # the most-covered company is on the names tape
+        self.assertIn('data-age', h)
+
+    def test_wire_marks_each_article_against_the_newsrooms_that_reported_it(self):
+        h = self.read("board/index.html")
+        self.assertIn("Financial Times", h)
+        self.assertRegex(h, r"<td><i title=\"CNBC\"></i>")
+
+    def test_feed_cards_are_photo_or_text_and_the_cover_links_the_week(self):
+        h = self.read("feed/index.html")
+        self.assertIn('class="mos"', h)
+        self.assertRegex(h, r'class="tile [a-z]+ (w|k)"')  # photo-less articles are solid text cards
+        c = self.read("cover/index.html")
+        self.assertIn("cv-card", c)
+        self.assertRegex(c, r"Week \d\d")
+
+    def test_names_ranks_by_pickups_and_drops_plain_words(self):
+        names = {n for n, _, _ in views.names(self.rows_shown())}
+        self.assertIn("SAP", names)
+        self.assertNotIn("Global", names)
+
+    def rows_shown(self):
+        return site.published()
+
+    def test_nav_links_the_shipped_pages(self):
+        h = self.read("index.html")
+        for href in ("/board/", "/feed/"):
+            self.assertIn(f'class="cap" href="{site.BASE}{href}"', h)

@@ -155,7 +155,7 @@
 /* the feed: poster wordmark and a mosaic of cards */
 .v-feed .wrap{padding:0 24px}
 .fmast{display:block;overflow:hidden}
-.fw{display:block;font:800 min(20.8vw,300px)/.8 var(--f);letter-spacing:-.06em;margin:20px 0 22px -.04em;white-space:nowrap}
+.fw{display:block;font:800 min(19.6vw,300px)/.8 var(--f);letter-spacing:-.06em;margin:20px 0 22px -.04em;white-space:nowrap}
 .fmrow{display:flex;justify-content:space-between;align-items:baseline;border-top:3px solid var(--ink);padding:10px 0 18px;font-weight:600;font-size:15px}
 .fmrow span:last-child{color:var(--soft)}.fmrow a{text-decoration:underline;text-underline-offset:3px}
 .mos{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));grid-auto-rows:128px;gap:6px}
@@ -179,7 +179,7 @@
 @media(max-width:900px){
   .mos{grid-template-columns:1fr;grid-auto-rows:auto;gap:6px}
   .tile{grid-column:auto;grid-row:auto!important;min-height:340px}.tile.xl{min-height:460px}.tile.s,.tile.m{min-height:300px}
-  .tile.xl{--h:52px}.tile.l{--h:38px}.tile.m,.tile.s{--h:32px}.tile .in,.tile.xl .in{padding:22px 20px}.tile .tg,.tile.xl .tg{left:20px;top:18px}
+  .tile.xl{--h:42px;min-height:560px}.tile.l{--h:34px}.tile.m,.tile.s{--h:30px}.tile .in{padding-top:56px!important}.tile .in,.tile.xl .in{padding:22px 20px}.tile .tg,.tile.xl .tg{left:20px;top:18px}
   .v-feed .wrap{padding:0 16px}
 }
 .cover4{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:48px;margin:30px 0 40px;align-items:start}
@@ -233,3 +233,4 @@
   .og{grid-template-columns:1fr}.og>*{padding:0!important;border-left:0!important}.og>*+*{margin-top:30px}
 }
 .lead{margin-bottom:6px}@media(max-width:900px){.lead{margin-bottom:34px}}
+.tile.sc .tg,.cv-card .cg{text-shadow:0 1px 8px rgba(0,0,0,.65)}
