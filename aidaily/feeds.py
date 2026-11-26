@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
 # the contact URL is the public repository, so the code carries no personal address
-UA = f"loopbrief/0.2 (+{os.environ.get('DESK_CONTACT_URL', 'https://github.com/Keremozdemirra/news')})"
+UA = f"boardread/0.2 (+{os.environ.get('DESK_CONTACT_URL', 'https://github.com/Keremozdemirra/news')})"
 # python.org builds ship without a CA bundle; macOS keeps one here
 CTX = ssl.create_default_context(cafile="/etc/ssl/cert.pem" if os.path.exists("/etc/ssl/cert.pem") else None)
 TAG = re.compile(r"<[^>]+>")

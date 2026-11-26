@@ -102,9 +102,9 @@ def page(title, body, desc=""):
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; form-action https:; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
-<link rel="alternate" type="application/rss+xml" title="loopbrief" href="{BASE}/feed.xml">
+<link rel="alternate" type="application/rss+xml" title="boardread" href="{BASE}/feed.xml">
 <style>{CSS}</style></head><body><main>
-<header><div><a class="brand" href="{BASE}/">loopbrief</a> <span class="tag">The news that moves business</span></div>
+<header><div><a class="brand" href="{BASE}/">boardread</a> <span class="tag">The news that moves business</span></div>
 <nav><a href="{BASE}/week/">Top 10</a>{sub}<a href="{BASE}/feed.xml">RSS</a></nav></header>
 {strip()}
 {body}
@@ -159,7 +159,7 @@ def build(out=desk.HERE / "_site"):
         if thumb.exists():
             shutil.copy(thumb, out / "img" / f"{p['id']}.jpg")
             shown.append(p)
-    (out / "index.html").write_text(page("loopbrief · The news that moves business",
+    (out / "index.html").write_text(page("boardread · The news that moves business",
                                          f'<div class="grid">{"".join(card(p) for p in shown[:120])}</div>'
                                          if shown else "<p>The first stories are on their way.</p>",
                                          "Business, markets, politics, tech and AI: every story that matters, with its sources."))
@@ -184,10 +184,10 @@ def build(out=desk.HERE / "_site"):
     (out / "week" / "index.html").write_text(page("Top 10",
         (f'<p>Latest issue: <a href="{BASE}/week/{latest}/">{latest}</a></p>' if latest else "<p>No issue yet.</p>")
         + "<ul>" + "".join(f'<li><a href="{BASE}/week/{w}/">{w}</a></li>' for w in sorted(weeks, reverse=True)) + "</ul>"))
-    (out / "feed.xml").write_text(rss("loopbrief", SITE + "/", [
+    (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(datetime.fromisoformat(p["published"])), p.get("dek", ""))
         for p in shown[:50]]))
-    (out / "weekly.xml").write_text(rss("loopbrief weekly", SITE + "/week/", [
+    (out / "weekly.xml").write_text(rss("boardread weekly", SITE + "/week/", [
         (f"Top 10 · {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/",
          format_datetime(datetime.fromisoformat(top[0]["published"]) + timedelta(days=1)),
          " · ".join(p["headlines"][0] for p in top)) for wk, top in issues[:12]]))

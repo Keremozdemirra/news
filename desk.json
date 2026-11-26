@@ -1,6 +1,6 @@
 {
-  "name": "loopbrief",
-  "handle": "@loopbrief",
+  "name": "boardread",
+  "handle": "@boardread",
   "veto_hours": 2,
   "repeat_window_days": 3,
   "reply_daily_cap": 20,

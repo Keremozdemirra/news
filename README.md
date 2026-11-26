@@ -1,4 +1,4 @@
-# loopbrief desk
+# boardread desk
 
 An Instagram account for the business, markets, politics, tech and AI news a consultant or manager needs, run by GitHub Actions. Every hour it fetches 82 news feeds and ranks the stories. It keeps each relevant story above the importance bar that is under a day old and has not been posted yet. It writes the copy, checks it against the sources, and queues one post per story: a photo card, then a slide with the report. Each run opens one issue in this repository listing its posts. Posts go out 20 minutes apart, the first two hours after queuing, unless the owner vetoes them.
 

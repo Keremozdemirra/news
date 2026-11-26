@@ -87,7 +87,7 @@ def serve(port=8742):
 
 PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Loopbrief desk</title>
+<title>Boardread desk</title>
 <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#fcfcfb;--ink:#111;--mute:#6f6f6f;--line:#e4e4e2;--done:#1d6b45}
@@ -119,7 +119,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 @media (max-width:760px){.card{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.toast{transition:none}}
 </style></head><body><main>
-<header><h1>Loopbrief desk</h1><label><span class="meta">Day </span><select id="day" aria-label="Day"></select></label></header>
+<header><h1>Boardread desk</h1><label><span class="meta">Day </span><select id="day" aria-label="Day"></select></label></header>
 <div id="list"></div>
 </main><div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>

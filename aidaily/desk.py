@@ -325,7 +325,7 @@ def publish(client=None, dry=False):
 
 # comment replies
 
-REPLY_PROMPT = """You reply to one comment on an Instagram post by loopbrief, a daily AI news account.
+REPLY_PROMPT = """You reply to one comment on an Instagram post by boardread, a news account for consultants and managers.
 Voice: plain, friendly, brief, factual. American English. No emoji, no hashtags, no links, no @mentions.
 Use only facts in the POST CAPTION below. If the comment asks something the caption does not answer, say
 the post only covers what the named reports said and point to the sources line in the caption.
