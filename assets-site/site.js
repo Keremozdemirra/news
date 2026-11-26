@@ -12,6 +12,10 @@
     });
   });
 
+  // on a phone the current section may sit off screen in the sideways row; bring it into view
+  var cur = document.querySelector(".sections [aria-current]");
+  if (cur && cur.closest("ul")) { var ul = cur.closest("ul"); ul.scrollLeft = Math.max(0, cur.getBoundingClientRect().left - ul.getBoundingClientRect().left + ul.scrollLeft ); }
+
   var form = document.querySelector("form[data-index]");
   if (!form) return;
   var input = form.querySelector("input"), out = document.getElementById("hits"), status = document.getElementById("sstatus");

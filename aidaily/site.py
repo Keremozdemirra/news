@@ -129,14 +129,12 @@ def stats():
 
 ASSET_V = hashlib.sha1(b"".join((ASSETS / f).read_bytes() for f in ("site.css", "site.js"))).hexdigest()[:8]
 FACES = (
-    "@font-face{font-family:'Fraunces';font-weight:100 900;font-style:normal;font-display:swap;src:url('{b}/fonts/Fraunces-var.woff2') format('woff2')}"
-    "@font-face{font-family:'Instrument Sans';font-weight:400 700;font-style:normal;font-display:swap;src:url('{b}/fonts/InstrumentSans-var.woff2') format('woff2')}"
-    "@font-face{font-family:'IBM Plex Mono';font-weight:400;font-style:normal;font-display:swap;src:url('{b}/fonts/PlexMono-400.woff2') format('woff2')}"
-    "@font-face{font-family:'IBM Plex Mono';font-weight:500;font-style:normal;font-display:swap;src:url('{b}/fonts/PlexMono-500.woff2') format('woff2')}"
-    "@font-face{font-family:'Wordmark';font-weight:800;font-style:normal;font-display:block;src:url('{b}/fonts/Wordmark.woff2') format('woff2')}"
-    # stand-ins sized to the web fonts, so the swap moves nothing
-    "@font-face{font-family:'Fraunces Fallback';src:local('Georgia');size-adjust:98%;ascent-override:96%;descent-override:25%;line-gap-override:0%}"
-    "@font-face{font-family:'Instrument Fallback';src:local('Arial');size-adjust:101%;ascent-override:93%;descent-override:24%;line-gap-override:0%}"
+    "@font-face{font-family:'Libre Franklin';font-weight:400;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-400.woff2') format('woff2')}"
+    "@font-face{font-family:'Libre Franklin';font-weight:500;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-500.woff2') format('woff2')}"
+    "@font-face{font-family:'Libre Franklin';font-weight:600;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-600.woff2') format('woff2')}"
+    "@font-face{font-family:'Libre Franklin';font-weight:800;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-800.woff2') format('woff2')}"
+    # stand-in sized to the web font, so the swap moves nothing
+    "@font-face{font-family:'Franklin Fallback';src:local('Arial');size-adjust:103%;ascent-override:92%;descent-override:22%;line-gap-override:0%}"
 ).replace("{b}", BASE)
 
 
@@ -176,8 +174,8 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
         if image in (None, DEFAULT_OG) or image.startswith(f"{BASE}/og/") else ""
     links = "".join(f'<link rel="{k}" href="{E(SITE + v)}">' for k, v in (rel or {}).items())
     today = datetime.now(timezone.utc).strftime("%A %-d %B %Y")
-    word = f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread<i>.</i></a>'
-    mast = (f'<div class="mast"><h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread<i>.</i></a></h1>'
+    word = f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>'
+    mast = (f'<div class="mast"><h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>'
             f'<p class="tag">{TAGLINE}</p></div>') if front else f'<div class="mast">{word}<p class="tag">{TAGLINE}</p></div>'
     foot_topics = "".join(f'<li><a href="{BASE}/t/{t.lower()}/">{t}</a></li>' for t in TOPIC_ORDER)
     follow_links = "".join(f'<li><a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a></li>' for a in accounts())
@@ -187,16 +185,15 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#111214" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)">
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
 <link rel="canonical" href="{E(url)}">{links}
 <link rel="icon" href="{BASE}/icon.svg" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="boardread." href="{BASE}/feed.xml">
 <link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
-<link rel="preload" href="{BASE}/fonts/Fraunces-var.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="{BASE}/fonts/InstrumentSans-var.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="{BASE}/fonts/PlexMono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{BASE}/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
 <meta property="og:site_name" content="{NAME}"><meta property="og:type" content="{og_type}">
 <meta property="og:title" content="{E(og_title or title)}"><meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{E(url)}"><meta property="og:image" content="{E(img)}">
@@ -216,7 +213,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <main id="main" class="wrap {main_class}">{body}</main>
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">
-<div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread<i>.</i></a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every story with its sources linked.</p></div>
+<div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every story with its sources linked.</p></div>
 <div><h2>Sections</h2><ul>{foot_topics}</ul></div>
 <div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
@@ -287,9 +284,9 @@ def item(p):
             f'<span class="h-m">{E(p["headlines"][0])}</span></div>{pic(p, thumb=True)}</a></li>')
 
 
-def sec_head(label, link=None, more="", live=False, level=2):
+def sec_head(label, link=None, more="", level=2):
     right = f'<a class="more" href="{link}">{more}</a>' if link else ""
-    return f'<div class="sec"><h{level}{" class=\"live\"" if live else ""}>{label}</h{level}>{right}</div>'
+    return f'<div class="sec"><h{level}>{label}</h{level}>{right}</div>'
 
 
 def topic_block(t, rows, used=()):
@@ -505,7 +502,7 @@ def about_page():
 <p>Boardread reports what moves business: markets, the economy, politics, world affairs, technology and AI. It is written for consultants, managers and business students who need the day's developments in a minute, and want to open the original reporting when it matters.</p>
 <h2>How the desk works</h2>
 <ol class="steps">
-<li><div><b>It reads the news.</b> Every hour the desk fetches more than 80 feeds from newsrooms and research labs.</div></li>
+<li><div><b>It reads the news.</b> Every 30 minutes the desk fetches more than 80 feeds from newsrooms and research labs.</div></li>
 <li><div><b>It ranks.</b> Coverage of the same event is grouped into one story and scored. Only stories above a fixed importance bar, and under a day old, are taken further.</div></li>
 <li><div><b>It writes.</b> An AI model writes a short report from the text of the sources. It has no other input and no tools.</div></li>
 <li><div><b>It checks.</b> Fixed code checks the text before anything is public: every number must appear in the source, sentences that read as commentary are rejected, and stories about deaths, violence and abuse are skipped.</div></li>
@@ -612,7 +609,7 @@ def home(shown):
     for t in TOPIC_ORDER:
         if rows := [p for p in shown if topic(p) == t]:
             blocks += topic_block(t, rows, used)
-    front = (f'<div class="front"><section class="latest" aria-labelledby="lh">{sec_head("Latest", f"{BASE}/latest/", "All latest", live=True).replace("<h2", "<h2 id=\"lh\"", 1)}'
+    front = (f'<div class="front"><section class="latest" aria-labelledby="lh">{sec_head("Latest", f"{BASE}/latest/", "All latest").replace("<h2", "<h2 id=\"lh\"", 1)}'
              f'{stream(shown, 10)}</section>'
              f'<div class="lead-col">{lead_block(lead)}{pair_block(pairs)}</div>'
              f'<section class="important" aria-labelledby="ih">{sec_head("Most important today").replace("<h2", "<h2 id=\"ih\"", 1)}{ranked(ranked_today, 5)}'
@@ -628,7 +625,7 @@ def build(out=desk.HERE / "_site"):
         shutil.rmtree(out)
     for d in ("img", "og", "assets"):
         (out / d).mkdir(parents=True)
-    shutil.copytree(ASSETS / "fonts", out / "fonts")  # Fraunces, Instrument Sans, Plex Mono, the wordmark and their OFL licence
+    shutil.copytree(ASSETS / "fonts", out / "fonts")  # Libre Franklin and its OFL licence
     for f in ("site.css", "site.js"):
         shutil.copy(ASSETS / f, out / "assets" / f)
     for f in ("og-default.png", "logo.png", "icon.svg"):  # the preview image of every non-story page, the publisher logo, the favicon
