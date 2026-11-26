@@ -446,7 +446,9 @@ def listing(rows, path, n, total, aside=""):
             f'<h2 class="h-xl">{E(first["headlines"][0])}</h2><p class="dek">{E(first.get("dek", ""))}</p>'
             f'{meta(t_tag(first), cover(first))}</a></div>') if first else ""
     body = lead + f'<ol>{"".join(listing_row(p) for p in rows if p is not first)}</ol>' + pager(path, n, total)
-    return f'<div class="listing"><div>{body}</div><aside aria-label="Most important">{aside}</aside></div>' if aside else body
+    # a section with few articles has no "Most important" column; the column still holds its place, so the lead photo is
+    # the same size on every listing page
+    return f'<div class="listing{"" if aside else " solo"}"><div>{body}</div><aside aria-label="Most important"{"" if aside else " hidden"}>{aside}</aside></div>'
 
 
 def pagehead(title, sub=""):
@@ -524,8 +526,9 @@ def photo_alt(p):
 
 
 def credit_line(p):
-    """The photo credit as licensed."""
-    return (p.get("credit") or "").strip()
+    """The photo credit as licensed. A stand-in scene says so: it is not a photo of this event."""
+    c = (p.get("credit") or "").strip()
+    return f"Archive photo of the sport, not from this event. {c}" if c and p.get("photo_kind") == "scene" else c
 
 
 def resized(photo, dest, width):

@@ -109,6 +109,7 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .pagehead p{font:400 18px/1.5 var(--f);color:var(--soft);max-width:40rem}
 .listing{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:calc(var(--gut) * 1.5);padding:14px 0 0}
 .listing>aside{border-left:1px solid var(--rule);padding-left:var(--gut)}
+.listing.solo>aside{border-left:0}
 .row{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:28px;padding:22px 0;border-bottom:1px solid var(--rule)}
 .row.text{grid-template-columns:minmax(0,1fr)}
 .row .meta{display:block;margin-bottom:6px}

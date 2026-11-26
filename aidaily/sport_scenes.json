@@ -1,0 +1,24 @@
+{
+ "match": {
+  "f1": "\\b(formula (1|one)|f1|grand prix|verstappen|hamilton|norris|leclerc|russell)\\b",
+  "nfl": "\\b(nfl|quarterback|super bowl|touchdown)\\b",
+  "nba": "\\b(nba|basketball)\\b",
+  "tennis": "\\b(tennis|wimbledon|australian open|us open|roland garros|davis cup|atp|wta|grand slam)\\b",
+  "cricket": "\\b(cricket|test match|odi|ashes|wicket|innings)\\b",
+  "golf": "\\b(golf|masters|ryder cup|pga|liv)\\b",
+  "boxing": "\\b(boxing|boxer|heavyweight|title fight|bout)\\b",
+  "olympics": "\\b(olympic\\w*)\\b",
+  "football": "\\b(football|soccer|premier league|champions league|europa league|bundesliga|la liga|serie a|world cup|striker|goalkeeper|midfielder|manager|transfer|fc|united|city)\\b"
+ },
+ "files": {
+  "f1": "FIA Formula One Safety Car and Medical Car at Circuit Gilles Villeneuve.jpg",
+  "nfl": "Inter&Co Stadium gridiron football configuration.jpg",
+  "nba": "OAKA Basketball Arena in December 2024.jpg",
+  "tennis": "Centre Court at Wimbledon.jpg",
+  "cricket": "Adelaide Oval (23183793744).jpg",
+  "golf": "Kingsbarns Links Golf Course. - geograph.org.uk - 254127.jpg",
+  "boxing": "Boxing ring, MGM Grand.jpg",
+  "olympics": "The Olympic Rings in Tokyo 04.jpg",
+  "football": "An empty Wembley Stadium - geograph.org.uk - 3898132.jpg"
+ }
+}

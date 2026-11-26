@@ -106,6 +106,36 @@ class Copy(unittest.TestCase):
         self.assertEqual(s["orgs"], [])
 
 
+class Photos(unittest.TestCase):
+    def test_another_teams_kit_is_rejected_the_own_team_and_neutral_files_pass(self):
+        from aidaily import entities as E
+        allow = "Steelers owner Rooney backs McCarthy after Rodgers interview Aaron Rodgers"
+        self.assertEqual(E.foreign_team("Aaron Rodgers Packers OCT2021 (cropped).jpg", allow), "Packers")
+        self.assertEqual(E.foreign_team("Aaron Rodgers Steelers 2025.jpg", allow), "")
+        self.assertEqual(E.foreign_team("Acrisure Stadium.jpg", allow), "")
+        self.assertEqual(E.foreign_team("Max Verstappen Red Bull Racing 2024.jpg", "Russell laughs off Verstappen Mercedes"), "Red Bull")
+
+    def test_every_sport_has_a_scene_and_a_keyword_route(self):
+        from aidaily import entities as E
+        self.assertEqual(set(E.SCENES["match"]), set(E.SCENES["files"]))
+        for text, want in (("Sinner ruled out of Australian Open", "tennis"), ("Russell laughs off Verstappen Las Vegas Grand Prix", "f1"),
+                           ("Steelers owner backs McCarthy as quarterback leaves NFL team", "nfl"), ("Sunderland draw in the Europa League", "football")):
+            with mock.patch.object(E, "_commons_info", side_effect=lambda f, width=None: {"f": f}), \
+                 mock.patch.object(E, "photo_ok", return_value=(False, "")):
+                # the lookup stops at the licence gate; the route is read from the call it made
+                called = []
+                with mock.patch.object(E, "_commons_info", side_effect=lambda f, width=None: called.append(f) or {}):
+                    E.sport_scene(text)
+                self.assertEqual(called, [E.SCENES["files"][want]], text)
+
+    def test_audit_lets_a_scene_stand_and_holds_a_foreign_team_file(self):
+        post = {"headlines": ["Steelers owner backs McCarthy"], "topic": "Sport", "tier": "web", "status": "web", "body": "The Steelers owner spoke.", "dek": "",
+                "photo_file": "Aaron Rodgers Packers OCT2021 (cropped).jpg", "credit": "c", "person": "Aaron Rodgers", "caption": "c", "logo_names": []}
+        self.assertTrue(any("Packers" in p for p in desk.audit(post)))
+        post.update(photo_file="Inter&Co Stadium gridiron football configuration.jpg", photo_kind="scene", person="")
+        self.assertEqual(desk.audit(post), [])
+
+
 class Lane(Tmp):
     def day(self, score, topic):
         d = self.root / "out"
@@ -235,6 +265,11 @@ class SiteBuild(Tmp):
         self.assertIn('>BBC Sport</a>', h)
         self.assertIn("https://www.bbc.co.uk/sport/football/1", h)
         self.assertNotIn("Central bank", h.split('class="related"')[-1].split("</section>")[0])  # related news stays in sport
+
+    def test_listing_keeps_its_column_so_the_lead_photo_is_the_same_size(self):
+        out = self.build(sport=2)
+        self.assertIn('class="listing solo"', (out / "sport" / "index.html").read_text())
+        self.assertIn('class="listing"', (out / "t" / "economy" / "index.html").read_text())
 
     def test_no_sport_posts_leaves_no_block_and_a_page_without_articles(self):
         out = self.build(sport=0)

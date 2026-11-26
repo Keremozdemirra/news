@@ -405,6 +405,29 @@ def foreign_brand(text, allow, own=""):
     return ""
 
 
+# Teams whose kit or badge puts an athlete on the wrong side: a Packers jersey on a Steelers article. A photo whose title,
+# description or Commons categories name a team that the article does not name is somebody else's team.
+TEAMS = re.compile(
+    r"\b(cardinals|falcons|ravens|bills|panthers|bears|bengals|browns|cowboys|broncos|lions|packers|texans|colts|jaguars|chiefs|"
+    r"raiders|chargers|rams|dolphins|vikings|patriots|saints|giants|jets|eagles|steelers|49ers|seahawks|buccaneers|titans|commanders|"
+    r"redskins|celtics|nets|knicks|76ers|sixers|raptors|bulls|cavaliers|pistons|pacers|bucks|hawks|hornets|heat|magic|wizards|"
+    r"nuggets|timberwolves|thunder|trail blazers|jazz|warriors|clippers|lakers|suns|kings|mavericks|rockets|grizzlies|pelicans|spurs|"
+    r"arsenal|aston villa|bournemouth|brentford|brighton|burnley|chelsea|crystal palace|everton|fulham|leeds|leicester|liverpool|"
+    r"manchester city|manchester united|man city|man united|newcastle|nottingham forest|southampton|sunderland|tottenham|spurs|"
+    r"west ham|wolves|wolverhampton|bayern|dortmund|leverkusen|leipzig|real madrid|barcelona|atletico|sevilla|valencia|villarreal|"
+    r"juventus|inter milan|ac milan|napoli|roma|lazio|atalanta|psg|paris saint-germain|ajax|benfica|porto|celtic|rangers|"
+    r"ferrari|mercedes|red bull|mclaren|aston martin|alpine|williams|haas|sauber|audi|cadillac|racing bulls|alphatauri|renault)\b", re.I)
+
+
+def foreign_team(text, allow):
+    """The first team named in `text` that `allow` (the article's own words) does not name, or ''."""
+    allowed = (allow or "").lower()
+    for m in TEAMS.finditer(text or ""):
+        if not re.search(r"\b" + re.escape(m.group(1).lower()) + r"\b", allowed):
+            return m.group(1)
+    return ""
+
+
 def candidates(subject, person=False):
     """Commons JPEG names that may show the subject: a person's Wikidata image and category, or a search
     whose hits must name the subject in their own title and must not be photos of people or events."""
@@ -455,7 +478,7 @@ def candidates(subject, person=False):
     return out
 
 
-def fresh_photo(subjects, used, fetch=True, allow=""):
+def fresh_photo(subjects, used, fetch=True, allow="", teams=False):
     """(path, credit, file) for the first reusable photo, across the subjects in order, that is not in `used`.
 
     Each subject is (text, is_person). Rotating through a person's whole Commons category is what keeps
@@ -487,6 +510,10 @@ def fresh_photo(subjects, used, fetch=True, allow=""):
                     not is_person and foreign_brand(desc_brands, allow + " " + text, own=f)):
                 continue
                 continue
+            if teams:
+                cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "").replace("|", " ")
+                if foreign_team(f"{f} {desc} {cats}", allow + " " + text):
+                    continue
             # an archive scan from 1920 is free to use and wrong for today's news
             when = (info.get("extmetadata", {}).get("DateTimeOriginal") or {}).get("value", "")
             year = re.search(r"\b(1[89]\d\d|20\d\d)\b", re.sub(r"<[^>]+>", "", when))
@@ -500,3 +527,28 @@ def fresh_photo(subjects, used, fetch=True, allow=""):
                 p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
             return p, credit, f
     return None, "", ""
+
+
+SCENES = json.loads((Path(__file__).resolve().parent / "sport_scenes.json").read_text())
+
+
+def sport_scene(text):
+    """(path, credit, file, sport) of a vetted Commons scene of the sport the text is about, or Nones. Every file in
+    sport_scenes.json was looked at: no person, no team, no sponsor to speak of. It stands in for a photo of the
+    subject only when the subject has none, and the article says nothing about it beyond the credit line."""
+    for key, rx in SCENES["match"].items():
+        if re.search(rx, text or "", re.I):
+            f = SCENES["files"][key]
+            try:
+                p = CACHE / f"scene-{_slug(f)[:80]}.jpg"
+                info = _commons_info(f, width=1600)
+                ok, credit = photo_ok(info)
+                if not ok:
+                    return None, "", "", ""
+                if not p.exists():
+                    CACHE.mkdir(parents=True, exist_ok=True)
+                    p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
+                return p, credit, f, key
+            except Exception:  # noqa: BLE001  no scene beats a broken one
+                return None, "", "", ""
+    return None, "", "", ""

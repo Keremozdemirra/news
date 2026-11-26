@@ -85,6 +85,8 @@ def photo_ok(p):
 def photo_subject(p):
     """The name that ties the photo to the article (the first one found in the file name), or None. Two photos of the same
     subject never share a front page: the first keeps it, the next article runs as text."""
+    if p.get("photo_kind") == "scene":  # a vetted sport scene: its own file is the subject, so it shows once per page
+        return Path(p.get("photo_file") or "").stem.lower()
     stem = re.sub(r"[^a-z0-9]+", " ", Path(p.get("photo_file") or "").stem.lower())
     names = [t.lower() for t in NAME_TOKEN.findall(p["headlines"][0]) + NAME_TOKEN.findall(p.get("dek", "")) if (len(t) >= 4 or t.isupper()) and t not in STOP_FIRST]
     names += [w.lower() for w in re.findall(r"[A-Za-z0-9]{3,}", f'{p.get("person") or ""} {S.co_of(p)}')]

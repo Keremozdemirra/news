@@ -317,14 +317,17 @@ def audit(post):
         problems.append(f"ticker {tk.get('symbol')} for {post.get('company')!r}, which the headline does not name")
     E, pf = R.T.entities, post.get("photo_file", "")
     owners = [n for n in [post.get("company")] + list(post.get("logo_names") or []) if n]
-    if pf and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
+    scene = post.get("photo_kind") == "scene"  # a vetted stand-in for the sport, shown as such; it names no subject
+    if pf and not scene and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
         other = E.foreign_brand(pf, head_ + " " + (owners[0] if owners else ""), own=owners[0] if owners else "")
         problems.append(f"photo file names {other}, which the story does not name")
-    if pf and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
-               or (not post.get("person") and E.CROWD.search(pf))):
+    if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
+                             or (not post.get("person") and E.CROWD.search(pf))):
         problems.append(f"photo {pf!r} is not a news photo of the subject")
     if post.get("person") and post["person"].split()[-1].lower() not in (head_ + " " + post.get("body", "")).lower():
         problems.append(f"photo of {post['person']}, who the text does not name")
+    if post.get("topic") == "Sport" and pf and E.foreign_team(pf, head_ + " " + post.get("body", "") + " " + post.get("dek", "")):
+        problems.append(f"photo file names {E.foreign_team(pf, head_ + ' ' + post.get('body', ''))}, a team the article does not name")
     if post.get("photo_file") and not post.get("credit"):
         problems.append("photo without a credit line")
     cap = post.get("caption", "")
@@ -1025,7 +1028,7 @@ def queue(day_dir, batch=None, render=True):
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
-                "credit": s.get("_assets", {}).get("credit", "")}
+                "credit": s.get("_assets", {}).get("credit", ""), "photo_kind": s.get("_assets", {}).get("kind", "")}
         ctas += bool(cta)
         if web:
             post.update(status="web", published=now().isoformat(timespec="seconds"), story="")

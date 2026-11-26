@@ -81,14 +81,19 @@ def assets(story, fetch=True):
         # so only the named person or the company's own photos are used
         # a club name finds a city, a street or a bridge ("Sunderland"); sport looks for the named ground instead
         subjects = [(story.get("person", ""), True), ((story.get("image_query", "") if sport else co), False)]
-        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
-        if file_:
+        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""), teams=sport)
+        kind = "photo" if ph else ""
+        if not ph and sport and fetch:
+            # every sport article carries a picture: the sport's vetted scene when neither the athlete nor the ground has one
+            ph, credit, file_, _ = entities.sport_scene(head_ + " " + story.get("title", "") + " " + story.get("summary", ""))
+            kind = "scene" if ph else ""
+        elif file_:
             USED.add(file_)
         # a ticker names a listed company, so it follows the logo rule: the story's own company, named in the headline
         tk = entities.ticker(co, fetch=fetch) if co and co in names else None
         story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "", "ticker": tk,
                             "logos": logos, "logo_names": logo_names, "photo": ph.as_uri() if ph else "",
-                            "credit": credit, "file": file_}
+                            "credit": credit, "file": file_, "kind": kind}
     return story["_assets"]
 
 
