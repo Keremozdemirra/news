@@ -363,7 +363,16 @@ def apply(stories, reply_rows):
             continue
         if c:
             strip_ungrounded(s, c)
+            # hype the source used ("massive revision") is still hype in our voice: the intensifier goes, the fact stays
+            for f in ("headline", "dek", "x_post", "linkedin_post"):
+                if isinstance(c.get(f), str):
+                    c[f] = re.sub(r"\s{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip()
         problems = verify(s, c) if c else ["no copy returned"]
+        # a headline over the limit is the model's slip, not a wrong fact: the source's own headline stands in when
+        # it fits and everything else checked out (a Meloni post was lost to five extra characters)
+        if problems == ["headline too long"] and len(s["title"]) <= MAX_HEADLINE:
+            c["headline"] = s["title"]
+            problems = verify(s, c)
         if problems:
             rejected.append((s["title"], problems))
             s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
@@ -387,8 +396,10 @@ def apply(stories, reply_rows):
             src = (s["title"] + " " + s.get("summary", "")).lower()
             orgs = c.get("orgs") if isinstance(c.get("orgs"), list) else []
             s["orgs"] = [o for o in orgs if isinstance(o, str) and o.strip() and o.lower() in src][:3]
-            # the same holds for a face: only a person the source names may be pictured
-            if s.get("person") and s["person"].split()[-1].lower() not in src:
+            # the same holds for a face: only a person the source names may be pictured, and only when our own text
+            # names them too, or the reader sees a face nobody on the card is
+            shown = (s["headline"] + " " + s.get("dek", "") + " " + s.get("linkedin_post", "")).lower()
+            if s.get("person") and (s["person"].split()[-1].lower() not in src or s["person"].split()[-1].lower() not in shown):
                 s["person"] = ""
             # and for every logo: a company or backer the source does not name gets no logo on the card. An
             # unchecked "backer" once put the BCG logo on an FCC story.

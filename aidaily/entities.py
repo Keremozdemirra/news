@@ -360,7 +360,9 @@ def photo(person, fetch=True):
 NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|interface|extension|extention|seal|"
                        r"coat of arms|signature|poster|banner|"
                        # a made-up picture is not a news photo: "AI generated image of Loab" reached a Character.AI story
-                       r"ai.generated|midjourney|dall.e|stable diffusion|render|rendering|concept art|mockup", re.I)
+                       r"ai.generated|midjourney|dall.e|stable diffusion|render|rendering|concept art|mockup|"
+                       # a building site is not the building: the ECB tower under construction ran on a 2026 post
+                       r"under construction|construction site|groundbreaking|topping.out", re.I)
 # a photo of a topic must not put a person on a story they are not in: a search for "press conference"
 # once returned the President of the United States for a story about state attorneys general
 PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"

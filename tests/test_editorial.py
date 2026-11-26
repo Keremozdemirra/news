@@ -137,6 +137,21 @@ class Copy(unittest.TestCase):
         self.assertNotIn("industrial", s["linkedin_post"])
         self.assertIn("restructuring", s["linkedin_post"])
 
+    def test_hype_is_cut_and_a_long_headline_falls_back_to_the_source(self):
+        s = {"title": "Trump demands probe after GDP data revision", "summary": "A massive revision to GDP data lifted growth.", "source": "CNBC"}
+        rows = [{"id": 0, "headline": "Trump demands a probe into the massive GDP revision after the third-quarter data came out",
+                 "dek": "The massive revision lifted growth.", "x_post": "", "linkedin_post": "", "figure": ""}]
+        self.assertEqual(copy.apply([s], rows), [])
+        self.assertEqual(s["headline"], "Trump demands probe after GDP data revision")
+        self.assertEqual(s["dek"], "The revision lifted growth.")
+
+    def test_person_not_named_in_our_text_is_not_pictured(self):
+        s = {"title": "Argentina's Congress approves central bank overhaul backed by Milei", "summary": "", "source": "BA Times"}
+        rows = [{"id": 0, "headline": "Argentina's Congress approves central bank overhaul", "dek": "", "x_post": "",
+                 "linkedin_post": "The bill passed the Senate.", "figure": "", "person": "Javier Milei"}]
+        copy.apply([s], rows)
+        self.assertEqual(s["person"], "")
+
     def test_outlet_digits_are_not_a_claim(self):
         s = {"title": "Spain's De Cos chosen as next ECB president", "summary": "", "source": "France 24"}
         self.assertEqual(copy.verify(s, {"headline": "De Cos chosen as next ECB president", "dek": "",
