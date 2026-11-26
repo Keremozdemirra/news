@@ -116,7 +116,7 @@
   "story_concepts": false,
   "platforms": {
     "threads": false,
-    "facebook": false,
+    "facebook": true,
     "bluesky": true,
     "telegram": true
   }
