@@ -1,12 +1,12 @@
 # loopbrief desk
 
-An Instagram account for AI news that runs itself on GitHub Actions. Every two hours it fetches 48 news sources, ranks the stories, writes the copy and checks it against the sources. It then queues up to three posts, one story each: the story's card, then a slide with the report. Each run opens one issue in this repository listing its posts. A post goes out two hours after it is queued, an hour apart from the next, unless the owner vetoes it.
+An Instagram account for AI news that runs itself on GitHub Actions. Every hour it fetches 48 news sources and ranks the stories. It keeps each story above the importance bar that is under a day old and has not been posted yet. It writes the copy, checks it against the sources, and queues one post per story: a photo card, then a slide with the report. Each run opens one issue in this repository listing its posts. Posts go out 20 minutes apart, the first two hours after queuing, unless the owner vetoes them.
 
 ## The day
 
 | Time (UTC) | Workflow | What happens |
 |---|---|---|
-| 04:00 to 20:00, every 2 h | `daily` | fetch, rank, copy, check, render, queue up to 3 posts in `queue/<id>/`, open the veto issue |
+| hourly, at :05 | `daily` | fetch, rank, keep new important stories, copy, check, render, queue in `queue/<id>/`, open the veto issue |
 | every 20 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | hourly | `engage` | answer new comments on the last 7 days of posts, at most 20 a day |
 | Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
@@ -24,7 +24,7 @@ GitHub may start a scheduled run up to half an hour late.
 - The two model calls (copy and comment replies) run `claude -p` with no tools, no MCP and no user settings. They read untrusted text and can only return text.
 - Fixed code checks that text before anything is public. Every number must appear in the source. Sentences that read as commentary are rejected. A big figure on a card must also appear in its headline or dek. Stories about deaths, violence or abuse are skipped. A reply with a link, a mention, a number missing from the post, or more than 200 characters is dropped.
 - The only secret that can post is `IG_TOKEN`, and it can post to one Instagram account. It travels in a request header and is scrubbed from every error message.
-- Caps: 12 posts a day, an hour apart, none scheduled more than 4 hours past its veto window; 20 replies a day. A story is not posted again within 3 days, even when a later run clusters it under a different link.
+- No daily quota: every story with a score of 7 or more, under 24 hours old and carried by a newsroom or lab, goes out. The ceiling is Meta's publishing limit (kept at 45 a day). Posts are 20 minutes apart and none is scheduled more than 6 hours past its veto window. A story is not posted again within 3 days, even when a later run clusters it under a different link. 20 replies a day.
 - It never follows, likes, comments elsewhere or sends DMs: Instagram's terms forbid automated interaction.
 
 ## Secrets and settings

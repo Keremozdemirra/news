@@ -1,10 +1,10 @@
 name: daily
-# Every two hours: fetch, write copy with a no-tool model call, render, queue up to three single-story
-# posts spaced an hour apart, and open one veto issue for them.
+# Every hour: fetch, keep the important stories not posted yet, write their copy with a no-tool model
+# call, render, queue them as single-story posts spaced 20 minutes apart, and open one veto issue.
 # Nothing here can post: the Instagram token is not in this job.
 on:
   schedule:
-    - cron: "0 4-20/2 * * *"
+    - cron: "5 * * * *"
   workflow_dispatch:
 permissions:
   contents: write

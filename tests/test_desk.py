@@ -131,7 +131,7 @@ class Publish(Tmp):
         closed.assert_called_once_with(7)
 
     def test_daily_cap(self):
-        for i in range(desk.CONFIG["max_posts_per_day"]):
+        for i in range(desk.CONFIG["api_daily_limit"]):
             self.write_post(f"done{i}", status="published", published=desk.now().isoformat())
         self.write_post("next")
         self.assertEqual(desk.publish(client=FakeIG()), 0)
@@ -245,7 +245,7 @@ class Schedule(Tmp):
 
     def test_spaced_capped_per_run_and_not_too_far_ahead(self):
         made = desk.queue(self.day_dir(6), batch="b", render=False)
-        self.assertEqual(len(made), desk.CONFIG["max_per_run"])
+        self.assertEqual(len(made), min(6, desk.CONFIG["max_per_run"]))
         times = [json.loads(p.read_text())["publish_after"] for p in made]
         gaps = {(desk.datetime.fromisoformat(b) - desk.datetime.fromisoformat(a)).seconds // 60 for a, b in zip(times, times[1:])}
         self.assertEqual(gaps, {desk.CONFIG["spacing_minutes"]})
@@ -313,3 +313,18 @@ class Pictures(unittest.TestCase):
             _, credit, f = E.fresh_photo([("trading floor", False)], {"used.jpg"})
         self.assertEqual(f, "new.jpg")
         self.assertIn("CC BY-SA 4.0", credit)
+
+
+class Select(Tmp):
+    def test_bar_freshness_newsroom_format_and_repeats(self):
+        fresh = desk.now().isoformat()
+        old = (desk.now() - timedelta(hours=30)).isoformat()
+        def st(title, score=9.0, published=fresh, outlets=("TechCrunch",), url=None):
+            return {"title": title, "score": score, "published": published, "outlets": list(outlets),
+                    "url": url or title, "links": [url or title]}
+        rows = [st("Anthropic releases coding agent"), st("Mistral raises funding round", score=5.0),
+                st("Nvidia halts chip shipments", published=old), st("Court blocks chatbot data sale", outlets=["HN Front Page"]),
+                st("I'm a therapist and here is what AI did"), st("Google previews robotics model"),
+                st("Google previews new robotics model", url="other")]
+        self.write_post("p", status="published", published=fresh, urls=["x"], headlines=["Google previews robotics model"])
+        self.assertEqual([s["title"] for s in desk.select(rows)], ["Anthropic releases coding agent"])

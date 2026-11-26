@@ -182,23 +182,33 @@ def main(argv=None):
 
 
 def daily(args):
-    """The unattended day: nothing here posts. Publishing is a separate step after the veto window."""
+    """One run of the desk, hourly: fetch, keep the important stories not posted yet, write their copy with
+    a no-tool model call, render, queue. Nothing here posts; publishing is a separate step after the veto window."""
     from . import desk
     if desk.paused():
         print("paused: no run")
         return 0
-    prepare(args)
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    out = Path(args.out) / day
+    out = run(args)
+    digest = json.loads((out / "digest.json").read_text())
+    picked = desk.select(digest["stories"])
+    if not picked:
+        print("no new story above the bar this run")
+        return 0
+    # the model only sees stories that will be posted, so an hourly run costs one short call
+    digest["slots"] = {"top": picked}
+    (out / "digest.json").write_text(json.dumps(digest, indent=1))
+    (out / "copy-request.md").write_text(copy.request(picked))
+    (out / "chosen.json").write_text(json.dumps(picked, indent=1))
     try:
         rows = copy.ask_claude((out / "copy-request.md").read_text())
         (out / "copy.json").write_text(json.dumps(rows, indent=1))
-    except Exception as e:  # noqa: BLE001  without copy, finish falls back to headlines, which queue then refuses
+    except Exception as e:  # noqa: BLE001  without copy, every story falls back and queue refuses it
         print(f"copy step failed: {e}")
-    args.date = day
+    args.date = out.name
     finish(args)
     desk.queue(out)
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

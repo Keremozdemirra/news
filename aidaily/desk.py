@@ -148,22 +148,43 @@ def used_photos(days=45):
     return {p["photo_file"] for p, _ in posts() if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut}
 
 
+def select(stories):
+    """The stories worth a post this hour: above the importance bar, from the last day, carried by a
+    newsroom or lab (not only a discussion board), not a format we skip, not already posted or queued."""
+    cut = now() - timedelta(hours=CONFIG["max_age_hours"])
+    recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
+              for p in _recent_posts(CONFIG["repeat_window_days"]) for i, u in enumerate(p.get("urls", []))]
+    out = []
+    for s in stories:
+        try:
+            fresh = datetime.fromisoformat(s["published"]) > cut
+        except (KeyError, TypeError, ValueError):
+            fresh = False
+        newsroom = set(s.get("outlets", [])) - set(CONFIG["not_sources"]) or s.get("primary")
+        me = {"url": s["url"], "links": s.get("links", []), "headline": s["title"]}
+        if (s.get("score", 0) >= CONFIG["min_score"] and fresh and newsroom
+                and not SKIP.search(s["title"]) and not FORMAT.search(s["title"])
+                and not any(same_story(me, r) for r in recent + out)):
+            out.append(s)
+    return sorted(out, key=lambda s: -s["score"])[:CONFIG["max_per_run"]]
+
+
 def _last_slot():
     slots = [datetime.fromisoformat(p["publish_after"]) for p, _ in posts() if p.get("status") in ("queued", "published")]
     return max(slots) if slots else None
 
 
 def queue(day_dir, batch=None, render=True):
-    """One post per story: the story's card, then a detail slide. Posts are spaced out, capped per day,
-    and never scheduled so far ahead that the news goes stale. Returns the new post.json paths."""
+    """One post per story: the story's card, then a detail slide. There is no daily quota: every story
+    that clears the bar goes out, spaced apart, and none is scheduled so far ahead that it goes stale.
+    The only ceiling is Meta's publishing limit. Returns the new post.json paths."""
     if paused():
         print("paused: nothing queued")
         return []
-    day = now().strftime("%Y-%m-%d")
-    today = sum(1 for p, _ in posts() if p["created"][:10] == day)
-    room = min(CONFIG["max_posts_per_day"] - today, CONFIG["max_per_run"])
+    pending = sum(1 for p, _ in posts() if p.get("status") == "queued")
+    room = min(CONFIG["api_daily_limit"] - published_last_24h() - pending, CONFIG["max_per_run"])
     if room <= 0:
-        print(f"daily cap reached ({today} posts queued today)")
+        print(f"Instagram's 24-hour publishing limit is in reach ({pending} queued); waiting")
         return []
     day_dir = Path(day_dir)
     manifest = _load(day_dir / "pack" / "manifest.json", [])
@@ -260,8 +281,8 @@ def publish(client=None, dry=False):
             print(f"{post['id']}: vetoed")
             _close_if_done(post.get("issue"))
             continue
-        if published_last_24h() >= CONFIG["max_posts_per_day"]:
-            print("24-hour cap reached; waiting")
+        if published_last_24h() >= CONFIG["api_daily_limit"]:
+            print("Instagram's 24-hour publishing limit reached; waiting")
             return 0
         urls = [media_url(path.parent / c) for c in post["cards"]]
         if dry:

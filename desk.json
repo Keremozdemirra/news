@@ -2,7 +2,6 @@
   "name": "loopbrief",
   "handle": "@loopbrief",
   "veto_hours": 2,
-  "max_posts_per_day": 12,
   "repeat_window_days": 3,
   "reply_daily_cap": 20,
   "reply_window_days": 7,
@@ -17,13 +16,16 @@
   "ai_note": "Summary written with AI from the reports named above and checked against them.",
   "media_branch": "main",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
-  "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz",
+  "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[\u2019']m a|q&a|interview with|what .{0,30} daily routine|review:",
   "not_sources": [
     "HN Front Page",
     "HN Algolia Search AI",
     "Product Hunt"
   ],
-  "max_per_run": 3,
-  "spacing_minutes": 60,
-  "max_hours_ahead": 4
+  "max_per_run": 10,
+  "spacing_minutes": 20,
+  "max_hours_ahead": 6,
+  "api_daily_limit": 45,
+  "min_score": 7.0,
+  "max_age_hours": 24
 }
