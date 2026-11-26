@@ -206,9 +206,9 @@ def build(out, shown, sm, cos):
     build_views(out, shown, sm, m, days)
     if "play" in S.SHIPPED:
         play.build(out, shown, sm)
-    else:  # until the games ship, the questions of the day stay where they were
-        S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/", active="play"))
-        sm.append((S.SITE + "/quiz/", latest))
+    # the questions of the day keep their address beside the games, so no old link breaks
+    S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/", active="play"))
+    sm.append((S.SITE + "/quiz/", latest))
     S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown), "How the desk turns feeds into articles, with live counts.", "/how-it-works/"))
     for path in ("/brief/", "/how-it-works/"):
         sm.append((S.SITE + path, latest))

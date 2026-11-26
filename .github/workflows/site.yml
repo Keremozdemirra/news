@@ -30,7 +30,8 @@ jobs:
         id: changed
         run: |
           # tree ids are content hashes, so this works on a shallow checkout
-          want=$(git ls-tree HEAD queue state/insights state/followers.json state/markets.json aidaily assets-site desk.json | sha1sum | cut -d' ' -f1)
+          # the UTC date is part of the fingerprint: the daily games need one build after every midnight
+          want=$( (git ls-tree HEAD queue state/insights state/followers.json state/markets.json aidaily assets-site games desk.json; date -u +%F) | sha1sum | cut -d' ' -f1)
           url=$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')
           live=$(curl -fsS --max-time 20 "$url/built-from.txt?t=$(date +%s)" || true)
           # /status/ must stay current while nothing else changes (a cooldown, a quiet night): rebuild hourly anyway

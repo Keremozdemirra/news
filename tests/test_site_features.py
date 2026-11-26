@@ -378,3 +378,43 @@ class FrontBuilt(Features):
         h = self.read("index.html")
         for block in h.split('<section class="rates')[1:]:
             self.assertIn('class="attr"', block)  # one source line under the block
+
+
+class Play(Features):
+    """The /play/ hub and the games copied under it (aidaily/play.py)."""
+
+    def test_hub_lists_the_live_game_and_marks_the_unfinished_ones_coming_soon(self):
+        h = self.read("play/index.html")
+        self.assertIn(f'href="{site.BASE}/play/topfloor/"', h)
+        self.assertEqual(h.count("Coming soon"), 2)
+        self.assertNotIn(f'href="{site.BASE}/play/tickerflip/"', h)
+        self.assertFalse((self.out / "play" / "tickerflip").exists())
+
+    def test_topfloor_is_copied_whole_without_its_build_tools(self):
+        d = self.out / "play" / "topfloor"
+        for f in ("index.html", "css/topfloor.css", "js/topfloor.js", "js/world.js", "assets/data/today.json", "assets/fonts/Jost-latin.woff2"):
+            self.assertTrue((d / f).exists(), f)
+        self.assertFalse((d / "build_data.py").exists())
+        self.assertFalse((d / ".cache").exists())
+        html = (d / "index.html").read_text()
+        import re
+        for ref in re.findall(r'(?:href|src)="([^"#:]+)"', html):  # every relative asset the page names ships
+            if not ref.endswith("/") and ref != "./":
+                self.assertTrue((d / ref).exists(), ref)
+
+    def test_masthead_menu_footer_and_sitemap_name_play(self):
+        h = self.read("index.html")
+        self.assertEqual(h.count(f'href="{site.BASE}/play/"'), 2 + h.count('class="btn alt"'))  # menu and footer, plus the front-page button when shown
+        sm = self.read("sitemap.xml")
+        self.assertIn(f"{site.SITE}/play/</loc>", sm)
+        self.assertIn(f"{site.SITE}/play/topfloor/</loc>", sm)
+        self.assertNotIn("/play/tickerflip/", sm)
+
+    def test_the_old_quiz_keeps_its_address(self):
+        self.assertTrue((self.out / "quiz" / "index.html").exists())
+        self.assertIn(f"{site.SITE}/quiz/</loc>", self.read("sitemap.xml"))
+
+    def test_a_game_with_the_flag_off_or_no_folder_is_never_copied(self):
+        from aidaily import play
+        with mock.patch.object(play, "GAMES", [("topfloor", "T", "x", False), ("ghost", "G", "x", True)]):
+            self.assertEqual(play.live(), [])

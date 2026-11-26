@@ -14,6 +14,7 @@ an origin with a path (https://keremozdemir.de/news) puts everything under that 
   /week/                 the last seven days, ranked            /week/<YYYY-Www>/  one finished ISO week
   /archive/              one page per day                       /archive/<YYYY-MM-DD>/
   /search/               client-side search over /search.json
+  /play/                 the games hub; /play/<slug>/ one game, copied from games/<slug>/ (see aidaily/play.py)
   /about/ /standards/ /contact/ /404.html   (Impressum and Privacy are keremozdemir.de's, same operator)
   /feed.xml /weekly.xml /sitemap.xml /news-sitemap.xml /robots.txt
   /og/<id>.jpg           the 1200x630 link-preview image of a article, cut from its photo at build time
@@ -209,7 +210,7 @@ THEME_BTN = ('<button type="button" class="themebtn" aria-label="Switch to the d
 
 
 # Pages that have shipped. A view is built, linked from the menu and the footer only while its key is here.
-SHIPPED = {"numbers", "board", "feed", "paper"}
+SHIPPED = {"numbers", "board", "feed", "paper", "play"}
 
 
 def nav_items():
@@ -291,7 +292,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">
 <div><h2>Sections</h2><ul>{foot_sections}</ul></div>
-<div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
+<div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li>{f'<li><a href="{BASE}/play/">Play</a></li>' if "play" in SHIPPED else ""}<li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
 <div><h2>Legal</h2><ul><li><a href="{LEGAL['impressum']}">Impressum</a></li><li><a href="{LEGAL['privacy']}">Privacy</a></li></ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
