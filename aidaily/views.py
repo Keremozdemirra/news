@@ -39,10 +39,14 @@ def img(p, ratio="3/2", thumb=True):
     return f'<img src="{src}" width="{w}" height="{h}" alt="" loading="lazy" decoding="async" style="aspect-ratio:{ratio}">'
 
 
-def card(p, size="s", photo=False, dek=True, ratio="3/2"):
-    """One column item of the broadsheet: a line of caps, the condensed headline, and optionally photo and dek."""
-    return (f'<article class="it {size}"><a href="{S.href(p)}">{img(p, ratio) if photo else ""}<div class="mt">{mt(p)}</div>'
-            f'<h3 class="hl">{E(p["headlines"][0])}</h3></a>' + (f'<p>{E(p.get("dek", ""))}</p>' if dek else "") + "</article>")
+def card(p, size="s", photo=False, dek=True, ratio="3/2", topic=True, meter=False):
+    """One item of the broadsheet. The line above the headline is plain small text: the topic only where the column does not
+    already name it, then the time; the newsroom count is the seat meter, shown on the bigger items only."""
+    when = f'<time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time>'
+    line = f'{E(S.topic(p))} &middot; {when}' if topic else when
+    return (f'<article class="it {size}"><a href="{S.href(p)}">{img(p, ratio) if photo and photo_ok(p) else ""}<div class="mt">{line}'
+            + (f' <span class="mtr-wrap">{seats(p)}</span>' if meter else "") + f'</div><h3 class="hl">{E(p["headlines"][0])}</h3></a>'
+            + (f'<p>{E(p.get("dek", ""))}</p>' if dek else "") + "</article>")
 
 
 def paras(p):
@@ -68,48 +72,78 @@ def age_attr(p):
 
 # ---------------------------------------------------------------- front page
 
+# The front page is ranked by news value, not by the desk's own score (which stays for feeds and the brief). Topic counts for
+# most (hard news over brand and culture items), then how many newsrooms reported it, then a small share of the desk score;
+# words that mark consequence add, words that mark PR or soft news take it away. A lead must clear this, so "Denny's reshares
+# Nvidia origin story" does not lead a day with tariffs, a capsized tanker and a data breach.
+TOPIC_WEIGHT = {"Politics": 3, "Economy": 3, "Markets": 3, "World": 3, "Business": 2, "Tech": 1.5, "AI": 1.5, "Culture": 0}
+SOFT = re.compile(r"\b(reshares?|celebrat\w+|viral|origin story|anniversar\w+|partners? with|partnerships?|teams? up|honou?rs?|award|unveils?|introduces?|ambassador|fans?)\b", re.I)
+HARD = re.compile(r"\b(tariffs?|rates?|inflation|GDP|bans?|halts?|strikes?|sanctions?|breach|hack\w*|job cuts|layoffs?|capsiz\w+|crash\w*|probe|investigat\w+|court|ruling|bankrupt\w*|collapse|default|acquir\w+|acquisition|merger|shortage|recession|deficit|ceasefire|war|suspends?)\b", re.I)
+
+
+def front_score(p):
+    text = f'{p["headlines"][0]} {p.get("dek", "")}'
+    return (TOPIC_WEIGHT.get(S.topic(p), 1.5) * 2 + min(S.coverage(p), 5) * 1.2 + 0.15 * p.get("score", 0)
+            + (2 if HARD.search(p["headlines"][0]) else 0) - (8 if SOFT.search(text) else 0))
+
+
+NAME_TOKEN = re.compile(r"[A-Z][A-Za-z0-9]{2,}")
+
+
+def photo_ok(p):
+    """A photo goes on the front page only if it shows what the article names: the person, the company, or another capitalised name
+    from the headline or summary appears in the photo's file name. A server corridor under an OpenAI article or a globe under a
+    satellite item says nothing, so those articles run as text. (The photo is still on the article's own page.)"""
+    if not p.get("_thumb"):
+        return False
+    stem = re.sub(r"[^a-z0-9]+", " ", Path(p.get("photo_file") or "").stem.lower())
+    if not stem.strip():
+        return False
+    names = {t.lower() for t in NAME_TOKEN.findall(p["headlines"][0]) + NAME_TOKEN.findall(p.get("dek", "")) if (len(t) >= 4 or t.isupper()) and t not in STOP_FIRST}
+    names |= {w.lower() for w in re.findall(r"[A-Za-z0-9]{3,}", f'{p.get("person") or ""} {S.co_of(p)}')}
+    return any(re.search(rf"\b{re.escape(n)}", stem) for n in names - {"this", "with", "that", "from", "will"})
+
+
 def front(shown, cos, m):
     today = S.window(shown)
-    ranked = S.by_score(today)
-    lead = next((p for p in ranked if p.get("_hires")), ranked[0]) if ranked else None
-    rest = [p for p in ranked if p is not lead]
+    ranked = sorted(today, key=front_score, reverse=True)
+    lead = ranked[0] if ranked else None
     used = {lead["id"]}
-    left = [p for p in shown if p is not lead][:6]
-    top2 = [p for p in rest if p not in left][:2] or rest[:2]
-    used |= {p["id"] for p in left} | {p["id"] for p in top2}
-    jump = (f'<a class="jump cap" href="{S.href(lead)}">Full article &middot; {PLURAL(S.coverage(lead), "newsroom")}: '
-            f'{S.by(lead)}</a>')
+    seconds = [p for p in ranked[1:] if p["id"] not in used][:2]
+    used |= {p["id"] for p in seconds}
+    left = [p for p in shown if p["id"] not in used][:6]
+    used |= {p["id"] for p in left}
+    show_photo = photo_ok(lead)
+    jump = f'<a class="jump" href="{S.href(lead)}">Read the full article &middot; {PLURAL(S.coverage(lead), "newsroom")}: {S.by(lead)}</a>'
     fig = (f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
-           f'<figcaption>{E(lead.get("credit", ""))}</figcaption></figure>') if lead.get("_hires") else ""
-    centre = (f'<div class="zn lead"><div class="cap k">{E(S.topic(lead))} &middot; <time datetime="{S.iso(lead["published"])}">{S.hhmm(lead["published"])}</time> UTC</div>'
+           f'<figcaption>{E(lead.get("credit", ""))}</figcaption></figure>') if show_photo and lead.get("_hires") else ""
+    centre = (f'<div class="zn lead"><div class="k">{E(S.topic(lead))} &middot; <time datetime="{S.iso(lead["published"])}">{S.hhmm(lead["published"])}</time> UTC</div>'
               f'<h1 class="lh"><a href="{S.href(lead)}" class="hl">{E(lead["headlines"][0])}</a></h1><p class="dk">{E(lead.get("dek", ""))}</p>'
-              f'<div class="by cap dm"><span>By the Boardread desk (AI)</span><span>{S.cover(lead)}</span></div>{fig}'
-              f'<div class="tx">{paras(lead)}</div>{jump}</div>')
-    ltitle = "Latest"
-    lcol = (f'<div class="zn"><div class="sec cap"><span>{ltitle}</span><a class="dm" href="{S.BASE}/latest/">All</a></div>'
-            + "".join(card(p, "s", photo=(i in (0, 3) and bool(p.get("_thumb"))), dek=i < 3) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
-    rcol = (f'<div class="zn"><div class="sec cap"><span>Also at the top</span></div>'
-            + "".join(card(p, "m", photo=True, ratio="4/3") for p in top2)
-            + markets.rates_box(m, S.BASE) + "</div>")
+              f'<div class="by">{S.cover(lead)}</div>{fig}<div class="tx">{paras(lead)}</div>{jump}</div>')
+    lcol = ('<div class="zn"><div class="sec"><span>Latest</span><a class="dm" href="' + S.BASE + '/latest/">All</a></div>'
+            + "".join(card(p, "s", photo=(i == 0), dek=i < 2) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
+    rcol = ('<div class="zn"><div class="sec"><span>Also at the top</span></div>'
+            + "".join(card(p, "m", photo=True, ratio="4/3", meter=True) for p in seconds) + markets.rates_box(m, S.BASE, compact=True) + "</div>")
     blocks = ""
     for t in S.TOPIC_ORDER:
         rows = [p for p in shown if S.topic(p) == t]
-        fresh = [p for p in rows if p["id"] not in used] or rows
-        if not rows:
+        fresh = [p for p in rows if p["id"] not in used][:3]
+        if not fresh:
             continue
-        blocks += (f'<div><div class="sec cap"><a href="{S.BASE}/t/{t.lower()}/">{t}</a><span class="dm">{len(rows)}</span></div>'
-                   + "".join(card(p, "m" if k == 0 else "s", photo=(k == 0), dek=(k == 0)) for k, p in enumerate(fresh[:3])) + "</div>")
-    inside = "".join(f'<a href="{S.BASE}{u}"><b class="cd">{n}</b><span>{d}</span></a>' for k, u, n, d in (
+        used |= {p["id"] for p in fresh}
+        blocks += (f'<div><div class="sec"><a href="{S.BASE}/t/{t.lower()}/">{t}</a><span class="dm">{len(rows)}</span></div>'
+                   + "".join(card(p, "m" if k == 0 else "s", photo=(k == 0), dek=(k == 0), topic=False) for k, p in enumerate(fresh)) + "</div>")
+    inside = "".join(f'<a href="{S.BASE}{u}"><b>{n}</b><span>{d}</span></a>' for k, u, n, d in (
         ("board", "/board/", "Board", "Every article as a departure, with the names in the news and a wire of who reported what."),
         ("feed", "/feed/", "Feed", "The news as cards, the way it runs on Instagram."),
-        ("brief", "/brief/", "Brief", f"The day's top articles, one minute. It ends."),
+        ("brief", "/brief/", "Brief", "The day's top articles, one minute. It ends."),
         ("play", "/play/", "Play", "Three daily games built from today's news."),
         ("numbers", "/numbers/", "Numbers", "The figures in the news, and the official rate series."),
         ("paper", "/paper/", "Paper", "The last full day as a printed edition. Turn the pages."))
         if k in S.SHIPPED or k == "brief")
-    week = sorted(S.by_score([p for p in shown if S.dt(shown[0]["published"]) - S.dt(p["published"]) <= timedelta(days=7)]), key=S.shared, reverse=True)
-    duo = (f'<div class="duo"><section aria-labelledby="wh">{S.sec_head("This week", f"{S.BASE}/week/", "Top 10").replace("<h2", "<h2 id=\"wh\"", 1)}'
-           f'{S.ranked(week, 5)}</section>{S.follow_block()}</div>')
+    week = [p for p in sorted(S.by_score([p for p in shown if S.dt(shown[0]["published"]) - S.dt(p["published"]) <= timedelta(days=7)]), key=S.shared, reverse=True) if p["id"] not in used]
+    wk = (f'<section aria-labelledby="wh">{S.sec_head("This week", f"{S.BASE}/week/", "Top 10").replace("<h2", "<h2 id=\"wh\"", 1)}{S.ranked(week, 5)}</section>') if len(week) >= 3 else ""
+    duo = f'<div class="duo{"" if wk else " solo"}">{wk}{S.follow_block()}</div>'
     return ('<p class="since" id="since" role="status" hidden></p>' f'<div class="front">{lcol}{centre}{rcol}</div>'
             f'<div class="sects">{blocks}</div><div class="inside">{inside}</div>{duo}')
 

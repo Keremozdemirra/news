@@ -128,7 +128,7 @@ def stats():
     return followers
 
 
-ASSET_FILES = ("site.css", "views.css", "paper.css", "play.css", "site.js", "paper.js", "play.js")
+ASSET_FILES = ("theme.js", "site.css", "views.css", "paper.css", "play.css", "site.js", "paper.js", "play.js")
 ASSET_V = hashlib.sha1(b"".join((ASSETS / f).read_bytes() for f in ASSET_FILES if (ASSETS / f).exists())).hexdigest()[:8]
 FACES = (
     "@font-face{font-family:'Libre Franklin';font-weight:400;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-400.woff2') format('woff2')}"
@@ -205,9 +205,15 @@ NAV = [("/", "Front page", "front"), ("/board/", "Board", "board"), ("/feed/", "
 SHIPPED = {"numbers", "board", "feed", "paper"}
 
 
+THEME_BTN = ('<button type="button" class="themebtn" aria-label="Switch to the dark theme" aria-pressed="false">'
+             '<svg class="sun" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+             '<circle cx="8" cy="8" r="2.6"/><path d="M8 1.6v1.6M8 12.8v1.6M1.6 8h1.6M12.8 8h1.6M3.5 3.5l1.1 1.1M11.4 11.4l1.1 1.1M3.5 12.5l1.1-1.1M11.4 4.6l1.1-1.1"/></svg>'
+             '<svg class="moon" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+             '<path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z"/></svg></button>')
+
+
 def nav_items():
-    return [("/quiz/" if k == "play" and "play" not in SHIPPED else h, ("Quiz" if k == "play" and "play" not in SHIPPED else n), k) for h, n, k in NAV
-            if k not in ("board", "feed", "paper", "numbers", "play") or k in SHIPPED or k == "play"]
+    return [(h, n, k) for h, n, k in NAV if k not in ("board", "feed", "paper", "numbers", "play") or k in SHIPPED]
 
 
 def nav_bar(active):
@@ -250,7 +256,8 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f2f2ef" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#131313" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#fbfbf9">
+<script src="{BASE}/assets/theme.js?v={ASSET_V}"></script>
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
 <link rel="canonical" href="{E(url)}">{links}
@@ -273,7 +280,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <a class="skip" href="#main">Skip to the news</a>
 <header class="mh"><div class="wrap">
 <div class="strip cap"><span class="dates"><span class="dl">{now.strftime("%A %-d %B %Y")}</span><span class="ds">{now.strftime("%-d %b %Y")}</span></span><span class="ed">Edition of {now.strftime("%H:%M")} UTC &middot; all times UTC</span>
-<ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul></div>
+<span class="tools"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</span></div>
 <div class="np">{word}{ix}</div><div class="dbl"></div>
 {nav_bar(active)}
 </div></header>
@@ -647,7 +654,7 @@ def story(p, rows, cos=None, counts=None):
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}/t/{topic(p).lower()}/">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>
-<div class="byline cap"><span>By the Boardread desk (AI)</span><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span>{company}</div></header>
+<div class="byline cap"><span>Boardread desk &middot; written by AI</span><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span>{company}</div></header>
 <div class="cols">
 <aside class="col-seats" aria-label="About this article"><div class="sec cap"><span>Reported by</span><span>{n_seats} of {COVER_TICKS}</span></div>{seat_row}<ol class="ledger src">{srcs}</ol>
 <section class="sharebox"><div class="sec cap"><span>Share</span></div>{share_links(p)}</section></aside>
@@ -835,14 +842,17 @@ def most_covered(rows, n=5):
 
 
 def covered_list(rows, cos, n=5):
-    """The ranking as an ordered list; a company with a page links to it, one without to the search."""
+    """The ranking as an ordered list; a company with a page links to it, one without to the search. Only companies named by
+    two or more articles count, and the module is left out until three companies qualify: a ranking of ones ranks nothing."""
+    ranking = [(name, slug, k) for name, slug, k in most_covered(rows, max(n, 50)) if k >= 2][:n]
+    if len(ranking) < 3:
+        return ""
     out = []
-    for i, (name, slug, k) in enumerate(most_covered(rows, n), 1):
+    for i, (name, slug, k) in enumerate(ranking, 1):
         link = f"{BASE}/c/{slug}/" if slug in cos else f"{BASE}/search/?q={urllib.parse.quote(name)}"
-        noun = "article" if k == 1 else "articles"
         out.append(f'<li><span class="n" aria-hidden="true">{i}</span><a href="{link}"><span class="h-s">{E(name)}</span>'
-                   f'{meta(f"{k} {noun} this week")}</a></li>')
-    return f'<ol class="rank">{"".join(out)}</ol>' if out else ""
+                   f'{meta(f"{k} articles this week")}</a></li>')
+    return f'<ol class="rank">{"".join(out)}</ol>'
 
 
 def most_covered_block(shown, cos, n=5):

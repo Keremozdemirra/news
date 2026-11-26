@@ -139,8 +139,13 @@ class Features(Tmp):
 
     def test_most_covered_ranks_companies_by_stories_in_seven_days(self):
         self.assertEqual(site.most_covered(self.rows())[0], ("SAP", "sap", 2))
-        self.assertIn("Most covered this week", self.read("index.html"))
-        self.assertIn("Most covered this week", self.read("week/index.html"))
+        self.assertNotIn("Most covered this week", self.read("index.html"))  # a ranking of one company ranks nothing
+        self.assertNotIn("Most covered this week", self.read("week/index.html"))
+        rows = self.rows()
+        extra = [dict(rows[0], id=f"x{i}", company=c, published=rows[0]["published"]) for i, c in enumerate(["Acme", "Acme", "Beta", "Beta", "Gamma", "Gamma"])]
+        listing = site.covered_list(rows + extra, {}, 5)
+        self.assertIn("Acme", listing)
+        self.assertNotIn("1 articles", listing)
 
     def test_front_page_carries_the_hooks_the_script_uses(self):
         h = self.read("index.html")
@@ -183,11 +188,12 @@ class Chrome(Features):
 
     def test_nav_lists_only_pages_that_exist_and_names_the_quiz_until_play_ships(self):
         h = self.read("index.html")
-        for href in ("/brief/", "/numbers/", "/week/", "/search/", "/quiz/"):
+        for href in ("/brief/", "/numbers/", "/week/", "/search/"):
             self.assertIn(f'href="{site.BASE}{href}"', h)
-        for gone in ("/board/", "/feed/", "/paper/", "/play/"):  # not shipped: no menu entry, no page
+        for gone in ("/board/", "/feed/", "/paper/", "/play/", "/quiz/"):  # not shipped: no menu entry, no page
             self.assertNotIn(f'class="cap" href="{site.BASE}{gone}"', h)
-            self.assertFalse((self.out / gone.strip("/") / "index.html").exists(), gone)
+            if gone != "/quiz/":  # the old questions page stays at its address, unlinked, until the games replace it
+                self.assertFalse((self.out / gone.strip("/") / "index.html").exists(), gone)
 
     def test_masthead_counts_and_archivo_headlines_are_self_hosted(self):
         h = self.read("index.html")
@@ -263,3 +269,61 @@ class Views(Features):
         self.assertEqual(views.edition_day(rows, today=today), today)  # nothing earlier exists: the newest day
         self.assertEqual(views.edition_day(rows + [dict(rows[0], published="2020-01-01T00:00:00+00:00")], today=today), "2020-01-01")
         self.assertIsNone(views.edition_day([], today="2026-11-26"))
+
+
+def fake(headline, topic, n, score, **kw):
+    d = dict(id=headline[:8], headlines=[headline], dek="", topic=topic, sources=[f"Room {i}" for i in range(n)], score=score, published="2026-11-26T12:00:00+00:00", _thumb=True)
+    d.update(kw)
+    return d
+
+
+class FrontPage(unittest.TestCase):
+    def test_hard_news_outranks_brand_pr_even_with_a_higher_desk_score(self):
+        pr = fake("Denny's reshares Nvidia origin story after Jensen Huang's return", "Business", 4, 13.3)
+        tariffs = fake("Trump signals he is ready to escalate tariffs on Asian trading partners", "Economy", 4, 12.0)
+        tanker = fake("Maltese-flagged tanker capsizes off Ibiza, killing a crew member", "World", 3, 8.3)
+        breach = fake("1Password reports a data breach and says user vaults are safe", "Tech", 2, 8.4)
+        order = sorted([pr, tariffs, tanker, breach], key=views.front_score, reverse=True)
+        self.assertIs(order[0], tariffs)
+        self.assertIs(order[-1], pr)
+        self.assertLess(views.front_score(pr), views.front_score(breach))
+
+    def test_a_photo_runs_on_the_front_only_when_it_shows_the_named_subject(self):
+        self.assertTrue(views.photo_ok(fake("Trump signals tariffs", "Economy", 4, 9, photo_file="Official Presidential Portrait of Donald Trump.jpg")))
+        self.assertTrue(views.photo_ok(fake("Norse Atlantic suspends all flights", "Business", 3, 9, photo_file="Norse Atlantic Airways Boeing 787.jpg")))
+        self.assertFalse(views.photo_ok(fake("OpenAI corrects GPT-6.2 billing mistake", "AI", 1, 9, photo_file="Virginia Tech - data center.jpg")))
+        self.assertFalse(views.photo_ok(fake("FCC clears SpaceX to deploy 1 million satellites", "Tech", 4, 9, photo_file="North America from low orbiting satellite.jpg")))
+        self.assertFalse(views.photo_ok(fake("Trump signals tariffs", "Economy", 4, 9, photo_file="", _thumb=False)))
+
+
+class FrontBuilt(Features):
+    def test_every_article_appears_once_on_the_front_page(self):
+        import re
+        h = self.read("index.html")
+        main = h[h.index('<main'):h.index("</main>")]
+        links = re.findall(r'<(?:h1|h3)[^>]*><a[^>]*href="[^"]*/s/([^/"]+)/"|<a href="[^"]*/s/([^/"]+)/"><div class="mt"', main)
+        ids = [a or b for a, b in links]
+        self.assertEqual(len(ids), len(set(ids)), ids)
+
+    def test_most_covered_stays_out_until_three_companies_have_two_articles(self):
+        self.assertNotIn("Most covered", self.read("index.html"))  # only SAP has two articles
+
+    def test_default_theme_is_light_with_a_toggle_and_a_head_script(self):
+        h = self.read("index.html")
+        self.assertIn('class="themebtn"', h)
+        self.assertRegex(h, r'<script src="[^"]*theme\.js[^"]*"></script>')  # blocking, in the head, before first paint
+        self.assertNotIn("prefers-color-scheme", (self.out / "assets" / "site.css").read_text())
+        js = (self.out / "assets" / "theme.js").read_text()
+        self.assertIn("br:theme", js)
+        self.assertNotIn("matchMedia", js)
+
+    def test_front_has_no_byline_wall_and_no_quiz_link(self):
+        h = self.read("index.html")
+        self.assertNotIn("By the Boardread desk", h)
+        self.assertNotIn('href="/quiz/"', h)
+        self.assertIn("Boardread desk &middot; written by AI", self.read("s/2026-11-26-0900-1/index.html"))
+
+    def test_front_rates_block_has_one_source_line_and_no_chart(self):
+        h = self.read("index.html")
+        if "Rates and currencies" in h:
+            self.assertNotIn("<svg", h[h.index("Rates and currencies"):h.index("</section>", h.index("Rates and currencies"))])

@@ -202,14 +202,25 @@ def attribution(m):
     return " ".join(parts)
 
 
-def rates_box(m, base="", cls=""):
-    """The rates board as a block: one row per series with its date and source, then the curve and the attribution."""
+def one_line(m):
+    """The single source line of the front-page block."""
+    src = "Sources: ECB statistics; U.S. Department of the Treasury" + ("; U.S. Energy Information Administration" if m.get("oil") else "") + ". Series dates as shown; for information only."
+    return src + (" USD/JPY, GBP/USD and USD/CNY: calculated from ECB reference rates." if m.get("fx") else "")
+
+
+def rates_box(m, base="", cls="", compact=False):
+    """The rates board as a block. Full (the numbers page): every row with its date and source, the curve, the attribution.
+    Compact (the front page): value and series date per row, no chart, one source line."""
     cells = rows(m or {})
     if not cells:
         return ""
+    if compact:
+        body = "".join(f'<div class="rt"><span>{E(r["k"])}</span><b>{E(r["v"])}{f"<em>{E(r['d'])}</em>" if r["d"] else ""}</b><small>{E(r["date"])}</small></div>' for r in cells)
+        return (f'<section class="rates compact {cls}" aria-label="Rates and currencies"><div class="sec"><span>Rates and currencies</span>'
+                f'<a class="dm" href="{base}/numbers/">All data</a></div>{body}<p class="attr">{E(one_line(m))}</p></section>')
     body = "".join(f'<div class="rt"><span>{E(r["k"])}</span><b>{E(r["v"])}{f"<em>{E(r['d'])}</em>" if r["d"] else ""}</b>'
                    f'<small>{E(r["date"])} &middot; {E(r["src"])}</small></div>' for r in cells)
-    return (f'<section class="rates {cls}" aria-label="Rates and currencies"><div class="sec cap"><span>Rates and currencies</span>'
+    return (f'<section class="rates {cls}" aria-label="Rates and currencies"><div class="sec"><span>Rates and currencies</span>'
             f'<a class="dm" href="{base}/numbers/">All data</a></div>{body}{curve_svg(m, 420, 200, 11, wrap=True)}'
             f'<p class="attr">{E(attribution(m))}</p></section>')
 

@@ -234,3 +234,32 @@
 }
 .lead{margin-bottom:6px}@media(max-width:900px){.lead{margin-bottom:34px}}
 .tile.sc .tg,.cv-card .cg{text-shadow:0 1px 8px rgba(0,0,0,.65)}
+
+/* ---- v4.1: the lead is the only condensed headline on the front page; seconds and rows are Libre Franklin ---- */
+.it .mt{font:500 13px/1.3 var(--f);letter-spacing:0;text-transform:none;color:var(--faint);margin-bottom:5px}
+.it .mt .mtr-wrap{margin-left:8px}
+.it h3{font:700 19px/1.25 var(--f);font-stretch:100%;letter-spacing:-.012em}
+.it.s h3{font-size:19px}
+.it.m h3{font-size:29px;line-height:1.1;font-weight:800;letter-spacing:-.025em}
+.it p{font-size:15px;color:var(--soft)}
+.it .mtr i{width:9px;height:13px}
+.lead .k{font:600 14px var(--f);color:var(--soft);margin-bottom:12px}
+.lead .by{border-top:1px solid var(--ink);border-bottom:0;padding:10px 0 0;margin-bottom:16px;font:500 13px var(--f);color:var(--soft)}
+.sects .sec,.front .sec{text-transform:none}
+.inside b{font:800 30px/1 var(--f);letter-spacing:-.025em;font-stretch:100%}
+.duo.solo{grid-template-columns:minmax(0,40rem)}
+.rates.compact .rt b{font-size:24px}
+.rates.compact .rt small{font-size:12px;margin-top:1px}
+.rates.compact .attr{margin-top:12px}
+/* lists under the lead on the other views */
+.row h3{font:800 25px/1.14 var(--f);font-stretch:100%;letter-spacing:-.025em}
+.row.big h3{font-size:36px;line-height:1.06}
+.bn h2{font:800 36px/1.08 var(--f);font-stretch:100%;letter-spacing:-.028em}
+.bn>b{font-size:60px}
+.cl li{font:800 26px/1.14 var(--f);font-stretch:100%;letter-spacing:-.025em}
+.nm-row h3{font:800 34px/1 var(--f);font-stretch:100%;letter-spacing:-.03em}
+.tape .tk{font:800 26px/1 var(--f);font-stretch:100%;letter-spacing:-.02em}
+.ng .u{font:700 20px/1.2 var(--f);font-stretch:100%;letter-spacing:-.015em}
+@media(max-width:720px){.row h3{font-size:21px}.row.big h3{font-size:24px}.bn h2{font-size:27px}.it.m h3{font-size:26px}}
+.duo.solo{grid-template-columns:1fr}.duo.solo .follow ul{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.duo.solo .follow ul{grid-template-columns:1fr}}
