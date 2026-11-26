@@ -147,7 +147,7 @@ def names(shown, n=10):
             while toks and toks[0] in STOP_FIRST:
                 toks = toks[1:]
             toks = [t.rstrip(".'’-") for t in toks]
-            if not toks or any(t in MONTHS for t in toks):
+            if not toks or any(t in MONTHS for t in toks) or (len(toks) == 1 and re.search(r"(ish|ese|ian|ican)$", toks[0]) and toks[0] != S.co_of(p)):
                 continue
             name = " ".join(toks)
             if len(name) < 3 or name in NOT_NAMES or (len(toks) == 1 and english(name) and name not in cands):
@@ -342,29 +342,36 @@ def edition_pages(rows, m, day):
                 f'<div class="ft"><span>All times UTC</span><span>{n}</span></div></div>')
     pages = []
     x = [p for p in front]
-    inner = '<div class="nm">boardread.</div><div class="sc">Front page</div>'
+    inner = '<div class="nm">boardread.</div>'
     if x:
-        inner += a(x[0], "x", True, True, "3/2")
+        inner += a(x[0], "x", True, True, "2/1")
         if x[1:]:
-            inner += '<div class="cl" style="grid-template-columns:' + "1fr " * len(x[1:]) + '">' + "".join(f"<div>{a(p, 'y', True, False, '4/3')}</div>" for p in x[1:]) + "</div>"
+            inner += '<div class="cl" style="grid-template-columns:' + "1fr " * len(x[1:]) + '">' + "".join(f"<div>{a(p, 'y', True, False, '2/1')}</div>" for p in x[1:]) + "</div>"
     pages.append(("Front page", inner))
     for ch in chunks[:3]:
         sects = list(dict.fromkeys(S.topic(p) for p in ch))
         inner = f'<div class="sc">{" and ".join(sects) if len(sects) < 3 else sects[0] + " and more"}</div><div class="cl" style="grid-template-columns:1fr 1fr">'
-        inner += "".join(f"<div>{a(p, 'y' if k < 2 else '', photo=k < 2, dek=True, ratio='16/9')}</div>" for k, p in enumerate(ch)) + "</div>"
-        if m and len(pages) == 1:
-            inner += '<div class="sc">Rates and currencies</div><div class="cl" style="grid-template-columns:1fr 1fr"><div>' + "".join(
-                f'<div class="rt"><span>{E(r["k"])}</span><b>{E(r["v"])}</b><small>{E(r["date"])}</small></div>' for r in markets.rows(m)[:3]
-            ) + f'</div><div class="cv-in">{markets.curve_svg(m, 300, 150, 10)}</div></div>'
+        cols = (ch[0::2], ch[1::2])
+        inner += "".join("<div>" + "".join(a(p, "y" if k == 0 else "", photo=k == 0, dek=True, ratio="16/9") for k, p in enumerate(c)) + "</div>" for c in cols if c) + "</div>"
         pages.append((sects[0], inner))
     nm = names(rows, 4)
     nn = "".join(f'<div><b>{k}</b><span>{E(n)}</span><small>{k} newsroom pickups in {PLURAL(len(ps), "article")}</small></div>' for n, ps, k in nm)
     figs = "".join(f'<div><b>{E(f)}</b><small>{E(p["headlines"][0])}</small></div>' for f, p in figures(rows, 4))
+    rooms = {}
+    for p in rows:
+        for o in outlets.newsrooms(p):
+            rooms.setdefault(o, 0)
+            rooms[o] += 1
+    top_rooms = sorted(rooms.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
+    src = ('<div class="sc">Where it came from</div><div class="nn">' + "".join(f'<div><b>{c}</b><span>{E(o)}</span></div>' for o, c in top_rooms) + "</div>") if top_rooms else ""
     inner = ((f'<div class="sc">Names in the news</div><div class="nn">{nn}</div>') if nm else "") + ((f'<div class="sc">The numbers</div><div class="nn">{figs}</div>') if figs else "")
+    inner += src
     pages.append(("Names and numbers", inner or f'<div class="sc">Inside</div><p>{PLURAL(len(rows), "article")} from {PLURAL(len({n.lower() for p in rows for n in outlets.newsrooms(p)}), "newsroom")}.</p>'))
     if len(pages) % 2:
-        pages.append(("Notes", '<div class="sc">About this edition</div><p class="note">Written by AI from the sources listed. Every article links its newsrooms; numbers are checked against the source text before publishing. '
-                      'Official data: ECB statistics; U.S. Department of the Treasury. All times UTC.</p>'))
+        rate_rows = "".join(f'<div class="rt"><span>{E(r["k"])}</span><b>{E(r["v"])}</b><small>{E(r["date"])} &middot; {E(r["src"])}</small></div>' for r in markets.rows(m)) if m else ""
+        rates = f'<div class="sc">Rates and currencies</div>{rate_rows}<div class="cv-in">{markets.curve_svg(m, 560, 230, 11)}</div><p class="note">{E(markets.attribution(m))}</p>' if rate_rows else ""
+        pages.append(("Rates and notes", rates + '<div class="sc">About this edition</div><p class="note">Written by AI from the sources listed. Every article links its newsrooms; numbers are checked '
+                      'against the source text before publishing. All times UTC.</p>'))
     if len(pages) % 2:
         pages.append(pages.pop())
     return [page(i, sect, inner) for i, (sect, inner) in enumerate(pages, 1)]

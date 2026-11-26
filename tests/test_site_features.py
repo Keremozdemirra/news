@@ -244,3 +244,20 @@ class Views(Features):
         h = self.read("index.html")
         for href in ("/board/", "/feed/"):
             self.assertIn(f'class="cap" href="{site.BASE}{href}"', h)
+
+    def test_paper_has_an_even_number_of_pages_a_dated_archive_and_no_script_needed_to_read(self):
+        h = self.read("paper/index.html")
+        self.assertEqual(h.count('class="leaf"') * 2, h.count('<div class="face r">') + h.count('<div class="face bk">'))
+        self.assertEqual(h.count('class="pgw"'), h.count('class="leaf"') * 2)  # the phone row holds the same pages
+        self.assertIn("data-prev", h)
+        self.assertIn("paper.js", h)
+        d = [p.name for p in (self.out / "paper").iterdir() if p.is_dir()]
+        self.assertEqual(sorted(d), sorted({site.day_of(p["published"]) for p in site.published()}))
+
+    def test_paper_shows_the_last_full_day_not_the_running_one(self):
+        rows = site.published()
+        today = site.day_of(rows[0]["published"])
+        self.assertEqual(views.edition_day(rows, today="2999-01-01"), today)  # the newest day once it has closed
+        self.assertEqual(views.edition_day(rows, today=today), today)  # nothing earlier exists: the newest day
+        self.assertEqual(views.edition_day(rows + [dict(rows[0], published="2020-01-01T00:00:00+00:00")], today=today), "2020-01-01")
+        self.assertIsNone(views.edition_day([], today="2026-11-26"))
