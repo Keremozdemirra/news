@@ -232,6 +232,11 @@ class Facebook(Client):
         """The Page's own token. A system-user token is stored once and never expires; posting as the Page
         needs the Page token it can read (developers.facebook.com/docs/pages-api/getting-started)."""
         if self._page_token is None:
+            if not self.env["FB_PAGE_ID"].strip().isdigit():
+                # a Page token answers /me with its own Page, so a mistyped or placeholder id is recovered here
+                me = self.form("GET", f"{self.host}/{self.version}/me",
+                               {"fields": "id,name", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET me")
+                self.env["FB_PAGE_ID"] = str(me["id"])
             got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
                             {"fields": "name,access_token", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
             self._page_token = got.get("access_token") or self.env["FB_PAGE_TOKEN"]
@@ -249,6 +254,7 @@ class Facebook(Client):
         return f"page {self.page_name!r} reachable" + ("" if self._page_token != self.env["FB_PAGE_TOKEN"] else " (stored token used as is)")
 
     def post(self, post):
+        self.page_token()
         page = self.env["FB_PAGE_ID"]
         photos = [self.call(f"{page}/photos", {"url": u, "published": "false"})["id"] for u in _images(post)[:10]]
         params = {"message": facebook_text(post)}

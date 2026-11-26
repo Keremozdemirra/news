@@ -10,7 +10,7 @@ from unittest import mock
 
 from aidaily import desk, platforms
 
-SECRETS = {"THREADS_TOKEN": "tt-secret", "THREADS_USER_ID": "u1", "FB_PAGE_TOKEN": "fb-secret", "FB_PAGE_ID": "p1",
+SECRETS = {"THREADS_TOKEN": "tt-secret", "THREADS_USER_ID": "u1", "FB_PAGE_TOKEN": "fb-secret", "FB_PAGE_ID": "111",
            "BSKY_HANDLE": "me.bsky.social", "BSKY_APP_PASSWORD": "app-pass-secret", "TG_BOT_TOKEN": "tg-secret", "TG_CHANNEL": "@chan"}
 
 
@@ -148,14 +148,26 @@ class Clients(Env):
 
         def out(req):
             n.append(req.data.decode())
-            return {"id": "ph1"} if "/photos" in req.full_url else {"id": "p1_99"}
-        fake = Fake({"fields=name": {"name": "Boardread", "access_token": "page-tok"}, "/p1/": out})
+            return {"id": "ph1"} if "/photos" in req.full_url else {"id": "111_99"}
+        fake = Fake({"fields=name": {"name": "Boardread", "access_token": "page-tok"}, "/111/": out})
         got = platforms.Facebook(opener=fake).post(post())
-        self.assertEqual(got["url"], "https://www.facebook.com/p1_99")
+        self.assertEqual(got["url"], "https://www.facebook.com/111_99")
         # the stored system-user token only reads the Page; the posts go out with the Page's own token
         self.assertIn("access_token=page-tok", n[0])
         self.assertIn("published=false", n[0])
         self.assertIn("attached_media%5B1%5D", n[2])
+
+    def test_facebook_placeholder_page_id_is_read_from_the_token(self):
+        import os
+        old = os.environ.get("FB_PAGE_ID")
+        os.environ["FB_PAGE_ID"] = "BURAYA_ID"
+        try:
+            fake = Fake({"/me?": {"id": "777", "name": "Boardread"}, "fields=name": {"name": "Boardread", "access_token": "pt"},
+                         "/777/": lambda r: {"id": "ph"} if "/photos" in r.full_url else {"id": "777_1"}})
+            got = platforms.Facebook(opener=fake).post(post())
+            self.assertEqual(got["id"], "777_1")
+        finally:
+            os.environ["FB_PAGE_ID"] = old
 
     def test_bluesky_flow_and_oversize_second_image_dropped(self):
         small, big = b"j" * 1000, b"j" * 1_000_001
