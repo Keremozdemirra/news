@@ -263,3 +263,5 @@
 @media(max-width:720px){.row h3{font-size:21px}.row.big h3{font-size:24px}.bn h2{font-size:27px}.it.m h3{font-size:26px}}
 .duo.solo{grid-template-columns:1fr}.duo.solo .follow ul{grid-template-columns:repeat(3,1fr)}
 @media(max-width:900px){.duo.solo .follow ul{grid-template-columns:1fr}}
+.lead figure img{aspect-ratio:3/2;object-position:50% 40%}
+.sects .it.m h3{font-size:23px;line-height:1.14}

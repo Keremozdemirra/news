@@ -296,6 +296,14 @@ class FrontPage(unittest.TestCase):
         self.assertFalse(views.photo_ok(fake("Trump signals tariffs", "Economy", 4, 9, photo_file="", _thumb=False)))
 
 
+class FrontPhotos(unittest.TestCase):
+    def test_the_same_subject_is_recognised_across_articles(self):
+        a = fake("Trump signals tariffs", "Economy", 4, 9, photo_file="Official Presidential Portrait of Donald Trump.jpg")
+        b = fake("Trump demands probe of GDP revision", "Economy", 2, 8, photo_file="January 2025 Official Presidential Portrait of Donald Trump.jpg")
+        self.assertEqual(views.photo_subject(a), views.photo_subject(b))  # the front shows the first and runs the second as text
+        self.assertIsNone(views.photo_subject(fake("OpenAI corrects billing", "AI", 1, 9, photo_file="Virginia Tech - data center.jpg")))
+
+
 class FrontBuilt(Features):
     def test_every_article_appears_once_on_the_front_page(self):
         import re

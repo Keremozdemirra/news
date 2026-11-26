@@ -94,14 +94,18 @@ def photo_ok(p):
     """A photo goes on the front page only if it shows what the article names: the person, the company, or another capitalised name
     from the headline or summary appears in the photo's file name. A server corridor under an OpenAI article or a globe under a
     satellite item says nothing, so those articles run as text. (The photo is still on the article's own page.)"""
-    if not p.get("_thumb"):
+    if not p.get("_thumb") or not (p.get("photo_file") or "").strip():
         return False
+    return photo_subject(p) is not None
+
+
+def photo_subject(p):
+    """The name that ties the photo to the article (the first one found in the file name), or None. Two photos of the same
+    subject never share a front page: the first keeps it, the next article runs as text."""
     stem = re.sub(r"[^a-z0-9]+", " ", Path(p.get("photo_file") or "").stem.lower())
-    if not stem.strip():
-        return False
-    names = {t.lower() for t in NAME_TOKEN.findall(p["headlines"][0]) + NAME_TOKEN.findall(p.get("dek", "")) if (len(t) >= 4 or t.isupper()) and t not in STOP_FIRST}
-    names |= {w.lower() for w in re.findall(r"[A-Za-z0-9]{3,}", f'{p.get("person") or ""} {S.co_of(p)}')}
-    return any(re.search(rf"\b{re.escape(n)}", stem) for n in names - {"this", "with", "that", "from", "will"})
+    names = [t.lower() for t in NAME_TOKEN.findall(p["headlines"][0]) + NAME_TOKEN.findall(p.get("dek", "")) if (len(t) >= 4 or t.isupper()) and t not in STOP_FIRST]
+    names += [w.lower() for w in re.findall(r"[A-Za-z0-9]{3,}", f'{p.get("person") or ""} {S.co_of(p)}')]
+    return next((n for n in dict.fromkeys(names) if n not in {"this", "with", "that", "from", "will"} and re.search(rf"\b{re.escape(n)}", stem)), None)
 
 
 def front(shown, cos, m):
@@ -113,7 +117,16 @@ def front(shown, cos, m):
     used |= {p["id"] for p in seconds}
     left = [p for p in shown if p["id"] not in used][:6]
     used |= {p["id"] for p in left}
-    show_photo = photo_ok(lead)
+    seen = set()
+
+    def ph(p):
+        """True when p may show its photo: it shows the named subject and no earlier item on the page shows the same one."""
+        subj = photo_subject(p) if photo_ok(p) else None
+        if subj is None or subj in seen:
+            return False
+        seen.add(subj)
+        return True
+    show_photo = ph(lead)
     jump = f'<a class="jump" href="{S.href(lead)}">Read the full article &middot; {PLURAL(S.coverage(lead), "newsroom")}: {S.by(lead)}</a>'
     fig = (f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
            f'<figcaption>{E(lead.get("credit", ""))}</figcaption></figure>') if show_photo and lead.get("_hires") else ""
@@ -121,9 +134,9 @@ def front(shown, cos, m):
               f'<h1 class="lh"><a href="{S.href(lead)}" class="hl">{E(lead["headlines"][0])}</a></h1><p class="dk">{E(lead.get("dek", ""))}</p>'
               f'<div class="by">{S.cover(lead)}</div>{fig}<div class="tx">{paras(lead)}</div>{jump}</div>')
     lcol = ('<div class="zn"><div class="sec"><span>Latest</span><a class="dm" href="' + S.BASE + '/latest/">All</a></div>'
-            + "".join(card(p, "s", photo=(i == 0), dek=i < 2) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
+            + "".join(card(p, "s", photo=ph(p) if i == 0 else False, dek=i < 2) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
     rcol = ('<div class="zn"><div class="sec"><span>Also at the top</span></div>'
-            + "".join(card(p, "m", photo=True, ratio="4/3", meter=True) for p in seconds) + markets.rates_box(m, S.BASE, compact=True) + "</div>")
+            + "".join(card(p, "m", photo=ph(p), ratio="4/3", meter=True) for p in seconds) + markets.rates_box(m, S.BASE, compact=True) + "</div>")
     blocks = ""
     for t in S.TOPIC_ORDER:
         rows = [p for p in shown if S.topic(p) == t]
@@ -132,7 +145,7 @@ def front(shown, cos, m):
             continue
         used |= {p["id"] for p in fresh}
         blocks += (f'<div><div class="sec"><a href="{S.BASE}/t/{t.lower()}/">{t}</a><span class="dm">{len(rows)}</span></div>'
-                   + "".join(card(p, "m" if k == 0 else "s", photo=(k == 0), dek=(k == 0), topic=False) for k, p in enumerate(fresh)) + "</div>")
+                   + "".join(card(p, "m" if k == 0 else "s", photo=(k == 0 and ph(p)), dek=(k == 0), topic=False) for k, p in enumerate(fresh)) + "</div>")
     inside = "".join(f'<a href="{S.BASE}{u}"><b>{n}</b><span>{d}</span></a>' for k, u, n, d in (
         ("board", "/board/", "Board", "Every article as a departure, with the names in the news and a wire of who reported what."),
         ("feed", "/feed/", "Feed", "The news as cards, the way it runs on Instagram."),
