@@ -1,4 +1,5 @@
 import os
+import json
 import xml.etree.ElementTree as ET
 import unittest
 from datetime import timedelta
@@ -213,6 +214,16 @@ class Chrome(Features):
             css = (self.out / "assets" / name).read_text()
             for banned in ("Archivo", "border-radius", "box-shadow", "gradient"):
                 self.assertNotIn(banned, css, (name, banned))
+
+    def test_brand_icons_and_manifest_are_shipped_and_linked(self):
+        h = self.read("index.html")
+        for part in ("icon.svg", "favicon.ico", "apple-touch-icon.png", "manifest.webmanifest"):
+            self.assertIn(part, h)
+            self.assertTrue((self.out / part).exists(), part)
+        icons = json.loads(self.read("manifest.webmanifest"))["icons"]
+        self.assertEqual({i["sizes"] for i in icons}, {"192x192", "512x512"})
+        for f in ("icon-192.png", "icon-512.png", "og-default.png"):
+            self.assertTrue((self.out / f).exists(), f)
 
     def test_footer_has_four_groups_and_one_line(self):
         h = self.read("index.html")

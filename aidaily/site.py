@@ -264,7 +264,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
 <link rel="canonical" href="{E(url)}">{links}
-<link rel="icon" href="{BASE}/icon.svg" type="image/svg+xml">
+<link rel="icon" href="{BASE}/icon.svg" type="image/svg+xml"><link rel="icon" href="{BASE}/favicon.ico" sizes="32x32"><link rel="apple-touch-icon" href="{BASE}/apple-touch-icon.png"><link rel="manifest" href="{BASE}/manifest.webmanifest">
 <link rel="alternate" type="application/rss+xml" title="boardread." href="{BASE}/feed.xml">
 {own_feed}<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
@@ -872,7 +872,7 @@ def build(out=desk.HERE / "_site"):
             shutil.copy(ASSETS / f, out / "assets" / f)
     shutil.copy(ASSETS / "words.txt", out / "assets" / "words.txt")  # the guess list of the word game
     shutil.copy(ASSETS / "words-NOTICE.txt", out / "assets" / "words-NOTICE.txt")
-    for f in ("og-default.png", "logo.png", "icon.svg"):  # the preview image of every non-story page, the publisher logo, the favicon
+    for f in ("og-default.png", "logo.png", "icon.svg", "favicon.ico", "apple-touch-icon.png", "icon-192.png", "icon-512.png"):  # the preview image of every non-story page, the publisher logo, the favicon
         shutil.copy(ASSETS / f, out / f)
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
@@ -975,6 +975,9 @@ def build(out=desk.HERE / "_site"):
     sitepages.build(out, shown, sm, cos)
     (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m]))
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
+    (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
+        "display": "browser", "background_color": "#ffffff", "theme_color": "#12356b",
+        "icons": [{"src": f"{BASE}/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": f"{BASE}/icon-512.png", "sizes": "512x512", "type": "image/png"}]}))
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
     (out / ".nojekyll").write_text("")
     print(f"site: {len(shown)} articles, {len(weeks)} weeks -> {out}")
