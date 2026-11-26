@@ -17,13 +17,13 @@ The Name field is searchable, so it carries the words people type: "AI" and "New
 ## Bio
 
 ```
-The day's AI news in one swipe.
-Twice a day, from 40+ newsrooms and labs.
+AI news through the day, one story per post.
+From 40+ newsrooms and labs.
 Every number checked against the reports.
 Summaries written with AI.
 ```
 
-142 characters of 150. Each line is a fact the desk keeps: two posts a day, 48 sources, the number check, the AI disclosure.
+142 characters of 150. Each line is a fact the desk keeps: posts through the day, 48 sources, the number check, the AI disclosure.
 
 ## Profile picture
 

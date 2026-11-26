@@ -5,6 +5,7 @@ phone notification. Closing the issue or labelling it `veto` stops the post.
 """
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 
@@ -43,14 +44,35 @@ def issue(number):
     return _call("GET", f"issues/{number}")
 
 
-def vetoed(number):
-    """A closed issue or a `veto` label stops the post. Anything we cannot read counts as a veto."""
+VETO = re.compile(r"^\s*veto\s+(all|\d+(?:\s*,\s*\d+)*)\s*$", re.I | re.M)
+
+
+def owner():
+    return _repo().split("/")[0].lower()
+
+
+def vetoed(number, n=1):
+    """Post n of the issue's batch is stopped by a closed issue, a `veto` label, or a comment from the
+    repository owner reading `veto all` or `veto <n>`. Anything we cannot read counts as a veto."""
     try:
         got = issue(number)
+        notes = _call("GET", f"issues/{number}/comments?per_page=100")
     except RuntimeError:
         return True
     labels = {lb["name"].lower() for lb in got.get("labels", [])}
-    return got.get("state") != "open" or "veto" in labels
+    if got.get("state") != "open" or "veto" in labels:
+        return True
+    for c in notes:
+        if (c.get("user") or {}).get("login", "").lower() != owner():
+            continue  # anyone can comment on a public issue; only the owner can veto
+        for m in VETO.finditer(c.get("body", "")):
+            if m.group(1).lower() == "all" or n in {int(x) for x in re.findall(r"\d+", m.group(1))}:
+                return True
+    return False
+
+
+def close(number):
+    _call("PATCH", f"issues/{number}", {"state": "closed", "state_reason": "completed"})
 
 
 def comment(number, text, close=False):

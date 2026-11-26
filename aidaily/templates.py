@@ -164,6 +164,28 @@ def card(story, brand=BRAND):
 <div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
 
 
+def detail(story, body, outlets, brand=BRAND):
+    """Second slide of a single-story post: the checked report text and who reported it."""
+    a = assets(story)
+    title = story.get("headline") or story["title"]
+    paras = "".join(f'<p style="margin:0 0 28px">{e(p)}</p>' for p in (body or story.get("dek", "")).split("\n") if p.strip())
+    n = len(body or "")
+    size = 56 if n < 260 else 50 if n < 380 else 44 if n < 520 else 38
+    src = "; ".join(outlets) if outlets else story.get("source", "")
+    return head() + f"""
+<div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
+<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta(story))}</span>
+<div style="opacity:0.9">{_logo_block(a['logo'], '', 34) if a['logo'] else ''}</div></div>
+<h2 style="margin:72px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:-1px;text-wrap:balance">{e(title)}</h2>
+<div style="margin-top:44px;height:2px;width:96px;background:{BLACK}"></div>
+<div style="margin-top:44px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>
+<div style="flex:1"></div>
+<div style="font-size:24px;color:{GREY};line-height:1.4">Reported by {e(src)}</div>
+<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
+<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand['name'])}</span><span style="color:{GREY}">Summary written with AI, checked against the reports</span></div>
+</div></body></html>"""
+
+
 def feed_card(story, brand=BRAND, tag=None):
     return card(story, brand)
 

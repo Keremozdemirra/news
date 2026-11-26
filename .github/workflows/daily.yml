@@ -1,10 +1,10 @@
 name: daily
-# Fetch, write copy with a no-tool model call, render, queue one carousel, open its veto issue.
+# Every two hours: fetch, write copy with a no-tool model call, render, queue up to three single-story
+# posts spaced an hour apart, and open one veto issue for them.
 # Nothing here can post: the Instagram token is not in this job.
 on:
   schedule:
-    - cron: "0 5 * * *"
-    - cron: "0 13 * * *"
+    - cron: "0 4-20/2 * * *"
   workflow_dispatch:
 permissions:
   contents: write

@@ -1,13 +1,13 @@
 # loopbrief desk
 
-An Instagram account for daily AI news that runs itself on GitHub Actions. Twice a day it fetches 48 news sources, ranks the stories, writes the copy, checks it against the sources, renders one carousel and queues it. Each queued carousel opens an issue in this repository. The carousel goes out two hours later unless someone closes the issue.
+An Instagram account for AI news that runs itself on GitHub Actions. Every two hours it fetches 48 news sources, ranks the stories, writes the copy and checks it against the sources. It then queues up to three posts, one story each: the story's card, then a slide with the report. Each run opens one issue in this repository listing its posts. A post goes out two hours after it is queued, an hour apart from the next, unless the owner vetoes it.
 
 ## The day
 
 | Time (UTC) | Workflow | What happens |
 |---|---|---|
-| 05:00, 13:00 | `daily` | fetch, rank, copy, check, render, queue `queue/<id>/`, open the veto issue |
-| every 20 min | `publish` | post every queued carousel past its window whose issue is still open |
+| 04:00 to 20:00, every 2 h | `daily` | fetch, rank, copy, check, render, queue up to 3 posts in `queue/<id>/`, open the veto issue |
+| every 20 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | hourly | `engage` | answer new comments on the last 7 days of posts, at most 20 a day |
 | Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
 
@@ -15,7 +15,8 @@ GitHub may start a scheduled run up to half an hour late.
 
 ## Stopping it
 
-- One post: close its issue or label it `veto` before the time the issue gives.
+- One post: comment `veto 2` on its run's issue (or `veto 1, 3`, or `veto all`). Only the repository owner's comments count.
+- A whole run: close its issue.
 - Everything: commit a file named `PAUSED` at the root, or set the repository variable `DESK_PAUSED` to `1`. The repository ships with `PAUSED` in place; deleting it is the go-live step.
 
 ## What keeps it safe
@@ -23,7 +24,7 @@ GitHub may start a scheduled run up to half an hour late.
 - The two model calls (copy and comment replies) run `claude -p` with no tools, no MCP and no user settings. They read untrusted text and can only return text.
 - Fixed code checks that text before anything is public. Every number must appear in the source. Sentences that read as commentary are rejected. A big figure on a card must also appear in its headline or dek. Stories about deaths, violence or abuse are skipped. A reply with a link, a mention, a number missing from the post, or more than 200 characters is dropped.
 - The only secret that can post is `IG_TOKEN`, and it can post to one Instagram account. It travels in a request header and is scrubbed from every error message.
-- Caps: 2 posts a day, 20 replies a day, no story repeated within 3 days.
+- Caps: 12 posts a day, an hour apart, none scheduled more than 4 hours past its veto window; 20 replies a day. A story is not posted again within 3 days, even when a later run clusters it under a different link.
 - It never follows, likes, comments elsewhere or sends DMs: Instagram's terms forbid automated interaction.
 
 ## Secrets and settings

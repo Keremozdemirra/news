@@ -164,9 +164,7 @@ def main(argv=None):
         if args.cmd == "daily":
             return daily(args)
         if args.cmd == "notify":
-            for post, path in desk.posts():
-                if post.get("status") == "queued" and not post.get("issue"):
-                    desk.notify(path)
+            desk.notify()
             return 0
         if args.cmd == "publish":
             desk.publish(dry=args.dry)

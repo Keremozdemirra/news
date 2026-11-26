@@ -2,21 +2,19 @@
   "name": "loopbrief",
   "handle": "@loopbrief",
   "veto_hours": 2,
-  "min_cards": 3,
-  "max_cards": 6,
-  "max_posts_per_day": 2,
+  "max_posts_per_day": 12,
   "repeat_window_days": 3,
   "reply_daily_cap": 20,
   "reply_window_days": 7,
   "hashtags": [
     "#ai",
-    "#artificialintelligence",
     "#ainews",
+    "#artificialintelligence",
     "#technews",
     "#machinelearning"
   ],
-  "send_line": "Send this to someone who follows AI.",
-  "ai_note": "Summaries are written with AI from the reports named above and checked against them.",
+  "send_line": "Follow for AI news through the day.",
+  "ai_note": "Summary written with AI from the reports named above and checked against them.",
   "media_branch": "main",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
   "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz",
@@ -24,5 +22,8 @@
     "HN Front Page",
     "HN Algolia Search AI",
     "Product Hunt"
-  ]
+  ],
+  "max_per_run": 3,
+  "spacing_minutes": 60,
+  "max_hours_ahead": 4
 }

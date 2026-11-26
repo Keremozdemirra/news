@@ -63,33 +63,43 @@ SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
 FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 
-def recent_urls(days):
+def _recent_posts(days):
     cut = now() - timedelta(days=days)
-    seen = set()
-    for p, _ in posts():
-        if p.get("status") in ("queued", "published") and datetime.fromisoformat(p["created"]) > cut:
-            seen.update(p.get("urls", []))
-    return seen
+    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed")
+            and datetime.fromisoformat(p["created"]) > cut]
+
+
+def same_story(a, b):
+    """Two runs cluster the same event under different lead links, so a shared link or a close
+    headline both count as a repeat."""
+    if set(a.get("links") or [a.get("url")]) & set(b.get("links") or [b.get("url")]):
+        return True
+    sa, sb = copy._stems(a.get("headline") or a.get("title")), copy._stems(b.get("headline") or b.get("title"))
+    return bool(sa and sb) and len(sa & sb) / min(len(sa), len(sb)) >= 0.6
 
 
 def pick(manifest, stories, weights):
-    """Cards in slot order, minus repeats and topics the brand does not post about, best categories first."""
+    """Cards in rank order, minus repeats and topics the brand does not post about; a learned weight can
+    lift a category a few places, never to the top on its own."""
     by_url = {s["url"]: s for s in stories}
-    recent = recent_urls(CONFIG["repeat_window_days"])
-    rows = []
+    recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
+              for p in _recent_posts(CONFIG["repeat_window_days"])
+              for i, u in enumerate(p.get("urls", []))]
+    rows, taken = [], []
     for i, m in enumerate(manifest):
         s = by_url.get(m["url"], {})
+        mine = {"url": m["url"], "links": s.get("links", []), "headline": m["headline"]}
         text = " ".join([m["headline"], s.get("dek", ""), s.get("title", "")])
-        if (m["url"] in recent or SKIP.search(text) or FORMAT.search(s.get("title", "") + " " + m["headline"])
-                or s.get("copy_status") != "ok"):
+        if (s.get("copy_status") != "ok" or SKIP.search(text) or FORMAT.search(s.get("title", "") + " " + m["headline"])
+                or any(same_story(mine, r) for r in recent + taken)):
             continue
-        # keep the ranker's order; a learned weight can lift a category a few places, never to the top alone
+        taken.append(mine)
         rows.append((i / max(weights.get(m["category"], 1.0), 0.5), m, s))
     rows.sort(key=lambda r: r[0])
-    return [(m, s) for _, m, s in rows[:CONFIG["max_cards"]]]
+    return [(m, s) for _, m, s in rows]
 
 
-FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business)$")
+FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|News)$")
 
 
 def outlet(name):
@@ -97,78 +107,117 @@ def outlet(name):
     return FEED_SUFFIX.sub("", name or "").strip()
 
 
-def caption(day, picked):
-    n = len(picked)
-    lines = [f"AI today, {day}: {n} stories.", ""]
-    for i, (m, s) in enumerate(picked, 1):
-        lines.append(f"{i}. {m['headline']}")
-        if s.get("dek"):
-            lines.append(s["dek"])
-        lines.append("")
-    outlets = []
-    for m, s in picked:
-        for o in map(outlet, [m["source"]] + list(s.get("outlets", []))[:2]):
-            # discussion boards carry stories; they are not the reporting
-            if o and o not in outlets and o not in CONFIG["not_sources"]:
-                outlets.append(o)
-    lines += [f"Sources: {'; '.join(outlets[:10])}.", CONFIG["ai_note"], "", CONFIG["send_line"], "",
-              " ".join(CONFIG["hashtags"][:5])]
+def outlets(m, s):
+    out = []
+    for o in map(outlet, [m["source"]] + list(s.get("outlets", []))):
+        # discussion boards carry stories; they are not the reporting
+        if o and o not in out and o not in CONFIG["not_sources"]:
+            out.append(o)
+    return out[:4]
+
+
+TOPIC_TAG = {"funding": "#startups", "policy": "#techpolicy", "launch": "#technews", "markets": "#business",
+             "business": "#business", "research": "#airesearch", "statement": "#technews", "news": "#technews"}
+
+
+def hashtags(m, s):
+    tags = list(CONFIG["hashtags"][:2])
+    co = re.sub(r"[^a-z0-9]", "", (s.get("company") or "").lower())
+    for t in ([f"#{co}"] if 2 < len(co) < 25 else []) + [TOPIC_TAG.get(m["category"], "#technews")] + CONFIG["hashtags"][2:]:
+        if t not in tags:
+            tags.append(t)
+    return tags[:5]
+
+
+def body(s):
+    """The checked LinkedIn text without its source line: two or three sentences of report."""
+    return "\n".join(l for l in (s.get("linkedin_post") or "").splitlines() if l.strip() and not l.startswith("Source:"))
+
+
+def caption(m, s):
+    src = outlets(m, s)
+    lines = [m["headline"], "", body(s) or s.get("dek", ""), "",
+             f"Source{'s' if len(src) > 1 else ''}: {'; '.join(src)}.", CONFIG["ai_note"], "",
+             CONFIG["send_line"], "", " ".join(hashtags(m, s))]
     text = "\n".join(lines)
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
-def queue(day_dir, run_id=None):
-    """Turn the finished pack in out/<date>/ into queue/<id>/: JPEG cards, caption, post.json."""
+def _last_slot():
+    slots = [datetime.fromisoformat(p["publish_after"]) for p, _ in posts() if p.get("status") in ("queued", "published")]
+    return max(slots) if slots else None
+
+
+def queue(day_dir, batch=None, render=True):
+    """One post per story: the story's card, then a detail slide. Posts are spaced out, capped per day,
+    and never scheduled so far ahead that the news goes stale. Returns the new post.json paths."""
     if paused():
         print("paused: nothing queued")
-        return None
-    today = [p for p, _ in posts() if p["created"][:10] == now().strftime("%Y-%m-%d")]
-    if len(today) >= CONFIG["max_posts_per_day"]:
-        print(f"daily cap reached ({len(today)} posts today)")
-        return None
+        return []
+    day = now().strftime("%Y-%m-%d")
+    today = sum(1 for p, _ in posts() if p["created"][:10] == day)
+    room = min(CONFIG["max_posts_per_day"] - today, CONFIG["max_per_run"])
+    if room <= 0:
+        print(f"daily cap reached ({today} posts queued today)")
+        return []
     day_dir = Path(day_dir)
     manifest = _load(day_dir / "pack" / "manifest.json", [])
     # finish keeps the checked copy in digest.json "final"; chosen.json is the pre-copy list
     final = _load(day_dir / "digest.json", {}).get("final", {})
     stories = [s for rows in final.values() for s in rows]
-    picked = pick(manifest, stories, _load(STATE / "weights.json", {}))
-    if len(picked) < CONFIG["min_cards"]:
-        print(f"only {len(picked)} cards passed (need {CONFIG['min_cards']}): nothing queued")
-        return None
-    pid = run_id or now().strftime("%Y-%m-%d-%H%M")
-    out = QUEUE / pid
-    out.mkdir(parents=True, exist_ok=True)
-    cover_png = out / "cover.png"
-    R.shoot(R.T.daily_cover(now().strftime("%-d %b %Y"), [m["headline"] for m, _ in picked]), cover_png, 1080, 1350)
-    cover = R.jpeg(cover_png)
-    cover_png.unlink()
-    cards = [cover.name]
-    for i, (m, _) in enumerate(picked, 1):
-        jpg = R.jpeg(day_dir / "pack" / m["file"])
-        target = out / f"card-{i:02d}.jpg"
-        jpg.replace(target)
-        cards.append(target.name)
-    post = {"id": pid, "created": now().isoformat(timespec="seconds"),
-            "publish_after": (now() + timedelta(hours=CONFIG["veto_hours"])).isoformat(timespec="seconds"),
-            "status": "queued", "cards": cards, "caption": caption(now().strftime("%-d %b %Y"), picked),
-            "urls": [m["url"] for m, _ in picked], "headlines": [m["headline"] for m, _ in picked],
-            "categories": [m["category"] for m, _ in picked]}
-    _save(out / "post.json", post)
-    print(f"queued {pid}: {len(cards)} cards, publishes after {post['publish_after']}")
-    return out / "post.json"
+    picked = pick(manifest, stories, _load(STATE / "weights.json", {}))[:room]
+    batch = batch or now().strftime("%Y-%m-%d-%H%M")
+    earliest = now() + timedelta(hours=CONFIG["veto_hours"])
+    horizon = earliest + timedelta(hours=CONFIG["max_hours_ahead"])
+    slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
+    made = []
+    for n, (m, s) in enumerate(picked, 1):
+        slot = max(earliest, slot + gap) if slot else earliest
+        if slot > horizon:
+            print(f"schedule full until {slot:%H:%M} UTC; {len(picked) - n + 1} stories left for a later run")
+            break
+        out = QUEUE / f"{batch}-{n}"
+        out.mkdir(parents=True, exist_ok=True)
+        if render:
+            R.jpeg(day_dir / "pack" / m["file"]).replace(out / "card.jpg")
+            png = out / "detail.png"
+            R.shoot(R.T.detail(s, body(s), outlets(m, s)), png, 1080, 1350)
+            R.jpeg(png)
+            png.unlink()
+        post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
+                "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
+                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
+                "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
+                "categories": [m["category"]]}
+        _save(out / "post.json", post)
+        made.append(out / "post.json")
+        print(f"queued {out.name}: {m['headline'][:60]} at {slot:%H:%M} UTC")
+    if not made:
+        print("no new story passed the checks")
+    return made
 
 
-def notify(post_path):
-    """Open the veto issue for a queued post. Needs the post's files already pushed, so the images show."""
-    post = _load(Path(post_path), {})
-    if not github.enabled() or post.get("issue"):
+def notify():
+    """One veto issue per run, listing its posts. Pushed files first, so the images show."""
+    if not github.enabled():
         return
-    imgs = "\n".join(f"![card {i}]({media_url(Path(post_path).parent / c)})" for i, c in enumerate(post["cards"], 1))
-    body = (f"Publishes to Instagram after **{post['publish_after']} UTC** unless this issue is closed "
-            f"or labelled `veto`.\n\n{imgs}\n\n**Caption**\n\n```\n{post['caption']}\n```\n\n"
-            + "\n".join(f"- {u}" for u in post["urls"]))
-    post["issue"] = github.open_issue(f"Queued: {post['headlines'][0][:70]}", body)
-    _save(Path(post_path), post)
+    batches = {}
+    for post, path in posts():
+        if post.get("status") == "queued" and not post.get("issue"):
+            batches.setdefault(post.get("batch", post["id"]), []).append((post, path))
+    for batch, rows in batches.items():
+        rows.sort(key=lambda r: r[0].get("n", 0))
+        parts = []
+        for post, path in rows:
+            imgs = " ".join(f'<img src="{media_url(path.parent / c)}" width="260">' for c in post["cards"])
+            parts.append(f"### {post.get('n', 1)}. {post['headlines'][0]}\nPublishes after **{post['publish_after']} UTC**\n\n"
+                         f"{imgs}\n\n<details><summary>Caption</summary>\n\n```\n{post['caption']}\n```\n</details>\n\n{post['urls'][0]}")
+        body_ = ("To stop one post, comment `veto 2` (or `veto 1, 3`). To stop all of them, comment `veto all` "
+                 "or close this issue. Only the repository owner's comments count.\n\n" + "\n\n---\n\n".join(parts))
+        number = github.open_issue(f"Queued {len(rows)}: {rows[0][0]['headlines'][0][:60]}", body_)
+        for post, path in rows:
+            post["issue"] = number
+            _save(path, post)
 
 
 # publish
@@ -182,49 +231,58 @@ def configured():
     return bool(os.environ.get("IG_TOKEN") and os.environ.get("IG_USER_ID"))
 
 
+def _close_if_done(issue):
+    if not (issue and github.enabled()):
+        return
+    if all(p.get("status") != "queued" for p, _ in posts() if p.get("issue") == issue):
+        github.close(issue)
+
+
 def publish(client=None, dry=False):
-    """Publish every queued post whose veto window has passed. Returns the number published."""
+    """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0."""
     if paused():
         print("paused: nothing published")
         return 0
     if client is None and not dry and not configured():
         print("Instagram not connected yet (IG_TOKEN, IG_USER_ID): nothing published")
         return 0
-    done = 0
-    for post, path in posts():
-        if post.get("status") != "queued" or datetime.fromisoformat(post["publish_after"]) > now():
-            continue
-        if post.get("issue") and github.enabled() and github.vetoed(post["issue"]):
+    due = sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
+                  and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
+    for post, path in due:
+        if post.get("issue") and github.enabled() and github.vetoed(post["issue"], post.get("n", 1)):
             post["status"] = "vetoed"
             _save(path, post)
             print(f"{post['id']}: vetoed")
+            _close_if_done(post.get("issue"))
             continue
         if published_last_24h() >= CONFIG["max_posts_per_day"]:
             print("24-hour cap reached; waiting")
-            break
+            return 0
         urls = [media_url(path.parent / c) for c in post["cards"]]
         if dry:
-            print(f"{post['id']}: would publish {len(urls)} cards\n{post['caption']}")
-            continue
+            print(f"{post['id']}: would publish {len(urls)} slides\n{post['caption']}")
+            return 0
         if client is None:
             from .instagram import Client
             client = Client()
         try:
             media, link = client.post_carousel(urls, post["caption"])
-        except Exception as e:  # noqa: BLE001  one failed post must not take the next one down
+        except Exception as e:  # noqa: BLE001  one failed post must not block the queue
             post["status"], post["error"] = "failed", str(e)[:400]
             _save(path, post)
             if post.get("issue") and github.enabled():
-                github.comment(post["issue"], f"Publishing failed: {post['error']}")
+                github.comment(post["issue"], f"{post.get('n', 1)}. Publishing failed: {post['error']}")
             print(f"{post['id']}: failed: {post['error']}")
+            _close_if_done(post.get("issue"))
             continue
         post.update(status="published", published=now().isoformat(timespec="seconds"), media_id=media, permalink=link)
         _save(path, post)
         if post.get("issue") and github.enabled():
-            github.comment(post["issue"], f"Published: {link}", close=True)
+            github.comment(post["issue"], f"{post.get('n', 1)}. Published: {link}")
+        _close_if_done(post.get("issue"))
         print(f"{post['id']}: published {link}")
-        done += 1
-    return done
+        return 1
+    return 0
 
 
 # comment replies

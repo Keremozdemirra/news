@@ -8,8 +8,12 @@ from unittest import mock
 from aidaily import desk, instagram
 
 
+WORDS = ["Anthropic releases coding agent", "Mistral raises funding round", "Nvidia halts chip shipments",
+         "Court blocks chatbot data sale", "Google previews robotics model", "Senate debates compute rules"]
+
+
 def story(i, cat="launch", status="ok", headline=None):
-    h = headline or f"Lab {i} ships model {i}"
+    h = headline or WORDS[(i - 1) % len(WORDS)]
     return ({"file": f"card-{i:02d}.png", "url": f"https://x/{i}", "headline": h, "category": cat, "source": f"Outlet {i}"},
             {"url": f"https://x/{i}", "title": h, "dek": f"It does thing {i}.", "copy_status": status, "outlets": [f"Outlet {i}"]})
 
@@ -56,13 +60,23 @@ class Pick(Tmp):
 
 
 class Caption(unittest.TestCase):
-    def test_caption_has_sources_note_and_at_most_five_hashtags(self):
-        rows = [story(i) for i in range(1, 7)]
-        text = desk.caption("26 Nov 2026", rows)
-        self.assertIn("Sources: Outlet 1", text)
+    def test_caption_has_body_sources_note_and_at_most_five_hashtags(self):
+        m, s = story(1)
+        s.update(company="Anthropic", linkedin_post="Anthropic released an agent.\nIt writes code.\n\nSource: Outlet 1",
+                 outlets=["Outlet 1", "HN Front Page", "CNBC Technology"])
+        text = desk.caption(m, s)
+        self.assertTrue(text.startswith("Anthropic releases coding agent\n\nAnthropic released an agent."))
+        self.assertIn("Sources: Outlet 1; CNBC.", text)
+        self.assertNotIn("Source: Outlet 1\n", text.split("Sources:")[0])
         self.assertIn("written with AI", text)
+        self.assertIn("#anthropic", text)
         self.assertLessEqual(text.count("#"), 5)
-        self.assertLessEqual(len(text), 2200)
+
+    def test_same_story_by_link_or_close_headline(self):
+        a = {"url": "u1", "links": ["l1", "l2"], "headline": "Nvidia halts server shipments to Malaysia"}
+        self.assertTrue(desk.same_story(a, {"url": "u9", "links": ["l2"], "headline": "Different"}))
+        self.assertTrue(desk.same_story(a, {"url": "u9", "links": [], "headline": "Nvidia halts shipments to Malaysia, Singapore"}))
+        self.assertFalse(desk.same_story(a, {"url": "u9", "links": [], "headline": "Mistral raises funding round"}))
 
 
 class Replies(unittest.TestCase):
@@ -108,14 +122,16 @@ class Publish(Tmp):
         self.assertEqual(desk.publish(client=FakeIG()), 0)
 
     def test_veto_stops_post(self):
-        p = self.write_post("a", issue=7)
+        p = self.write_post("a", issue=7, n=1)
         with mock.patch.object(desk.github, "enabled", return_value=True), \
-             mock.patch.object(desk.github, "vetoed", return_value=True):
+             mock.patch.object(desk.github, "vetoed", return_value=True), \
+             mock.patch.object(desk.github, "close") as closed:
             self.assertEqual(desk.publish(client=FakeIG()), 0)
         self.assertEqual(json.loads(p.read_text())["status"], "vetoed")
+        closed.assert_called_once_with(7)
 
     def test_daily_cap(self):
-        for i in range(2):
+        for i in range(desk.CONFIG["max_posts_per_day"]):
             self.write_post(f"done{i}", status="published", published=desk.now().isoformat())
         self.write_post("next")
         self.assertEqual(desk.publish(client=FakeIG()), 0)
@@ -215,4 +231,58 @@ class Formats(Tmp):
         rows[2][1]["outlets"] = ["HN Front Page", "Outlet 3"]
         picked = desk.pick([m for m, _ in rows], [s for _, s in rows], {})
         self.assertEqual([m["url"] for m, _ in picked], ["https://x/1", "https://x/3"])
-        self.assertNotIn("HN Front Page", desk.caption("1 Dec 2026", picked))
+        self.assertNotIn("HN Front Page", desk.outlets(*picked[1]))
+
+
+class Schedule(Tmp):
+    def day_dir(self, n):
+        d = self.root / "out"
+        (d / "pack").mkdir(parents=True)
+        rows = [story(i) for i in range(1, n + 1)]
+        (d / "pack" / "manifest.json").write_text(json.dumps([m for m, _ in rows]))
+        (d / "digest.json").write_text(json.dumps({"final": {"top": [s for _, s in rows]}}))
+        return d
+
+    def test_spaced_capped_per_run_and_not_too_far_ahead(self):
+        made = desk.queue(self.day_dir(6), batch="b", render=False)
+        self.assertEqual(len(made), desk.CONFIG["max_per_run"])
+        times = [json.loads(p.read_text())["publish_after"] for p in made]
+        gaps = {(desk.datetime.fromisoformat(b) - desk.datetime.fromisoformat(a)).seconds // 60 for a, b in zip(times, times[1:])}
+        self.assertEqual(gaps, {desk.CONFIG["spacing_minutes"]})
+        # the second run starts after the last slot; once the horizon is full it stops
+        again = desk.queue(self.day_dir_more(), batch="c", render=False)
+        last = max(desk.datetime.fromisoformat(json.loads(p.read_text())["publish_after"]) for p in made + again)
+        horizon = desk.now() + timedelta(hours=desk.CONFIG["veto_hours"] + desk.CONFIG["max_hours_ahead"])
+        self.assertLessEqual(last, horizon)
+
+    def day_dir_more(self):
+        d = self.root / "out2"
+        (d / "pack").mkdir(parents=True)
+        extra = ["Meta opens model weights", "Apple buys speech startup", "Microsoft cuts cloud prices",
+                 "Amazon ships warehouse robots", "Intel delays foundry plant", "OpenAI hires safety chief"]
+        rows = [story(10 + i, headline=h) for i, h in enumerate(extra)]
+        (d / "pack" / "manifest.json").write_text(json.dumps([m for m, _ in rows]))
+        (d / "digest.json").write_text(json.dumps({"final": {"top": [s for _, s in rows]}}))
+        return d
+
+    def test_repeat_run_does_not_requeue_the_same_stories(self):
+        d = self.day_dir(2)
+        self.assertEqual(len(desk.queue(d, batch="b", render=False)), 2)
+        self.assertEqual(desk.queue(d, batch="c", render=False), [])
+
+
+class Veto(unittest.TestCase):
+    def run_with(self, comments, n, state="open"):
+        def call(method, path, body=None):
+            return comments if path.endswith("per_page=100") else {"state": state, "labels": []}
+        with mock.patch.dict("os.environ", {"GITHUB_REPOSITORY": "Owner/desk"}), \
+             mock.patch.object(desk.github, "_call", side_effect=call):
+            return desk.github.vetoed(7, n)
+
+    def test_owner_vetoes_one_post_strangers_cannot(self):
+        mine = [{"user": {"login": "owner"}, "body": "veto 2, 3"}]
+        self.assertTrue(self.run_with(mine, 2))
+        self.assertFalse(self.run_with(mine, 1))
+        self.assertFalse(self.run_with([{"user": {"login": "someone"}, "body": "veto all"}], 1))
+        self.assertTrue(self.run_with([{"user": {"login": "Owner"}, "body": "veto all"}], 1))
+        self.assertTrue(self.run_with([], 1, state="closed"))
