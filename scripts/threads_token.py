@@ -17,7 +17,7 @@ import urllib.request
 HOST = "https://graph.threads.net"
 
 
-def get(path, params):
+def get(path, params, fail=True):
     # Meta documents both calls as GET over HTTPS; the query never leaves this process and graph.threads.net
     req = urllib.request.Request(f"{HOST}/{path}?{urllib.parse.urlencode(params)}")
     try:
@@ -25,6 +25,8 @@ def get(path, params):
             return json.load(r)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
+        if not fail:
+            return {}
         sys.exit(f"Threads refused ({e.code}): {json.loads(body).get('error', {}).get('message', body)[:200]}")
 
 
@@ -33,11 +35,15 @@ def secret(name, value):
 
 
 def main():
-    short = getpass.getpass("Short-lived Threads token (hidden): ").strip()
-    app_secret = getpass.getpass("Threads app secret (hidden): ").strip()
-    if not short or not app_secret:
-        sys.exit("both are needed")
-    long = get("access_token", {"grant_type": "th_exchange_token", "client_secret": app_secret, "access_token": short})
+    short = getpass.getpass("Threads token from the User Token Generator (hidden): ").strip()
+    if not short:
+        sys.exit("a token is needed")
+    # the dashboard's generator already gives a long-lived token: refreshing it needs no app secret and
+    # restarts its 60 days; only a short-lived token has to be exchanged with the secret
+    long = get("refresh_access_token", {"grant_type": "th_refresh_token", "access_token": short}, fail=False)
+    if not long.get("access_token"):
+        app_secret = getpass.getpass("Short-lived token: Threads app secret too (hidden): ").strip()
+        long = get("access_token", {"grant_type": "th_exchange_token", "client_secret": app_secret, "access_token": short})
     token = long.get("access_token")
     if not token:
         sys.exit("no long-lived token came back")
