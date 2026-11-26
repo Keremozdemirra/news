@@ -166,7 +166,9 @@ def photo(person, fetch=True):
 
 
 NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|interface|extension|extention|seal|"
-                       r"coat of arms|signature|poster|banner", re.I)
+                       r"coat of arms|signature|poster|banner|"
+                       # a made-up picture is not a news photo: "AI generated image of Loab" reached a Character.AI story
+                       r"ai.generated|midjourney|dall.e|stable diffusion|render|rendering|concept art|mockup", re.I)
 # a photo of a topic must not put a person on a story they are not in: a search for "press conference"
 # once returned the President of the United States for a story about state attorneys general
 PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"
@@ -174,7 +176,24 @@ PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chair
                     r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo|"
                     # scenes a reader takes as part of the news: a fighter jet beside an airliner is not "an airline"
                     r"military|fighter|interception|army|navy|war|weapon|missile|police|crash|accident|fire|"
-                    r"explosion|disaster|flood|riot|emergency)\b", re.I)
+                    r"explosion|disaster|flood|riot|emergency|defen[cs]e|drone|tank|soldier|troops|air force|airbase)\b", re.I)
+# a company search matches words, so "Amazon" found a parrot (Amazona aestiva); animals and plants are never the company
+NATURE = re.compile(r"\b(bird|parrot|animal|species|flower|plant|tree|insect|fish|mammal|reptile|wildlife|zoo|"
+                    r"forest|river|mountain|amazona|rainforest)\b|\([A-Z][a-z]+ [a-z]+\)")
+# a place the story does not name moves the news somewhere else: Taiwan's air defence on a Kuwait story,
+# an Irish copper mine on a Latin America story, another airline's jet on a Heathrow story
+PLACES = re.compile(r"\b(afghanistan|albania|algeria|argentina|armenia|australia|austria|azerbaijan|bahrain|bangladesh|"
+                    r"belarus|belgium|bolivia|bosnia|brazil|bulgaria|cambodia|cameroon|canada|chile|china|colombia|"
+                    r"croatia|cuba|cyprus|czech|denmark|ecuador|egypt|estonia|ethiopia|finland|france|georgia|germany|"
+                    r"ghana|greece|hungary|iceland|india|indonesia|iran|iraq|ireland|israel|italy|japan|jordan|"
+                    r"kazakhstan|kenya|korea|kuwait|latvia|lebanon|libya|lithuania|luxembourg|malaysia|mexico|morocco|"
+                    r"netherlands|holland|zealand|nigeria|norway|oman|pakistan|palestine|gaza|peru|philippines|poland|"
+                    r"portugal|qatar|romania|russia|saudi|serbia|singapore|slovakia|slovenia|spain|sweden|switzerland|"
+                    r"syria|taiwan|thailand|tunisia|turkey|ukraine|emirates|uae|dubai|abu dhabi|britain|england|"
+                    r"scotland|wales|venezuela|vietnam|yemen|zimbabwe|cork|dublin|paris|berlin|munich|frankfurt|"
+                    r"madrid|rome|milan|tokyo|beijing|shanghai|hong kong|shenzhen|seoul|taipei|moscow|kyiv|istanbul|"
+                    r"tehran|riyadh|doha|cairo|mumbai|delhi|sydney|toronto|vancouver|chicago|texas|california|"
+                    r"florida|middle east|africa|asia|europe|latin america|south america)\b", re.I)
 FACE = re.compile(r"cropped|crop\b|portrait|official|headshot", re.I)
 PEOPLE_ART = re.compile(r"guilty|convicted|impeach|sign|poster|banner|placard|mural|cartoon|caricature|meme|graffiti|"
                         r"effigy|mask|costume|parody|protest|rally|march|vote|ballot|campaign|sticker|flag", re.I)
@@ -187,6 +206,40 @@ WORD_ = re.compile(r"[a-z][a-z0-9]+")
 
 def _words(text):
     return {w for w in WORD_.findall((text or "").lower()) if len(w) > 2}
+
+
+# Brands a stock photo can show by name. A generic "computer chip" search once put an AMD chip on an Nvidia
+# story; a photo whose title or description names a company the story does not name is somebody else's news.
+BRANDS = re.compile(r"\b(amd|radeon|ati|intel|nvidia|geforce|qualcomm|snapdragon|tsmc|samsung|apple|iphone|ipad|macbook|"
+                    r"google|pixel|microsoft|xbox|windows|meta|facebook|instagram|whatsapp|amazon|alexa|kindle|tesla|"
+                    r"spacex|starlink|openai|chatgpt|anthropic|huawei|xiaomi|sony|playstation|nintendo|lg|dell|hp|"
+                    r"lenovo|asus|acer|ibm|oracle|cisco|broadcom|arm|micron|sk hynix|asml|boeing|airbus|ford|gm|"
+                    r"toyota|volkswagen|vw|bmw|mercedes|audi|porsche|byd|nissan|honda|hyundai|kia|ferrari|uber|lyft|"
+                    r"netflix|disney|spotify|tiktok|bytedance|alibaba|tencent|baidu|walmart|costco|target|nike|adidas|"
+                    r"coca-cola|pepsi|mcdonald's|starbucks|shell|bp|exxon|chevron|aramco|jpmorgan|goldman|"
+                    r"morgan stanley|citi|hsbc|barclays|ubs|deutsche bank|visa|mastercard|paypal)\b", re.I)
+
+
+def foreign_brand(text, allow, own=""):
+    """The first brand or place named in `text` that `allow` (headline and subject) does not name, or ''.
+
+    When the file names the story's own company (`own`), brands beside it are context: "Norse Atlantic
+    Airways Boeing 787" is Norse's own aircraft, not a Boeing story."""
+    allowed = (allow or "").lower()
+    if not text:
+        return ""
+    # a photo of the subject itself (the ECB tower in Frankfurt, Norse's own Boeing) carries its place and
+    # maker as context; only a photo of something else must not name another place or brand
+    if own and _words(own) and _words(own) <= _words(text):
+        return ""
+    for m in PLACES.finditer(text):
+        word = m.group(1).lower()
+        if not re.search(r"\b" + re.escape(word) + r"\b", allowed):
+            return m.group(1)
+    for m in BRANDS.finditer(text):
+        if not re.search(r"\b" + re.escape(m.group(1).lower()) + r"\b", allowed):
+            return m.group(1)
+    return ""
 
 
 def candidates(subject, person=False):
@@ -227,7 +280,7 @@ def candidates(subject, person=False):
             name = m["title"][5:]
             have = _words(name)
             # full-text search matches descriptions too; the title is the only part that says what is shown
-            if want and len(want & have) * 2 >= len(want) and not PEOPLE.search(name):
+            if want and len(want & have) * 2 >= len(want) and not PEOPLE.search(name) and not NATURE.search(name):
                 files.append(name)
     seen, out = set(), []
     for f in files:
@@ -237,7 +290,7 @@ def candidates(subject, person=False):
     return out
 
 
-def fresh_photo(subjects, used, fetch=True):
+def fresh_photo(subjects, used, fetch=True, allow=""):
     """(path, credit, file) for the first reusable photo, across the subjects in order, that is not in `used`.
 
     Each subject is (text, is_person). Rotating through a person's whole Commons category is what keeps
@@ -261,6 +314,14 @@ def fresh_photo(subjects, used, fetch=True):
             except Exception:  # noqa: BLE001
                 continue
             ok, credit = photo_ok(info)
+            desc = re.sub(r"<[^>]+>", " ", (info.get("extmetadata", {}).get("ImageDescription") or {}).get("value", ""))
+            # the title says what is shown; a description is often a caption about something else, so it
+            # is checked for brands only, and only when the file is not a photo of the story's own subject
+            desc_brands = " ".join(BRANDS.findall(desc))
+            if foreign_brand(f, allow + " " + text, own=text) or (
+                    not is_person and foreign_brand(desc_brands, allow + " " + text, own=f)):
+                continue
+                continue
             # an archive scan from 1920 is free to use and wrong for today's news
             when = (info.get("extmetadata", {}).get("DateTimeOriginal") or {}).get("value", "")
             year = re.search(r"\b(1[89]\d\d|20\d\d)\b", re.sub(r"<[^>]+>", "", when))

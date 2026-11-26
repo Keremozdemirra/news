@@ -178,6 +178,13 @@ def audit(post):
     for n in post.get("logo_names", []):
         if not R.T.in_headline(n, head_.lower()):
             problems.append(f"logo for {n}, which the headline does not name")
+    E, pf = R.T.entities, post.get("photo_file", "")
+    owners = [n for n in [post.get("company")] + list(post.get("logo_names") or []) if n]
+    if pf and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
+        other = E.foreign_brand(pf, head_ + " " + (owners[0] if owners else ""), own=owners[0] if owners else "")
+        problems.append(f"photo file names {other}, which the story does not name")
+    if pf and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf)):
+        problems.append(f"photo {pf!r} is not a news photo of the subject")
     if post.get("person") and post["person"].split()[-1].lower() not in (head_ + " " + post.get("body", "")).lower():
         problems.append(f"photo of {post['person']}, who the text does not name")
     if post.get("photo_file") and not post.get("credit"):

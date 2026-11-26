@@ -76,7 +76,7 @@ def assets(story, fetch=True):
                 logo_names.append(n)
         # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
         subjects = [(story.get("person", ""), True), (co, False), (story.get("image_query", ""), False)]
-        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch)
+        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
         if file_:
             USED.add(file_)
         story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "",
