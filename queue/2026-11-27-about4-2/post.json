@@ -3,11 +3,14 @@
  "kind": "story",
  "created": "2026-11-26T23:01:13+00:00",
  "publish_after": "2026-11-28T00:00:00+00:00",
- "status": "queued",
+ "status": "published",
  "story": "story.jpg",
  "urls": [],
  "headlines": [
   "About 2/3 (v2)"
  ],
- "tries": 0
+ "tries": 0,
+ "attempted": "2026-11-26T23:02:14+00:00",
+ "published": "2026-11-26T23:02:14+00:00",
+ "media_id": "18090581192324814"
 }
