@@ -4,7 +4,7 @@
  "n": 3,
  "created": "2026-11-26T14:46:48+00:00",
  "publish_after": "2026-11-26T15:06:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -47,5 +47,9 @@
  ],
  "credit": "Photo: Farajiibrahim, CC BY-SA 4.0, via Wikimedia Commons",
  "issue": 2,
- "story": "story.jpg"
+ "story": "story.jpg",
+ "published": "2026-11-26T15:09:30+00:00",
+ "media_id": "18174376132460480",
+ "permalink": "https://www.instagram.com/p/DgNZK-OlwiX/",
+ "story_id": "18116158283146357"
 }
