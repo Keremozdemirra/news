@@ -52,11 +52,11 @@
   "accounts": [
     {
       "name": "Instagram",
-      "url": ""
+      "url": "https://www.instagram.com/boardread/"
     },
     {
       "name": "Threads",
-      "url": ""
+      "url": "https://www.threads.com/@boardread"
     },
     {
       "name": "X",
@@ -64,15 +64,15 @@
     },
     {
       "name": "Bluesky",
-      "url": ""
+      "url": "https://bsky.app/profile/boardread.bsky.social"
     },
     {
       "name": "Telegram",
-      "url": ""
+      "url": "https://t.me/boardread"
     },
     {
       "name": "Facebook",
-      "url": ""
+      "url": "https://www.facebook.com/1508957942295455"
     }
   ],
   "source_replies": [
