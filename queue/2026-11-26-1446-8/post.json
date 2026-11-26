@@ -4,7 +4,7 @@
  "n": 8,
  "created": "2026-11-26T14:46:58+00:00",
  "publish_after": "2026-11-26T15:31:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -39,5 +39,8 @@
  ],
  "credit": "Photo: Arild Vågen, CC BY-SA 4.0, via Wikimedia Commons",
  "issue": 2,
- "story": "story.jpg"
+ "story": "story.jpg",
+ "published": "2026-11-26T15:34:11+00:00",
+ "media_id": "18044853197842031",
+ "permalink": "https://www.instagram.com/p/DgNb8D7l9Xq/"
 }
