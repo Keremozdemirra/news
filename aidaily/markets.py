@@ -20,7 +20,8 @@ import subprocess
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import date, datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime, timedelta, timezone
 
 from . import desk
 from .feeds import CTX  # the desk's TLS context (macOS python.org builds ship no CA bundle)
@@ -38,7 +39,7 @@ ECB_DFR = "https://data-api.ecb.europa.eu/service/data/FM/B.U2.EUR.4F.KR.DFR.LEV
 TREASURY = ("https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml"
             "?data=daily_treasury_yield_curve&field_tdr_date_value_month={ym}")
 EIA = ("https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key={key}&frequency=daily&data[0]=value"
-       "&facets[series][]=RBRTE&facets[series][]=RWTC&sort[0][column]=period&sort[0][direction]=desc&length=6")
+       "&facets[series][]=RBRTE&facets[series][]=RWTC&start={start}&sort[0][column]=period&sort[0][direction]=desc&length=6")
 CALC = "Calculated from ECB reference rates"
 SRC_ECB = "Source: ECB statistics."
 SRC_UST = "Source: U.S. Department of the Treasury."
@@ -59,7 +60,7 @@ def _get(url, timeout=20):
     except OSError as e:
         print(f"markets: urllib failed for {url.split('?')[0]} ({e!r}); trying curl")
     # a CA file without the ECB's intermediate certificate (the desk's Mac) or a stalled connection: curl takes its own route
-    out = subprocess.run(["curl", "-fsS", "--compressed", "--retry", "1", "--max-time", str(timeout), "-A", UA["User-Agent"], url],
+    out = subprocess.run(["curl", "-gfsS", "--compressed", "--max-time", str(timeout), "-A", UA["User-Agent"], url],
                          check=True, capture_output=True, timeout=timeout + 5).stdout
     return _text(out)
 
@@ -133,19 +134,19 @@ def fetch():
     jobs["ust"] = treasury
     if os.environ.get("EIA_API_KEY"):
         def oil():
-            # the EIA API is slow (a 20 s limit timed out on the Actions runner); one patient try, then one more
-            for attempt in (1, 2):
-                try:
-                    return parse_eia(json.loads(_get(EIA.format(key=os.environ["EIA_API_KEY"]), timeout=50)))
-                except (OSError, subprocess.SubprocessError):
-                    if attempt == 2:
-                        raise
+            # ten days back is enough for the latest two closes and keeps the query small; -g in curl keeps the [] of the query literal
+            start = (datetime.now(timezone.utc) - timedelta(days=10)).strftime("%Y-%m-%d")
+            return parse_eia(json.loads(_get(EIA.format(key=os.environ["EIA_API_KEY"], start=start), timeout=25)))
         jobs["oil"] = oil
-    for key, job in jobs.items():
+    def run(item):
+        key, job = item
         try:
-            got[key] = job()
+            return key, job()
         except Exception as e:  # noqa: BLE001 (any network or format failure means: keep the last good block)
             print(f"markets: {key} not refreshed ({e!r})")
+            return key, None
+    with ThreadPoolExecutor(max_workers=4) as pool:  # a slow publisher delays the build by its own timeout, not the sum of all
+        got = {k: v for k, v in pool.map(run, jobs.items()) if v is not None}
     return got
 
 
