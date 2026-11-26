@@ -20,7 +20,8 @@ CATEGORIES = [
     ("funding", r"\b(raises?|raised|funding|series [a-h]\b|seed round|valuation|valued at|backed by|"
                 r"investment|invests?|financing|acquires?|acquisition|acquired|buys)\b"),
     ("policy", r"\b(regulat\w*|ai act|lawsuit|sues?|sued|court|ban(s|ned)?|senate|congress|ftc|"
-               r"antitrust|copyright|executive order|white house|commission|probe)\b"),
+               r"antitrust|copyright|executive order|white house|commission|probe|"
+               r"attorneys? general|state ags|export controls?|sanctions?)\b"),
     ("markets", r"\b(stocks?|shares|ipo|earnings|market cap|nasdaq|s&p|revenue|quarter|guidance)\b"),
     ("launch", r"\b(launch(es|ed)?|releases?|released|unveils?|introduc(es|ing)|rolls? out|debuts?|"
                r"now available|open[- ]sources?|ships?|announces?|new model|preview|beta)\b"),

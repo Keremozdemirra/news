@@ -207,3 +207,12 @@ class Engage(Tmp):
         self.assertEqual(n, 1)
         self.assertEqual(ig.sent, [("c1", "The lab says the model runs inference 40% faster.")])
         self.assertEqual(desk.engage(client=ig, ask=lambda p: "x"), 0)  # already judged
+
+
+class Formats(Tmp):
+    def test_listicles_are_dropped_and_boards_are_not_sources(self):
+        rows = [story(1), story(2, headline="Read the pitch decks of 23 startups"), story(3)]
+        rows[2][1]["outlets"] = ["HN Front Page", "Outlet 3"]
+        picked = desk.pick([m for m, _ in rows], [s for _, s in rows], {})
+        self.assertEqual([m["url"] for m, _ in picked], ["https://x/1", "https://x/3"])
+        self.assertNotIn("HN Front Page", desk.caption("1 Dec 2026", picked))

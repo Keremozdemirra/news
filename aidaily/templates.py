@@ -88,12 +88,29 @@ def _logo_tile(uri, size):
             f'<img src="{uri}" style="width:100%;height:100%;object-fit:contain"></div>')
 
 
+def _aspect(uri):
+    """Width over height of a local SVG from its viewBox or width/height; 4 (a wordmark) when unreadable."""
+    try:
+        from urllib.parse import unquote, urlparse
+        head_ = open(unquote(urlparse(uri).path), encoding="utf-8", errors="replace").read(4000)
+        vb = re.search(r'viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)', head_)
+        if vb:
+            return float(vb.group(1)) / float(vb.group(2))
+        w, h = re.search(r'\swidth="([\d.]+)', head_), re.search(r'\sheight="([\d.]+)', head_)
+        return float(w.group(1)) / float(h.group(1)) if w and h else 4.0
+    except (OSError, ValueError, ZeroDivisionError):
+        return 4.0
+
+
 def _logo_block(uri, name, h=60, invert=False):
     """A vector logo sits as a wordmark; a raster site icon gets a tile."""
     if not uri:
         return f'<div style="font-size:40px;font-weight:800">{e(name)}</div>' if name else ""
     if uri.endswith(".svg"):
         inv = "filter:invert(1);" if invert else ""
+        # a symbol-only logo (Meta's loop) at wordmark height reads as a speck; give it twice the height
+        if _aspect(uri) < 1.6:
+            h *= 2
         return f'<img src="{uri}" style="height:{h}px;max-width:560px;object-fit:contain;object-position:left;{inv}display:block">'
     return _logo_tile(uri, int(h * 2.4))
 

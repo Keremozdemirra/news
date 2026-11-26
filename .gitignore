@@ -7,3 +7,5 @@ assets/
 *.pem
 .env
 .DS_Store
+brand/sample-post/
+brand/preview/

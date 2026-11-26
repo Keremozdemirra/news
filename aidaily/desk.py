@@ -59,6 +59,8 @@ def media_url(path):
 # queue
 
 SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
+# listicles, explainers and opinion are not news, even when the ranker likes them
+FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 
 def recent_urls(days):
@@ -78,12 +80,21 @@ def pick(manifest, stories, weights):
     for i, m in enumerate(manifest):
         s = by_url.get(m["url"], {})
         text = " ".join([m["headline"], s.get("dek", ""), s.get("title", "")])
-        if m["url"] in recent or SKIP.search(text) or s.get("copy_status") != "ok":
+        if (m["url"] in recent or SKIP.search(text) or FORMAT.search(s.get("title", "") + " " + m["headline"])
+                or s.get("copy_status") != "ok"):
             continue
         # keep the ranker's order; a learned weight can lift a category a few places, never to the top alone
         rows.append((i / max(weights.get(m["category"], 1.0), 0.5), m, s))
     rows.sort(key=lambda r: r[0])
     return [(m, s) for _, m, s in rows[:CONFIG["max_cards"]]]
+
+
+FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business)$")
+
+
+def outlet(name):
+    """One outlet, however many of its feeds carried the story: "CNBC Technology" is CNBC."""
+    return FEED_SUFFIX.sub("", name or "").strip()
 
 
 def caption(day, picked):
@@ -96,8 +107,9 @@ def caption(day, picked):
         lines.append("")
     outlets = []
     for m, s in picked:
-        for o in [m["source"]] + list(s.get("outlets", []))[:2]:
-            if o and o not in outlets:
+        for o in map(outlet, [m["source"]] + list(s.get("outlets", []))[:2]):
+            # discussion boards carry stories; they are not the reporting
+            if o and o not in outlets and o not in CONFIG["not_sources"]:
                 outlets.append(o)
     lines += [f"Sources: {'; '.join(outlets[:10])}.", CONFIG["ai_note"], "", CONFIG["send_line"], "",
               " ".join(CONFIG["hashtags"][:5])]

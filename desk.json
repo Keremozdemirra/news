@@ -8,9 +8,21 @@
   "repeat_window_days": 3,
   "reply_daily_cap": 20,
   "reply_window_days": 7,
-  "hashtags": ["#ai", "#artificialintelligence", "#ainews", "#technews", "#machinelearning"],
+  "hashtags": [
+    "#ai",
+    "#artificialintelligence",
+    "#ainews",
+    "#technews",
+    "#machinelearning"
+  ],
   "send_line": "Send this to someone who follows AI.",
   "ai_note": "Summaries are written with AI from the reports named above and checked against them.",
   "media_branch": "main",
-  "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of"
+  "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of",
+  "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz",
+  "not_sources": [
+    "HN Front Page",
+    "HN Algolia Search AI",
+    "Product Hunt"
+  ]
 }
