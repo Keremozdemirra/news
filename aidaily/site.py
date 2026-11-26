@@ -976,7 +976,7 @@ def build(out=desk.HERE / "_site"):
     (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m]))
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
     (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
-        "display": "browser", "background_color": "#ffffff", "theme_color": "#12356b",
+        "display": "browser", "background_color": "#ffffff", "theme_color": "#ffffff",
         "icons": [{"src": f"{BASE}/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": f"{BASE}/icon-512.png", "sizes": "512x512", "type": "image/png"}]}))
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
     (out / ".nojekyll").write_text("")

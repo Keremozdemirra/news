@@ -215,15 +215,19 @@ class Chrome(Features):
             for banned in ("Archivo", "border-radius", "box-shadow", "gradient"):
                 self.assertNotIn(banned, css, (name, banned))
 
-    def test_brand_icons_and_manifest_are_shipped_and_linked(self):
+    def test_black_and_white_icons_manifest_and_no_navy(self):
         h = self.read("index.html")
         for part in ("icon.svg", "favicon.ico", "apple-touch-icon.png", "manifest.webmanifest"):
             self.assertIn(part, h)
             self.assertTrue((self.out / part).exists(), part)
-        icons = json.loads(self.read("manifest.webmanifest"))["icons"]
-        self.assertEqual({i["sizes"] for i in icons}, {"192x192", "512x512"})
-        for f in ("icon-192.png", "icon-512.png", "og-default.png"):
-            self.assertTrue((self.out / f).exists(), f)
+        self.assertNotIn("#ff6b57", self.read("icon.svg"))  # no orange
+        m = json.loads(self.read("manifest.webmanifest"))
+        self.assertEqual({i["sizes"] for i in m["icons"]}, {"192x192", "512x512"})
+        self.assertEqual(m["theme_color"], "#ffffff")
+        for name in ("site.css", "views.css"):
+            css = (self.out / "assets" / name).read_text().lower()
+            self.assertNotIn("12356b", css)
+            self.assertNotIn("8fb0e8", css)
 
     def test_footer_has_four_groups_and_one_line(self):
         h = self.read("index.html")

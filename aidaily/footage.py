@@ -264,7 +264,7 @@ def credit(c):
     """The on-screen credit line: what the licence needs, nothing more. CC BY asks for the creator, the licence
     and a note that the work was changed; NASA asks to be named as the source."""
     if c["source"] == "nasa":
-        return "Video: NASA"
+        return f"Video: {c['creator']}" if c["creator"].startswith("NASA") else "Video: NASA"
     who = re.sub(r"\s+", " ", c["creator"]).strip() or "unknown author"
     if c["licence"].startswith("CC0"):
         return "Video: Wikimedia Commons, CC0"
@@ -296,3 +296,21 @@ def clip_ok(path):
     if v.get("height", 0) < 720:
         out.append(f"only {v.get('height')} p")
     return out
+
+
+def pick_start(path, scan=45):
+    """Where to start cutting: NASA clips open on a slate (insignia, contact names, tape number) that must not go on
+    air. The slate ends in a hard cut, so the first scene change in the opening scan seconds, plus a beat, is the start;
+    a clip with no hard cut starts at 0."""
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-t", str(scan), "-i", str(path), "-vf", "select='gt(scene,0.35)',showinfo",
+                        "-an", "-f", "null", "-"], capture_output=True, text=True, timeout=300)
+    cuts = [float(m) for m in re.findall(r"pts_time:([\d.]+)", r.stderr)]
+    return round(cuts[0] + 0.4, 1) if cuts else 0.0
+
+
+def overlay_meta(c):
+    """What video.plan() needs to know about the clip: the on-screen label and credit, and the proof (source, licence, page)."""
+    d = c["date"]
+    name = "NASA" if c["source"] == "nasa" else "Commons"
+    tag = f"Video · {name} · {d:%-d %b}" if c["age"] == "event" else f"Archive video · {d:%b %Y}"
+    return {"tag": tag, "credit": credit(c), "source": c["source"], "licence": c["licence"], "page": c["page"], "id": c["id"]}

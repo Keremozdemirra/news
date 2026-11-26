@@ -1,13 +1,13 @@
 /* boardread. site styles, base layer (brand/DESIGN.md v2). Newsreader for headlines and article text, Libre Franklin for the
-   wordmark, navigation, meta and figures; navy is the one accent. Both faces are self-hosted (SIL OFL). */
+   wordmark, navigation, meta and figures; black and white only. Both faces are self-hosted (SIL OFL). */
 :root{
-  --paper:#fff;--ink:#121212;--soft:#5a5a5a;--faint:#5a5a5a;--rule:#e2e2e2;--wash:#f4f4f4;--accent:#12356b;--up:#0b6e3a;--down:#b42318;
+  --paper:#fff;--ink:#121212;--soft:#5a5a5a;--faint:#5a5a5a;--rule:#e2e2e2;--wash:#f4f4f4;--accent:#121212;--up:#0b6e3a;--down:#b42318;
   --f:"Libre Franklin","Franklin Fallback",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
   --serif:"Newsreader","Source Serif 4",Georgia,"Times New Roman",serif;
   --gut:24px;--measure:640px;
 }
 :root{color-scheme:light}
-:root[data-theme=dark]{color-scheme:dark;--paper:#121212;--ink:#ededed;--soft:#a0a0a0;--faint:#a0a0a0;--rule:#2b2b2b;--wash:#1b1b1b;--accent:#8fb0e8;--up:#4cc38a;--down:#ff8a80}
+:root[data-theme=dark]{color-scheme:dark;--paper:#121212;--ink:#ededed;--soft:#a0a0a0;--faint:#a0a0a0;--rule:#2b2b2b;--wash:#1b1b1b;--accent:#ededed;--up:#4cc38a;--down:#ff8a80}
 
 *{box-sizing:border-box}
 html{background:var(--paper);-webkit-text-size-adjust:100%;scroll-padding-top:64px}

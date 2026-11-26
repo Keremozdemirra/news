@@ -1,13 +1,13 @@
 """The per-story Reel prototype: one post.json in, one 1080x1920 MP4 out. Not wired into the pipeline.
 
 Two modes, chosen by plan():
-  footage  a licensed clip found by footage.match() under the headline, 7.8 s, then the end frame
+  footage  a licensed clip found by footage.match(), 7.6 s in a window above the headline, then the newsrooms and the end frame
   graphic  motion graphics from the post: kinetic headline, then the official series chart (or the licensed photo
            with a slow push, or the key figure), then the newsrooms, then the end frame; about 11 s
 
 How the frames are made: every frame is a static HTML page computed from the time t (no JavaScript, so a frame is
-a pure function of the post and t), shot by headless Chrome in parallel, identical frames shot once. Graphic Reels
-are opaque frames; footage Reels are transparent overlays that ffmpeg lays over the cropped clip. The same ffmpeg
+a pure function of the post and t), shot by headless Chrome in parallel. Graphic Reels are opaque frames; footage
+Reels are transparent overlays that ffmpeg lays over the cropped clip. The same ffmpeg
 settings as reel.assemble() meet Instagram's Reels spec; audit_video() checks the result against it.
 
     python -m aidaily.video queue/<id>/post.json out.mp4 [--footage clip.mp4 --footage-meta meta.json]
@@ -119,7 +119,7 @@ def plan(post, markets=None, photo_file=None, footage=None):
           "figure": None, "chart": None, "photo": None, "footage": None}
     if footage:
         pl["mode"], pl["footage"] = "footage", footage
-        pl["T"] = 9.6
+        pl["T"] = 10.6
         return pl
     pl["mode"] = "graphic"
     chart = series_for(post, markets) if markets else None
@@ -279,9 +279,15 @@ def end_scene(t, t0):
             f'<div class="a" style="left:{LEFT}px;top:1030px;font-size:36px;font-weight:500;color:{DIM};opacity:{inout(p(t, t0 + 0.6, 0.5)):.3f}">Sources for every story</div></div>')
 
 
+def scrim(a):
+    """Darkens the top of the media window for the header and fades its foot into the ground under the headline."""
+    return (f'<div class="a" style="left:0;top:0;width:{W}px;height:1250px;opacity:{a:.3f};background:linear-gradient(to bottom,rgba(10,10,10,.85) 0,'
+            f'rgba(10,10,10,0) 27%,rgba(10,10,10,0) 38%,rgba(10,10,10,.92) 82%,{BG} 100%)"></div>')
+
+
 def photo_layer(t, ph, t_end):
-    """The licensed photo in the top 1250 px, pushed in slowly (6 per cent over 7.6 s) so the picture moves
-    without leaving the subject; a gradient into the ground where the headline sits."""
+    """The licensed photo in the top 1250 px, pushed in slowly (6.5 per cent over 7.6 s) so the picture moves
+    without leaving the subject."""
     k = inout(p(t, 0, 7.6))
     scale = 1.05 + 0.065 * k
     fx, fy = ph["focus"]
@@ -289,9 +295,7 @@ def photo_layer(t, ph, t_end):
     a = fade(t, 0.0, t_end, 0.5, 0.4)
     return (f'<div class="a" style="left:0;top:0;width:{W}px;height:1250px;overflow:hidden;opacity:{a:.3f}">'
             f'<img src="{Path(ph["file"]).resolve().as_uri()}" style="width:100%;height:100%;object-fit:cover;object-position:{fx * 100:.0f}% {fy * 100:.0f}%;'
-            f'transform:scale({scale:.4f}) translateX({dx:.2f}%);transform-origin:{fx * 100:.0f}% {fy * 100:.0f}%"></div>'
-            f'<div class="a" style="left:0;top:0;width:{W}px;height:1250px;opacity:{a:.3f};background:linear-gradient(to bottom,rgba(10,10,10,.85) 0,'
-            f'rgba(10,10,10,0) 27%,rgba(10,10,10,0) 38%,rgba(10,10,10,.92) 82%,{BG} 100%)"></div>')
+            f'transform:scale({scale:.4f}) translateX({dx:.2f}%);transform-origin:{fx * 100:.0f}% {fy * 100:.0f}%"></div>' + scrim(a))
 
 
 # ---- one frame -------------------------------------------------------------------------------------------------
@@ -302,28 +306,28 @@ def frame_html(pl, t):
     h = pl["headline"]
     s = size_for(h)
     parts = [head_css()]
-    transparent = pl["mode"] == "footage"
-    if not transparent:
+    footage = pl["mode"] == "footage"
+    if footage:  # one almost-clear pixel keeps every PNG RGBA; a frame Chrome saves as RGB would glitch ffmpeg's overlay
+        parts.append('<div class="a" style="left:0;top:0;width:1px;height:1px;background:rgba(0,0,0,.004)"></div>')
+    if not footage:
         parts.append(f'<div class="a" style="left:0;top:0;width:{W}px;height:{H}px;background:{BG}"></div>')
-    if pl["mode"] == "footage":
-        f = pl["footage"]
-        parts.append(f'<div class="a" style="left:0;top:0;width:{W}px;height:{H}px;opacity:{fade(t, 0, 7.8, 0.01, 0.3):.3f};background:linear-gradient(to bottom,'
-                     f'rgba(10,10,10,.66) 0,rgba(10,10,10,0) 20%,rgba(10,10,10,0) 44%,rgba(10,10,10,.9) 100%)"></div>')
-        scene = (header(t, total, pl["topic"], pl["date"])
-                 + f'<div class="a" style="left:{LEFT}px;top:{TOP + 100}px;font-size:28px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;'
-                   f'padding:10px 16px;border:2px solid {INK};opacity:{inout(p(t, 0.5, 0.4)):.3f}">{e(f["tag"])}</div>'
-                 + words(h, t, 0.5, s - 6, 800, INK, -0.035, 1.04, 0.06, 0.6, f"position:absolute;left:{LEFT}px;bottom:{H - 1245}px;width:{W - LEFT - RIGHT}px")
-                 + f'<div class="a" style="left:{LEFT}px;top:1292px;font-size:34px;font-weight:500;color:{GREY};opacity:{inout(p(t, 4.6, 0.5)):.3f}">'
-                   f'Reported by {e(" · ".join(pl["sources"][:3]))}</div>'
-                 + f'<div class="a" style="left:{LEFT}px;top:1480px;font-size:25px;font-weight:500;color:{GREY};width:{W - LEFT - RIGHT - 60}px;opacity:{inout(p(t, 0.8, 0.5)):.3f}">{e(f["credit"])}</div>')
-        parts.append(group(scene, min(1, 1 - inout(p(t, 7.5, 0.3)))))
-        parts.append(end_scene(t, 7.5))
-    elif pl["photo"]:
-        parts.append(photo_layer(t, pl["photo"], 7.6))
-        scene = (header(t, total, pl["topic"], pl["date"])
-                 + words(h, t, 0.35, s - 6, 800, INK, -0.035, 1.04, 0.06, 0.6, f"position:absolute;left:{LEFT}px;top:880px;width:{W - LEFT - RIGHT}px")
-                 + (words(pl["dek"], t, 3.3, 42, 500, INK, -0.01, 1.28, 0.03, 0.5, f"position:absolute;left:{LEFT}px;top:1312px;width:{W - LEFT - RIGHT - 60}px;opacity:.92") if pl["dek"] else "")
-                 + f'<div class="a" style="left:{LEFT}px;top:1486px;font-size:26px;font-weight:500;color:{GREY};width:{W - LEFT - RIGHT - 60}px;opacity:{inout(p(t, 0.6, 0.5)):.3f}">{e(pl["photo"]["credit"])}</div>')
+    if pl["photo"] or footage:
+        media = pl["photo"] or pl["footage"]
+        if pl["photo"]:
+            parts.append(photo_layer(t, pl["photo"], 7.6))
+        else:  # the clip is laid under this transparent page by ffmpeg; the ground takes over for the closing scenes
+            parts.append(scrim(fade(t, 0.0, 7.6, 0.01, 0.4)))
+            parts.append(f'<div class="a" style="left:0;top:0;width:{W}px;height:{H}px;background:{BG};opacity:{inout(p(t, 7.3, 0.4)):.3f}"></div>')
+        chip = ""
+        if footage:
+            chip = (f'<div class="a" style="left:{LEFT}px;top:{TOP + 104}px;font-size:26px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;'
+                    f'padding:9px 15px;border:2px solid {INK};text-shadow:0 2px 12px rgba(0,0,0,.5);opacity:{inout(p(t, 0.4, 0.4)):.3f}">{e(media["tag"])}</div>')
+        column = (f'<div class="a" style="left:{LEFT}px;bottom:{H - 1470}px;width:{W - LEFT - RIGHT}px">'
+                  + words(h, t, 0.35, s - 6, 800, INK, -0.035, 1.04, 0.06, 0.6)
+                  + (words(pl["dek"], t, 3.3, 42, 500, INK, -0.01, 1.28, 0.03, 0.5, "margin-top:30px;width:" + f"{W - LEFT - RIGHT - 60}px;opacity:.92") if pl["dek"] else "")
+                  + "</div>")
+        scene = (header(t, total, pl["topic"], pl["date"]) + chip + column
+                 + f'<div class="a" style="left:{LEFT}px;top:1490px;font-size:26px;font-weight:500;color:{GREY};width:{W - LEFT - RIGHT - 60}px;opacity:{inout(p(t, 0.6, 0.5)):.3f}">{e(media["credit"])}</div>')
         parts.append(group(scene, fade(t, 0, 7.6, 0.01, 0.4)))
         parts.append(group(sources_scene(t, 7.5, pl["sources"]), fade(t, 7.5, 9.7, 0.35, 0.4)))
         parts.append(header(t, total, pl["topic"], pl["date"]) if t >= 7.5 else "")
@@ -349,19 +353,29 @@ def frame_html(pl, t):
 
 # ---- rendering -------------------------------------------------------------------------------------------------
 
-def _shoot(html_text, png, transparent):
+def _shoot(html_text, png, transparent, tries=3):
+    """One frame. Chrome sometimes exits non-zero under load (a crash, not a bad page), so a failed shot is retried."""
     with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
         f.write(html_text)
-    with tempfile.TemporaryDirectory() as prof:
-        cmd = [R.CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={prof}",
-               f"--window-size={W},{H}", "--virtual-time-budget=2500", f"--screenshot={png}"]
-        if transparent:
-            cmd.append("--default-background-color=00000000")
-        subprocess.run(cmd + [f"file://{f.name}"], check=True, capture_output=True, timeout=90)
-    Path(f.name).unlink()
+    try:
+        for n in range(tries):
+            with tempfile.TemporaryDirectory() as prof:
+                cmd = [R.CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={prof}",
+                       f"--window-size={W},{H}", "--virtual-time-budget=2500", f"--screenshot={png}"]
+                if transparent:
+                    cmd.append("--default-background-color=00000000")
+                try:
+                    subprocess.run(cmd + [f"file://{f.name}"], check=True, capture_output=True, timeout=90)
+                    if Path(png).exists():
+                        return
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                    if n == tries - 1:
+                        raise
+    finally:
+        Path(f.name).unlink()
 
 
-def render_frames(pl, out_dir, workers=12, fps=FPS):
+def render_frames(pl, out_dir, workers=10, fps=FPS):
     """PNG sequence 0001.png..; frames that came out as identical HTML are shot once and hard-linked."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -404,9 +418,13 @@ def assemble(pl, frames_dir, out_mp4, clip=None):
         f = pl["footage"]
         x0, x1 = f.get("pan", (0.38, 0.62))
         start = f.get("start", 0.0)
-        # fill 9:16 from a landscape source: scale to the height, then a window that drifts across the width
-        base = (f"[0:v]trim=start={start}:duration=7.9,setpts=PTS-STARTPTS,fps={FPS},scale=-2:{H}:flags=lanczos,"
-                f"crop={W}:{H}:x='(iw-{W})*({x0}+({x1}-{x0})*t/7.9)':y=0,tpad=stop_mode=clone:stop_duration=2,format=yuv420p[b];"
+        # the clip fills the 1080x1250 window above the headline, a window that drifts across the source;
+        # a 1.16x upscale from 1080p, where a full-bleed 9:16 crop would be 1.8x
+        fy = f.get("fy", 0.4)
+        base = (f"[0:v]trim=start={start}:duration=7.9,setpts=PTS-STARTPTS,fps={FPS},"
+                f"scale={W}:1250:force_original_aspect_ratio=increase:flags=lanczos,"
+                f"crop={W}:1250:x='(iw-{W})*({x0}+({x1}-{x0})*t/7.9)':y='(ih-1250)*{fy}',"
+                f"pad={W}:{H}:0:0:color=0x0a0a0a,tpad=stop_mode=clone:stop_duration=4,format=yuv420p[b];"
                 f"[b][1:v]overlay=shortest=1:format=auto,{tone}[v]")
         cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", str(clip)] + seq
     else:
@@ -419,21 +437,17 @@ def assemble(pl, frames_dir, out_mp4, clip=None):
     return out_mp4
 
 
-def build(pl, out_mp4, clip=None, workers=12):
+def build(pl, out_mp4, clip=None, workers=10):
     with tempfile.TemporaryDirectory() as tmp:
         n, shot = render_frames(pl, tmp, workers)
         assemble(pl, tmp, out_mp4, clip)
     return n, shot
 
 
-def cover(pl, out_jpg):
-    """The Reel's cover (thumb): the hook frame once its words are in, shot opaque."""
-    pl2 = dict(pl, mode="graphic" if pl["mode"] == "footage" else pl["mode"])
-    with tempfile.TemporaryDirectory() as tmp:
-        png = Path(tmp) / "c.png"
-        _shoot(frame_html(pl2 if pl["mode"] != "footage" else dict(pl2, footage=None, photo=None, chart=None, figure=None), 2.6), png, False)
-        R.jpeg(png, 90)
-        shutil.move(str(png.with_suffix(".jpg")), out_jpg)
+def cover(mp4, out_jpg, at=2.6):
+    """The Reel's cover (thumb): a frame of the finished video once the headline is in."""
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(at), "-i", str(mp4), "-frames:v", "1", "-q:v", "2", str(out_jpg)],
+                   check=True, capture_output=True)
 
 
 def sheet(mp4, out_jpg, per_second=2.5, cols=7):
