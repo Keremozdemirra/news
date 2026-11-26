@@ -912,6 +912,61 @@ def find_live(media, post):
     return None
 
 
+def platform_cooldown(name):
+    until = _load(STATE / f"cooldown-{name}.json", {}).get("until")
+    return datetime.fromisoformat(until) if until and datetime.fromisoformat(until) > now() else None
+
+
+def cross_post(post, path, factories=None):
+    """Send a published feed post to the other platforms that are switched on in desk.json and have their secrets.
+
+    Each platform is on its own: a failure, a block or a missing secret never touches Instagram or the others.
+    A stored result means done for good. A marker without a result means a send may have gone out, so a person
+    looks; it is never retried here, which is what keeps a platform from showing the post twice."""
+    from . import platforms
+    for name in platforms.NAMES:
+        if not CONFIG.get("platforms", {}).get(name):
+            continue
+        slot = post.setdefault("platforms", {}).get(name, {})
+        if slot.get("id"):
+            continue
+        if slot.get("attempted"):
+            print(f"{post['id']}: {name}: a send was attempted {slot['attempted']} and its result is unknown; check the account")
+            continue
+        blocked = platform_cooldown(name)
+        if blocked:
+            print(f"{post['id']}: {name} cooldown until {blocked:%Y-%m-%d %H:%M} UTC, skipped")
+            continue
+        try:
+            client = (factories or platforms.CLIENTS)[name]()
+        except platforms.Missing:
+            continue  # not connected yet
+        post["platforms"][name] = {"attempted": now().isoformat(timespec="seconds")}
+        _save(path, post)  # on disk before the call, same as Instagram
+        try:
+            got = client.post(post)
+            post["platforms"][name] = {"id": got["id"], "url": got.get("url", ""), "at": now().isoformat(timespec="seconds")}
+            print(f"{post['id']}: {name}: posted {got.get('url', '')}")
+        except Exception as e:  # noqa: BLE001
+            text = str(e)
+            post["platforms"][name]["error"] = text[:300]
+            if platforms.BLOCKED.search(text):
+                until = now() + timedelta(hours=COOLDOWN_HOURS)
+                _save(STATE / f"cooldown-{name}.json", {"until": until.isoformat(timespec="seconds"), "error": text[:300]})
+            print(f"{post['id']}: {name}: failed, not retried: {text[:200]}")
+        _save(path, post)
+
+
+def _cross_post(post, path):
+    """Never let a cross-post problem reach the Instagram flow that called it."""
+    if post.get("kind") == "story":
+        return
+    try:
+        cross_post(post, path)
+    except Exception as e:  # noqa: BLE001
+        print(f"{post.get('id')}: cross-post failed: {str(e)[:200]}")
+
+
 def _mark_live(post, path, m):
     post.update(status="published", published=(_stamp(m.get("timestamp", "")) or now()).isoformat(timespec="seconds"),
                 media_id=m["id"], permalink=m.get("permalink", ""), found_live=True)
@@ -920,6 +975,7 @@ def _mark_live(post, path, m):
     _github_note(post.get("issue"), f"{post.get('n', 1)}. Already live, recorded: {post['permalink']}")
     _close_if_done(post.get("issue"))
     print(f"{post['id']}: already live on Instagram, recorded as published {post['permalink']}")
+    _cross_post(post, path)
 
 
 def last_published():
@@ -1139,6 +1195,7 @@ def publish(client=None, dry=False):
         _github_note(post.get("issue"), f"{post.get('n', 1)}. Published: {link}")
         _close_if_done(post.get("issue"))
         print(f"{post['id']}: published {link}")
+        _cross_post(post, path)
         return 1
     return 0
 

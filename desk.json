@@ -113,5 +113,11 @@
   },
   "story_grace_hours": 3,
   "breaking_score": 11,
-  "story_concepts": false
+  "story_concepts": false,
+  "platforms": {
+    "threads": false,
+    "facebook": false,
+    "bluesky": false,
+    "telegram": false
+  }
 }
