@@ -4,7 +4,7 @@
  "n": 4,
  "created": "2026-11-26T14:46:50+00:00",
  "publish_after": "2026-11-26T15:11:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -49,5 +49,8 @@
  ],
  "credit": "Photo: Daniel Torok, Public domain, via Wikimedia Commons",
  "issue": 2,
- "story": "story.jpg"
+ "story": "story.jpg",
+ "published": "2026-11-26T15:16:27+00:00",
+ "media_id": "18113019265903749",
+ "permalink": "https://www.instagram.com/p/DgNZ9qbEqxT/"
 }
