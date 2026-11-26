@@ -9,19 +9,23 @@ printed, written to disk, or put on a command line.
 """
 import getpass
 import json
+import os
+import ssl
 import subprocess
 import sys
 import urllib.parse
 import urllib.request
 
 HOST = "https://graph.threads.net"
+# python.org builds on macOS ship without CA certificates; the system bundle works everywhere here
+CTX = ssl.create_default_context(cafile="/etc/ssl/cert.pem" if os.path.exists("/etc/ssl/cert.pem") else None)
 
 
 def get(path, params, fail=True):
     # Meta documents both calls as GET over HTTPS; the query never leaves this process and graph.threads.net
     req = urllib.request.Request(f"{HOST}/{path}?{urllib.parse.urlencode(params)}")
     try:
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=30, context=CTX) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
