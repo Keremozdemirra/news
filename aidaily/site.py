@@ -491,6 +491,22 @@ def co_of(p):
     return ((p.get("company") or "").strip() or next((n for n in p.get("logo_names") or [] if n), "")).strip()
 
 
+def ticker_html(t):
+    """"NASDAQ: NVDA" as a link to Google Finance; plain text for an exchange the desk has no Google code for.
+    Never a price: the page names the listing and nothing else."""
+    text = desk.R.T.entities.ticker_text(t)
+    if not text:
+        return ""
+    url = desk.R.T.entities.google_finance_url(t)
+    return (f'<a class="tk" href="{E(url)}" rel="nofollow noopener">{E(text)}</a>' if url
+            else f'<span class="tk">{E(text)}</span>')
+
+
+def ticker_of(p):
+    """The post's ticker, only while it still belongs to the company the page names."""
+    return p.get("ticker") if p.get("company") and p.get("company") == co_of(p) else None
+
+
 def co_slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -582,6 +598,8 @@ def story(p, rows, cos=None, counts=None):
     if name:
         company = (f'<span>About <a href="{BASE}/c/{co_slug(name)}/">{E(name)}</a></span>' if co_slug(name) in cos
                    else f'<span><a href="{BASE}/search/?q={urllib.parse.quote(name)}">More on {E(name)}</a></span>')
+        if ticker_of(p):
+            company += f"<span>{ticker_html(ticker_of(p))}</span>"
     body = f"""<article class="art"><div>
 <header class="art-head"><a class="kick" href="{BASE}/t/{topic(p).lower()}/">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>

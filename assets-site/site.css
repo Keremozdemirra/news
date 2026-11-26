@@ -351,6 +351,7 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .tally:empty{display:none}
 
 /* company pages */
+.tk{font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums}
 .cologo{height:56px;width:auto;max-width:200px;margin:0 0 14px;object-fit:contain;object-position:left}
 .prose.wide{max-width:50rem}
 .timeline>li{display:grid;grid-template-columns:130px minmax(0,1fr);gap:20px;padding:20px 0;border-top:1px solid var(--rule)}

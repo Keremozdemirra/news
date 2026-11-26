@@ -18,7 +18,7 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
-from . import desk
+from . import desk, entities
 from .feeds import CTX
 
 NAMES = ("threads", "facebook", "bluesky", "telegram")
@@ -61,6 +61,20 @@ def _fit(head, detail, tail, limit, measure=len):
         if measure(text) <= limit:
             return text
     return build(clip(head, limit - measure(tail) - 2), "")
+
+
+def _with_ticker(post, text, limit, measure=len):
+    """Adds "(NASDAQ: NVDA)" right after the first mention of the story's company when the text still fits the
+    platform's limit; otherwise the text is returned as it was. Only the company's full name is matched, so a
+    headline that names "Norse" alone never gets the ticker of "Norse Atlantic"."""
+    tk, co = post.get("ticker"), (post.get("company") or "").strip()
+    if not tk or not co:
+        return text
+    m = re.search(r"(?<!\w)" + re.escape(co) + r"(?!\w)", text, re.I)
+    if not m or text[m.end():m.end() + 2] == " (":
+        return text
+    longer = f"{text[:m.end()]} ({entities.ticker_text(tk)}){text[m.end():]}"
+    return longer if measure(longer) <= limit else text
 
 
 def _ai(post):
@@ -114,9 +128,9 @@ def threads_text(post):
     while sentences:  # whole sentences give way before any word is cut
         text = "\n\n".join(x for x in (head, " ".join(sentences), tail) if x)
         if _utf8(text) <= 500:
-            return text
+            return _with_ticker(post, text, 500, _utf8)
         sentences = sentences[:-1]
-    return _fit(head, "", tail, 500, measure=_utf8)
+    return _with_ticker(post, _fit(head, "", tail, 500, measure=_utf8), 500, _utf8)
 
 
 def threads_reply_text(post):
@@ -132,7 +146,7 @@ def threads_tag(post):
 def bluesky_text(post):
     """Headline and dek within 300 graphemes. No link and no facets: the link card carries the URL.
     len() counts code points, which is never fewer than graphemes, so the cap holds."""
-    return _fit(_head(post), post.get("dek", ""), "", 300)
+    return _with_ticker(post, _fit(_head(post), post.get("dek", ""), "", 300), 300)
 
 
 def bluesky_description(post):
@@ -140,7 +154,7 @@ def bluesky_description(post):
 
 
 def _long_text(post, limit):
-    return _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post)), limit)
+    return _with_ticker(post, _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post)), limit), limit)
 
 
 def is_breaking(post):

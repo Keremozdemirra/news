@@ -219,20 +219,38 @@ def send_line(m, s):
 KEY_WINDOW = 125  # what Instagram shows before "more", and roughly what search snippets read
 
 
+def _named(co, ticker):
+    """"Nvidia (NASDAQ: NVDA)" when the story's company has a ticker, else the bare name. No "$" cashtag."""
+    return f"{co} ({R.T.entities.ticker_text(ticker)})" if ticker else co
+
+
+def _named(co, ticker):
+    """"Nvidia (NASDAQ: NVDA)" for a listed company, else the bare name. Never a "$" cashtag."""
+    return f"{co} ({R.T.entities.ticker_text(ticker)})" if ticker else co
+
+
 def keyword_line(headline, lead, s):
     """A short "Company, Person · Topic" line that puts the story's names into the first 125 characters when
     the headline and the first sentence do not already. Empty when no name is missing, or none fits: the topic
     word alone would be filler, and the topic hashtag already carries it. Only names the checked copy holds
-    (company, person, the first org the source names) are used."""
+    (company, person, the first org the source names) are used. A listed company reads "Nvidia (NASDAQ: NVDA)"
+    and is written even when the headline names it: the ticker is on no other line of the caption."""
     topic = s.get("topic") or ""
     opening = f"{headline}\n\n{lead}"[:KEY_WINDOW].lower()
-    names = [n for n in dict.fromkeys([s.get("company") or "", s.get("person") or ""] + list(s.get("orgs") or [])[:1]) if n]
+    co = (s.get("company") or "").strip()
+    tk = (s.get("_assets") or {}).get("ticker") if co else None
+    names = [n for n in dict.fromkeys([co, s.get("person") or ""] + list(s.get("orgs") or [])[:1]) if n]
     room = KEY_WINDOW - len(headline) - 2 - len(" · ") - len(topic)  # the line follows the headline and a blank line
     chosen = []
-    for n in (n for n in names if n.lower() not in opening):
-        cost = len(n) + (2 if chosen else 0)
+    for n in (n for n in names if n.lower() not in opening or (tk and n == co)):
+        label = _named(n, tk) if n == co else n
+        cost = len(label) + (2 if chosen else 0)
+        if cost > room and label != n:  # the ticker does not fit: the bare name still may
+            label, cost = n, len(n) + (2 if chosen else 0)
+            if n.lower() in opening:
+                continue
         if cost <= room:
-            chosen.append(n)
+            chosen.append(label)
             room -= cost
     if not chosen:
         return ""
@@ -274,6 +292,9 @@ def audit(post):
     for n in post.get("logo_names", []):
         if not R.T.in_headline(n, head_.lower()):
             problems.append(f"logo for {n}, which the headline does not name")
+    tk = post.get("ticker")
+    if tk and not (post.get("company") and R.T.in_headline(post["company"], head_.lower())):
+        problems.append(f"ticker {tk.get('symbol')} for {post.get('company')!r}, which the headline does not name")
     E, pf = R.T.entities, post.get("photo_file", "")
     owners = [n for n in [post.get("company")] + list(post.get("logo_names") or []) if n]
     if pf and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
@@ -962,6 +983,7 @@ def queue(day_dir, batch=None, render=True):
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
+                "ticker": s.get("_assets", {}).get("ticker"),
                 "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "so_what": so_what(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]

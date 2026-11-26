@@ -81,7 +81,9 @@ def assets(story, fetch=True):
         ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
         if file_:
             USED.add(file_)
-        story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "",
+        # a ticker names a listed company, so it follows the logo rule: the story's own company, named in the headline
+        tk = entities.ticker(co, fetch=fetch) if co and co in names else None
+        story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "", "ticker": tk,
                             "logos": logos, "logo_names": logo_names, "photo": ph.as_uri() if ph else "",
                             "credit": credit, "file": file_}
     return story["_assets"]

@@ -130,6 +130,9 @@ def company_page(name, slug, rows, logo):
                     f'<a href="{S.href(p)}"><span class="h-m">{E(p["headlines"][0])}</span><span class="dek">{E(p.get("dek", ""))}</span>'
                     f'{S.meta(E(S.topic(p)), S.cover(p))}</a></li>' for p in rows)
     head = S.pagehead(name, f"{len(rows)} {'article' if len(rows) == 1 else 'articles'} since {S.day_label(S.day_of(rows[-1]['published']))}, newest first.")
+    tks = {(t["exchange"], t["symbol"]) for t in (S.ticker_of(p) for p in rows) if t}
+    if len(tks) == 1:  # a company whose articles disagree shows no ticker
+        head = head.replace("</h1>", f'</h1><p class="meta">{S.ticker_html(next(t for t in (S.ticker_of(p) for p in rows) if t))}</p>', 1)
     if logo:
         head = head.replace('<div class="pagehead">', f'<div class="pagehead"><img class="cologo" src="{logo}" alt="" height="56">', 1)
     return (head + f'<div class="prose wide"><ol class="timeline">{items}</ol>'

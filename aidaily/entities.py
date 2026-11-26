@@ -12,6 +12,7 @@ import json
 import re
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .feeds import CTX, UA as UA_STRING
@@ -41,6 +42,18 @@ def _entity(name):
     qid = hits[0]["id"]
     ent = _get(f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json")["entities"][qid]
     return ent.get("labels", {}).get("en", {}).get("value", name), ent.get("claims", {})
+
+
+def company_entity(name):
+    """(label, claims) of the Wikidata entity for a company name, or LookupError when the top hit is not it.
+
+    The top search hit can be a neighbour of the company: "S&P" finds the S&P 500 index. Logos and tickers
+    both come from this one lookup, so they can never disagree about which entity is the company."""
+    label, claims = _entity(name)
+    extra = (label or "").lower().replace(name.lower(), "", 1) if label and name.lower() in label.lower() else None
+    if extra is None or re.search(r"\d", extra):
+        raise LookupError(f"Wikidata's {label!r} is not {name!r}")
+    return label, claims
 
 
 def pick_logo(label, claims):
@@ -101,11 +114,7 @@ def logo(name, domain="", fetch=True):
     if not fetch:
         return None
     try:
-        label, claims = _entity(name)
-        # the top search hit can be a neighbour of the company: "S&P" finds the S&P 500 index
-        extra = (label or "").lower().replace(name.lower(), "", 1) if label and name.lower() in label.lower() else None
-        if extra is None or re.search(r"\d", extra):
-            raise LookupError(f"Wikidata's {label!r} is not {name!r}")
+        label, claims = company_entity(name)
         f = pick_logo(label or name, claims)
         if f:
             url = _commons_info(f, width=600 if not f.lower().endswith(".svg") else None)
@@ -129,6 +138,154 @@ def logo(name, domain="", fetch=True):
     except Exception:  # noqa: BLE001  a miss is recorded so the next run does not ask again
         (CACHE / f"logo-{_slug(name)}.none").write_text("")
         return None
+
+
+# Wikidata exchange item -> (name shown, Google Finance suffix). Frankfurt and Xetra are one German listing.
+EXCHANGES = {
+    "Q82059": ("NASDAQ", "NASDAQ"), "Q13677": ("NYSE", "NYSE"), "Q171240": ("LSE", "LON"),
+    "Q151139": ("Xetra", "ETR"), "Q819468": ("Xetra", "ETR"), "Q2385849": ("Euronext Paris", "EPA"),
+    "Q478720": ("Euronext Amsterdam", "AMS"), "Q661834": ("SIX", "SWX"), "Q217475": ("TSE Tokyo", "TYO"),
+    "Q496672": ("HKEX", "HKG"), "Q739514": ("SSE", "SHA"), "Q517750": ("SZSE", "SHE"),
+    "Q495364": ("KRX", "KRX"), "Q495372": ("KRX", "KRX"), "Q818723": ("TSX", "TSE"), "Q732670": ("ASX", "ASX"),
+}
+GOOGLE_SUFFIX = {name: suffix for name, suffix in EXCHANGES.values()}
+SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,9}$")
+# what may follow the company name in Wikidata's label: "Apple Inc." is Apple, "Apple Music" is not
+LEGAL_FORM = re.compile(r"^[\s,.]*(inc|incorporated|corp|corporation|plc|ltd|limited|llc|ag|se|nv|sa|"
+                        r"co|company|group|holdings?|spa|ab|asa|oyj|kk|\s|[.,&])*$", re.I)
+
+
+def _starts_after(snak, day):
+    """True when a P580 start-time snak is later than `day` (YYYY-MM-DD), or is not a readable date."""
+    t = (snak.get("datavalue", {}).get("value") or {}).get("time", "") if isinstance(snak.get("datavalue", {}).get("value"), dict) else ""
+    m = re.match(r"^\+(\d{4}-\d{2}-\d{2})", t.replace("-00", "-01"))
+    return not m or m.group(1) > day
+
+
+DIRECTORIES = {"NASDAQ": "https://www.nasdaqtrader.com/dynamic/symdir/nasdaqlisted.txt",
+               "NYSE": "https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt"}
+
+
+def us_directory(fetch=True):
+    """{(exchange, symbol): security name} of what NASDAQ and NYSE list today, from Nasdaq Trader's public
+    symbol directory (refreshed daily), or None when it cannot be read. Wikidata does not know a company
+    went private: on 2026-11-26 it still gave Denny's NASDAQ: DENN, ten months after the delisting."""
+    out = {}
+    for ex, url in DIRECTORIES.items():
+        f = CACHE / f"listing-{ex.lower()}.txt"
+        try:
+            if not f.exists() or datetime.now().timestamp() - f.stat().st_mtime > 86400:
+                if not fetch:
+                    return None
+                f.write_bytes(_get(url, raw=True))
+            lines = f.read_text("utf-8", "ignore").splitlines()[1:]
+        except Exception:  # noqa: BLE001  without the directory a US ticker cannot be confirmed
+            return None
+        for line in lines:
+            cols = line.split("|")
+            if len(cols) < 3 or line.startswith("File Creation"):
+                continue
+            if ex == "NYSE" and cols[2] != "N":
+                continue  # otherlisted also holds NYSE American, Arca and Cboe names
+            for sym in {cols[0], cols[3] if ex == "NYSE" and len(cols) > 3 else cols[0]}:
+                out[(ex, sym)] = cols[1]
+    return out
+
+
+def pick_ticker(name, label, claims, directory=None):
+    """{"exchange", "symbol"} when the company has exactly one current listing on a major exchange, else None.
+
+    Listings that ended (P582), are deprecated or have not started are ignored. NASDAQ and NYSE listings must
+    also be in `directory` (what the exchanges list now); other exchanges need a Wikidata reference. If Wikidata marks one or more listings
+    preferred, only those count; the same symbol on Frankfurt and Xetra is one listing. Two listings and
+    no preferred one is ambiguity, and a wrong ticker is worse than none."""
+    low = (label or "").lower()
+    rest = low.replace(name.lower(), "", 1) if name.lower() in low else None
+    if rest is None or not LEGAL_FORM.match(rest):
+        return None
+    rows = {}
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    for c in claims.get("P414", []):
+        q = c.get("qualifiers", {})
+        ex = c.get("mainsnak", {}).get("datavalue", {}).get("value", {})
+        qid = ex.get("id") if isinstance(ex, dict) else None
+        if c.get("rank") == "deprecated" or "P582" in q or qid not in EXCHANGES:
+            continue
+        if any(_starts_after(x, today) for x in q.get("P580", [])):
+            continue
+        us = EXCHANGES[qid][0] in DIRECTORIES
+        if not us and not c.get("references"):
+            continue  # an unsourced Wikidata edit is not enough outside the US, where nothing else confirms it
+        syms = {x["datavalue"]["value"] for x in q.get("P249", []) if "datavalue" in x}
+        if len(syms) != 1:
+            return None  # a listing with no symbol, or two, cannot be shown honestly
+        sym = syms.pop()
+        if not isinstance(sym, str) or not SYMBOL.match(sym):
+            return None
+        key = (EXCHANGES[qid][0], sym)
+        # a US listing counts only while the exchange itself lists that symbol under this company's name
+        if us and (directory is None or name.lower() not in directory.get(key, "").lower()):
+            continue
+        rows[key] = rows.get(key, False) or c.get("rank") == "preferred"
+    if any(rows.values()):
+        rows = {k: v for k, v in rows.items() if v}
+    if len(rows) != 1:
+        return None
+    (exchange, symbol), = rows
+    return {"exchange": exchange, "symbol": symbol}
+
+
+def ticker(name, fetch=True):
+    """{"exchange": "NASDAQ", "symbol": "NVDA"} for a listed company, else None.
+
+    Uses the entity the logo lookup resolves, label check included. A private company, an ambiguous
+    listing or a failed lookup gives None. Answers are cached for a week, not forever like logos: a company
+    lists (Anthropic, 2026-11-19) and delists. A cached US ticker is checked against the exchange's own
+    directory on every read, so a delisting stops it at once. Only a definite answer is cached, so an outage
+    is retried."""
+    if not name:
+        return None
+    CACHE.mkdir(parents=True, exist_ok=True)
+    hit, miss = CACHE / f"ticker-{_slug(name)}.json", CACHE / f"ticker-{_slug(name)}.none"
+    week = datetime.now().timestamp() - 7 * 86400
+    if hit.exists() and hit.stat().st_mtime > week:
+        found = json.loads(hit.read_text())
+        if found["exchange"] not in DIRECTORIES:
+            return found
+        names = us_directory(fetch)
+        return found if names and name.lower() in names.get((found["exchange"], found["symbol"]), "").lower() else None
+    if (miss.exists() and miss.stat().st_mtime > week) or not fetch:
+        return None
+    try:
+        label, claims = company_entity(name)
+    except LookupError:
+        miss.write_text("")
+        return None
+    except Exception:  # noqa: BLE001  network trouble is not an answer
+        return None
+    directory = us_directory()
+    if directory is None:
+        return None
+    found = pick_ticker(name, label, claims, directory)
+    (miss if found else hit).unlink(missing_ok=True)  # the fresh answer replaces an expired one of the other kind
+    if found:
+        hit.write_text(json.dumps(found))
+    else:
+        miss.write_text("")
+    return found
+
+
+def google_finance_url(t):
+    """The Google Finance page of a ticker, or '' for an exchange whose Google code is not in the map."""
+    suffix = GOOGLE_SUFFIX.get((t or {}).get("exchange", ""))
+    if not suffix or not SYMBOL.match((t or {}).get("symbol", "")):
+        return ""
+    return f"https://www.google.com/finance/quote/{urllib.parse.quote(t['symbol'])}:{suffix}"
+
+
+def ticker_text(t):
+    """"NASDAQ: NVDA", or '' for no ticker."""
+    return f"{t['exchange']}: {t['symbol']}" if t else ""
 
 
 def photo(person, fetch=True):
