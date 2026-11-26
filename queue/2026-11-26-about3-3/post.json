@@ -3,11 +3,12 @@
  "kind": "story",
  "created": "2026-11-26T19:14:33+00:00",
  "publish_after": "2026-11-26T19:14:33+00:00",
- "status": "queued",
+ "status": "expired",
  "story": "story.jpg",
  "urls": [],
  "headlines": [
   "About 3/3 (boardread.news)"
  ],
- "tries": 0
+ "tries": 0,
+ "error": "too old to go out"
 }
