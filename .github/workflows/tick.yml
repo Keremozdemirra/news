@@ -1,0 +1,37 @@
+name: tick
+# The desk's clock. GitHub never fired this repo's cron schedules, so one long job dispatches the other
+# workflows on their intervals and, before it times out, dispatches itself again. Runs triggered by
+# GITHUB_TOKEN through workflow_dispatch are allowed to start new runs; no outside token is needed.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+permissions:
+  actions: write
+concurrency:
+  group: tick
+  cancel-in-progress: false
+jobs:
+  tick:
+    if: vars.DESK_PAUSED != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Dispatch
+        run: |
+          fire() { gh workflow run "$1" --ref main >/dev/null 2>&1 && echo "$(date -u +%H:%M) $1" || echo "$(date -u +%H:%M) $1 not started"; }
+          end=$(( $(date +%s) + 335*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            m=$((10#$(date -u +%M))); h=$((10#$(date -u +%H))); dow=$(date -u +%u)
+            fire publish.yml
+            fire engage.yml
+            if [ $((m % 30)) -lt 5 ]; then fire daily.yml; fi
+            if [ "$dow" = 1 ] && [ "$h" = 6 ] && [ "$m" -lt 5 ]; then fire weekly.yml; fi
+            sleep $(( 300 - $(date +%s) % 300 ))
+          done
+      - name: Next
+        if: ${{ !cancelled() }}
+        run: gh workflow run tick.yml --ref main
