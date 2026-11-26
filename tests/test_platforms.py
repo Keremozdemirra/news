@@ -60,7 +60,8 @@ def post(**kw):
          "headlines": ["Denny's reshares Nvidia origin story after Jensen Huang's return"], "topic": "Business", "score": 12.5,
          "dek": "The chain says it reinstalled a plaque at the booth where Nvidia's three founders first met.",
          "body": "Denny's used Jensen Huang's return to Nvidia to reshare its role in the company's origin story.",
-         "caption": "x\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE"}
+         "caption": "x\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE",
+         "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene", "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
     p.update(kw)
     return p
 

@@ -27,9 +27,11 @@ WORDS = ["Anthropic releases coding agent", "Mistral raises funding round", "Nvi
 
 def story(i, cat="launch", status="ok", headline=None):
     h = headline or WORDS[(i - 1) % len(WORDS)]
-    return ({"file": f"card-{i:02d}.png", "url": f"https://x/{i}", "headline": h, "category": cat, "source": f"Outlet {i}", "score": 9.0},
+    # every post carries a photo (audit holds one without); a vetted scene stands in for the subject's own
+    return ({"file": f"card-{i:02d}.png", "url": f"https://x/{i}", "headline": h, "category": cat, "source": f"Outlet {i}", "score": 9.0,
+             "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene"},
             {"url": f"https://x/{i}", "title": h, "dek": f"It does thing {i}.", "copy_status": status, "outlets": [f"Outlet {i}"],
-             "score": 9.0})
+             "score": 9.0, "_assets": {"credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}})
 
 
 class Tmp(unittest.TestCase):
@@ -58,7 +60,8 @@ class Tmp(unittest.TestCase):
         d.mkdir(parents=True)
         post = {"id": pid, "created": desk.now().isoformat(), "publish_after": (desk.now() - timedelta(minutes=1)).isoformat(),
                 "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 stories.", "urls": ["u"],
-                "headlines": ["Lab ships a model"], "topic": "Tech"}
+                "headlines": ["Lab ships a model"], "topic": "Tech", "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene",
+                "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
         post.update(kw)
         (d / "post.json").write_text(json.dumps(post))
         return d / "post.json"
@@ -588,7 +591,7 @@ class Pictures(unittest.TestCase):
     def test_used_and_old_photos_are_skipped(self):
         from aidaily import entities as E
         info = {"new.jpg": {"width": 2000, "height": 1300, "url": "u", "extmetadata": {
-                    "LicenseShortName": {"value": "CC BY-SA 4.0"}, "Artist": {"value": "A"},
+                    "LicenseShortName": {"value": "CC BY 4.0"}, "Artist": {"value": "A"},
                     "DateTimeOriginal": {"value": "2024-05-01"}}},
                 "old.jpg": {"width": 2000, "height": 1300, "url": "u", "extmetadata": {
                     "LicenseShortName": {"value": "Public domain"}, "DateTimeOriginal": {"value": "1921"}}}}
@@ -599,7 +602,7 @@ class Pictures(unittest.TestCase):
              mock.patch.object(E, "_get", return_value=b"jpeg"):
             _, credit, f = E.fresh_photo([("trading floor", False)], {"used.jpg"})
         self.assertEqual(f, "new.jpg")
-        self.assertIn("CC BY-SA 4.0", credit)
+        self.assertIn("CC BY 4.0", credit)
 
 
 class Select(Tmp):

@@ -412,7 +412,8 @@ def audit(post):
     if tk and not (post.get("company") and R.T.in_headline(post["company"], head_.lower())):
         problems.append(f"ticker {tk.get('symbol')} for {post.get('company')!r}, which the headline does not name")
     E, pf = R.T.entities, post.get("photo_file", "")
-    if pf and post.get("photo_kind") != "scene" and not post.get("person"):
+    # a ground names itself ("Acrisure Stadium" on a Steelers story); sport has the team check instead
+    if pf and post.get("photo_kind") != "scene" and not post.get("person") and post.get("topic") != "Sport":
         other = E.foreign_names(pf, head_ + " " + (post.get("company") or ""))
         if other:
             problems.append(f"photo file names {other}, which the story does not name")
