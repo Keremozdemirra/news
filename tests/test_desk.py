@@ -899,11 +899,46 @@ class Formats(Tmp):
         self.assertEqual(a["after"], q["id"])
         self.assertNotIn("after", q)
 
-    def test_company_quiz_needs_four_companies(self):
+    def test_company_quiz_needs_a_company_with_known_peers(self):
         w = _at(1, 11)
-        self.pub("a", "ElevenLabs raises $33B", w, 5, company="ElevenLabs", figure="$33B")
-        self.pub("b", "Nvidia news", w, 5, company="Nvidia")
-        self.assertEqual(self.run_at(w, "quiz"), {})
+        self.pub("a", "Acme Widgets raises $33B", w, 5, company="Acme Widgets", figure="$33B")
+        for i, co in enumerate(["Nvidia", "Norse Atlantic", "Altria"]):
+            self.pub(f"o{i}", f"{co} makes news today", w, 20 + i, company=co, score=1)
+        self.assertEqual(self.run_at(w, "quiz"), {})  # no peer group: no fair options
+
+    def test_company_quiz_options_are_peers_never_an_event_an_alias_or_a_name_in_the_post(self):
+        from aidaily import peers
+        w = _at(1, 11)
+        self.pub("a", "SAP explores at least 1,000 job cuts", w, 5, company="SAP", figure="1,000", score=9,
+                 dek="Rival Oracle cut jobs last month.")
+        self.pub("s", "Australian Open sets prize money record", w, 6, company="Australian Open", topic="Sport", score=20)
+        self.pub("o", "1Password raises funding", w, 7, company="1Password", score=1)
+        with mock.patch.object(desk, "now", return_value=w):
+            q = desk.pick_company("2026-11-24", desk._published(48), desk._published(24 * 7))
+        self.assertEqual(q["options"][q["answer"]], "SAP")
+        wrong = [o for o in q["options"] if o != "SAP"]
+        self.assertEqual(len(wrong), 3)
+        for o in wrong:
+            self.assertIn("enterprise software", peers.groups_of(o))
+        self.assertNotIn("Oracle", wrong)  # the dek names it
+        self.assertNotIn("Australian Open", wrong)
+        self.assertEqual(peers.peers("Alphabet").count("Google"), 0)
+        self.assertNotIn("Instagram", peers.peers("Meta"))
+        self.assertFalse(peers.groups_of("Australian Open"))
+
+    def test_sport_reaches_no_story_format(self):
+        w = _at(1, 19)  # Tuesday evening: last12, board, top5 and the quiz pools all see these posts
+        sport = ["Arsenal beat Chelsea 3-1 in derby", "Australian Open sets $90M prize money", "Lakers sign star for $200M",
+                 "Ferrari wins Abu Dhabi Grand Prix", "Alcaraz takes ATP Finals title"]
+        for i, h in enumerate(sport):
+            self.pub(f"sp{i}", h, w, 1 + i, topic="Sport", company="Australian Open" if i == 1 else "", figure="$90M" if i == 1 else "",
+                     score=30, person="Carlos Alcaraz" if i == 4 else "", photo=True)
+        with mock.patch.object(desk, "now", return_value=w):
+            self.assertEqual(desk._published(24 * 7), [])
+        for when in (_at(1, 6, 20), _at(1, 8, 40), _at(1, 11), _at(1, 13, 40), _at(1, 19, 40), _at(6, 11), _at(6, 13, 40)):
+            out = self.run_at(when)
+            self.assertEqual({k: v for k, v in out.items() if not k.endswith("follow")}, {}, when)
+        self.assertIsNone(desk.pick_company("2026-11-24", desk._published(48), desk._published(48)))
 
     def test_fill_the_number_blanks_the_figure_and_keeps_it_as_one_option(self):
         w = _at(2, 11)  # Wednesday

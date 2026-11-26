@@ -467,8 +467,9 @@ def story_frame(img, kicker="New post"):
 
 def _published(hours):
     cut = (now() - timedelta(hours=hours)).isoformat()
+    # Sport is website-only: no story format may carry it, so every builder reads its posts through here
     return [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
-            and p.get("published", "") > cut]
+            and p.get("published", "") > cut and social_allowed(p)]
 
 
 def _queue_story(pid, html, title, delay=0, **extra):
@@ -696,19 +697,28 @@ def _number(day, slot, label):
 
 
 def pick_company(day, recent, week):
-    """Guess the company: the headline with the company blanked and four companies from our own recent posts.
-    Pure selection, shared by the Instagram story and the quiz page: returns None when there is no honest question."""
-    cands = [p for p in recent if p.get("company") and p.get("figure") and p["company"] in _head(p)]
-    if not cands:
-        return None
-    p = max(cands, key=_score)
-    hint = _head(p).replace(p["company"], "___")
-    others = sorted({q["company"] for q in week if q.get("company") and q["company"] != p["company"]})
-    options = _order(day, [p["company"]] + _order(day, others)[:3])
-    if p["company"] in hint or len(options) < 4:
-        return None
-    return {"type": "company", "title": "Guess the company", "question": hint, "options": options,
-            "answer": options.index(p["company"]), "posts": [p]}
+    """Guess the company: the headline with the company blanked and four companies as options. Pure selection,
+    shared by the Instagram story and the quiz page: returns None when there is no honest question.
+    The three wrong options are the company's peers (aidaily/peers.py: same sector, same order of size), never a
+    company under the same owner and never one the post itself names, so exactly one option fits. Peers that were
+    in our own news this week come first, then the rest of the group."""
+    from . import peers
+    cands = [p for p in recent if social_allowed(p) and p.get("company") and p.get("figure") and p["company"] in _head(p)
+             and peers.peers(p["company"])]
+    for p in sorted(cands, key=lambda p: -_score(p)):
+        hint = _head(p).replace(p["company"], "___")
+        text = " ".join([_head(p), p.get("dek") if isinstance(p.get("dek"), str) else "", p.get("body") or ""]).lower()
+        named = [n for n in [p.get("person") or ""] + list(p.get("orgs") or []) + list(p.get("logo_names") or []) if n]
+        fair = [c for c in peers.peers(p["company"])
+                if not re.search(rf"(?<!\w){re.escape(c.lower())}(?!\w)", text) and not any(peers.related(c, n) for n in named)]
+        ours = {peers.norm(q.get("company") or "") for q in week if social_allowed(q)}
+        ranked = [c for c in fair if peers.norm(c) in ours] + _order(day, [c for c in fair if peers.norm(c) not in ours])
+        if p["company"] in hint or len(ranked) < 3:
+            continue
+        options = _order(day, [p["company"]] + ranked[:3])
+        return {"type": "company", "title": "Guess the company", "question": hint, "options": options,
+                "answer": options.index(p["company"]), "posts": [p]}
+    return None
 
 
 def _s_quiz(day, label):
@@ -723,7 +733,7 @@ def _s_quiz(day, label):
 
 def pick_fill(day, recent):
     """Fill the number: the headline with its figure blanked, the figure and three plausible others as options."""
-    for p in sorted(recent, key=lambda p: -_score(p)):
+    for p in sorted(filter(social_allowed, recent), key=lambda p: -_score(p)):
         fig, head_ = (p.get("figure") or "").strip(), _head(p)
         wrong = distractors(fig) if fig and _in_text(fig, head_) else []
         hint = _blank(fig, head_) if wrong else ""
@@ -797,7 +807,7 @@ def _money(p):
 def pick_bigger(day, week):
     """Which is bigger?: two different companies' money figures of the same kind (valuation, raise or revenue) and
     currency from posts of the last 7 days. The question names the companies and the kind and shows no figure."""
-    best, rows = None, [(p, m) for p in week if (m := _money(p))]
+    best, rows = None, [(p, m) for p in week if social_allowed(p) and (m := _money(p))]
     for i, (a, ma) in enumerate(rows):
         for b, mb in rows[i + 1:]:
             lo, hi = sorted((ma[3], mb[3]))
@@ -832,6 +842,7 @@ def _people(pool, has_photo=lambda p: _media(p, "photo.jpg")):
 
 def pick_whois(day, week, recent, has_photo=lambda p: _media(p, "photo.jpg")):
     """Who is this?: the portrait without its name, four names from our own recent posts."""
+    week, recent = list(filter(social_allowed, week)), list(filter(social_allowed, recent))
     named = sorted({p["person"] for p in week if p.get("person")})
     cands = _people(recent, has_photo)
     if len(named) < 4 or not cands:
@@ -840,7 +851,10 @@ def pick_whois(day, week, recent, has_photo=lambda p: _media(p, "photo.jpg")):
     others = [n for n in named if n != p["person"] and n.split()[-1] != p["person"].split()[-1]]
     if len(others) < 3:
         return None
-    options = _order(day, [p["person"]] + _order(day, others)[:3])
+    # people from the same beat first: a central banker is guessed against central bankers and ministers, not a CEO
+    beat = {q["person"]: q.get("topic") for q in week if q.get("person")}
+    same = _order(day, [n for n in others if beat.get(n) == p.get("topic")])
+    options = _order(day, [p["person"]] + (same + _order(day, [n for n in others if n not in same]))[:3])
     credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
     return {"type": "whois", "title": "Who is this", "options": options, "answer": options.index(p["person"]), "posts": [p],
             "credit": credit}

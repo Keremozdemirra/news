@@ -112,7 +112,7 @@ class Features(Tmp):
         h = self.read("quiz/index.html")
         self.assertIn("Fill the number", h)
         self.assertIn("SAP explores at least ___ job cuts", h)
-        self.assertEqual(h.count('class="opt"'), 4)
+        self.assertEqual(h.count('class="opt"'), 8)  # fill the number, and SAP against its software peers
         self.assertRegex(h, r'data-answer="\d"')
         self.assertIn("/s/2026-11-26-0900-1/", h)
         self.assertIn("https://www.cnbc.com/a", h)
@@ -124,7 +124,7 @@ class Features(Tmp):
         for p in self.rows():  # the quiz reads the figure the page shows
             p["_hires"] = False
         types = {q["type"] for q in sitepages.quiz_questions(self.rows())}
-        self.assertEqual(types, {"fill"})  # fewer than four companies, no money figures, no portraits
+        self.assertEqual(types, {"fill", "company"})  # SAP has peers; no money figures, no portraits
 
     def test_company_page_needs_two_stories_and_story_pages_link_to_it(self):
         page = self.read("c/sap/index.html")
