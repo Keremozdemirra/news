@@ -40,10 +40,18 @@ def shoot(html_text, png, w, h):
     with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
         f.write(html_text)
     # a profile of its own per call: several renders can run at once (the site's share cards) without fighting over one
-    with tempfile.TemporaryDirectory() as profile:
-        subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}", f"--window-size={w},{h}",
-                        "--virtual-time-budget=6000", f"--screenshot={png}", f"file://{f.name}"],
-                       check=True, capture_output=True, timeout=60)
+    # a second try: headless Chrome now and then aborts on start (SIGABRT, 2026-11-26), and one crash must not
+    # cost a whole run's posts
+    for attempt in (1, 2):
+        with tempfile.TemporaryDirectory() as profile:
+            try:
+                subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}",
+                                f"--window-size={w},{h}", "--virtual-time-budget=6000", f"--screenshot={png}", f"file://{f.name}"],
+                               check=True, capture_output=True, timeout=60)
+                break
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                if attempt == 2:
+                    raise
     Path(f.name).unlink()
 
 

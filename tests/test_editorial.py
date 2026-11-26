@@ -125,6 +125,23 @@ class Copy(unittest.TestCase):
         self.assertEqual(copy.drop_restated_lead("SAP explores 10,000 job cuts.", "SAP explores 10,000 job cuts"),
                          "SAP explores 10,000 job cuts.")
 
+    def test_a_commentary_sentence_is_cut_and_the_news_kept(self):
+        # one padded sentence used to drop the whole story: SAP's 10,000 job cuts fell off the day
+        s = {"title": "SAP explores at least 10,000 job cuts", "summary": "The software group is restructuring.",
+             "source": "FT"}
+        rows = [{"id": 0, "headline": "SAP explores at least 10,000 job cuts", "dek": "", "x_post": "",
+                 "linkedin_post": "The software group is restructuring. For Europe, software policy has become industrial "
+                                  "policy.\n\nSource: FT", "figure": ""}]
+        self.assertEqual(copy.apply([s], rows), [])
+        self.assertEqual(s["copy_status"], "ok")
+        self.assertNotIn("industrial", s["linkedin_post"])
+        self.assertIn("restructuring", s["linkedin_post"])
+
+    def test_outlet_digits_are_not_a_claim(self):
+        s = {"title": "Spain's De Cos chosen as next ECB president", "summary": "", "source": "France 24"}
+        self.assertEqual(copy.verify(s, {"headline": "De Cos chosen as next ECB president", "dek": "",
+                                         "linkedin_post": "De Cos was chosen.\n\nSource: France 24"}), [])
+
     def test_plus_after_a_number_is_rejected(self):
         s = {"title": "Road projects shelved to move more than £400m to defence", "summary": ""}
         self.assertIn("a '+' after a number: write 'more than'",

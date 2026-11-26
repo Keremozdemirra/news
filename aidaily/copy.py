@@ -97,7 +97,8 @@ WORD = re.compile(r"[a-z][a-z'’]+")
 FILLER = set("that this with from their they have been will would could about into over after than then "
              "also more most such which what when where while there these those its it's the and for are "
              "was were has had not but one two all any each other some said says according reportedly report "
-             "source".split())
+             "source them him his her she who whom being still just very among including made make "
+             "while whose them also only even much many".split())
 CULTURE = re.compile(r"\b(film|films|movie|movies|box office|game|games|gaming|console|music|album|song|singer|"
                      r"concert|tour|sport|sports|football|soccer|nba|nfl|olympic\w*|series|streaming|netflix|"
                      r"festival|art|artist|museum|celebrity|actor|actress|oscar\w*|grammy|book|novel|tv|show)\b", re.I)
@@ -171,12 +172,6 @@ def verify(story, copy):
         problems.append("headline too long")
     if re.search(r"\d[\d,.]*\s?(?:[%kKmMbBtn]|bn|tn)?\+", copy.get("headline", "") + " " + copy.get("dek", "")):
         problems.append("a '+' after a number: write 'more than'")
-    # the outlet's own name is grounded: "the Buenos Aires Times reports" is attribution, not commentary
-    text = story["title"] + " " + story.get("summary", "") + " " + story.get("source", "")
-    for field in ("dek", "x_post", "linkedin_post"):
-        for sent in re.split(r"(?<=[.!?])\s+|\n+", copy.get(field, "")):
-            if sent and not sent.startswith("Source:") and ungrounded(sent, text):
-                problems.append(f"{field}: sentence not grounded in source: {sent[:80]}")
     if copy.get("fits_category") is False:
         problems.append("does not fit its slot")
     if copy.get("relevant") is False:
@@ -288,6 +283,31 @@ QUALIFIED = re.compile(r"\b(more than|over|up to|at least|about|around|nearly|al
                        r"as many as|as much as|some|close to)\s+$", re.I)
 
 
+def strip_ungrounded(story, copy):
+    """Removes every dek, x_post and report sentence whose words are mostly not the source's: commentary is never
+    shown, and the story keeps its checked facts. It used to cost the whole story, so one padded sentence
+    ("The figure is a minimum") dropped SAP's 10,000 job cuts from the day. Returns the sentences removed."""
+    # the outlet's own name is grounded: "the Buenos Aires Times reports" is attribution, not commentary
+    text = story["title"] + " " + story.get("summary", "") + " " + story.get("source", "")
+    cut = []
+    for field in ("dek", "x_post", "linkedin_post"):
+        lines = str(copy.get(field) or "").split("\n")
+        keep_lines = []
+        for line in lines:
+            if line.startswith("Source:") or not line.strip():
+                keep_lines.append(line)
+                continue
+            kept = []
+            for sent in sentences(line):
+                (cut.append(sent) if ungrounded(sent, text) else kept.append(sent))
+            if kept:
+                keep_lines.append(" ".join(kept))
+        copy[field] = re.sub(r"\n{3,}", "\n\n", "\n".join(keep_lines)).strip()
+    if not copy.get("x_post"):
+        copy["x_post"] = copy.get("headline", "")
+    return cut
+
+
 def figure_ok(fig, seen):
     """A big figure must be a number (a word like "a quarter" set at 300 px says nothing), and the number the
     reader finds in the headline or dek must not carry a qualifier the card would drop ("more than £400m")."""
@@ -341,6 +361,8 @@ def apply(stories, reply_rows):
             s["copy_status"] = "repeat"
             rejected.append((s["title"], [f"repeats recent headline {same}"]))
             continue
+        if c:
+            strip_ungrounded(s, c)
         problems = verify(s, c) if c else ["no copy returned"]
         if problems:
             rejected.append((s["title"], problems))

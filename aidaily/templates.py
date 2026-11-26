@@ -328,7 +328,7 @@ def story_list(title, headlines, label, foot="On the feed"):
     big, pad = (62, 44) if n <= 3 else (54, 34) if n == 4 else (48, 30)
     rows = "".join(f'<div style="display:grid;grid-template-columns:{104 if n <= 3 else 88}px 1fr;gap:16px;padding:{pad}px 0;border-top:1px solid {RULE}">'
                    f'<span style="font-size:{big}px;font-weight:800;color:{MUTE};letter-spacing:-2px">{i:02d}</span>'
-                   f'<span style="font-size:{big if len(h) < 66 else big - 4}px;font-weight:800;line-height:1.1;letter-spacing:-1.2px">{e(h)}</span></div>'
+                   f'<span style="font-size:{big if len(h) < 66 else big - 4}px;font-weight:800;line-height:1.1;letter-spacing:-1.2px">{t(h)}</span></div>'
                    for i, h in enumerate(headlines, 1))
     inner = (f'{_story_head(title, 104 if n >= 5 else 112)}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{rows}</div>{_story_foot(foot)}')
@@ -344,7 +344,7 @@ def story_number(figure, headline, label, unit="", qualifier=""):
     inner = (f'{_story_tag("Number")}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{pre}'
              f'<div style="font-size:{size}px;font-weight:800;letter-spacing:-12px;line-height:.85">{e(figure)}</div>{unit}'
-             f'<div style="margin-top:64px;font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-2px">{e(headline)}</div></div>'
+             f'<div style="margin-top:64px;font-size:56px;font-weight:800;line-height:1.1;letter-spacing:-2px">{t(headline)}</div></div>'
              f'{_story_foot("On the feed")}')
     return _story_shell(inner, label)
 
@@ -360,7 +360,7 @@ def story_company(logo_uri, name, rows, label):
     """Company file: the logo and the company's last headlines, each with its date. rows are (date, headline)."""
     items = "".join(f'<div style="padding:30px 0;border-top:1px solid {RULE}">'
                     f'<div style="font-size:34px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:{DIM}">{e(d)}</div>'
-                    f'<div style="margin-top:10px;font-size:46px;font-weight:800;line-height:1.1;letter-spacing:-1.3px">{e(h)}</div></div>'
+                    f'<div style="margin-top:10px;font-size:46px;font-weight:800;line-height:1.1;letter-spacing:-1.3px">{t(h)}</div></div>'
                     for d, h in rows)
     top = _logo_chip(logo_uri, 110, "28px 40px") or f'<div style="font-size:110px;font-weight:800;letter-spacing:-5px">{e(name)}</div>'
     inner = (f'{_story_head("Company<br>file.")}<div style="margin-top:48px">{top}</div>'
@@ -374,7 +374,7 @@ def story_person(photo_uri, name, headline, credit, label):
              f'<div style="margin-top:30px;border-radius:24px;overflow:hidden;height:700px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
              f'{_credit(credit)}'
              f'<div style="margin-top:32px;font-size:88px;font-weight:800;letter-spacing:-4px;line-height:.95">{e(name)}</div>'
-             f'<div style="margin-top:20px;font-size:42px;font-weight:700;line-height:1.15;letter-spacing:-1px;color:#d6d6d4">{e(headline)}</div>'
+             f'<div style="margin-top:20px;font-size:42px;font-weight:700;line-height:1.15;letter-spacing:-1px;color:#d6d6d4">{t(headline)}</div>'
              f'<div style="flex:1"></div>{_story_foot("On the feed")}')
     return _story_shell(inner, label)
 
@@ -396,7 +396,7 @@ def story_quiz(hint, label, options=(), title="Guess the<br>company."):
     size = 64 if len(hint) < 75 else 56
     inner = (f'{_story_head(title)}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center"><div style="font-size:{size}px;font-weight:800;line-height:1.12;letter-spacing:-2px">{hint_html}</div>'
-             f'<div style="margin-top:44px">{_options(options)}</div></div>{_story_foot("Answer on the next story")}')
+             f'<div style="margin-top:44px">{_options(options)}</div></div>{_story_foot("Tap for the answer")}')
     return _story_shell(inner, label)
 
 
@@ -405,7 +405,7 @@ def story_whois(photo_uri, label, options, credit=""):
     inner = (f'{_story_head("Who is this?", top=48)}'
              f'<div style="margin-top:28px;border-radius:24px;overflow:hidden;width:700px;height:515px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
              f'{_credit(credit)}'
-             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{_options(options, 44)}</div>{_story_foot("Answer on the next story")}')
+             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{_options(options, 44)}</div>{_story_foot("Tap for the answer")}')
     return _story_shell(inner, label)
 
 
@@ -419,7 +419,7 @@ def story_bigger(kind, a, b, label):
                 f'<div>{chip}<span style="font-size:64px;font-weight:800;line-height:1.1;letter-spacing:-2px">{e(co[0])} {e(kind)}</span></div></div>')
     inner = (f'{_story_head("Which is<br>bigger?")}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{side("A", a)}{side("B", b)}</div>'
-             f'{_story_foot("Answer on the next story")}')
+             f'{_story_foot("Tap for the answer")}')
     return _story_shell(inner, label)
 
 
@@ -478,7 +478,7 @@ def story_numbers(rows, label):
         items += (f'<div style="padding:{pad}px 0;border-top:1px solid {RULE}"><div style="font-size:{fig}px;font-weight:800;letter-spacing:-4px;line-height:.95">'
                   + (f'<span style="font-size:{fig // 2}px;letter-spacing:-1px;color:{DIM}">{e(q)} </span>' if q else "")
                   + e(f) + (f'<span style="font-size:{fig * 5 // 9}px;letter-spacing:-2px"> {e(u)}</span>' if u else "") + '</div>'
-                  f'<div style="margin-top:8px;font-size:{txt}px;font-weight:700;line-height:1.15;color:#d6d6d4">{e(h)}</div></div>')
+                  f'<div style="margin-top:8px;font-size:{txt}px;font-weight:700;line-height:1.15;color:#d6d6d4">{t(h)}</div></div>')
     inner = (f'{_story_head("The week<br>in numbers.", 96)}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{items}</div>{_story_foot("On the feed")}')
     return _story_shell(inner, label)
@@ -516,7 +516,7 @@ pro_card = feed_card  # LinkedIn takes the same card
 
 def daily_cover(day_label, headlines, brand=BRAND):
     """First slide of the Instagram carousel: the date, the count, and the stories in swipe order."""
-    items = "".join(f'<li style="margin-top:22px"><span style="color:{GREY}">{i:02d}</span>&nbsp;&nbsp;{e(h)}</li>'
+    items = "".join(f'<li style="margin-top:22px"><span style="color:{GREY}">{i:02d}</span>&nbsp;&nbsp;{t(h)}</li>'
                     for i, h in enumerate(headlines, 1))
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
@@ -569,7 +569,7 @@ def reel_card(n, total, headline, topic, card_uri=""):
                f'style="width:1080px;height:1350px;display:block"></div>')
     else:
         mid = (f'<div style="flex:1;display:flex;align-items:center;padding:0 72px"><h1 style="margin:0;'
-               f'font-size:{_size(headline, 104, 92, 78)}px;font-weight:800;line-height:1.02;letter-spacing:-2px">{e(headline)}</h1></div>')
+               f'font-size:{_size(headline, 104, 92, 78)}px;font-weight:800;line-height:1.02;letter-spacing:-2px">{t(headline)}</h1></div>')
     return _reel_shell(kicker + mid + '<div style="height:150px"></div>')
 
 

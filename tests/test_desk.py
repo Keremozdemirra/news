@@ -890,7 +890,7 @@ class Formats(Tmp):
         letter, value = answer_of(out["quiz-a"])
         self.assertEqual(dict(opts)[letter], value)
         self.assertEqual(value, "ElevenLabs")
-        self.assertIn("Answer on the next story", out["quiz"])
+        self.assertIn("Tap for the answer", out["quiz"])
         q, a = (json.loads((desk.QUEUE / f"2026-11-24-{k}" / "post.json").read_text()) for k in ("quiz", "quiz-a"))
         self.assertGreater(a["publish_after"], q["publish_after"])
         self.assertEqual(a["after"], q["id"])
@@ -1235,7 +1235,7 @@ class Formats(Tmp):
             text = re.sub(r"<[^>]+>", " ", html).lower()
             self.assertNotIn("stories", text)
             self.assertNotRegex(text, r"\bai\b|as it breaks|right here|all day")
-        self.assertIn("Answer on the next story", out["fill"])
+        self.assertIn("Tap for the answer", out["fill"])
 
 
 class ScheduledStories(Tmp):
