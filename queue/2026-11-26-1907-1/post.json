@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-1907-1",
+ "batch": "2026-11-26-1907",
+ "n": 1,
+ "created": "2026-11-26T19:07:30+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Meloni rebukes Ukraine over attacks on Russian ships in the Mediterranean\n\nEU · World\n\nItalian Prime Minister Giorgia Meloni rebuked Ukraine for its attacks on Russian ships in the Mediterranean. Speaking at an EU summit, she said: 'This war must not, cannot spread to the Mediterranean.'\n\nReported by Financial Times; Al Jazeera. Written by AI.\n\nSend this to whoever on your team tracks global risk.\n\n#worldnews #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.ft.com/content/7461793f-6983-45ea-8ba2-8b1824df9379?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.aljazeera.com/news/2026/11/26/why-is-italy-angry-with-ukraine-for-striking-russian-ships-off-libya?traffic_source=rss",
+  "https://www.ft.com/content/7461793f-6983-45ea-8ba2-8b1824df9379?syn-25a6b1a6=1"
+ ],
+ "headlines": [
+  "Meloni rebukes Ukraine over attacks on Russian ships in the Mediterranean"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "World",
+ "photo_file": "Giorgia Meloni Official 2023 (cropped).jpg",
+ "score": 9.066,
+ "figure": "",
+ "company": "",
+ "person": "Giorgia Meloni",
+ "logo_names": [],
+ "dek": "Italy's prime minister says at an EU summit that the war 'must not, cannot spread to the Mediterranean.'",
+ "body": "Italian Prime Minister Giorgia Meloni rebuked Ukraine for its attacks on Russian ships in the Mediterranean. Speaking at an EU summit, she said: 'This war must not, cannot spread to the Mediterranean.'",
+ "so_what": "",
+ "sources": [
+  "Financial Times",
+  "Al Jazeera"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/7461793f-6983-45ea-8ba2-8b1824df9379?syn-25a6b1a6=1",
+  "https://www.aljazeera.com/news/2026/11/26/why-is-italy-angry-with-ukraine-for-striking-russian-ships-off-libya?traffic_source=rss"
+ ],
+ "credit": "",
+ "status": "held",
+ "story": "",
+ "held": [
+  "photo without a credit line"
+ ]
+}

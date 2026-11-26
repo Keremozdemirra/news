@@ -1,0 +1,47 @@
+{
+ "id": "2026-11-26-1907-3",
+ "batch": "2026-11-26-1907",
+ "n": 3,
+ "created": "2026-11-26T19:07:34+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Andrew Bailey says unreleased AI models raise encryption concerns\n\nAndrew Bailey says unreleased AI models have raised concerns about encryption. Breakthroughs in mathematics have stoked fears that data across financial systems is under threat.\n\nReported by Financial Times. Written by AI.\n\nSend this to whoever on your team builds with AI.\n\n#ai #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.ft.com/content/450920b9-82b8-4a66-960b-5740aa7f94ae?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.ft.com/content/450920b9-82b8-4a66-960b-5740aa7f94ae?syn-25a6b1a6=1"
+ ],
+ "headlines": [
+  "Andrew Bailey says unreleased AI models raise encryption concerns"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "AI",
+ "photo_file": "Andrew Bailey, official portrait (2025).jpg",
+ "score": 8.673,
+ "figure": "",
+ "company": "",
+ "person": "Andrew Bailey",
+ "logo_names": [],
+ "dek": "Breakthroughs in mathematics have stoked fears that data across financial systems is under threat.",
+ "body": "Andrew Bailey says unreleased AI models have raised concerns about encryption. Breakthroughs in mathematics have stoked fears that data across financial systems is under threat.",
+ "so_what": "",
+ "sources": [
+  "Financial Times"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/450920b9-82b8-4a66-960b-5740aa7f94ae?syn-25a6b1a6=1"
+ ],
+ "credit": "",
+ "status": "held",
+ "story": "",
+ "held": [
+  "photo without a credit line"
+ ]
+}
