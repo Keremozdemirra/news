@@ -20,6 +20,9 @@ class Lead(Tmp):
     """While Instagram is blocked, due queued posts go to the other platforms on a per-platform schedule."""
 
     def setUp(self):
+        _floor = mock.patch.dict(desk.CONFIG, {"facebook_daily_min": 0})  # the quiet-day floor has its own tests
+        _floor.start()
+        self.addCleanup(_floor.stop)
         super().setUp()
         for p in (mock.patch.dict(os.environ, SECRETS), mock.patch.dict(desk.CONFIG, {"platforms": {n: True for n in platforms.NAMES}})):
             p.start()

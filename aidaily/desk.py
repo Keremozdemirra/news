@@ -1342,6 +1342,16 @@ def platform_pause(name, error, auth=False):
     print(f"{name}: {'credential rejected' if auth else 'rate limited'}, paused until {until:%Y-%m-%d %H:%M} UTC")
 
 
+def facebook_min_score_now():
+    """The score a post needs for the Facebook Page now. Normally only the day's biggest news goes there; a Page that
+    has had fewer than facebook_daily_min posts in 24 hours takes any social-grade post from facebook_floor_hour UTC,
+    so it never sits empty on a quiet day."""
+    if (now().hour >= CONFIG.get("facebook_floor_hour", 10)
+            and platform_sent_last_24h("facebook") < CONFIG.get("facebook_daily_min", 0)):
+        return min(CONFIG["facebook_min_score"], CONFIG["social_min_score"])
+    return CONFIG["facebook_min_score"]
+
+
 def platform_sent_last_24h(name):
     """Posts a platform took (or may have taken: a marker without a result counts) in the last 24 hours."""
     cut = now() - timedelta(hours=24)
@@ -1611,7 +1621,7 @@ def _lead_eligible(post, name):
     from . import insights
     if not CONFIG.get("platforms", {}).get(name) or _slot_done(post, name) or platform_cooldown(name):
         return False
-    if name == "facebook" and (post.get("score") or 0) < CONFIG["facebook_min_score"]:
+    if name == "facebook" and (post.get("score") or 0) < facebook_min_score_now():
         return False
     # the learned quiet hours are about Threads and Bluesky; a breaking story is never held
     if (name in WEB_PLATFORMS and now().hour in set(insights.learned_value("quiet_hours", []))

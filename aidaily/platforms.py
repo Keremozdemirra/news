@@ -210,7 +210,7 @@ def telegram_tag(post):
 
 def facebook_skip(post):
     """Why a post stays off the Facebook Page, or "": only the day's most important stories go there."""
-    if (post.get("score") or 0) < desk.CONFIG["facebook_min_score"]:
+    if (post.get("score") or 0) < desk.facebook_min_score_now():
         return "below facebook_min_score"
     if desk.platform_sent_last_24h("facebook") >= desk.CONFIG["facebook_daily_max"]:
         return "above facebook_daily_max"

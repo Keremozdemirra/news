@@ -421,6 +421,13 @@ class CrossPost(Env):
 
 
 class FacebookGate(CrossPost):
+    def setUp(self):
+        super().setUp()
+        # the quiet-day floor (test_facebook_floor) would lower the bar these tests pin
+        p = mock.patch.dict(desk.CONFIG, {"facebook_daily_min": 0})
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_shipped_bar_and_daily_max_are_set(self):
         shipped = json.loads((Path(desk.__file__).parent.parent / "desk.json").read_text())
         # Facebook takes the top few stories a day; a Telegram ping is rarer still

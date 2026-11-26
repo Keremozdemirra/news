@@ -118,6 +118,8 @@
   "breaking_score": 14,
   "facebook_min_score": 12,
   "facebook_daily_max": 4,
+  "facebook_daily_min": 2,
+  "facebook_floor_hour": 10,
   "lead_when_ig_blocked": true,
   "lead_spacing_minutes": {
     "threads": 40,
