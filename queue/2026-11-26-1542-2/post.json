@@ -4,7 +4,7 @@
  "n": 2,
  "created": "2026-11-26T15:42:07+00:00",
  "publish_after": "2026-11-26T15:51:35+00:00",
- "status": "failed",
+ "status": "queued",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -41,6 +41,5 @@
   "https://www.theguardian.com/environment/2026/nov/26/ministers-fail-to-make-case-for-heathrow-third-runway-mps-report-says",
   "https://www.ft.com/content/9c271b6d-3280-4abc-9e8f-a93caf594d21?syn-25a6b1a6=1"
  ],
- "credit": "Photo: Brian Robert Marshall, CC BY-SA 2.0, via Wikimedia Commons",
- "error": "POST 17841480765165673/media_publish: HTTP 403: {\"error\":{\"message\":\"Application request limit reached\",\"code\":4,\"type\":\"OAuthException\",\"error_subcode\":2207051,\"is_transient\":false,\"error_user_msg\":\"We restrict certain activity to protect our community. Tell us if you think that we've made a mistake.\",\"error_user_title\":\"Action is blocked\",\"fbtrace_id\":\"Avir6W-DUjWiKhFB7EY4uMX\"}}"
+ "credit": "Photo: Brian Robert Marshall, CC BY-SA 2.0, via Wikimedia Commons"
 }

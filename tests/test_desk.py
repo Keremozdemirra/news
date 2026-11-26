@@ -100,8 +100,12 @@ class Replies(unittest.TestCase):
 
 
 class FakeIG:
-    def __init__(self):
+    def __init__(self, live=None):
         self.posted = []
+        self.live = live or []
+
+    def recent_media(self, limit=25):
+        return self.live
 
     def post_carousel(self, urls, caption):
         self.posted.append(urls)
@@ -153,6 +157,241 @@ class Publish(Tmp):
         self.assertEqual(json.loads((desk.QUEUE / "a" / "post.json").read_text())["status"], "failed")
 
 
+class Duplicates(Tmp):
+    """The 2026-11-26 incident: Instagram answered media_publish with a block error but posted anyway, and a
+    lost status commit made the next run post the same thing again."""
+    BLOCK = ('POST 17841480765165673/media_publish: HTTP 403: {"error":{"message":"Application request limit reached",'
+             '"code":4,"error_subcode":2207051,"error_user_title":"Action is blocked"}}')
+
+    def live(self, caption="Lab ships a model\n\nbody", minutes_ago=0):
+        ts = (desk.now() - timedelta(minutes=minutes_ago)).strftime("%Y-%m-%dT%H:%M:%S+0000")
+        return {"id": "m9", "caption": caption, "timestamp": ts, "permalink": "https://instagram.com/p/live"}
+
+    def load(self, p):
+        return json.loads(p.read_text())
+
+    def test_already_live_is_recorded_not_reposted(self):
+        p = self.write_post("a", caption="Lab ships a model\n\nbody")
+        ig = FakeIG(live=[self.live()])
+        desk.publish(client=ig)
+        self.assertEqual(ig.posted, [])
+        got = self.load(p)
+        self.assertEqual((got["status"], got["media_id"], got["permalink"]), ("published", "m9", "https://instagram.com/p/live"))
+
+    def test_full_caption_match_counts_too(self):
+        p = self.write_post("a", headlines=["Other"], caption="exact caption\n\nx")
+        ig = FakeIG(live=[self.live(caption="exact  caption\n\nx")])
+        desk.publish(client=ig)
+        self.assertEqual((ig.posted, self.load(p)["status"]), ([], "published"))
+
+    def test_same_headline_from_before_the_post_is_not_a_match(self):
+        p = self.write_post("a", caption="Lab ships a model\n\nbody")
+        ig = FakeIG(live=[self.live(minutes_ago=600)])
+        self.assertEqual(desk.publish(client=ig), 1)
+        self.assertEqual(len(ig.posted), 1)
+        self.assertEqual(self.load(p)["media_id"], "m1")
+
+    def test_every_due_post_is_checked_even_when_spacing_holds_back_posting(self):
+        a = self.write_post("a", headlines=["One"], caption="One\n\nx")
+        b = self.write_post("b", headlines=["Two"], caption="Two\n\nx")
+        ig = FakeIG(live=[self.live(caption="One\n\nx"), self.live(caption="Two\n\nx")])
+        desk.publish(client=ig)
+        self.assertEqual([self.load(a)["status"], self.load(b)["status"]], ["published", "published"])
+        self.assertEqual(ig.posted, [])
+
+    def test_failed_check_means_nothing_is_published(self):
+        p = self.write_post("a")
+
+        class Down(FakeIG):
+            def recent_media(self, limit=25):
+                raise instagram.IGError("GET x/media: Temporary failure")
+        ig = Down()
+        self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual((ig.posted, self.load(p)["status"]), ([], "queued"))
+
+    def test_error_after_the_post_went_out_is_recovered_from_the_media_list(self):
+        p = self.write_post("a", caption="Lab ships a model\n\nbody")
+
+        class Lying(FakeIG):
+            def post_carousel(self, urls, caption):
+                self.live = [Duplicates.live(None, caption)]  # Instagram posted it, then answered with an error
+                raise instagram.IGError(Duplicates.BLOCK)
+        ig = Lying()
+        self.assertEqual(desk.publish(client=ig), 1)
+        got = self.load(p)
+        self.assertEqual((got["status"], got["media_id"]), ("published", "m9"))
+        # the block was seen on the way, so the cooldown is set even though this post is safe
+        self.assertTrue(desk.cooldown_until())
+
+    def test_block_sets_cooldown_and_leaves_the_post_queued(self):
+        p = self.write_post("a")
+
+        class Blocked(FakeIG):
+            def post_carousel(self, urls, caption):
+                raise instagram.IGError(Duplicates.BLOCK)
+        self.assertEqual(desk.publish(client=Blocked()), 0)
+        got = self.load(p)
+        self.assertEqual(got["status"], "queued")
+        self.assertNotIn("error", got)
+        until = desk.cooldown_until()
+        self.assertAlmostEqual((until - desk.now()).total_seconds(), 24 * 3600, delta=60)
+        self.assertTrue((desk.STATE / "cooldown.json").exists())
+
+    def test_cooldown_stops_publish_without_touching_instagram(self):
+        self.write_post("a")
+        desk._save(desk.STATE / "cooldown.json", {"until": (desk.now() + timedelta(hours=3)).isoformat()})
+        ig = FakeIG()
+        ig.recent_media = mock.Mock(side_effect=AssertionError("Instagram was called"))
+        self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual(ig.posted, [])
+
+    def test_cooldown_over_publishes_again(self):
+        self.write_post("a")
+        desk._save(desk.STATE / "cooldown.json", {"until": (desk.now() - timedelta(minutes=1)).isoformat()})
+        self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+    def test_block_codes_recognised(self):
+        for text in ['HTTP 403: {"error":{"code":4}}', '"code": 32', '"code":613', "error_subcode 2207051", "Action is blocked"]:
+            self.assertTrue(desk.BLOCKED.search(text), text)
+        for text in ['"code":190', '"code":41', "Media download has failed 2207003"]:
+            self.assertFalse(desk.BLOCKED.search(text), text)
+
+    def test_recent_attempt_that_is_not_listed_yet_waits(self):
+        self.write_post("a", attempted=desk.now().isoformat())
+        ig = FakeIG()
+        self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual(ig.posted, [])
+
+    def test_old_attempt_not_listed_is_published(self):
+        self.write_post("a", attempted=(desk.now() - timedelta(minutes=45)).isoformat())
+        self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+    def test_ordinary_failure_still_fails_the_post(self):
+        p = self.write_post("a")
+
+        class Broken(FakeIG):
+            def post_carousel(self, urls, caption):
+                raise instagram.IGError("boom")
+        desk.publish(client=Broken())
+        self.assertEqual(self.load(p)["status"], "failed")
+        self.assertFalse(desk.cooldown_until())
+
+
+class Pace(Tmp):
+    def test_spacing_between_feed_posts(self):
+        self.write_post("done", status="published", published=(desk.now() - timedelta(minutes=10)).isoformat())
+        self.write_post("a")
+        ig = FakeIG()
+        self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual(ig.posted, [])
+
+    def test_spacing_over(self):
+        gap = desk.CONFIG["spacing_minutes"] + 1
+        self.write_post("done", status="published", published=(desk.now() - timedelta(minutes=gap)).isoformat())
+        self.write_post("a")
+        self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+    def test_story_items_do_not_count_toward_spacing_or_cap(self):
+        for i in range(20):
+            self.write_post(f"s{i}", kind="story", status="published", published=desk.now().isoformat())
+        self.write_post("a")
+        self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+    def test_daily_posts_cap(self):
+        cap = desk.daily_cap()
+        self.assertEqual(cap, 12)
+        self.assertEqual(desk.CONFIG["spacing_minutes"], 45)
+        for i in range(cap):
+            self.write_post(f"d{i}", status="published", published=(desk.now() - timedelta(hours=2 + i)).isoformat())
+        self.write_post("a")
+        ig = FakeIG()
+        self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual(ig.posted, [])
+
+    def test_posts_older_than_a_day_leave_the_cap(self):
+        for i in range(desk.daily_cap()):
+            self.write_post(f"d{i}", status="published", published=(desk.now() - timedelta(hours=25)).isoformat())
+        self.write_post("a")
+        self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+
+class Ramp(Tmp):
+    def pace(self, **kw):
+        base = {"cap": 12, "since": desk.now().isoformat(), "last_block": ""}
+        base.update(kw)
+        desk._save(desk.STATE / "pace.json", base)
+
+    def days_ago(self, d):
+        return (desk.now() - timedelta(days=d, minutes=1)).isoformat()
+
+    def cap(self):
+        return json.loads((desk.STATE / "pace.json").read_text())["cap"]
+
+    def test_starts_at_the_start_cap(self):
+        self.assertEqual(desk.daily_cap(), 12)
+
+    def test_raised_one_step_after_seven_clean_days(self):
+        self.pace(since=self.days_ago(7))
+        desk.publish(client=FakeIG())
+        got = json.loads((desk.STATE / "pace.json").read_text())
+        self.assertEqual(got["cap"], 16)
+        self.assertLess((desk.now() - desk.datetime.fromisoformat(got["since"])).total_seconds(), 60)
+        self.assertEqual(desk.daily_cap(), 16)
+
+    def test_not_raised_before_seven_days(self):
+        self.pace(since=self.days_ago(6))
+        desk.publish(client=FakeIG())
+        self.assertEqual(self.cap(), 12)
+
+    def test_not_raised_when_a_block_happened_in_the_window(self):
+        self.pace(since=self.days_ago(8), last_block=self.days_ago(3))
+        desk.publish(client=FakeIG())
+        self.assertEqual(self.cap(), 12)
+
+    def test_raised_when_the_last_block_is_older_than_the_window(self):
+        self.pace(since=self.days_ago(8), last_block=self.days_ago(9))
+        desk.publish(client=FakeIG())
+        self.assertEqual(self.cap(), 16)
+
+    def test_ceiling(self):
+        self.pace(cap=38, since=self.days_ago(7))
+        desk.publish(client=FakeIG())
+        self.assertEqual(self.cap(), 40)
+        self.pace(cap=40, since=self.days_ago(7))
+        desk.publish(client=FakeIG())
+        self.assertEqual(self.cap(), 40)
+
+    def test_block_drops_one_step_and_resets_the_clock(self):
+        self.pace(cap=24, since=self.days_ago(5))
+        self.write_post("a")
+
+        class Blocked(FakeIG):
+            def post_carousel(self, urls, caption):
+                raise instagram.IGError(Duplicates.BLOCK)
+        desk.publish(client=Blocked())
+        got = json.loads((desk.STATE / "pace.json").read_text())
+        self.assertEqual(got["cap"], 20)  # one step, although the error was seen twice (publish and check)
+        self.assertTrue(got["last_block"])
+        self.assertLess((desk.now() - desk.datetime.fromisoformat(got["since"])).total_seconds(), 60)
+
+    def test_floor(self):
+        self.pace(cap=12)
+        self.write_post("a")
+
+        class Blocked(FakeIG):
+            def post_carousel(self, urls, caption):
+                raise instagram.IGError(Duplicates.BLOCK)
+        desk.publish(client=Blocked())
+        self.assertEqual(self.cap(), 12)
+
+    def test_publish_honours_the_cap_in_state(self):
+        self.pace(cap=16)
+        for i in range(13):
+            self.write_post(f"d{i}", status="published", published=(desk.now() - timedelta(hours=2 + i)).isoformat())
+        self.write_post("a")
+        self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+
 class Weights(unittest.TestCase):
     def test_needs_three_posts_and_clamps(self):
         rows = [{"categories": ["funding"], "insights": {"reach": 100, "shares": 30, "saved": 0}} for _ in range(3)]
@@ -194,6 +433,28 @@ class Token(unittest.TestCase):
         instagram.Client(token="SECRET123", user_id="1", opener=opener).call("GET", "me", {"fields": "id"})
         self.assertNotIn("SECRET123", seen["url"])
         self.assertEqual(seen["auth"], "Bearer SECRET123")
+
+    def test_recent_media_asks_for_caption_and_timestamp(self):
+        seen = {}
+
+        class R:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b'{"data": [{"id": "5"}]}'
+
+        def opener(req, timeout, context):
+            seen["url"] = req.full_url
+            return R()
+        got = instagram.Client(token="T", user_id="77", opener=opener).recent_media()
+        self.assertEqual(got, [{"id": "5"}])
+        self.assertIn("/77/media?", seen["url"])
+        self.assertIn("fields=id%2Ccaption%2Ctimestamp%2Cpermalink", seen["url"])
+        self.assertIn("limit=25", seen["url"])
 
 
 if __name__ == "__main__":
@@ -249,7 +510,8 @@ class Schedule(Tmp):
 
     def test_spaced_capped_per_run_and_not_too_far_ahead(self):
         made = desk.queue(self.day_dir(6), batch="b", render=False)
-        self.assertEqual(len(made), min(6, desk.CONFIG["max_per_run"]))
+        fits = desk.CONFIG["max_hours_ahead"] * 60 // desk.CONFIG["spacing_minutes"] + 1
+        self.assertEqual(len(made), min(6, desk.CONFIG["max_per_run"], fits))
         times = [json.loads(p.read_text())["publish_after"] for p in made]
         gaps = {(desk.datetime.fromisoformat(b) - desk.datetime.fromisoformat(a)).seconds // 60 for a, b in zip(times, times[1:])}
         self.assertEqual(gaps, {desk.CONFIG["spacing_minutes"]})

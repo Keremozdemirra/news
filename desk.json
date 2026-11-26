@@ -22,7 +22,11 @@
     "Product Hunt"
   ],
   "max_per_run": 10,
-  "spacing_minutes": 5,
+  "spacing_minutes": 45,
+  "daily_posts_start": 12,
+  "daily_posts_step": 4,
+  "daily_posts_max": 40,
+  "daily_posts_ramp_days": 7,
   "max_hours_ahead": 2,
   "api_daily_limit": 45,
   "min_score": 7.0,

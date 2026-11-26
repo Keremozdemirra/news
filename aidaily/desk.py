@@ -716,7 +716,7 @@ def queue(day_dir, batch=None, render=True):
         print("paused: nothing queued")
         return []
     pending = sum(1 for p, _ in posts() if p.get("status") == "queued")
-    room = min(CONFIG["api_daily_limit"] - published_last_24h() - pending, CONFIG["max_per_run"])
+    room = min(daily_cap() - published_last_24h() - pending, CONFIG["max_per_run"])
     if room <= 0:
         print(f"Instagram's 24-hour publishing limit is in reach ({pending} queued); waiting")
         return []
@@ -814,6 +814,109 @@ def published_last_24h():
                and datetime.fromisoformat(p["published"]) > cut)
 
 
+COOLDOWN_HOURS = 24
+ATTEMPT_SETTLE_MINUTES = 30
+# Instagram's rate-limit and "action blocked" answers: app request limit (4), 32, 613, subcode 2207051
+BLOCKED = re.compile(r"2207051|\"code\":\s*(4|32|613)\b|Action is blocked|Application request limit", re.I)
+
+
+def cooldown_until():
+    """When the Instagram block lifts, or None. Written by note_block, read before any call to Instagram."""
+    until = _load(STATE / "cooldown.json", {}).get("until")
+    if until and datetime.fromisoformat(until) > now():
+        return datetime.fromisoformat(until)
+    return None
+
+
+def pace():
+    """The feed-post cap per 24 hours, kept in state/pace.json: {"cap", "since", "last_block"}."""
+    got = _load(STATE / "pace.json", {})
+    if not got.get("cap"):
+        got = {"cap": CONFIG["daily_posts_start"], "since": now().isoformat(timespec="seconds"), "last_block": ""}
+    return got
+
+
+def daily_cap():
+    return min(pace()["cap"], CONFIG["api_daily_limit"])
+
+
+def ramp():
+    """Raise the cap by one step after a full clean ramp period at the current cap; never past the maximum."""
+    got = pace()
+    window = timedelta(days=CONFIG["daily_posts_ramp_days"])
+    since, blocked = _stamp(got["since"]), _stamp(got.get("last_block", ""))
+    if (since and now() - since >= window and not (blocked and now() - blocked < window)
+            and got["cap"] < CONFIG["daily_posts_max"]):
+        got.update(cap=min(got["cap"] + CONFIG["daily_posts_step"], CONFIG["daily_posts_max"]),
+                   since=now().isoformat(timespec="seconds"))
+        print(f"daily post cap raised to {got['cap']}")
+    _save(STATE / "pace.json", got)
+
+
+def note_block(error):
+    """A block answer means every further call digs the hole deeper: stop for a day and leave the post queued."""
+    if not BLOCKED.search(str(error)):
+        return False
+    if not cooldown_until():  # one block is one step down, however many calls report it
+        got = pace()
+        got.update(cap=max(CONFIG["daily_posts_start"], got["cap"] - CONFIG["daily_posts_step"]),
+                   since=now().isoformat(timespec="seconds"), last_block=now().isoformat(timespec="seconds"))
+        _save(STATE / "pace.json", got)
+    until = now() + timedelta(hours=COOLDOWN_HOURS)
+    _save(STATE / "cooldown.json", {"until": until.isoformat(timespec="seconds"),
+                                    "set": now().isoformat(timespec="seconds"), "error": str(error)[:300]})
+    print(f"Instagram blocked the account: cooling down until {until:%Y-%m-%d %H:%M} UTC")
+    return True
+
+
+def _norm(text):
+    return " ".join((text or "").split()).casefold()
+
+
+def _stamp(text):
+    try:
+        return datetime.fromisoformat(re.sub(r"([+-]\d\d)(\d\d)$", r"\1:\2", text.replace("Z", "+00:00")))
+    except (ValueError, AttributeError):
+        return None
+
+
+def find_live(media, post):
+    """The account's own copy of this post: first caption line equal to the headline, or the whole caption
+    equal, and not older than the post itself (an earlier post with the same headline is a different post)."""
+    head = _norm((post.get("headlines") or [""])[0])
+    full = _norm(post.get("caption"))
+    born = _stamp(post.get("created", ""))
+    for m in media:
+        cap = m.get("caption") or ""
+        if not cap.strip():
+            continue
+        first = _norm(cap.strip().splitlines()[0])
+        if not ((head and first == head) or (full and _norm(cap) == full)):
+            continue
+        seen = _stamp(m.get("timestamp", ""))
+        if born and seen and seen < born - timedelta(minutes=5):
+            continue
+        return m
+    return None
+
+
+def _mark_live(post, path, m):
+    post.update(status="published", published=(_stamp(m.get("timestamp", "")) or now()).isoformat(timespec="seconds"),
+                media_id=m["id"], permalink=m.get("permalink", ""), found_live=True)
+    post.pop("error", None)
+    _save(path, post)
+    if post.get("issue") and github.enabled():
+        github.comment(post["issue"], f"{post.get('n', 1)}. Already live, recorded: {post['permalink']}")
+    _close_if_done(post.get("issue"))
+    print(f"{post['id']}: already live on Instagram, recorded as published {post['permalink']}")
+
+
+def last_published():
+    stamps = [_stamp(p.get("published", "")) for p, _ in posts()
+              if p.get("status") == "published" and p.get("kind") != "story"]
+    return max((s for s in stamps if s), default=None)
+
+
 def configured():
     return bool(os.environ.get("IG_TOKEN") and os.environ.get("IG_USER_ID"))
 
@@ -847,8 +950,40 @@ def publish(client=None, dry=False):
     if client is None and not dry and not configured():
         print("Instagram not connected yet (IG_TOKEN, IG_USER_ID): nothing published")
         return 0
-    due = sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
-                  and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
+    blocked = cooldown_until()
+    if blocked:
+        print(f"Instagram cooldown until {blocked:%Y-%m-%d %H:%M} UTC: nothing published")
+        return 0
+
+    ramp()
+
+    def due_posts():
+        return sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
+                       and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
+
+    due = due_posts()
+    checked = set()
+    if not dry and any(p.get("kind") != "story" for p, _ in due):
+        # Before anything is posted, record what is already live. A publish that errored, or whose status
+        # commit was lost, may still have gone out; posting it again is the one thing this desk must not do.
+        if client is None:
+            from .instagram import Client
+            client = Client()
+        try:
+            live = client.recent_media()
+        except Exception as e:  # noqa: BLE001
+            note_block(e)
+            print(f"could not read the account's recent posts, so nothing is published now: {str(e)[:200]}")
+            return 0
+        for post, path in due:
+            if post.get("kind") == "story":
+                continue
+            found = find_live(live, post)
+            if found:
+                _mark_live(post, path, found)
+            else:
+                checked.add(post["id"])
+        due = due_posts()
     for post, path in due:
         if post.get("kind") == "story":
             if dry:
@@ -861,6 +996,7 @@ def publish(client=None, dry=False):
                 post.update(status="published", published=now().isoformat(timespec="seconds"),
                             media_id=_send_story(client, post))
             except Exception as e:  # noqa: BLE001
+                note_block(e)
                 if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
                     post["tries"] = post.get("tries", 0) + 1
                 else:
@@ -880,8 +1016,17 @@ def publish(client=None, dry=False):
             _save(path, post)
             print(f"{post['id']}: held: {'; '.join(problems)}")
             continue
-        if published_last_24h() >= CONFIG["api_daily_limit"]:
-            print("Instagram's 24-hour publishing limit reached; waiting")
+        if published_last_24h() >= daily_cap():
+            print("daily post cap reached; waiting")
+            return 0
+        last = last_published()
+        if last and now() - last < timedelta(minutes=CONFIG.get("spacing_minutes", 0)):
+            print(f"{post['id']}: spacing, next post after {last + timedelta(minutes=CONFIG['spacing_minutes']):%H:%M} UTC")
+            return 0
+        tried = _stamp(post.get("attempted", ""))
+        if tried and now() - tried < timedelta(minutes=ATTEMPT_SETTLE_MINUTES):
+            # a publish went out and errored: the post may still be about to show up in the media list
+            print(f"{post['id']}: a publish was attempted {tried:%H:%M} UTC, waiting before checking again")
             return 0
         urls = [media_url(post["id"], c) for c in post["cards"]]
         if dry:
@@ -890,14 +1035,34 @@ def publish(client=None, dry=False):
         if client is None:
             from .instagram import Client
             client = Client()
+        if post["id"] not in checked:  # structural guard: nothing is posted without the duplicate check
+            print(f"{post['id']}: not checked against the account's posts, skipped")
+            continue
+        post["attempted"] = now().isoformat(timespec="seconds")
+        _save(path, post)  # on disk before the call: a killed run still leaves the trace for the next check
         try:
             media, link = client.post_carousel(urls, post["caption"])
         except Exception as e:  # noqa: BLE001  one failed post must not block the queue
+            blocked = note_block(e)
             if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
                 post["tries"] = post.get("tries", 0) + 1
+                post.pop("attempted", None)
                 _save(path, post)
                 print(f"{post['id']}: image not fetchable yet, retry {post['tries']}")
                 continue
+            # the error may have come after Instagram accepted the post: look before deciding anything
+            try:
+                found = find_live(client.recent_media(), post)
+            except Exception as check:  # noqa: BLE001
+                note_block(check)
+                print(f"{post['id']}: errored and the account could not be checked; left queued: {str(e)[:160]}")
+                return 0
+            if found:
+                _mark_live(post, path, found)
+                return 1
+            if blocked:
+                print(f"{post['id']}: blocked, left queued")
+                return 0
             post["status"], post["error"] = "failed", str(e)[:400]
             _save(path, post)
             if post.get("issue") and github.enabled():
@@ -915,6 +1080,7 @@ def publish(client=None, dry=False):
             try:
                 post["story_id"] = client.story(media_url(post["id"], post["story"]))
             except Exception as e:  # noqa: BLE001
+                note_block(e)
                 post["story_error"] = str(e)[:300]
         _save(path, post)
         if post.get("issue") and github.enabled():

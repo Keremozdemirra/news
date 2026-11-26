@@ -96,6 +96,11 @@ class Client:
     def permalink(self, media_id):
         return self.call("GET", media_id, {"fields": "permalink"}).get("permalink", "")
 
+    def recent_media(self, limit=25):
+        """The account's newest feed posts, newest first. The duplicate check reads this before every publish."""
+        return self.call("GET", f"{self.user_id}/media",
+                         {"fields": "id,caption,timestamp,permalink", "limit": limit}).get("data", [])
+
     def quota(self):
         rows = self.call("GET", f"{self.user_id}/content_publishing_limit", {"fields": "quota_usage,config"}).get("data", [])
         return rows[0] if rows else {}
