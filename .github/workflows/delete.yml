@@ -1,0 +1,29 @@
+name: delete
+# Run by hand: deletes the named posts or stories from Instagram and marks them deleted, so the pages drop them.
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "queue ids, space separated"
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  delete:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Delete
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IDS: ${{ inputs.ids }}
+        run: python3 -m aidaily delete $IDS
+      - name: Commit
+        if: always()
+        run: |
+          scripts/commit.sh "desk: delete $IDS"

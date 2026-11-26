@@ -124,6 +124,10 @@ class Client:
         return self.call("POST", f"{self.user_id}/messages",
                          {"recipient": json.dumps({"comment_id": comment_id}), "message": json.dumps({"text": text})})
 
+    def delete(self, media_id):
+        """Remove a post or story from the account. Meta answers {"success": true} when it is gone."""
+        return self.call("DELETE", media_id).get("success", False)
+
     def own_username(self):
         # "me" is the system user under a unified-login token, so ask the Instagram account itself
         return self.call("GET", self.user_id, {"fields": "username"}).get("username", "")

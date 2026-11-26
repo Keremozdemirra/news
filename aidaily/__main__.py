@@ -157,10 +157,27 @@ def main(argv=None):
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("site", help="build the news pages into _site/")
     sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
+    dl = sub.add_parser("delete", help="delete posts or stories by queue id, and mark them deleted")
+    dl.add_argument("ids", nargs="+")
     args = p.parse_args(argv)
     if args.cmd == "serve":
         from . import server
         server.serve(args.port)
+        return 0
+    if args.cmd == "delete":
+        from . import desk
+        from .instagram import Client
+        c = Client()
+        for pid in args.ids:
+            path = desk.QUEUE / pid / "post.json"
+            post = desk._load(path, {})
+            mid = post.get("media_id")
+            ok = c.delete(mid) if mid else False
+            if post.get("story_id"):
+                c.delete(post["story_id"])
+            post.update(status="deleted" if ok else post.get("status"), deleted=desk.now().isoformat(timespec="seconds") if ok else None)
+            desk._save(path, post)
+            print(f"{pid}: {'deleted' if ok else 'not deleted'}")
         return 0
     if args.cmd == "ping":
         from .instagram import Client
