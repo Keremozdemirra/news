@@ -26,4 +26,5 @@ jobs:
         run: python3 -m aidaily publish
       - name: Commit
         if: always()
-        run: scripts/commit.sh "desk: publish $(date -u +%F-%H%M)"
+        run: |
+          scripts/commit.sh "desk: publish $(date -u +%F-%H%M)"

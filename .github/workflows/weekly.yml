@@ -26,4 +26,5 @@ jobs:
           python3 -m aidaily token
       - name: Commit
         if: always()
-        run: scripts/commit.sh "desk: weekly $(date -u +%G-W%V)"
+        run: |
+          scripts/commit.sh "desk: weekly $(date -u +%G-W%V)"

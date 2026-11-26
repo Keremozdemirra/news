@@ -1,0 +1,24 @@
+name: ci
+# Tests, and one card rendered on the same Ubuntu image the daily run uses, so a broken
+# Chrome or ffmpeg shows up on push and not at 05:00.
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tests
+        run: python3 -m unittest discover -s tests
+      - name: Render one card
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          python3 -c "
+          from aidaily import render as R
+          R.shoot(R.T.daily_cover('26 Nov 2026', ['Lab ships a model', 'Startup raises money', 'Court rules on data']), '/tmp/cover.png', 1080, 1350)
+          print(R.jpeg('/tmp/cover.png'))"
+          file /tmp/cover.jpg

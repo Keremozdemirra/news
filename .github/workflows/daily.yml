@@ -29,7 +29,8 @@ jobs:
           DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
         run: python3 -m aidaily daily
       - name: Commit the queue
-        run: scripts/commit.sh "desk: queue $(date -u +%F-%H%M)"
+        run: |
+          scripts/commit.sh "desk: queue $(date -u +%F-%H%M)"
       - name: Open the veto issue
         env:
           GITHUB_TOKEN: ${{ github.token }}
