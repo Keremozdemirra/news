@@ -4,7 +4,7 @@
  "n": 1,
  "created": "2026-11-26T15:42:05+00:00",
  "publish_after": "2026-11-26T15:46:35+00:00",
- "status": "queued",
+ "status": "failed",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -46,5 +46,6 @@
   "https://techcrunch.com/2026/11/25/state-ags-fight-character-ais-plan-to-auction-off-users-private-chats/",
   "https://www.engadget.com/2328630/state-ags-are-trying-to-stop-characterai-from-auctioning-off-users-chat-histories/"
  ],
- "credit": "Photo: Abigor, CC BY-SA 3.0, via Wikimedia Commons"
+ "credit": "Photo: Abigor, CC BY-SA 3.0, via Wikimedia Commons",
+ "error": "POST 17841480765165673/media_publish: HTTP 403: {\"error\":{\"message\":\"Application request limit reached\",\"code\":4,\"type\":\"OAuthException\",\"error_subcode\":2207051,\"is_transient\":false,\"error_user_msg\":\"We restrict certain activity to protect our community. Tell us if you think that we've made a mistake.\",\"error_user_title\":\"Action is blocked\",\"fbtrace_id\":\"AtycoeTX2GosN7q_F7nch4K\"}}"
 }
