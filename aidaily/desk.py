@@ -72,7 +72,7 @@ FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 def _recent_posts(days):
     cut = now() - timedelta(days=days)
-    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed")
+    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed", "deleted")
             and datetime.fromisoformat(p["created"]) > cut]
 
 
