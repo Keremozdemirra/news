@@ -61,7 +61,7 @@ def _commons_info(filename, width=None):
     extra = f"&iiurlwidth={width}" if width else ""
     t = urllib.parse.quote("File:" + filename)
     pages = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo"
-                 f"&iiprop=url|extmetadata|metadata{extra}&titles={t}")["query"]["pages"]
+                 f"&iiprop=url|size|extmetadata|metadata{extra}&titles={t}")["query"]["pages"]
     return list(pages.values())[0]["imageinfo"][0]
 
 
@@ -102,6 +102,10 @@ def logo(name, domain="", fetch=True):
         return None
     try:
         label, claims = _entity(name)
+        # the top search hit can be a neighbour of the company: "S&P" finds the S&P 500 index
+        extra = (label or "").lower().replace(name.lower(), "", 1) if label and name.lower() in label.lower() else None
+        if extra is None or re.search(r"\d", extra):
+            raise LookupError(f"Wikidata's {label!r} is not {name!r}")
         f = pick_logo(label or name, claims)
         if f:
             url = _commons_info(f, width=600 if not f.lower().endswith(".svg") else None)
@@ -159,3 +163,70 @@ def photo(person, fetch=True):
     except Exception:  # noqa: BLE001
         miss.write_text("")
         return None, ""
+
+
+NOT_PHOTO = re.compile(r"logo|icon|wordmark|\.svg$|map|flag|diagram|chart|screenshot|seal|coat of arms|signature", re.I)
+
+
+def candidates(subject, person=False):
+    """Commons file names that may show the subject: a person's Wikidata image and category, or a search."""
+    files = []
+    if person:
+        _, claims = _entity(subject)
+        files += [x["mainsnak"]["datavalue"]["value"] for x in claims.get("P18", []) if "datavalue" in x["mainsnak"]]
+        cats = [x["mainsnak"]["datavalue"]["value"] for x in claims.get("P373", []) if "datavalue" in x["mainsnak"]]
+        for cat in cats[:1]:
+            t = urllib.parse.quote("Category:" + cat)
+            got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=categorymembers"
+                       f"&cmtitle={t}&cmtype=file&cmlimit=50")["query"]["categorymembers"]
+            files += [m["title"][5:] for m in got]
+    else:
+        q = urllib.parse.quote(f"{subject} filetype:bitmap")
+        got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
+                   f"&srnamespace=6&srlimit=40&srsearch={q}")["query"]["search"]
+        files += [m["title"][5:] for m in got]
+    seen, out = set(), []
+    for f in files:
+        if f not in seen and f.lower().endswith((".jpg", ".jpeg", ".png")) and not NOT_PHOTO.search(f):
+            seen.add(f)
+            out.append(f)
+    return out
+
+
+def fresh_photo(subjects, used, fetch=True):
+    """(path, credit, file) for the first reusable photo, across the subjects in order, that is not in `used`.
+
+    Each subject is (text, is_person). Rotating through a person's whole Commons category is what keeps
+    the tenth story about the same founder from carrying the same face.
+    """
+    if not fetch:
+        return None, "", ""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    for text, is_person in subjects:
+        if not text:
+            continue
+        try:
+            names = candidates(text, is_person)
+        except Exception:  # noqa: BLE001  one failed lookup moves on to the next subject
+            continue
+        for f in names[:30]:
+            if f in used:
+                continue
+            try:
+                info = _commons_info(f, width=1600)
+            except Exception:  # noqa: BLE001
+                continue
+            ok, credit = photo_ok(info)
+            # an archive scan from 1920 is free to use and wrong for today's news
+            when = (info.get("extmetadata", {}).get("DateTimeOriginal") or {}).get("value", "")
+            year = re.search(r"\b(1[89]\d\d|20\d\d)\b", re.sub(r"<[^>]+>", "", when))
+            if year and int(year.group(1)) < 2008:
+                continue
+            # a small or thin image looks broken across a full card
+            if not ok or (info.get("width") or 0) < 900 or (info.get("height") or 0) < 600:
+                continue
+            p = CACHE / f"img-{_slug(f)[:80]}.jpg"
+            if not p.exists():
+                p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
+            return p, credit, f
+    return None, "", ""

@@ -286,3 +286,30 @@ class Veto(unittest.TestCase):
         self.assertFalse(self.run_with([{"user": {"login": "someone"}, "body": "veto all"}], 1))
         self.assertTrue(self.run_with([{"user": {"login": "Owner"}, "body": "veto all"}], 1))
         self.assertTrue(self.run_with([], 1, state="closed"))
+
+
+class Pictures(unittest.TestCase):
+    def test_orgs_must_appear_in_the_source(self):
+        from aidaily import copy
+        s = {"title": "Nvidia and Dell halt shipments", "summary": "Supermicro too.", "source": "X", "url": "u"}
+        row = {"id": 0, "headline": "Nvidia and Dell halt shipments", "dek": "", "figure": "", "x_post": "",
+               "linkedin_post": "", "orgs": ["Nvidia", "Dell", "Intel"], "image_query": "server rack"}
+        copy.apply([s], [row])
+        self.assertEqual(s["orgs"], ["Nvidia", "Dell"])
+        self.assertEqual(s["image_query"], "server rack")
+
+    def test_used_and_old_photos_are_skipped(self):
+        from aidaily import entities as E
+        info = {"new.jpg": {"width": 2000, "height": 1300, "url": "u", "extmetadata": {
+                    "LicenseShortName": {"value": "CC BY-SA 4.0"}, "Artist": {"value": "A"},
+                    "DateTimeOriginal": {"value": "2024-05-01"}}},
+                "old.jpg": {"width": 2000, "height": 1300, "url": "u", "extmetadata": {
+                    "LicenseShortName": {"value": "Public domain"}, "DateTimeOriginal": {"value": "1921"}}}}
+        with tempfile.TemporaryDirectory() as d, \
+             mock.patch.object(E, "CACHE", Path(d)), \
+             mock.patch.object(E, "candidates", return_value=["used.jpg", "old.jpg", "new.jpg"]), \
+             mock.patch.object(E, "_commons_info", side_effect=lambda f, width=None: info.get(f, info["new.jpg"])), \
+             mock.patch.object(E, "_get", return_value=b"jpeg"):
+            _, credit, f = E.fresh_photo([("trading floor", False)], {"used.jpg"})
+        self.assertEqual(f, "new.jpg")
+        self.assertIn("CC BY-SA 4.0", credit)

@@ -143,6 +143,11 @@ def caption(m, s):
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
+def used_photos(days=45):
+    cut = now() - timedelta(days=days)
+    return {p["photo_file"] for p, _ in posts() if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut}
+
+
 def _last_slot():
     slots = [datetime.fromisoformat(p["publish_after"]) for p, _ in posts() if p.get("status") in ("queued", "published")]
     return max(slots) if slots else None
@@ -188,7 +193,7 @@ def queue(day_dir, batch=None, render=True):
                 "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
                 "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
-                "categories": [m["category"]]}
+                "categories": [m["category"]], "photo_file": m.get("photo_file", "")}
         _save(out / "post.json", post)
         made.append(out / "post.json")
         print(f"queued {out.name}: {m['headline'][:60]} at {slot:%H:%M} UTC")

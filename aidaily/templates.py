@@ -44,15 +44,31 @@ def day(story):
         return ""
 
 
+# Commons files already on recent posts; the desk fills it before a render so no photo repeats for weeks
+USED = set()
+
+
 def assets(story, fetch=True):
-    """Logo, backer logo and photo for a story, resolved once and kept on the story."""
+    """Logos and a photo for a story, resolved once and kept on the story."""
     if "_assets" not in story:
         co = story.get("company", "")
         lg = entities.logo(co, story.get("company_domain", ""), fetch=fetch)
         bk = entities.logo(story.get("backer", ""), fetch=fetch) if story.get("backer") else None
-        ph, credit = entities.photo(story.get("person", ""), fetch=fetch)
+        names = []
+        for n in [co, story.get("backer", "")] + list(story.get("orgs") or []):
+            if n and n.lower() not in {x.lower() for x in names}:
+                names.append(n)
+        logos = []
+        for n in names[:3]:
+            f = lg if n == co else entities.logo(n, fetch=fetch)
+            if f:
+                logos.append(f.as_uri())
+        subjects = [(story.get("person", ""), True), (story.get("image_query", ""), False), (co, False)]
+        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch)
+        if file_:
+            USED.add(file_)
         story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "",
-                            "photo": ph.as_uri() if ph else "", "credit": credit}
+                            "logos": logos, "photo": ph.as_uri() if ph else "", "credit": credit, "file": file_}
     return story["_assets"]
 
 
@@ -135,14 +151,20 @@ def card(story, brand=BRAND):
     title = story.get("headline") or story["title"]
     kind = layout(story)
     if kind == "photo":
-        mark = _logo_block(a["logo"], "", 26, invert=True) if a["logo"].endswith(".svg") else ""
+        # the photo fills the card; logos of every organisation in the story sit on white chips over it
+        chips = "".join(
+            f'<div style="height:96px;padding:0 26px;background:#fff;border-radius:20px;display:flex;align-items:center;'
+            f'box-shadow:0 6px 24px rgba(0,0,0,.25)"><img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
+            f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
         return head() + f"""
-<div style="width:1080px;height:1350px;background:{BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<img src="{a['photo']}" style="width:1080px;height:640px;object-fit:cover;object-position:50% 22%;display:block">
-<div style="flex:1;padding:56px 72px 64px;display:flex;flex-direction:column">
-<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:24px;font-weight:500;color:{GREY_DARK}">{e(_meta(story))}</span>{mark}</div>
-<h1 style="margin:34px 0 0;font-size:{_size(title, 84, 76, 64)}px;font-weight:800;line-height:1.03;letter-spacing:-1.5px">{e(title)}</h1>
-<div style="flex:1"></div>{_foot(story, brand, dark=True)}</div></div></body></html>"""
+<div style="position:relative;width:1080px;height:1350px;background:{BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
+<img src="{a['photo']}" style="position:absolute;inset:0;width:1080px;height:1350px;object-fit:cover;object-position:50% 25%">
+<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%)"></div>
+<div style="position:absolute;left:64px;right:64px;top:64px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
+<div style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column">
+<span style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta(story))}</span>
+<h1 style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{e(title)}</h1>
+{_foot(story, brand, dark=True)}</div></div></body></html>"""
     if kind == "figure":
         fig = story.get("figure") or key_figure(title)
         backer = (f'<div style="margin-top:26px;display:flex;align-items:center;gap:14px;font-size:26px;color:{GREY}"><span>Backed by</span>'
