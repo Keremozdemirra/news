@@ -22,7 +22,7 @@
   "launch"
  ],
  "topic": "AI",
- "photo_file": "",
+ "photo_file": "AMD Ryzen 5 2600 (39851733273).jpg",
  "score": 8.038,
  "figure": "",
  "company": "",
@@ -39,8 +39,10 @@
  "source_urls": [
   "https://huggingface.co/blog/ggml-org/llamacpp-amd-bench"
  ],
- "credit": "",
+ "credit": "Photo: Fritzchens Fritz, CC0, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-26T18:35:27+00:00",
- "story": ""
+ "story": "",
+ "photo_kind": "name",
+ "photo_alt": ""
 }

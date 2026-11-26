@@ -22,7 +22,7 @@
   "news"
  ],
  "topic": "Politics",
- "photo_file": "",
+ "photo_file": "Säynätsalo Town Hall council chamber ballot box.jpg",
  "score": 8.027,
  "figure": "",
  "company": "",
@@ -37,8 +37,10 @@
  "source_urls": [
   "https://www.theguardian.com/politics/live/2026/nov/26/uk-eu-food-deal-farage-penalty-compensation-reform-net-migration-latest-news-updates"
  ],
- "credit": "",
+ "credit": "Photo: Antti Leppänen, CC BY 4.0, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-26T18:35:28+00:00",
- "story": ""
+ "story": "",
+ "photo_kind": "scene",
+ "photo_alt": "A carved wooden ballot box on a council table"
 }

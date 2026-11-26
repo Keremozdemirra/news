@@ -23,7 +23,7 @@
   "markets"
  ],
  "topic": "Markets",
- "photo_file": "",
+ "photo_file": "Wall Street, Manhattan, New York City, 20231002 172333.jpg",
  "score": 8.153,
  "figure": "",
  "company": "",
@@ -39,8 +39,10 @@
  "source_urls": [
   "https://www.cnbc.com/2026/11/26/stock-market-today-live-updates.html"
  ],
- "credit": "",
+ "credit": "Photo: Jakub Hałun, CC BY 4.0, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-26T23:10:11+00:00",
- "story": ""
+ "story": "",
+ "photo_kind": "name",
+ "photo_alt": ""
 }

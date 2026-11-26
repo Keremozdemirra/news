@@ -25,7 +25,7 @@
   "news"
  ],
  "topic": "World",
- "photo_file": "",
+ "photo_file": "Ibiza ISS035-E-007431.jpg",
  "score": 8.284,
  "figure": "",
  "company": "",
@@ -45,8 +45,10 @@
   "https://www.bbc.co.uk/news/articles/c9gklryvj24do?at_medium=RSS&at_campaign=rss",
   "https://www.dw.com/en/crew-member-dies-after-diesel-tanker-sinks-off-ibiza-coast/a-80059054?maca=en-rss-en-world-4025-rdf"
  ],
- "credit": "",
+ "credit": "Photo: Expedition 35 crew, Public domain, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-26T20:51:37+00:00",
- "story": ""
+ "story": "",
+ "photo_kind": "name",
+ "photo_alt": ""
 }

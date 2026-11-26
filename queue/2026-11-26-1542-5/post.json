@@ -24,7 +24,7 @@
   "markets"
  ],
  "topic": "Markets",
- "photo_file": "New York Stock Exchange August 2017 02.jpg",
+ "photo_file": "Buildings in Financial District, Manhattan.jpg",
  "score": 8.757,
  "figure": "",
  "company": "",
@@ -38,6 +38,8 @@
  "source_urls": [
   "https://www.ft.com/content/6e217409-9fbb-456c-b405-2eb15bb69679?syn-25a6b1a6=1"
  ],
- "credit": "Photo: Myrmux, CC BY-SA 4.0, via Wikimedia Commons",
- "issue": 6
+ "credit": "Photo: Julian Lupyan, CC0, via Wikimedia Commons",
+ "issue": 6,
+ "photo_kind": "scene",
+ "photo_alt": "Office towers in a financial district"
 }
