@@ -411,8 +411,8 @@ class PhotoChoice(unittest.TestCase):
 
     def test_person_photos_name_them_and_nobody_else(self):
         from aidaily import entities as E
-        hits = ["Elon Musk Royal Society (crop2).jpg", "Trump-Musk-Xi-Putin.jpg", "Elon Musk with Donald Trump.jpg",
+        hits = ["Elon Musk Royal Society (cropped).jpg", "Elon Musk Tesla rally sign (cropped).jpg", "Trump-Musk-Xi-Putin.jpg", "Elon Musk with Donald Trump.jpg",
                 "Community Notes under Elon Musk free speech tweet.jpg", "Tesla factory.jpg"]
         with mock.patch.object(E, "_entity", return_value=("Elon Musk", {})), \
              mock.patch.object(E, "_get", return_value=self.search(hits)):
-            self.assertEqual(E.candidates("Elon Musk", person=True), ["Elon Musk Royal Society (crop2).jpg"])
+            self.assertEqual(E.candidates("Elon Musk", person=True), ["Elon Musk Royal Society (cropped).jpg"])

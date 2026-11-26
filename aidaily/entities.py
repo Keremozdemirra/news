@@ -172,6 +172,9 @@ NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|in
 PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"
                     r"press conference|holds|meets|meeting|speaks|speech|visit|delegation|representatives|portrait|"
                     r"interview|summit|ceremony|rally|protest|selfie|headshot|wedding|funeral|team photo)\b", re.I)
+FACE = re.compile(r"cropped|crop\b|portrait|official|headshot", re.I)
+PEOPLE_ART = re.compile(r"guilty|convicted|impeach|sign|poster|banner|placard|mural|cartoon|caricature|meme|graffiti|"
+                        r"effigy|mask|costume|parody|protest|rally|march|vote|ballot|campaign|sticker|flag", re.I)
 GROUP = re.compile(r"\b(with|and|meets|meeting|delegation|visit|group|team|family|ceremony|summit|tweet|notes|"
                    r"endorsed|cartoon|meme|caricature|parody|drawing|illustration|graffiti|mural|protest|sign|"
                    r"trump|biden|putin|xi|modi|obama|harris|vance|zuckerberg|bezos|gates|altman|musk|huang|"
@@ -206,7 +209,12 @@ def candidates(subject, person=False):
         files += [m["title"][5:] for m in got]
         # the title must name the person, and nobody else from a list of the people news photos pair them with
         own = re.compile(r"\b(" + "|".join(map(re.escape, need)) + r")\b", re.I)
-        files = [f for f in files if need <= _words(f) and not GROUP.search(own.sub("", f))]
+        lead = files[:len([x for x in claims.get("P18", []) if "datavalue" in x["mainsnak"]])]
+        # beyond the Wikidata image, only files whose names say they are a picture of the person: a crop,
+        # a portrait, an official photo. A Commons category also holds protest signs, cartoons and posters
+        # about a politician, and one of those once landed on a tariff story.
+        files = lead + [f for f in files[len(lead):] if need <= _words(f) and FACE.search(f)
+                        and not GROUP.search(own.sub("", f)) and not PEOPLE_ART.search(f)]
     else:
         q = urllib.parse.quote(f"{subject} filetype:bitmap")
         got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
