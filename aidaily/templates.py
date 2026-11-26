@@ -59,13 +59,15 @@ def assets(story, fetch=True):
     """Logos and a photo for a story, resolved once and kept on the story."""
     if "_assets" not in story:
         co = story.get("company", "")
-        lg = entities.logo(co, story.get("company_domain", ""), fetch=fetch)
-        bk = entities.logo(story.get("backer", ""), fetch=fetch) if story.get("backer") else None
+        # a club or event is a subject for a photo; its badge is a trademark, so sport shows no logo
+        sport = story.get("lane") == "sport" or story.get("topic") == "Sport"
+        lg = None if sport else entities.logo(co, story.get("company_domain", ""), fetch=fetch)
+        bk = entities.logo(story.get("backer", ""), fetch=fetch) if story.get("backer") and not sport else None
         # a logo says "this story is about us": only an organisation the headline names gets one. BCG was quoted
         # in an FCC/SpaceX story and its logo on the card read as if BCG were the news.
         head_ = (story.get("headline") or story.get("title") or "").lower()
         names = []
-        for n in [co, story.get("backer", "")] + list(story.get("orgs") or []):
+        for n in ([] if sport else [co, story.get("backer", "")] + list(story.get("orgs") or [])):
             if n and n.lower() not in {x.lower() for x in names} and in_headline(n, head_):
                 names.append(n)
         logos, logo_names = [], []
@@ -77,7 +79,8 @@ def assets(story, fetch=True):
         # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
         # a generic scene ("AI data center") put a stranger's wall on a story; no photo beats a wrong one,
         # so only the named person or the company's own photos are used
-        subjects = [(story.get("person", ""), True), (co, False)]
+        # a club name finds a city, a street or a bridge ("Sunderland"); sport looks for the named ground instead
+        subjects = [(story.get("person", ""), True), ((story.get("image_query", "") if sport else co), False)]
         ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
         if file_:
             USED.add(file_)
@@ -103,7 +106,7 @@ def head():
             "<style>body{margin:0}*{box-sizing:border-box}h1{text-wrap:balance}</style></head><body>")
 
 
-TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"}
+TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture", "Sport"}
 
 
 def _meta(story):

@@ -67,17 +67,20 @@ def run(args):
         if err:
             errors.append(f"{src['id']}\t{err}")
         items += got
-    stories = rank.rank(items, sources)
+    # sport is ranked on its own: it never competes with business for a slot, and its cap is separate
+    is_sport = lambda i: sources.get(i["source_id"], {}).get("category") == "sport"  # noqa: E731
+    stories = rank.rank([i for i in items if not is_sport(i)], sources)
+    sport = rank.rank([i for i in items if is_sport(i)], sources)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out = Path(args.out) / day
     out.mkdir(parents=True, exist_ok=True)
     slots = plan(stories)
     (out / "digest.json").write_text(json.dumps(
         {"generated": datetime.now(timezone.utc).isoformat(), "items": len(items),
-         "sources": len(sources), "slots": slots, "stories": stories[: args.top]}, indent=1))
+         "sources": len(sources), "slots": slots, "stories": stories[: args.top], "sport": sport[:args.top]}, indent=1))
     (out / "digest.md").write_text(to_md(day, stories, slots, errors, len(items), len(sources)))
     (out / "feeds.log").write_text("\n".join(errors) + "\n")
-    print(f"{len(items)} items, {len(sources)} sources, {len(errors)} failed, {len(stories)} stories -> {out}")
+    print(f"{len(items)} items, {len(sources)} sources, {len(errors)} failed, {len(stories)} news, {len(sport)} sport -> {out}")
     return out
 
 
@@ -357,6 +360,31 @@ def main(argv=None):
     return {"run": lambda a: run(a) and 0, "prepare": prepare, "finish": finish}[args.cmd](args)
 
 
+def sport_lane(args, out, stories):
+    """The sport section: its own pick, its own copy call, queued on the web tier only. Sport never reaches a social channel."""
+    from . import desk
+    picked = desk.select(stories, lane="sport")
+    if not picked:
+        print("no sport article above the bar this run")
+        return 0
+    lane = out / "sport"
+    lane.mkdir(exist_ok=True)
+    for s in picked:
+        s["lane"] = "sport"
+    (lane / "digest.json").write_text(json.dumps({"generated": datetime.now(timezone.utc).isoformat(), "slots": {"top": picked}}, indent=1))
+    (lane / "copy-request.md").write_text(copy.request(picked, lane="sport"))
+    (lane / "chosen.json").write_text(json.dumps(picked, indent=1))
+    try:
+        (lane / "copy.json").write_text(json.dumps(copy.ask_claude((lane / "copy-request.md").read_text()), indent=1))
+    except Exception as e:  # noqa: BLE001  without copy every article falls back and queue refuses it
+        print(f"sport copy step failed: {e}")
+    args.date = f"{out.name}/sport"
+    args.out = out.parent
+    finish(args)
+    desk.queue(lane)
+    return 0
+
+
 def daily(args):
     """One run of the desk, hourly: fetch, keep the important stories not posted yet, write their copy with
     a no-tool model call, render, queue. Nothing here posts; publishing is a separate step after the veto window."""
@@ -371,9 +399,19 @@ def daily(args):
     except Exception as e:  # noqa: BLE001  the story slots are extras; the news below must still run
         print(f"scheduled stories failed: {e}")
     picked = desk.select(digest["stories"])
-    if not picked:
+    if picked:
+        business_lane(args, out, digest, picked)
+    else:
         print("no new story above the bar this run")
-        return 0
+    try:
+        sport_lane(args, out, digest.get("sport", []))
+    except Exception as e:  # noqa: BLE001  the sport section is an extra; it must never fail the business run
+        print(f"sport lane failed: {e}")
+    return 0
+
+
+def business_lane(args, out, digest, picked):
+    from . import desk
     # the model only sees stories that will be posted, so an hourly run costs one short call
     digest["slots"] = {"top": picked}
     (out / "digest.json").write_text(json.dumps(digest, indent=1))
@@ -387,7 +425,6 @@ def daily(args):
     args.date = out.name
     finish(args)
     desk.queue(out)
-    return 0
 
 
 if __name__ == "__main__":

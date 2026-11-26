@@ -91,6 +91,16 @@ SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
 FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 
+# Sport is a website section only. No tier, queue, cross-post, digest or reel may carry a post on one of these topics:
+# the social channels stay business news. Every social path asks social_allowed() before it touches a post.
+NO_SOCIAL_TOPICS = frozenset({"Sport"})
+
+
+def social_allowed(item):
+    """False for a post or story whose topic is website-only."""
+    return (item or {}).get("topic") not in NO_SOCIAL_TOPICS
+
+
 def _recent_posts(days):
     cut = now() - timedelta(days=days)
     return [p for p, _ in posts() if p.get("status") in ("queued", "published", "web", "vetoed", "failed", "deleted", "held", "expired")
@@ -286,7 +296,7 @@ def caption(m, s, cta=True):
 SLOP = re.compile(r"\b(delve|game[- ]changer|landscape|unlock|revolutioni[sz]e|it'?s worth noting|in today'?s|"
                   r"buckle up|here'?s what|everything you need to know|must[- ]read|you won'?t believe|"
                   r"not just|a testament|navigat(e|ing) the)\b", re.I)
-TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"}
+TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture", "Sport"}
 
 
 def audit(post):
@@ -294,7 +304,9 @@ def audit(post):
     problems = []
     head_ = post["headlines"][0]
     if post.get("topic") not in TOPICS:
-        problems.append(f"topic {post.get('topic')!r} is not one of the eight")
+        problems.append(f"topic {post.get('topic')!r} is not one of the nine")
+    if not social_allowed(post) and (post.get("tier") != "web" or post.get("status") not in ("web", "held")):
+        problems.append(f"{post.get('topic')} is a website-only topic and may not enter a social queue")
     if post.get("topic") == "Culture" and not copy.CULTURE.search(head_ + " " + post.get("body", "")):
         problems.append("Culture label on a story with no culture in it")
     for n in post.get("logo_names", []):
@@ -893,9 +905,25 @@ def site_min_score():
     return CONFIG.get("site_min_score", CONFIG["min_score"])
 
 
-def select(stories):
+# betting copy, previews and panel shows are not news; the model also judges relevance, this keeps them from taking a slot
+SPORT_SKIP = re.compile(r"\b(odds|picks?|predictions?|betting|spreads?|lines|fantasy|power rankings|mock draft|talking points|"
+                        r"how to watch|live updates?|as it happened|ratings?|grades|reacts?|react to|watch:|watch live|preview|quiz)\b", re.I)
+
+
+def sport_room():
+    """How many sport articles may still go out today: the daily cap less what the last 24 hours already carried."""
+    cut = now() - timedelta(hours=24)
+    made = sum(1 for p, _ in posts() if p.get("topic") == "Sport" and (_stamp(p.get("created", "")) or cut) > cut)
+    return max(0, CONFIG.get("sport_daily_max", 12) - made)
+
+
+def select(stories, lane="news"):
     """The stories worth a post this hour: above the website bar, from the last day, carried by a
-    newsroom or lab (not only a discussion board), not a format we skip, not already posted or queued."""
+    newsroom or lab (not only a discussion board), not a format we skip, not already posted or queued.
+    The sport lane has its own bar and caps (sport_min_score, sport_per_run, sport_daily_max)."""
+    sport = lane == "sport"
+    bar = CONFIG.get("sport_min_score", site_min_score()) if sport else site_min_score()
+    limit = min(CONFIG.get("sport_per_run", 4), sport_room()) if sport else CONFIG["max_per_run"]
     cut = now() - timedelta(hours=CONFIG["max_age_hours"])
     recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
               for p in _recent_posts(CONFIG["repeat_window_days"]) for i, u in enumerate(p.get("urls", []))]
@@ -907,11 +935,12 @@ def select(stories):
             fresh = False
         newsroom = set(s.get("outlets", [])) - set(CONFIG["not_sources"]) or s.get("primary")
         me = {"url": s["url"], "links": s.get("links", []), "headline": s["title"]}
-        if (s.get("score", 0) >= site_min_score() and fresh and newsroom
+        if (s.get("score", 0) >= bar and fresh and newsroom
                 and not SKIP.search(s["title"]) and not FORMAT.search(s["title"])
+                and not (sport and (SPORT_SKIP.search(s["title"]) or len(s["title"].split()) < 4))
                 and not any(same_story(me, r) for r in recent + out)):
             out.append(s)
-    return sorted(out, key=lambda s: -s["score"])[:CONFIG["max_per_run"]]
+    return sorted(out, key=lambda s: -s["score"])[:limit]
 
 
 def _last_slot():
@@ -953,7 +982,7 @@ def queue(day_dir, batch=None, render=True):
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
     made, n, ctas = [], 0, 0
     for m, s in ranked:
-        web = m["url"] not in room_urls
+        web = m["url"] not in room_urls or not social_allowed(s)
         if not web:
             when = max(earliest, slot + gap) if slot else earliest
             if when > horizon:
@@ -1209,7 +1238,7 @@ def evening_digest(factories=None):
     if _load(STATE / "digest.json", {}).get("date") == today or platform_cooldown("telegram"):
         return
     cut = now() - timedelta(hours=24)
-    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story" and social_allowed(p)
                   and p.get("headlines") and (_stamp(p.get("published", "")) or cut) > cut),
                  key=lambda p: p.get("score") or 0, reverse=True)[:DIGEST_SIZE]
     if len(top) < DIGEST_MIN:
@@ -1240,6 +1269,8 @@ def cross_post(post, path, factories=None, names=None):
     A stored result means done for good. A marker without a result means a send may have gone out, so a person
     looks; it is never retried here, which is what keeps a platform from showing the post twice."""
     from . import platforms
+    if not social_allowed(post):
+        return
     for name in names or platforms.NAMES:
         if not CONFIG.get("platforms", {}).get(name):
             continue
@@ -1363,7 +1394,7 @@ def web_social(factories=None):
     names = [n for n in WEB_PLATFORMS if CONFIG.get("platforms", {}).get(n)]
     if not names:
         return 0
-    web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST]
+    web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST and social_allowed(p)]
     stamps = [_stamp(((p.get("platforms") or {}).get(n) or {}).get(k) or "") for p, _ in web for n in WEB_PLATFORMS for k in ("at", "attempted")]
     last = max((s for s in stamps if s), default=None)
     gap = timedelta(minutes=CONFIG.get("social_spacing_minutes", 0))
@@ -1528,7 +1559,7 @@ def _publish(client, dry):
     ramp()
 
     def due_posts():
-        return sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
+        return sorted(((p, path) for p, path in posts() if p.get("status") == "queued" and social_allowed(p)
                        and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
 
     due = due_posts()

@@ -196,5 +196,8 @@
       "Weekly: check Instagram Account Status",
       "Instagram → Settings → Account Status. Check that the account is eligible for recommendations (originality rule since 2026-04-30). Close this issue when done."
     ]
-  ]
+  ],
+  "sport_min_score": 7.0,
+  "sport_per_run": 4,
+  "sport_daily_max": 12
 }

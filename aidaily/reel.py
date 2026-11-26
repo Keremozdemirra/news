@@ -50,7 +50,7 @@ def top_posts():
     """Today's published feed posts (UTC date), highest score first. Stories and earlier reels never count."""
     day = today()
     rows = [p for p, _ in desk.posts()
-            if p.get("status") == "published" and p.get("kind") not in desk.NO_CROSSPOST
+            if p.get("status") == "published" and p.get("kind") not in desk.NO_CROSSPOST and desk.social_allowed(p)
             and (p.get("published") or "").startswith(day) and p.get("headlines")]
     rows.sort(key=lambda p: (p.get("score") or 0, p.get("published", "")), reverse=True)
     return rows[:cfg("reel_size", 5)]

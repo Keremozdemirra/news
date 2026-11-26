@@ -16,9 +16,36 @@ MODEL = "sonnet"
 MAX_HEADLINE = 80
 DASHES = str.maketrans({"—": ",", "–": "-"})
 
-PROMPT = """You write copy for a news brand that posts every story a consultant, manager or business student
+AUDIENCE = """You write copy for a news brand that posts every story a consultant, manager or business student
 needs to know: business, markets, the economy, politics and elections, world events, technology and AI, and
-the culture moments everyone at work talks about (a record-breaking launch, a viral phenomenon).
+the culture moments everyone at work talks about (a record-breaking launch, a viral phenomenon)."""
+SPORT_AUDIENCE = """You write copy for the sport section of a news site. It covers football (Premier League,
+Champions League, Bundesliga, La Liga, Serie A, World Cup qualifiers, transfers) and the main global events:
+Formula 1, the NBA, the NFL, the tennis majors, the Olympics, cricket, the golf majors and boxing title fights.
+Readers want the result, the decision or the move, stated plainly."""
+RELEVANT = """false if a consultant or manager would not need it: crime and court cases about private
+  people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
+  and advice pieces, product deals and reviews; true otherwise"""
+SPORT_RELEVANT = """false for betting tips and odds, gossip, fantasy-league advice, opinion and
+  predictions, match previews with no news in them, podcasts and quizzes, and reports on minor or local
+  competitions; true for results, signings and transfers, injuries, managerial changes, rulings, records and
+  the build-up facts of a major event"""
+TOPIC_RULE = """one of AI, Tech, Business, Markets, Economy, Politics, World, Culture. Business: companies, deals,
+  people moves, a company's marketing or products. Markets: stocks, bonds, ratings, funds. Economy: data, central
+  banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
+  what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture"""
+SPORT_TOPIC_RULE = 'always "Sport"'
+IMAGE_RULE = """2 to 4 words to search Wikimedia Commons for a photo of a physical thing the story is
+  about: a named product, a named building, or a plain object or place such as "data center",
+  "semiconductor wafer", "courthouse", "satellite". Never a person, a crowd, an event, a meeting or a
+  press conference (the story's own person goes in "person"), never a logo, never an abstract idea"""
+SPORT_IMAGE = """the stadium, arena, circuit or course the story is set at, or the home ground of the club it is about,
+  by its own name as Wikimedia Commons titles it, like "Stadium of Light" or "Silverstone Circuit" ("" when
+  unsure). Never a person, a crowd, a match, a trophy or a logo"""
+SPORT_COMPANY = """the club, team, federation or event the story is about, as it names itself, like
+  "Arsenal" or "Wimbledon" ("" if none). It is used to find a photo; no logo is shown"""
+
+PROMPT = """{audience}
 For each story below, return one JSON object. Use ONLY facts present in that story's title and summary.
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
@@ -26,26 +53,18 @@ that sounds quotable. American English. No em or en dashes. No hype words. No "n
 
 Fields:
 - id: copy the id
-- relevant: false if a consultant or manager would not need it: crime and court cases about private
-  people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
-  and advice pieces, product deals and reviews; true otherwise
-- topic: one of AI, Tech, Business, Markets, Economy, Politics, World, Culture. Business: companies, deals,
-  people moves, a company's marketing or products. Markets: stocks, bonds, ratings, funds. Economy: data, central
-  banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
-  what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture
+- relevant: {relevant}
+- topic: {topic_rule}
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any
 - dek: one sentence, max 140 characters, the most useful extra fact
-- company: the main company the story is about, as the company names itself ("" if none)
+- company: {company_rule}
 - company_domain: that company's website domain if you are certain of it, like "redqueen.bio" ("" if unsure;
   it is checked against the site's own title before use)
 - backer: a named investor or parent company in the story, like "OpenAI" ("" if none)
 - person: the one person the story is centrally about, full name ("" if none; never a person only quoted)
 - orgs: up to 3 companies or institutions the story names, main one first, each spelled as in the source
   ([] if none)
-- image_query: 2 to 4 words to search Wikimedia Commons for a photo of a physical thing the story is
-  about: a named product, a named building, or a plain object or place such as "data center",
-  "semiconductor wafer", "courthouse", "satellite". Never a person, a crowd, an event, a meeting or a
-  press conference (the story's own person goes in "person"), never a logo, never an abstract idea
+- image_query: {image_rule}
 - figure: the single key figure as written in the source, like "$36M" or "40%" ("" if none)
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
 - linkedin_post: 2 to 3 short sentences: what happened, then the most useful further facts from the source;
@@ -225,8 +244,13 @@ def ask_claude(prompt, runner=subprocess.run):
     return json.loads(m.group(0))
 
 
-def prompt(block):
-    return PROMPT.format(stories=block, extra_fields=SO_WHAT_FIELD if switch("so_what") else "")
+def prompt(block, lane="news"):
+    sport = lane == "sport"
+    return PROMPT.format(stories=block, extra_fields=SO_WHAT_FIELD if switch("so_what") else "",
+                         audience=SPORT_AUDIENCE if sport else AUDIENCE, relevant=SPORT_RELEVANT if sport else RELEVANT,
+                         topic_rule=SPORT_TOPIC_RULE if sport else TOPIC_RULE,
+                         image_rule=SPORT_IMAGE if sport else IMAGE_RULE,
+                         company_rule=SPORT_COMPANY if sport else 'the main company the story is about, as the company names itself ("" if none)')
 
 
 def write(stories, runner=subprocess.run):
@@ -243,13 +267,13 @@ def write(stories, runner=subprocess.run):
     return apply(stories, ask_claude(prompt(block), runner))
 
 
-def request(stories):
+def request(stories, lane="news"):
     """The prompt a Claude session answers when no headless call is available."""
     for i, s in enumerate(stories):
         s["id"] = i
     block = "\n\n".join(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
                         for i, s in enumerate(stories))
-    return prompt(block)
+    return prompt(block, lane)
 
 
 def apply(stories, reply_rows):
@@ -270,12 +294,15 @@ def apply(stories, reply_rows):
                      copy_status="ok")
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
-            if switch("so_what"):
+            if switch("so_what") and s.get("lane") != "sport":
                 sw = (c.get("so_what") or "").strip()
                 if sw and not check_so_what(s, c, sw):
                     s["so_what"] = sw
             # "Culture" only when the story is about culture: a company's viral marketing is a business story
-            if s.get("topic") == "Culture" and not CULTURE.search(s["title"] + " " + s.get("summary", "")):
+            if s.get("lane") == "sport":
+                # the section is fixed by where the story came from, not by what the model says; no logo on a sport card
+                s["topic"], s["backer"], c["orgs"] = "Sport", "", []
+            elif s.get("topic") == "Culture" and not CULTURE.search(s["title"] + " " + s.get("summary", "")):
                 s["topic"] = "Business"
             # a logo for an organisation the source never names would put a company on a story it is not in
             src = (s["title"] + " " + s.get("summary", "")).lower()
