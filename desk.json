@@ -118,6 +118,6 @@
     "threads": false,
     "facebook": false,
     "bluesky": true,
-    "telegram": false
+    "telegram": true
   }
 }
