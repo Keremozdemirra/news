@@ -537,33 +537,53 @@ def _number(day, slot, label):
     return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit, _qualifier(p)), "Number", refs=[p["id"]])]
 
 
-def _s_quiz(day, label):
-    """Guess the company: the headline with the company blanked and four companies from our own recent posts."""
-    cands = [p for p in _published(48) if p.get("company") and p.get("figure") and p["company"] in _head(p)]
+def pick_company(day, recent, week):
+    """Guess the company: the headline with the company blanked and four companies from our own recent posts.
+    Pure selection, shared by the Instagram story and the quiz page: returns None when there is no honest question."""
+    cands = [p for p in recent if p.get("company") and p.get("figure") and p["company"] in _head(p)]
     if not cands:
-        return []
+        return None
     p = max(cands, key=_score)
     hint = _head(p).replace(p["company"], "___")
-    others = sorted({q["company"] for q in _published(24 * 7) if q.get("company") and q["company"] != p["company"]})
+    others = sorted({q["company"] for q in week if q.get("company") and q["company"] != p["company"]})
     options = _order(day, [p["company"]] + _order(day, others)[:3])
     if p["company"] in hint or len(options) < 4:
+        return None
+    return {"type": "company", "title": "Guess the company", "question": hint, "options": options,
+            "answer": options.index(p["company"]), "posts": [p]}
+
+
+def _s_quiz(day, label):
+    q = pick_company(day, _published(48), _published(24 * 7))
+    if not q:
         return []
-    letter = "ABCD"[options.index(p["company"])]
-    return _quiz_pair(day, "quiz", R.T.story_quiz(hint, label, options),
-                      R.T.story_answer(letter, options, label, _head(p), p["company"], logo_uri=_logo(p)), "Guess the company", refs=[p["id"]])
+    p = q["posts"][0]
+    return _quiz_pair(day, "quiz", R.T.story_quiz(q["question"], label, q["options"]),
+                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["company"], logo_uri=_logo(p)),
+                      "Guess the company", refs=[p["id"]])
 
 
-def _s_fill(day, label):
+def pick_fill(day, recent):
     """Fill the number: the headline with its figure blanked, the figure and three plausible others as options."""
-    for p in sorted(_published(48), key=lambda p: -_score(p)):
+    for p in sorted(recent, key=lambda p: -_score(p)):
         fig, head_ = (p.get("figure") or "").strip(), _head(p)
         wrong = distractors(fig) if fig and _in_text(fig, head_) else []
         hint = _blank(fig, head_) if wrong else ""
         if wrong and "___" in hint and not re.search(re.escape(re.sub(r"[^\d.]", "", fig)), hint.replace(",", "")):
             options = _order(day, [fig] + wrong)
-            return _quiz_pair(day, "fill", R.T.story_quiz(hint, label, options, "Fill the<br>number."),
-                              R.T.story_answer("ABCD"[options.index(fig)], options, label, head_, fig), "Fill the number", refs=[p["id"]])
-    return []
+            return {"type": "fill", "title": "Fill the number", "question": hint, "options": options,
+                    "answer": options.index(fig), "posts": [p]}
+    return None
+
+
+def _s_fill(day, label):
+    q = pick_fill(day, _published(48))
+    if not q:
+        return []
+    p = q["posts"][0]
+    return _quiz_pair(day, "fill", R.T.story_quiz(q["question"], label, q["options"], "Fill the<br>number."),
+                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), q["options"][q["answer"]]), "Fill the number",
+                      refs=[p["id"]])
 
 
 def _s_complete(day, label):
@@ -616,10 +636,10 @@ def _money(p):
     return (co, kind, parts[0], parts[1] * SCALE.get(parts[2].strip(), 1)) if kind else None
 
 
-def _s_bigger(day, label):
+def pick_bigger(day, week):
     """Which is bigger?: two different companies' money figures of the same kind (valuation, raise or revenue) and
     currency from posts of the last 7 days. The question names the companies and the kind and shows no figure."""
-    best, rows = None, [(p, m) for p in _published(24 * 7) if (m := _money(p))]
+    best, rows = None, [(p, m) for p in week if (m := _money(p))]
     for i, (a, ma) in enumerate(rows):
         for b, mb in rows[i + 1:]:
             lo, hi = sorted((ma[3], mb[3]))
@@ -628,39 +648,53 @@ def _s_bigger(day, label):
             if best is None or _score(a) + _score(b) > best[0]:
                 best = (_score(a) + _score(b), (a, ma), (b, mb))
     if not best:
-        return []
+        return None
     kind = KIND_NAME.get(best[1][1][1], best[1][1][1])
     (first, mf), (second, ms) = _order(day, [best[1], best[2]], key=lambda x: x[0]["id"])
-    big, mbig = (first, mf) if mf[3] > ms[3] else (second, ms)
-    letter = "A" if big is first else "B"
-    return _quiz_pair(day, "bigger", R.T.story_bigger(kind, (mf[0], _logo(first)), (ms[0], _logo(second)), label),
-                      R.T.story_answer(letter, [(f"{m[0]} {kind}", p["figure"].strip(), _head(p)) for p, m in ((first, mf), (second, ms))],
+    big = first if mf[3] > ms[3] else second
+    return {"type": "bigger", "title": "Which is bigger", "kind": kind, "first": (first, mf), "second": (second, ms),
+            "options": [f"{mf[0]} {kind}", f"{ms[0]} {kind}"], "answer": 0 if big is first else 1, "posts": [first, second]}
+
+
+def _s_bigger(day, label):
+    q = pick_bigger(day, _published(24 * 7))
+    if not q:
+        return []
+    (first, mf), (second, ms) = q["first"], q["second"]
+    return _quiz_pair(day, "bigger", R.T.story_bigger(q["kind"], (mf[0], _logo(first)), (ms[0], _logo(second)), label),
+                      R.T.story_answer("AB"[q["answer"]], [(f"{m[0]} {q['kind']}", p["figure"].strip(), _head(p)) for p, m in ((first, mf), (second, ms))],
                                        label),
                       "Which is bigger", refs=[first["id"], second["id"]])
 
 
-def _people(hours):
-    """Published posts about a person we hold a licensed portrait of; the portrait's file name must carry the name."""
-    return [p for p in _published(hours) if p.get("person") and _media(p, "photo.jpg") and _name_in(p["person"], p.get("photo_file", ""))]
+def _people(pool, has_photo=lambda p: _media(p, "photo.jpg")):
+    """Posts about a person we hold a licensed portrait of; the portrait's file name must carry the name."""
+    return [p for p in pool if p.get("person") and has_photo(p) and _name_in(p["person"], p.get("photo_file", ""))]
 
 
-def _s_whois(day, label):
+def pick_whois(day, week, recent, has_photo=lambda p: _media(p, "photo.jpg")):
     """Who is this?: the portrait without its name, four names from our own recent posts."""
-    named = sorted({p["person"] for p in _published(24 * 7) if p.get("person")})
-    if len(named) < 4:
-        return []
-    cands = _people(48)
-    if not cands:
-        return []
+    named = sorted({p["person"] for p in week if p.get("person")})
+    cands = _people(recent, has_photo)
+    if len(named) < 4 or not cands:
+        return None
     p = max(cands, key=_score)
     others = [n for n in named if n != p["person"] and n.split()[-1] != p["person"].split()[-1]]
     if len(others) < 3:
-        return []
+        return None
     options = _order(day, [p["person"]] + _order(day, others)[:3])
     credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
-    photo = _media(p, "photo.jpg")
-    return _quiz_pair(day, "whois", R.T.story_whois(photo, label, options, credit),
-                      R.T.story_answer("ABCD"[options.index(p["person"])], options, label, _head(p), p["person"], photo_uri=photo,
+    return {"type": "whois", "title": "Who is this", "options": options, "answer": options.index(p["person"]), "posts": [p],
+            "credit": credit}
+
+
+def _s_whois(day, label):
+    q = pick_whois(day, _published(24 * 7), _published(48))
+    if not q:
+        return []
+    p, photo = q["posts"][0], _media(q["posts"][0], "photo.jpg")
+    return _quiz_pair(day, "whois", R.T.story_whois(photo, label, q["options"], q["credit"]),
+                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["person"], photo_uri=photo,
                                        credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"])
 
 
