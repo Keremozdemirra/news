@@ -14,7 +14,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import art, markets, outlets
+from . import markets, outlets
 from . import site as S
 
 E = S.E
@@ -37,18 +37,6 @@ def img(p, ratio="3/2", thumb=True):
     src = f"{S.BASE}/img/{p['id']}-t.jpg" if thumb or not p.get("_hires") else f"{S.BASE}/img/{p['id']}.jpg"
     w, h = (480, 320) if thumb or not p.get("_hires") else (960, 640)
     return f'<img src="{src}" width="{w}" height="{h}" alt="" loading="lazy" decoding="async" style="aspect-ratio:{ratio}">'
-
-
-def card(p, size="s", photo=False, dek=True, ratio="4/3", topic=True, plate=False):
-    """One item of the broadsheet. The line above the headline is plain meta: the topic only where the column does not already
-    name it, then the time. Coverage is the plain text "N newsrooms" on the bigger items. A photo only where it shows its subject."""
-    when = f'<time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time>'
-    line = f'{E(S.topic(p))} &middot; {when}' if topic else when
-    if size == "m":
-        line += f' &middot; {nroom(p)}'
-    pic = img(p, ratio) if photo and photo_ok(p) else (f'<div class="itart">{S.plate_html(p, 480, 360)}</div>' if plate and S.ART_ON else "")
-    return (f'<article class="it {size}"><a href="{S.href(p)}">{pic}<div class="mt">{line}</div><h3 class="hl">{E(p["headlines"][0])}</h3></a>'
-            + (f'<p>{E(p.get("dek", ""))}</p>' if dek else "") + "</article>")
 
 
 def paras(p):
@@ -103,8 +91,13 @@ def photo_subject(p):
     return next((n for n in dict.fromkeys(names) if n not in {"this", "with", "that", "from", "will"} and re.search(rf"\b{re.escape(n)}", stem)), None)
 
 
+def rel_time(p):
+    """A time in a list: "12 min ago" once the script runs, the clock time before it."""
+    return f'<time class="rel" datetime="{S.iso(p["published"])}" data-age>{S.hhmm(p["published"])}</time>'
+
+
 def front(shown, cos, m):
-    """The front page grid: Latest (times and row headlines), the lead and the two seconds, the rates, then the sections.
+    """The front page: the lead (8 columns) and the rail (4: two seconds, the markets block, Latest), then the sections.
     Each article appears once; the lead and the seconds come from the news-value ranking above."""
     today = S.window(shown)
     ranked = sorted(today, key=front_score, reverse=True)
@@ -112,8 +105,8 @@ def front(shown, cos, m):
     used = {lead["id"]}
     seconds = [p for p in ranked[1:] if p["id"] not in used][:2]
     used |= {p["id"] for p in seconds}
-    left = [p for p in shown if p["id"] not in used][:8]
-    used |= {p["id"] for p in left}
+    latest_rows = [p for p in shown if p["id"] not in used][:8]
+    used |= {p["id"] for p in latest_rows}
     seen = set()
 
     def ph(p):
@@ -123,44 +116,35 @@ def front(shown, cos, m):
             return False
         seen.add(subj)
         return True
-    show_photo = ph(lead)
-    fig = ((f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
-            f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if show_photo and lead.get("_hires")
-           else (f'<figure class="plate-fig">{S.plate_html(lead)}</figure>' if S.ART_ON else ""))
-    lead_html = (f'<div class="lead"><div class="mt">{E(S.topic(lead))} &middot; <time datetime="{S.iso(lead["published"])}">{S.hhmm(lead["published"])}</time> UTC &middot; {nroom(lead)}</div>'
-                 f'<h1 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h1>{fig}<p class="dk">{E(lead.get("dek", ""))}</p>'
-                 f'<div class="tx">{paras(lead)}</div><a class="more" href="{S.href(lead)}">Read the article</a></div>')
-    latest = ('<div class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2><ul>'
-              + "".join(f'<li><a href="{S.href(p)}"><time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time><span>{E(p["headlines"][0])}</span></a></li>' for p in left) + "</ul></div>")
-    rail = ('<div class="toprail"><h2 class="sh">Also at the top</h2>'
-            + "".join(f'<article class="second"><a href="{S.href(p)}"><div class="mt">{E(S.topic(p))} &middot; {S.hhmm(p["published"])} &middot; {nroom(p)}</div><h3>{E(p["headlines"][0])}</h3></a><p>{E(p.get("dek", ""))}</p></article>' for p in seconds)
-            + markets.rates_box(m, S.BASE, compact=True) + "</div>")
+    fig = (f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
+           f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
+    first = next((x for x in (lead.get("body") or "").split("\n") if x.strip()), "")
+    lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}/t/{S.topic(lead).lower()}/">{E(S.topic(lead))}</a>'
+                 f'<h1 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h1><p class="dk">{E(lead.get("dek", ""))}</p>'
+                 f'<div class="mt">{rel_time(lead)} &middot; {nroom(lead)}</div>{fig}'
+                 f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{markets.rates_box(m, S.BASE)}</div>')
 
-    def section(t, n=3, lead_photo=True):
-        rows = [p for p in shown if S.topic(p) == t]
-        fresh = [p for p in rows if p["id"] not in used][:n + 1]
-        if not fresh:
-            return ""
-        used.update(p["id"] for p in fresh)
-        first, rest = fresh[0], fresh[1:]
-        return (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}/t/{t.lower()}/">{t}</a></h2>'
-                f'<article class="slead"><a href="{S.href(first)}">{img(first, "4/3") if lead_photo and ph(first) else ""}<h3>{E(first["headlines"][0])}</h3></a><p>{E(first.get("dek", ""))}</p>'
-                f'<div class="mt"><time datetime="{S.iso(first["published"])}">{S.hhmm(first["published"])}</time> &middot; {nroom(first)}</div></article>'
-                + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt"><time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time></div></a></article>' for p in rest[:n]) + "</section>")
-    r1 = [x for x in (section(t) for t in ("Markets", "Economy", "Business", "Politics", "World")) if x]
-    r2 = [x for x in (section(t) for t in ("Tech", "AI", "Culture")) if x]
-    row1, row2 = "".join(r1), "".join(r2)
-    return ('<p class="since" id="since" role="status" hidden></p>'
-            f'<div class="front">{latest}{lead_html}{rail}</div>' + (f'<div class="sects" style="--n:{len(r1)}">{row1}</div>' if r1 else "") + (f'<div class="sects" style="--n:{len(r2)}">{row2}</div>' if r2 else ""))
+    def second(p):
+        photo = img(p, "3/2") if ph(p) else ""
+        return (f'<article class="second"><a href="{S.href(p)}">{photo}<span class="kick">{E(S.topic(p))}</span><h3>{E(p["headlines"][0])}</h3></a>'
+                f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
+    latest = ('<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2><ul>'
+              + "".join(f'<li><a href="{S.href(p)}">{rel_time(p)}<span>{E(p["headlines"][0])}</span></a></li>' for p in latest_rows) + "</ul></section>")
+    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + "</div>"
 
+    blocks = ""
+    for t in S.TOPIC_ORDER:
+        rows = [p for p in shown if S.topic(p) == t and p["id"] not in used][:4]
+        if not rows:
+            continue  # a section without articles leaves no head and no hole
+        used.update(p["id"] for p in rows)
+        top, rest = rows[0], rows[1:]
+        photo = img(top, "3/2") if ph(top) else ""
+        blocks += (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}/t/{t.lower()}/">{t}</a></h2>'
+                   f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
+                   + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
+    return ('<p class="since" id="since" role="status" hidden></p>' f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else ""))
 
-def edition_strip(rows):
-    """The day's mark, larger: one bar per article, as tall as the newsrooms that reported it (the small one sits in the masthead)."""
-    day = sorted(rows, key=lambda p: p["published"])
-    if len(day) < 3 or not S.ART_ON:
-        return ""
-    return (f'<figure class="edition">{art.barcode([S.coverage(p) for p in day], 1240, 72)}'
-            f'<figcaption>The day in coverage: one bar for each of the {len(day)} articles, oldest to newest, as tall as the number of newsrooms that reported it.</figcaption></figure>')
 
 
 # ---------------------------------------------------------------- names
@@ -348,11 +332,12 @@ def numbers_page(shown, m):
     grid = f'<div class="ng">{cells}</div>' if cells else ""
     official = ""
     if m:
-        official = (f'<div class="og"><div><div class="sec cap"><span>Official series</span></div>'
-                    f'<p class="olead">The rates behind the headlines, from the central banks and treasuries that publish them. Each value carries the date of its series.</p>'
-                    f'{markets.rates_box(m, S.BASE, "plain")}</div>'
-                    f'<div><div class="sec cap"><span>US Treasury yield curve</span><span class="dm">{markets.dmy(m["ust"][-1]["date"]) if m.get("ust") else ""}</span></div>'
-                    f'<div class="cvbig">{markets.curve_svg(m, 640, 300, 13)}</div></div></div>')
+        curve = markets.curve_svg(m, 640, 300, 13)
+        official = (f'<section class="msec"><h2 class="sh">Markets</h2><p class="olead">Prices and rates from the central banks, treasuries and statistics offices that publish them. '
+                    f'Every card shows its series date and source.</p>{markets.cards(m)}</section>'
+                    + (f'<section class="msec"><h2 class="sh">US Treasury yield curve</h2><div class="cvbig">{curve}</div>'
+                       f'<p class="what"><b>What it is.</b> Yields on US government debt from one month to thirty years; a curve that slopes down can signal expected rate cuts or a slowdown.</p>'
+                       f'<p class="attr">Solid: {markets.dmy(m["curve"][-1]["date"])}' + (f', dashed: {markets.dmy(m["curve"][-2]["date"])}' if len(m["curve"]) > 1 else "") + f'. Per cent. {markets.SRC_UST}</p></section>' if m.get("curve") else ""))
     sub = "The figures in today's news, each linked to its article. Below them, the official series for rates and currencies." if grid else "Official series for rates and currencies."
     return head(S.day_label(S.day_of(shown[0]["published"])), "The numbers", sub) + grid + official
 
@@ -427,7 +412,7 @@ def paper_page(shown, m, day, days):
     mob = "".join(f'<div class="pgw"><div class="pgi">{p}</div></div>' for p in pages)
     labels = ["Page 1"] + [f"Pages {i} and {i + 1}" for i in range(2, len(pages), 2)] + [f"Page {len(pages)}"]
     arch = "".join(f'<li{" class=\"cur\"" if d == day else ""}><a href="{S.BASE}/paper/{d}/">{S.day_label(d)}</a></li>' for d in days[:30])
-    return (f'<div class="pp-wrap">{edition_strip(rows)}<div class="pp-top"><div><div class="cap dm">Edition of {S.day_label(day)}</div><h1 class="cd">Yesterday\'s<br>paper</h1></div>'
+    return (f'<div class="pp-wrap"><div class="pp-top"><div><div class="cap dm">Edition of {S.day_label(day)}</div><h1 class="cd">Yesterday\'s<br>paper</h1></div>'
             f'<div class="ctl" role="group" aria-label="Turn pages"><button type="button" data-prev aria-label="Previous page" disabled>&larr;</button>'
             f'<span class="lab" aria-live="polite">{labels[0]}</span><button type="button" data-next aria-label="Next page">&rarr;</button></div></div>'
             f'<div class="stage" data-labels="{E("|".join(labels))}"><div class="book" data-s="0">{leaves}</div><div class="mob" tabindex="0" aria-label="Pages, swipe sideways">{mob}</div></div>'

@@ -47,8 +47,11 @@ jobs:
         env:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: |
-          curl -sS -m 40 -o /dev/null -w 'eia root: http %{http_code} in %{time_total}s\n' "https://api.eia.gov/v2/?api_key=$EIA_API_KEY" || echo "eia root: curl failed ($?)"
-          curl -sS -m 40 -o /dev/null -w 'eia spot: http %{http_code} in %{time_total}s\n' "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&frequency=daily&data[0]=value&facets[series][]=RBRTE&length=1" -g || echo "eia spot: curl failed ($?)"
+          probe() { curl -sS -m 25 -o /dev/null -w "eia $1: http %{http_code} in %{time_total}s\n" "$2" || echo "eia $1: curl failed ($?)"; }
+          probe root "https://api.eia.gov/v2/?api_key=$EIA_API_KEY"
+          probe route "https://api.eia.gov/v2/petroleum/pri/spt/?api_key=$EIA_API_KEY"
+          probe data_plain "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&data%5B0%5D=value&length=1"
+          probe data_series "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&frequency=daily&data%5B0%5D=value&facets%5Bseries%5D%5B%5D=RBRTE&length=1"
       - name: Build
         if: steps.changed.outputs.build == 'yes'
         env:

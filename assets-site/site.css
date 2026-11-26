@@ -1,12 +1,13 @@
-/* boardread. site styles. One family, Libre Franklin (SIL OFL, self-hosted, same face as the Instagram cards): 800 for headlines,
-   400 for text, 500-600 for the interface. Monochrome: white or near-black ground, greys for everything quiet, no accent colour. */
+/* boardread. site styles, base layer (brand/DESIGN.md v2). Newsreader for headlines and article text, Libre Franklin for the
+   wordmark, navigation, meta and figures; navy is the one accent. Both faces are self-hosted (SIL OFL). */
 :root{
-  --paper:#fff;--ink:#111;--soft:#5c5c5c;--faint:#5c5c5c;--rule:#e3e3e3;--wash:#f5f5f5;
+  --paper:#fff;--ink:#121212;--soft:#5a5a5a;--faint:#5a5a5a;--rule:#e2e2e2;--wash:#f4f4f4;--accent:#12356b;--up:#0b6e3a;--down:#b42318;
   --f:"Libre Franklin","Franklin Fallback",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
-  --gut:24px;--measure:66ch;
+  --serif:"Newsreader","Source Serif 4",Georgia,"Times New Roman",serif;
+  --gut:24px;--measure:640px;
 }
 :root{color-scheme:light}
-:root[data-theme=dark]{color-scheme:dark;--paper:#111;--ink:#f2f2f2;--soft:#a3a3a3;--faint:#a3a3a3;--rule:#2a2a2a;--wash:#1a1a1a}
+:root[data-theme=dark]{color-scheme:dark;--paper:#121212;--ink:#ededed;--soft:#a0a0a0;--faint:#a0a0a0;--rule:#2b2b2b;--wash:#1b1b1b;--accent:#8fb0e8;--up:#4cc38a;--down:#ff8a80}
 
 *{box-sizing:border-box}
 html{background:var(--paper);-webkit-text-size-adjust:100%;scroll-padding-top:64px}

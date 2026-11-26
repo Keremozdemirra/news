@@ -1,10 +1,15 @@
-The one face this site is set in, and the licence it arrives under.
-Libre Franklin is under the SIL Open Font License, Version 1.1. Its copyright line is below; the licence
-text follows once at the end. The files are the Latin subsets Google Fonts serves, unmodified, at weights
-400, 500, 600 and 800 (LibreFranklin-400.woff2, -500, -600, -800).
+The faces this site is set in, and the licence they arrive under.
+Libre Franklin (wordmark, navigation, meta and figures) and Newsreader (headlines and article text) are under the SIL
+Open Font License, Version 1.1. Their copyright lines are below; the licence text follows once at the end.
+Libre Franklin: the Latin subsets Google Fonts serves, unmodified, at weights 400, 500, 600 and 800
+(LibreFranklin-400.woff2, -500, -600, -800). Newsreader: the Latin subset of the variable font Google Fonts serves,
+unmodified, weights 400 to 700 (Newsreader-var.woff2).
 
 ---- librefranklin (LibreFranklin-400.woff2, LibreFranklin-500.woff2, LibreFranklin-600.woff2, LibreFranklin-800.woff2)
 Copyright 2020 The Libre Franklin Project Authors (https://github.com/googlefonts/Libre-Franklin)
+
+---- newsreader (Newsreader-var.woff2)
+Copyright 2020 The Newsreader Project Authors (https://github.com/productiontype/Newsreader)
 
 
 ================================================================

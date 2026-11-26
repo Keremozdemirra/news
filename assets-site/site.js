@@ -101,7 +101,7 @@
       var now = Date.now();
       ages.forEach(function (t) {
         var m = Math.max(0, Math.round((now - Date.parse(t.getAttribute("datetime"))) / 60000));
-        t.textContent = m < 60 ? m + "m ago" : m < 1440 ? Math.floor(m / 60) + "h " + ("0" + (m % 60)).slice(-2) + "m ago" : Math.floor(m / 1440) + "d ago";
+        t.textContent = m < 1 ? "now" : m < 60 ? m + " min ago" : m < 1440 ? Math.floor(m / 60) + " h ago" : Math.floor(m / 1440) + " d ago";
       });
     };
     tick(); setInterval(tick, 60000);

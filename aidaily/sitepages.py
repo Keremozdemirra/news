@@ -44,7 +44,7 @@ def brief_page(shown, day, m=None):
             f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
             f'<a class="btn" href="{S.BASE}/board/">The Board</a> {f'<a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a>' if "play" in S.SHIPPED else ""}</div>')
     head = V.head(S.day_label(day), "In<br>brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read. It ends.")
-    return f'{V.edition_strip([p for p in shown if S.day_of(p["published"]) == day])}<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
+    return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
 def quiz_questions(shown):

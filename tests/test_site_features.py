@@ -60,7 +60,7 @@ class Features(Tmp):
     def test_coverage_meter_counts_newsrooms_without_the_aggregator(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
         self.assertIn("2 newsrooms", h)
-        self.assertIn("<b>Reported by</b>", h)  # the outlet names, as text
+        self.assertIn("Reported by ", h)  # the outlet names, as text, in the byline
         self.assertNotIn('class="mtr"', h)  # no box meters
         self.assertIn("2 newsrooms", self.read("index.html"))
 
@@ -197,18 +197,28 @@ class Chrome(Features):
             if gone != "/quiz/":  # the old questions page stays at its address, unlinked, until the games replace it
                 self.assertFalse((self.out / gone.strip("/") / "index.html").exists(), gone)
 
-    def test_one_typeface_self_hosted_and_a_two_row_masthead(self):
+    def test_two_faces_self_hosted_and_the_v2_masthead(self):
         h = self.read("index.html")
-        self.assertIn("Edition", h)  # row 1 of the masthead: date and edition time
-        self.assertIn('class="row2"', h)  # row 2: wordmark and the main navigation
-        self.assertNotIn("articles from", h)  # no counters in the header
+        self.assertIn('wrap barin', h)  # one bar: menu and search, the wordmark, the toggle and marks
+        self.assertIn('class="menu"', h)
+        self.assertIn('class="sections"', h)
         self.assertNotIn("Archivo", h)
+        for f in ("LibreFranklin-800.woff2", "Newsreader-var.woff2"):
+            self.assertTrue((self.out / "fonts" / f).exists(), f)
         self.assertFalse((self.out / "fonts" / "Archivo-var.woff2").exists())
-        self.assertNotIn("Archivo", (self.out / "fonts" / "OFL.txt").read_text())
-        self.assertTrue((self.out / "fonts" / "LibreFranklin-800.woff2").exists())
+        ofl = (self.out / "fonts" / "OFL.txt").read_text()
+        self.assertIn("Newsreader", ofl)
+        self.assertNotIn("Archivo", ofl)
         for name in ("site.css", "views.css"):
-            self.assertNotIn("Archivo", (self.out / "assets" / name).read_text())
-            self.assertNotIn("font-stretch", (self.out / "assets" / name).read_text())
+            css = (self.out / "assets" / name).read_text()
+            for banned in ("Archivo", "border-radius", "box-shadow", "gradient"):
+                self.assertNotIn(banned, css, (name, banned))
+
+    def test_footer_has_four_groups_and_one_line(self):
+        h = self.read("index.html")
+        for group in ("<h2>Sections</h2>", "<h2>Boardread</h2>", "<h2>Legal</h2>", "<h2>Follow</h2>"):
+            self.assertIn(group, h)
+        self.assertIn("Written by AI from the sources listed. Corrections:", h)
 
     def test_numbers_page_shows_the_figure_and_no_oil_row_without_a_key(self):
         h = self.read("numbers/index.html")
@@ -338,7 +348,8 @@ class FrontBuilt(Features):
         import re
         h = self.read("index.html")
         rows = re.findall(r'<div class="sects" style="--n:(\d+)">', h)
-        self.assertEqual(sum(map(int, rows)), h.count('<section class="sect">'))  # one column per section, no empty slots
+        self.assertEqual(rows, [])  # sections reflow with auto-fit columns: no counts, no empty slots
+        self.assertGreaterEqual(h.count('<section class="sect">'), 1)
         for sect in re.findall(r'<section class="sect">(.*?)</section>', h, re.S):
             self.assertIn("<article", sect)  # a section head always has an article under it
 
@@ -350,5 +361,5 @@ class FrontBuilt(Features):
 
     def test_front_rates_block_has_one_source_line_and_no_chart(self):
         h = self.read("index.html")
-        if "Rates and currencies" in h:
-            self.assertNotIn("<svg", h[h.index("Rates and currencies"):h.index("</section>", h.index("Rates and currencies"))])
+        for block in h.split('<section class="rates')[1:]:
+            self.assertIn('class="attr"', block)  # one source line under the block
