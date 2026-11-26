@@ -31,7 +31,7 @@ from email.utils import format_datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import desk, markets, outlets
+from . import art, desk, markets, outlets
 
 E = lambda s: html.escape(s or "", quote=True)  # noqa: E731
 # DESK_SITE_URL builds the same pages for another address (a local preview, a staging host) without touching desk.json
@@ -192,15 +192,11 @@ def accounts():
 
 # What the masthead counts, set by build() before any page is written: articles in the last 24 hours and the newsrooms behind them.
 MARKETS = None  # official rates for the pages that show them, loaded once per build
-MAST = {"articles": 0, "newsrooms": 0}
-# The main navigation. Key is what a page passes as active; Play is the daily word game at /quiz/ (its bonus questions are at /quiz/more/).
-NAV = [("/", "Front page", "front"), ("/board/", "Board", "board"), ("/feed/", "Feed", "feed"), ("/brief/", "Brief", "brief"),
-       ("/quiz/", "Play", "play"), ("/numbers/", "The Numbers", "numbers"), ("/paper/", "Yesterday\u2019s paper", "paper"),
-       ("/week/", "Week", "week"), ("/search/", "Search", "search")]
-
-
-# Pages that have shipped. A view is built, linked from the menu, the footer and the front page only while its key is here.
-SHIPPED = {"numbers", "board", "feed", "paper"}
+MAST = {"coverage": []}  # newsrooms per article of the last 24 hours, oldest first: the day's mark beside the date
+# The main navigation. Key is what a page passes as active; Play is the daily games hub.
+NAV = [("/", "Front page", "front"), ("/latest/", "Latest", "latest"), ("/brief/", "Brief", "brief"), ("/board/", "Board", "board"),
+       ("/feed/", "Feed", "feed"), ("/paper/", "Yesterday\u2019s paper", "paper"), ("/numbers/", "Numbers", "numbers"),
+       ("/play/", "Play", "play"), ("/search/", "Search", "search")]
 
 
 THEME_BTN = ('<button type="button" class="themebtn" aria-label="Switch to the dark theme" aria-pressed="false">'
@@ -210,18 +206,20 @@ THEME_BTN = ('<button type="button" class="themebtn" aria-label="Switch to the d
              '<path d="M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z"/></svg></button>')
 
 
+# Pages that have shipped. A view is built, linked from the menu and the footer only while its key is here.
+SHIPPED = {"numbers", "board", "feed", "paper"}
+
+
 def nav_items():
     return [(h, n, k) for h, n, k in NAV if k not in ("board", "feed", "paper", "numbers", "play") or k in SHIPPED]
 
 
 def nav_bar(active):
-    """One scrollable row: the pages, a divider, then the sections."""
+    """Row 2's navigation and the topic row under it."""
     here = lambda k: ' aria-current="page"' if active == k else ""  # noqa: E731
     main = "".join(f'<a href="{BASE}{h}"{here(k)}>{n}</a>' for h, n, k in nav_items())
-    topics = [(f"{BASE}/latest/", "Latest", "latest")] + [(f"{BASE}/t/{t.lower()}/", t, t.lower()) for t in TOPIC_ORDER]
-    links = "".join(f'<a href="{h}"{here(k)}>{n}</a>' for h, n, k in topics)
-    return (f'<div class="navrow"><nav class="nav" aria-label="Main">{main}</nav><span class="navsep" aria-hidden="true"></span>'
-            f'<nav class="topics" aria-label="Sections">{links}</nav></div>')
+    links = "".join(f'<a href="{BASE}/t/{t.lower()}/"{here(t.lower())}>{t}</a>' for t in TOPIC_ORDER)
+    return f'<nav class="nav" aria-label="Main">{main}</nav>', f'<nav class="topics" aria-label="Sections">{links}</nav>'
 
 
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
@@ -241,7 +239,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
         active = "front"
     word = (f'<h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>' if front
             else f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>')
-    ix = (f'<span class="ix">{MAST["articles"]} articles from {MAST["newsrooms"]} newsrooms today &middot; all times UTC</span>') if MAST["articles"] else '<span class="ix">All times UTC</span>'
+    main_nav, topic_nav = nav_bar(active)
     foot_topics = "".join(f'<li><a href="{BASE}/t/{t.lower()}/">{t}</a></li>' for t in TOPIC_ORDER)
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     nl = desk.CONFIG.get("newsletter_url")
@@ -254,7 +252,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#fbfbf9">
+<meta name="theme-color" content="#ffffff">
 <script src="{BASE}/assets/theme.js?v={ASSET_V}"></script>
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
@@ -276,16 +274,17 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <body class="{'front-page' if front else 'compact'} {body_class}">
 <a class="skip" href="#main">Skip to the news</a>
 <header class="mh"><div class="wrap">
-<div class="top">{word}<div class="util"><span class="dates"><span class="dl">{now.strftime("%A %-d %B %Y")}</span><span class="ds">{now.strftime("%-d %b %Y")}</span></span>{ix}
-<span class="tools"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</span></div></div>
-{nav_bar(active)}
+<div class="util"><span class="when">{now.strftime("%A %-d %B %Y")} &middot; Edition {now.strftime("%H:%M")} UTC</span><span class="whenshort">{now.strftime("%-d %b %Y")}</span>{mark_html(MAST["coverage"], 120, 20, "barcode mini") if len(MAST["coverage"]) > 2 else ""}
+<span class="tools"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</span></div>
+<div class="row2">{word}{main_nav}</div>
+{topic_nav}
 </div></header>
 <main id="main" class="wrap {main_class}">{body}</main>
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">
 <div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every article with its sources linked.</p></div>
 <div><h2>Sections</h2><ul>{foot_topics}</ul></div>
-<div><h2>Boardread</h2><ul>{foot_views}<li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
+<div><h2>Boardread</h2><ul>{foot_views}<li><a href="{BASE}/week/">The week</a></li><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. <a href="{BASE}/standards/">Corrections</a>. All times UTC.</span>
@@ -309,7 +308,6 @@ def by(p):
     return E(", ".join(outlets.newsrooms(p)))
 
 
-COVER_TICKS = 6  # the bar fills up to this many newsrooms; more than that is still "reported widely"
 
 
 def coverage(p):
@@ -318,12 +316,9 @@ def coverage(p):
 
 
 def cover(p):
-    """The coverage meter: a short bar and the count, so a one-outlet claim reads differently from a widely reported one."""
+    """Coverage as text: "4 newsrooms". The names are on the article page."""
     n = coverage(p)
-    if not n:
-        return ""
-    ticks = "".join(f'<i{" class=on" if k < n else ""}></i>' for k in range(COVER_TICKS))
-    return f'<span class="cover"><span class="bar" aria-hidden="true">{ticks}</span>Reported by {n} newsroom{"" if n == 1 else "s"}</span>'
+    return f'<span class="cover">{n} newsroom{"" if n == 1 else "s"}</span>' if n else ""
 
 
 def meta(*parts):
@@ -458,19 +453,19 @@ def card_html(p, photo=None):
     head, n = p["headlines"][0], coverage(p)
     size = 70 if len(head) <= 60 else 60 if len(head) <= 95 else 50 if len(head) <= 130 else 42
     face = "".join(f"@font-face{{font-family:'Libre Franklin';font-weight:{w};src:url('file://{ASSETS / 'fonts' / f'LibreFranklin-{w}.woff2'}') format('woff2')}}" for w in (400, 600, 800))
-    ticks = "".join(f'<i{" class=on" if k < n else ""}></i>' for k in range(COVER_TICKS))
-    img = f'<div class="ph"><img src="file://{photo}"></div>' if photo else ""
+    img = (f'<div class="ph"><img src="file://{photo}"></div>' if photo
+           else (f'<div class="ph art">{plate_html(p, 420, 630)}</div>' if ART_ON else ""))
     return f"""<!doctype html><meta charset="utf-8"><style>{face}
-*{{box-sizing:border-box;margin:0}}body{{width:{OG_W}px;height:{OG_H}px;background:#fff;color:#0a0a0a;font-family:'Libre Franklin',Arial,sans-serif;display:flex;overflow:hidden}}
+*{{box-sizing:border-box;margin:0}}body{{width:{OG_W}px;height:{OG_H}px;background:#fff;color:#111;font-family:'Libre Franklin',Arial,sans-serif;display:flex;overflow:hidden}}
 .t{{flex:1;padding:52px 56px 48px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}}
 .w{{font-weight:800;font-size:38px;letter-spacing:-.055em}}.k{{font-weight:600;font-size:24px;color:#4d4d50;margin-top:34px}}
 h1{{font-weight:800;font-size:{size}px;line-height:1.06;letter-spacing:-.035em;margin-top:14px}}
 .b{{display:flex;justify-content:space-between;align-items:center;font-size:26px;font-weight:600;border-top:2px solid #0a0a0a;padding-top:22px}}
-.c{{display:flex;align-items:center;gap:14px;white-space:nowrap;font-size:24px}}.bar{{display:flex;gap:4px}}.bar i{{width:22px;height:10px;background:#e1e1e3}}.bar i.on{{background:#0a0a0a}}
+.c{{white-space:nowrap;font-size:24px;color:#5c5c5c}}
 .u{{color:#0a0a0a;font-weight:800;letter-spacing:-.02em}}
-.ph{{width:420px;flex:none;position:relative}}.ph img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}}</style>
+.ph{{width:420px;flex:none;position:relative}}.ph.art{{color:#0a0a0a;background:#fff;border-left:2px solid #111}}.ph.art svg{{position:absolute;inset:0;width:100%;height:100%}}.ph img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}}</style>
 <body><div class="t"><div><div class="w">boardread.</div><div class="k">{E(topic(p))}</div><h1>{E(head)}</h1></div>
-<div class="b"><span class="c"><span class="bar">{ticks}</span>Reported by {n} newsroom{"" if n == 1 else "s"}</span><span class="u">boardread.news</span></div></div>{img}</body>"""
+<div class="b"><span class="c">{n} newsroom{"" if n == 1 else "s"}</span><span class="u">boardread.news</span></div></div>{img}</body>"""
 
 
 def share_card(p, photo, dest):
@@ -487,6 +482,42 @@ def share_card(p, photo, dest):
     finally:
         png.unlink(missing_ok=True)
     return dest.exists()
+
+
+# The halftone photo look and the abstract plates are built (mono, art.py) but switched off until the art direction is final:
+# photos ship in colour, and an article without a photo is text.
+ART_ON = False
+
+
+def plate_html(p, w=600, h=400):
+    """The abstract plate of an article, or "" while ART_ON is off."""
+    return art.plate(topic(p), p.get("id", "plate"), coverage(p), dt(p["published"]).hour if p.get("published") else 0, w, h) if ART_ON else ""
+
+
+def mark_html(counts, w, h, cls):
+    return art.barcode(counts, w, h, cls) if ART_ON else ""
+
+
+def mono(photo, dest, width):
+    """The site's one photographic look: greyscale, contrast lifted, printed as a round-dot halftone at 45 degrees, ink on
+    paper (the dark theme inverts the picture in CSS). Photos of every origin, light and quality read as one set, and share
+    images use the same file. The dot pitch follows the width so a thumbnail and a lead screen alike read as a fine print.
+    The original colour is not shipped: the licences ask only that a change is stated, and the caption states it. Falls back
+    to the plain resize if ffmpeg cannot run the filter."""
+    pitch = max(3.0, width / 200) * 1.4142
+    vf = (f"scale='min({width},iw)':-2,format=gray,eq=contrast=1.35:brightness=0.03:gamma=0.85,format=yuv444p,"
+          f"geq=lum='255*clip((lum(X,Y)/255-(0.5+0.5*sin(6.2832*(X+Y)/{pitch:.3f})*sin(6.2832*(Y-X)/{pitch:.3f})))*5+0.5,0,1)':cb=128:cr=128")
+    try:
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "10", str(dest)],
+                       check=True, capture_output=True, timeout=90)
+    except (OSError, subprocess.SubprocessError):
+        resized(photo, dest, width)
+
+
+def credit_line(p):
+    """The photo credit as licensed, plus the statement of change that CC BY and CC BY-SA ask for."""
+    c = (p.get("credit") or "").strip()
+    return (f"{c.rstrip('. ')}. Printed as a black-and-white halftone by Boardread." if ART_ON else c) if c else ""
 
 
 def resized(photo, dest, width):
@@ -602,7 +633,7 @@ def how_made(p, counts):
               "Names: each sentence is compared with the source text; a sentence whose words are mostly missing from it is rejected.",
               "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this article has no photo."),
               "Audit: topic, photo, hashtag and stock-phrase checks passed."]
-    return (f'<details class="made" open><summary>How this article was made</summary><div class="made-body">'
+    return (f'<details class="made"><summary>How this article was made</summary><div class="made-body">'
             f'<p>An AI model wrote it from the text of {len(rooms)} newsroom{"" if len(rooms) == 1 else "s"} and had no other input. '
             f'Fixed code checked it before it went up.</p>'
             f'<dl><dt>Feeds scanned</dt><dd>{counts["feeds"]} feeds, every 30 minutes</dd>'
@@ -615,24 +646,18 @@ def story(p, rows, cos=None, counts=None):
     """One article page. rows is every shown article, newest first; cos is companies(rows)."""
     cos = companies(rows) if cos is None else cos
     counts = counts or desk_counts(rows)
-    mix = outlets.source_mix(p)
-    seat_rows = seat_list(p)
-    n_seats = len(seat_rows)
-    srcs = "".join((f'<li><a href="{E(u)}" rel="nofollow noopener" target="_blank"><i>{k}</i><b>{E(o)}</b><small>Read the original &nearr;</small></a></li>' if u
-                    else f'<li><span class="nolink"><i>{k}</i><b>{E(o)}</b><small>Reported it</small></span></li>') for k, (o, u) in enumerate(seat_rows, 1))
-    if p.get("permalink"):
-        srcs += f'<li><a href="{E(p["permalink"])}" rel="noopener" target="_blank"><i>&middot;</i><b>The post on Instagram</b><small>instagram.com &nearr;</small></a></li>'
-    # seats: one square per newsroom that reported it, on a faint scale of six; unfilled seats get no row
-    seat_row = (f'<div class="seats" role="img" aria-label="{n_seats} of {COVER_TICKS} seats filled">'
-                + "".join(f'<i class="on"></i>' if k < n_seats else "<i></i>" for k in range(COVER_TICKS)) + "</div>")
+    names = seat_list(p)
+    linked = [f'<a href="{E(u)}" rel="nofollow noopener" target="_blank">{E(o)}</a>' if u else E(o) for o, u in names]
+    outlets_line = (", ".join(linked[:-1]) + " and " + linked[-1]) if len(linked) > 1 else (linked[0] if linked else "")
+    reported = (f'<p class="reported"><b>Reported by</b> {outlets_line}.</p>' if outlets_line else "") \
+        + (f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else "")
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = Path(p.get("photo_file") or "").stem
     fig = (f'<figure><span class="pic"><img src="{BASE}/img/{p["id"]}.jpg" width="960" height="640" alt="{E(alt)}" fetchpriority="high"></span>'
-           f'<figcaption class="meta">{E(p.get("credit", ""))}</figcaption></figure>') if p.get("_hires") else ""
+           f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else (f'<figure class="plate-fig">{plate_html(p)}</figure>' if ART_ON else "")
     rel = related(p, rows)
-    more = (f'<section class="related" aria-labelledby="rel">{sec_head("Related news", level=2).replace("<h2", "<h2 id=\"rel\"", 1)}<div class="related-grid">'
-            + "".join(f'<article><a class="story-link" href="{href(o)}">{pic(o, thumb=True)}<span class="kick">{E(topic(o))}</span>'
-                      f'<h3 class="h-m">{E(o["headlines"][0])}</h3>{meta(t_tag(o))}</a></article>' for o in rel) + "</div></section>") if rel else ""
+    more = (f'<section class="related" aria-labelledby="rel"><h2 id="rel">Related news</h2><ul>'
+            + "".join(f'<li><a href="{href(o)}"><span class="h-s">{E(o["headlines"][0])}</span>{meta(E(topic(o)), t_tag(o))}</a></li>' for o in rel) + "</ul></section>") if rel else ""
     i = rows.index(p)
     newer, older = (rows[i - 1] if i > 0 else None), (rows[i + 1] if i + 1 < len(rows) else None)
     nav = "".join(f'<a href="{href(o)}" rel="{r}"><span class="kick">{k}</span><span class="h-s">{E(o["headlines"][0])}</span></a>'
@@ -650,15 +675,14 @@ def story(p, rows, cos=None, counts=None):
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}/t/{topic(p).lower()}/">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>
-<div class="byline cap"><span>Boardread desk &middot; written by AI</span><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span>{company}</div></header>
-<div class="cols">
-<aside class="col-seats" aria-label="About this article"><div class="sec cap"><span>Reported by</span><span>{n_seats} of {COVER_TICKS}</span></div>{seat_row}<ol class="ledger src">{srcs}</ol>
-<section class="sharebox"><div class="sec cap"><span>Share</span></div>{share_links(p)}</section></aside>
-<div class="col-main">{fig}<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>
-<p class="end-mark" aria-hidden="true">&ndash; 30 &ndash;</p>
-<p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p></div>
-<aside class="col-side" aria-label="Context and method">{ctx}{number_box(p)}{how_made(p, counts)}</aside>
-</div>
+<div class="byline"><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span><span>Boardread desk, written by AI</span>{company}</div></header>
+{fig}
+<div class="art-body"><section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>
+<p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p>
+<div class="reportedby">{reported}</div>
+{ctx}{number_box(p)}
+<section class="sharebox"><h2 class="sh">Share</h2>{share_links(p)}</section>
+{how_made(p, counts)}</div>
 {more}{prevnext}</article>"""
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": NAME, "item": SITE + "/"},
@@ -879,15 +903,16 @@ def build(out=desk.HERE / "_site"):
     for p in published():
         photo = desk.MEDIA / p["id"] / "photo.jpg"
         if photo.exists():
-            resized(photo, out / "img" / f"{p['id']}.jpg", 960)
-            resized(photo, out / "img" / f"{p['id']}-t.jpg", 480)  # not thumb.jpg: that one is a crop of the Instagram card, text included
+            treat = mono if ART_ON else resized
+            treat(photo, out / "img" / f"{p['id']}.jpg", 960)
+            treat(photo, out / "img" / f"{p['id']}-t.jpg", 480)  # not thumb.jpg: that one is a crop of the Instagram card, text included
             p["_hires"] = p["_thumb"] = True
         # no photo: the story is a text row. media/<id>/thumb.jpg is a crop of the Instagram card with the headline
         # set into it, so it is never used as a picture on the site (it showed "Global stocks" in a tile)
         shown.append(p)  # a article without any picture still has a page: text is the story
     # every story gets a card: the photo-less ones carry the same headline and meter, so a shared link is never the generic image
     def card(p):
-        photo = desk.MEDIA / p["id"] / "photo.jpg"
+        photo = out / "img" / f"{p['id']}.jpg"  # the photo as the site shows it, so a shared card looks like the site
         photo = photo if photo.exists() else None
         dest = out / "og" / f"{p['id']}.jpg"
         return share_card(p, photo, dest) or bool(photo and og_image(photo, dest))
@@ -898,8 +923,7 @@ def build(out=desk.HERE / "_site"):
     global MARKETS
     # DESK_SITE_OFFLINE=1 builds from the last good copy of the rates without touching the network (tests, a plane)
     MARKETS = markets.load(live=os.environ.get("DESK_SITE_OFFLINE") != "1")
-    day = window(shown)
-    MAST.update(articles=len(day), newsrooms=len({o.lower() for p in day for o in outlets.newsrooms(p)}))
+    MAST["coverage"] = [coverage(p) for p in sorted(window(shown), key=lambda p: p["published"])]
     sm = []
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
     if shown:

@@ -1,13 +1,12 @@
 /* boardread. site styles. One family, Libre Franklin (SIL OFL, self-hosted, same face as the Instagram cards): 800 for headlines,
    400 for text, 500-600 for the interface. Monochrome: white or near-black ground, greys for everything quiet, no accent colour. */
 :root{
-  --paper:#fbfbf9;--ink:#101010;--soft:#444441;--faint:#62625d;--rule:#d4d4ce;--wash:#efefeb;
+  --paper:#fff;--ink:#111;--soft:#5c5c5c;--faint:#5c5c5c;--rule:#e3e3e3;--wash:#f5f5f5;
   --f:"Libre Franklin","Franklin Fallback",-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
-  --gut:40px;--measure:40.5rem;
-  --c:var(--f);
+  --gut:24px;--measure:66ch;
 }
 :root{color-scheme:light}
-:root[data-theme=dark]{color-scheme:dark;--paper:#131313;--ink:#ecebe6;--soft:#b3b3ac;--faint:#9d9d97;--rule:#363633;--wash:#1c1c1b}
+:root[data-theme=dark]{color-scheme:dark;--paper:#111;--ink:#f2f2f2;--soft:#a3a3a3;--faint:#a3a3a3;--rule:#2a2a2a;--wash:#1a1a1a}
 
 *{box-sizing:border-box}
 html{background:var(--paper);-webkit-text-size-adjust:100%;scroll-padding-top:64px}
@@ -17,10 +16,10 @@ a{color:inherit;text-decoration:none}
 img{display:block;max-width:100%;height:auto}
 h1,h2,h3,h4,p,ol,ul,figure{margin:0}
 ol,ul{padding:0;list-style:none}
-:focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:2px}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px;}
 .skip{position:absolute;left:-9999px;top:8px;background:var(--ink);color:var(--paper);padding:10px 14px;font:600 14px var(--f);z-index:20}
 .skip:focus{left:8px}
-.wrap{max-width:1440px;margin:0 auto;padding:0 var(--gut)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 var(--gut)}
 
 /* labels */
 .kick,.label{font:600 13.5px/1.4 var(--f);color:var(--ink)}
@@ -39,7 +38,7 @@ time{font-variant-numeric:tabular-nums}
 .pic{display:block;background:var(--wash);overflow:hidden;aspect-ratio:3/2}
 .pic img{width:100%;height:100%;object-fit:cover;object-position:50% 28%}
 .pic{position:relative}
-.pic::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(128,128,128,.2);pointer-events:none}
+.pic::after{content:"";position:absolute;inset:0;pointer-events:none}
 .pic.sq{aspect-ratio:4/3}
 
 /* headlines */
@@ -158,9 +157,9 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 
 /* search */
 .sbox{display:flex;gap:0;max-width:44rem;margin:8px 0 4px}
-.sbox input{flex:1;min-width:0;font:500 22px/1.2 var(--f);padding:16px 18px;border:1px solid var(--ink);border-right:0;background:var(--paper);color:var(--ink);border-radius:0}
+.sbox input{flex:1;min-width:0;font:500 22px/1.2 var(--f);padding:16px 18px;border:1px solid var(--ink);border-right:0;background:var(--paper);color:var(--ink);}
 .sbox input::placeholder{color:var(--faint)}
-.sbox button{font:600 15px var(--f);padding:0 26px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;border-radius:0}
+.sbox button{font:600 15px var(--f);padding:0 26px;border:1px solid var(--ink);background:var(--ink);color:var(--paper);cursor:pointer;}
 .sbox button:hover{opacity:.82}
 #sstatus{margin:14px 0 4px}
 .hits{max-width:50rem}
@@ -334,10 +333,10 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .covered{margin-top:30px}
 
 /* new since your last visit; set by the script, so a reader without it sees nothing */
-.new{font:600 12.5px/1 var(--f);color:var(--paper);background:var(--ink);padding:3px 6px 3px;margin-right:8px;border-radius:2px}
+.new{font:600 12.5px/1 var(--f);color:var(--paper);background:var(--ink);padding:3px 6px 3px;margin-right:8px;}
 .since{font:600 14.5px var(--f);margin:0 0 18px;padding:10px 14px;background:var(--wash)}
 .since[hidden]{display:none}
-.cur{outline:2px solid var(--ink);outline-offset:6px;border-radius:2px}
+.cur{outline:2px solid var(--ink);outline-offset:6px;}
 
 /* keyboard help */
 .kbd-hint{font:400 13px var(--f);color:inherit;background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
@@ -373,135 +372,3 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .opt::before{min-width:1.4ch}
 .byline{align-items:center}
 
-/* ---- v4: broadsheet chrome. Libre Franklin for text and the wordmark, Libre Franklin 800 for headlines ---- */
-.cap{font:600 13px/1.35 var(--f)}
-.dm{color:var(--faint)}
-.cd{font-family:var(--f);font-weight:800;line-height:.9}
-.word{font:800 clamp(40px,6vw,64px)/.9 var(--f);letter-spacing:-.06em;color:var(--ink)}
-.mh .strip{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:10px 0;border-bottom:1px solid var(--ink);color:var(--faint);min-height:42px}
-.mh .strip .ds{display:none}
-.mh .chans{display:flex;gap:16px;align-items:center}
-.mh .chans .t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.mh .chans a:hover{color:var(--ink)}
-.mh .np{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding:14px 0 12px}
-.mh .np .word{display:block;font-size:56px;margin-left:-3px;line-height:.86}
-.front-page .mh .np{padding:20px 0 14px}
-.front-page .mh .np .word{font-size:clamp(64px,9vw,128px);line-height:.82;margin-left:-5px}
-.front-page .mh .np h1{margin:0}
-.mh .ix{display:none;gap:22px;text-align:right;padding-bottom:6px}
-.front-page .mh .ix{display:flex}
-.mh .ix div{border-left:1px solid var(--rule);padding-left:16px}
-.mh .ix b{font:800 34px/1 var(--f);display:block;font-variant-numeric:tabular-nums}
-.mh .dbl{border-top:3px solid var(--ink);border-bottom:1px solid var(--ink);height:7px}
-.mh .nav{display:flex;gap:28px;padding:11px 0;border-bottom:1px solid var(--ink);overflow-x:auto;scrollbar-width:none;white-space:nowrap}
-.mh .nav::-webkit-scrollbar,.mh .topics ul::-webkit-scrollbar{display:none}
-.mh .nav a{padding-bottom:2px;border-bottom:2px solid transparent;color:var(--ink)}
-.mh .nav a:hover{border-bottom-color:var(--faint)}
-.mh .nav a[aria-current]{border-bottom-color:var(--ink)}
-.mh .topics ul{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:0 -10px}
-.mh .topics a{display:flex;align-items:center;min-height:42px;padding:0 10px;font:600 14.5px/1 var(--f);color:var(--soft);white-space:nowrap;position:relative}
-.mh .topics a:hover,.mh .topics a[aria-current]{color:var(--ink)}
-.mh .topics a[aria-current]::after{content:"";position:absolute;left:10px;right:10px;bottom:0;height:3px;background:var(--ink)}
-.mh .topics{border-bottom:1px solid var(--rule)}
-@media(max-width:900px){
-  .mh .strip .dl,.mh .strip .ed{display:none}.mh .strip .ds{display:inline}.mh .strip{justify-content:space-between}
-  .mh .np .word{font-size:44px}.front-page .mh .np .word{font-size:64px}.front-page .mh .ix{display:none}
-  .mh .nav{gap:20px;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
-}
-@media(max-width:720px){:root{--gut:20px}.mh .chans{gap:12px}.mh .topics ul{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}}
-
-/* headlines: the condensed cut */
-.h-xl,.h-l,.h-m,.pagehead h1,.sec h1,.sec h2,.art h1,.lab,.numbox h2,.rail h2,.end,.prose h2,.q .prompt,.empty{font-family:var(--f);letter-spacing:-.003em}
-.h-xl{font-size:clamp(46px,5vw,78px);line-height:.9;font-weight:800}
-.h-l{font-size:34px;line-height:.95;font-weight:800}
-.h-m{font-size:27px;line-height:.98;font-weight:800}
-.h-s{font-weight:700}
-.pagehead h1{font-size:clamp(64px,9vw,128px);line-height:.86;font-weight:800;letter-spacing:-.008em;margin-bottom:16px}
-.sec{border-top:3px solid var(--ink)}
-.sec h2,.sec h1{font-size:30px;line-height:1;font-weight:800;letter-spacing:0}
-.rank .n,.numbox .big{font-family:var(--f);letter-spacing:-.01em}
-.dek{color:var(--soft)}
-
-/* the coverage meter: seats. Filled seats are ink, the scale of six stays faint, so one newsroom reads as one of six */
-.cover .bar{gap:3px}
-.cover .bar i{width:10px;height:14px;background:transparent;border:1px solid var(--faint);position:relative}
-.cover .bar i.on{background:var(--ink);border-color:var(--ink)}
-
-/* article page: broadsheet grid, seats on the left, the text in the middle, context and method on the right */
-.art{display:block;padding:0}
-.art-head{padding:32px 0 8px}
-.art-head .kick{display:inline-block;margin-bottom:14px;font:600 12.5px/1.3 var(--f);letter-spacing:.1em;text-transform:uppercase}
-.art h1{font-size:clamp(60px,10.4vw,156px);line-height:.84;letter-spacing:-.008em;max-width:11em;margin-bottom:0;font-weight:800}
-.art .dek{font:400 clamp(20px,2.2vw,30px)/1.25 var(--f);max-width:28em;margin:26px 0 24px;color:var(--ink)}
-.byline{border-top:1px solid var(--ink);border-bottom:3px double var(--ink);padding:10px 0;gap:6px 30px;margin-bottom:0}
-.art .cols{display:grid;grid-template-columns:3fr 6fr 3fr;margin-top:30px}
-.art .cols>*{padding:0 26px;min-width:0}.art .cols>:first-child{padding-left:0}.art .cols>:last-child{padding-right:0}.art .cols>*+*{border-left:1px solid var(--rule)}
-.art .col-main figure{margin:0}
-.art .col-main figure img{width:100%;max-height:640px;object-fit:cover;object-position:50% 25%}
-.art .col-main .pic{aspect-ratio:3/2}
-.art figcaption{margin-top:8px;font-size:12.5px}
-.body{max-width:none}
-.body p{font-size:21px;line-height:1.55;margin-bottom:1.1em}
-.happened{margin-top:26px}
-.happened .lab{display:none}
-.end-mark{text-align:center;margin:30px 0 10px;font:800 22px var(--f);letter-spacing:.2em}
-.disclose{max-width:none}
-.cols h2.cap,.cols .sec{margin-bottom:12px}
-.ledger{margin-top:12px}
-.ledger li a{display:grid;grid-template-columns:22px 1fr;padding:9px 0;border-bottom:1px solid var(--rule);font-size:15px;gap:2px}
-.ledger i{font:800 17px var(--f);font-style:normal;color:var(--faint)}
-.ledger b{font-weight:700}.ledger small{grid-column:2;font:600 11.5px var(--f);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-.ledger li a:hover b{text-decoration:underline;text-underline-offset:3px}
-.seats{display:flex;gap:5px;margin:14px 0 4px}
-.seats i{width:22px;height:22px;border:2px solid var(--faint);display:block}
-.seats i.on{background:var(--ink);border-color:var(--ink)}
-.col-side{display:grid;gap:28px;align-content:start}
-.made{max-width:none;margin:0;border:1px solid var(--ink);outline:1px solid var(--ink);outline-offset:3px;padding:0 18px}
-.made summary{font:800 28px/.9 var(--f);padding:16px 0}
-.made-body{font-size:14px}
-.numbox{max-width:none;margin:0;padding-top:8px}
-.numbox .big{font-size:clamp(64px,7vw,100px);line-height:.85}
-.cxb h2{font:800 30px/.9 var(--f);border-top:3px solid var(--ink);padding-top:8px;margin-bottom:6px}
-.rt{display:grid;grid-template-columns:1fr auto;gap:0 10px;padding:8px 0;border-bottom:1px solid var(--rule);align-items:baseline}
-.rt b{font:800 26px/1 var(--f);font-variant-numeric:tabular-nums}
-.rt b em{font:600 12px var(--f);font-style:normal;color:var(--faint);margin-left:8px;letter-spacing:.02em}
-.rt span{font:600 12.5px var(--f);letter-spacing:.06em;text-transform:uppercase}
-.rt small{grid-column:1/3;color:var(--faint);font-size:11.5px;line-height:1.3;margin-top:2px}
-.cxb .rt b{font-size:34px}
-.attr{font-size:11.5px;color:var(--faint);line-height:1.45;margin-top:10px}
-.rail{position:static;display:block}
-.related{border-top:0;padding-top:44px}
-@media(max-width:900px){
-  .art .cols{grid-template-columns:minmax(0,1fr)}
-  .art .cols>*{padding:0!important;border-left:0!important}.art .cols>*+*{margin-top:30px}
-  .art .col-main{order:-1}
-  .art h1{font-size:clamp(52px,17vw,84px)}.art .dek{font-size:21px}.body p{font-size:19.5px}
-}
-.dbl-top{border-top:3px double var(--ink)}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
-.ledger .nolink{display:grid;grid-template-columns:22px 1fr;padding:9px 0;border-bottom:1px solid var(--rule);font-size:15px;gap:2px}
-.ledger .nolink small{grid-column:2;font:600 11.5px var(--f);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-.ncap{font:400 16px/1.5 var(--f);color:var(--soft)}
-
-/* ---- v4.1: hierarchy. Condensed heavy is for the lead; everything under it is Libre Franklin at a normal width ---- */
-.h-l,.h-m,.h-s{font-family:var(--f);}
-.h-l{font-size:26px;line-height:1.12;font-weight:800;letter-spacing:-.025em}
-.h-m{font-size:20px;line-height:1.2;font-weight:800;letter-spacing:-.02em}
-.h-s{font-size:17px;line-height:1.28;font-weight:600;letter-spacing:-.01em}
-.mh .strip,.mh .nav a{text-transform:none;letter-spacing:0}
-.mh .strip{font:500 13px/1.3 var(--f)}
-.mh .nav a{font:600 15px/1.3 var(--f)}
-.mh .ix span{font:500 12.5px/1.3 var(--f);text-transform:none;letter-spacing:0}
-.mh .ix b{font-weight:800}
-.byline{font:500 13px/1.4 var(--f);color:var(--soft)}
-.art-head .kick{text-transform:none;letter-spacing:0;font:600 14px/1.3 var(--f)}
-.rt span{font:600 13px var(--f);text-transform:none;letter-spacing:0}
-.sec.cap,.cols .sec{text-transform:none}
-.sec span:first-child{font:800 16px/1.2 var(--f);letter-spacing:-.01em}
-.sec .dm,.sec a.dm{font:500 13px var(--f)}
-/* theme switch: monoline icon, same weight as the channel marks */
-.themebtn{all:unset;box-sizing:border-box;cursor:pointer;display:inline-grid;place-items:center;width:32px;height:32px;color:var(--soft);border-radius:4px}
-.themebtn:hover{color:var(--ink)}.themebtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.themebtn svg{display:block}.themebtn .moon{display:none}
-:root[data-theme=dark] .themebtn .sun{display:none}:root[data-theme=dark] .themebtn .moon{display:block}
-.mh .strip .tools{display:flex;align-items:center;gap:14px}

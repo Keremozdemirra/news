@@ -37,14 +37,14 @@ def brief_page(shown, day, m=None):
     rows = brief_rows(shown, day)
     words, sec = brief_words(rows)
     items = "".join(f'<article class="bn"><b>{k}</b><div><div class="cap dm">{E(S.topic(p))}</div><h2><a class="hl" href="{S.href(p)}">{E(p["headlines"][0])}</a></h2>'
-                    f'<p>{E(p.get("dek", ""))}</p><div class="mt cap">{S.hhmm(p["published"])} UTC &middot; {V.nroom(p)} {V.seats(p)}</div></div></article>'
+                    f'<p>{E(p.get("dek", ""))}</p><div class="mt">{S.hhmm(p["published"])} UTC &middot; {V.nroom(p)}</div></div></article>'
                     for k, p in enumerate(rows, 1))
     more = len([p for p in shown if S.day_of(p["published"]) == day]) - len(rows)
     stop = (f'<div class="stop"><b>&ndash; 30 &ndash;</b><p>End of the brief. {V.PLURAL(len(rows), "article")}, {words} words, about {sec // 60} minute{"" if sec // 60 == 1 else "s"} '
             f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
             f'<a class="btn" href="{S.BASE}/board/">The Board</a> {f'<a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a>' if "play" in S.SHIPPED else ""}</div>')
     head = V.head(S.day_label(day), "In<br>brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read. It ends.")
-    return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
+    return f'{V.edition_strip([p for p in shown if S.day_of(p["published"]) == day])}<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
 def quiz_questions(shown):

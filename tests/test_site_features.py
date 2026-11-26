@@ -59,8 +59,10 @@ class Features(Tmp):
 
     def test_coverage_meter_counts_newsrooms_without_the_aggregator(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
-        self.assertIn("Reported by 2 newsrooms", h)
-        self.assertIn("Reported by 2 newsrooms", self.read("index.html"))
+        self.assertIn("2 newsrooms", h)
+        self.assertIn("<b>Reported by</b>", h)  # the outlet names, as text
+        self.assertNotIn('class="mtr"', h)  # no box meters
+        self.assertIn("2 newsrooms", self.read("index.html"))
 
     def test_photoless_story_is_a_text_row_never_a_thumbnail_tile(self):
         h = self.read("index.html")
@@ -93,7 +95,7 @@ class Features(Tmp):
     def test_source_mix_links_each_outlet_to_its_article(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
         self.assertIn('href="https://www.cnbc.com/a"', h)
-        self.assertIn("<b>Financial Times</b>", h)
+        self.assertIn(">Financial Times</a>", h)
 
     def test_brief_has_at_most_eight_stories_end_marker_archive_and_nav_link(self):
         h = self.read("brief/index.html")
@@ -168,9 +170,9 @@ class Features(Tmp):
 
     def test_share_card_page_has_headline_meter_and_address(self):
         h = site.card_html({"headlines": ["Headline here"], "sources": ["CNBC", "FT"], "topic": "Tech"})
-        for s in ("Headline here", "Reported by 2 newsrooms", "boardread.news"):
+        for s in ("Headline here", "2 newsrooms", "boardread.news"):
             self.assertIn(s, h)
-        self.assertEqual(h.count("<i class=on>"), 2)
+        self.assertNotIn("<i class=on>", h)  # coverage is text, not boxes
 
 
 if __name__ == "__main__":
@@ -197,7 +199,9 @@ class Chrome(Features):
 
     def test_one_typeface_self_hosted_and_a_two_row_masthead(self):
         h = self.read("index.html")
-        self.assertIn("articles from", h)  # the masthead counts, in the utility row
+        self.assertIn("Edition", h)  # row 1 of the masthead: date and edition time
+        self.assertIn('class="row2"', h)  # row 2: wordmark and the main navigation
+        self.assertNotIn("articles from", h)  # no counters in the header
         self.assertNotIn("Archivo", h)
         self.assertFalse((self.out / "fonts" / "Archivo-var.woff2").exists())
         self.assertNotIn("Archivo", (self.out / "fonts" / "OFL.txt").read_text())
@@ -224,7 +228,7 @@ class Views(Features):
 
     def test_board_has_flaps_seats_names_and_wire_and_no_empty_seat_rows(self):
         h = self.read("board/index.html")
-        for part in ('id="river"', 'id="names"', 'id="wire"', 'class="fl go"', 'class="mtr"'):
+        for part in ('id="river"', 'id="names"', 'id="wire"', 'class="fl go"'):
             self.assertIn(part, h)
         self.assertNotIn("&mdash;", h)  # a seat nobody holds is not a row
         self.assertNotIn("Not reported", self.read("s/2026-11-26-0900-1/index.html"))
@@ -234,12 +238,13 @@ class Views(Features):
     def test_wire_marks_each_article_against_the_newsrooms_that_reported_it(self):
         h = self.read("board/index.html")
         self.assertIn("Financial Times", h)
-        self.assertRegex(h, r"<td><i title=\"CNBC\"></i>")
+        self.assertRegex(h, r'<td><span title="CNBC"')
 
     def test_feed_cards_are_photo_or_text_and_the_cover_links_the_week(self):
         h = self.read("feed/index.html")
-        self.assertIn('class="mos"', h)
-        self.assertRegex(h, r'class="tile [a-z]+ (w|k)"')  # photo-less articles are solid text cards
+        self.assertIn('class="fgrid"', h)
+        self.assertIn("fcard", h)
+        self.assertRegex(h, r'class="fcard[^"]*textonly"')  # photo-less articles are text cards
         c = self.read("cover/index.html")
         self.assertIn("cv-card", c)
         self.assertRegex(c, r"Week \d\d")
@@ -333,7 +338,7 @@ class FrontBuilt(Features):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)
         self.assertNotIn('href="/quiz/"', h)
-        self.assertIn("Boardread desk &middot; written by AI", self.read("s/2026-11-26-0900-1/index.html"))
+        self.assertIn("Boardread desk, written by AI", self.read("s/2026-11-26-0900-1/index.html"))
 
     def test_front_rates_block_has_one_source_line_and_no_chart(self):
         h = self.read("index.html")

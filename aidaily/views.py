@@ -14,7 +14,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from . import markets, outlets
+from . import art, markets, outlets
 from . import site as S
 
 E = S.E
@@ -39,13 +39,15 @@ def img(p, ratio="3/2", thumb=True):
     return f'<img src="{src}" width="{w}" height="{h}" alt="" loading="lazy" decoding="async" style="aspect-ratio:{ratio}">'
 
 
-def card(p, size="s", photo=False, dek=True, ratio="3/2", topic=True, meter=False):
-    """One item of the broadsheet. The line above the headline is plain small text: the topic only where the column does not
-    already name it, then the time; the newsroom count is the seat meter, shown on the bigger items only."""
+def card(p, size="s", photo=False, dek=True, ratio="4/3", topic=True, plate=False):
+    """One item of the broadsheet. The line above the headline is plain meta: the topic only where the column does not already
+    name it, then the time. Coverage is the plain text "N newsrooms" on the bigger items. A photo only where it shows its subject."""
     when = f'<time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time>'
     line = f'{E(S.topic(p))} &middot; {when}' if topic else when
-    return (f'<article class="it {size}"><a href="{S.href(p)}">{img(p, ratio) if photo and photo_ok(p) else ""}<div class="mt">{line}'
-            + (f' <span class="mtr-wrap">{seats(p)}</span>' if meter else "") + f'</div><h3 class="hl">{E(p["headlines"][0])}</h3></a>'
+    if size == "m":
+        line += f' &middot; {nroom(p)}'
+    pic = img(p, ratio) if photo and photo_ok(p) else (f'<div class="itart">{S.plate_html(p, 480, 360)}</div>' if plate and S.ART_ON else "")
+    return (f'<article class="it {size}"><a href="{S.href(p)}">{pic}<div class="mt">{line}</div><h3 class="hl">{E(p["headlines"][0])}</h3></a>'
             + (f'<p>{E(p.get("dek", ""))}</p>' if dek else "") + "</article>")
 
 
@@ -53,15 +55,8 @@ def paras(p):
     return "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
 
 
-def seats(p, cls="mtr"):
-    """Six seats, filled for each newsroom that reported the article; the scale stays faint."""
-    n = S.coverage(p)
-    return (f'<span class="{cls}" role="img" aria-label="Reported by {PLURAL(n, "newsroom")}">'
-            + "".join(f'<i class="on"></i>' if k < n else "<i></i>" for k in range(S.COVER_TICKS)) + "</span>")
-
-
 def head(kicker, title, sub=""):
-    return (f'<div class="vh"><div class="cap dm">{kicker}</div><h1 class="cd">{title}</h1>'
+    return (f'<div class="vh"><div class="cap">{kicker}</div><h1 class="cd">{title}</h1>'
             + (f'<p class="vsub">{sub}</p>' if sub else "") + "</div>")
 
 
@@ -109,13 +104,15 @@ def photo_subject(p):
 
 
 def front(shown, cos, m):
+    """The front page grid: Latest (times and row headlines), the lead and the two seconds, the rates, then the sections.
+    Each article appears once; the lead and the seconds come from the news-value ranking above."""
     today = S.window(shown)
     ranked = sorted(today, key=front_score, reverse=True)
-    lead = ranked[0] if ranked else None
+    lead = ranked[0]
     used = {lead["id"]}
     seconds = [p for p in ranked[1:] if p["id"] not in used][:2]
     used |= {p["id"] for p in seconds}
-    left = [p for p in shown if p["id"] not in used][:6]
+    left = [p for p in shown if p["id"] not in used][:8]
     used |= {p["id"] for p in left}
     seen = set()
 
@@ -127,38 +124,43 @@ def front(shown, cos, m):
         seen.add(subj)
         return True
     show_photo = ph(lead)
-    jump = f'<a class="jump" href="{S.href(lead)}">Read the full article &middot; {PLURAL(S.coverage(lead), "newsroom")}: {S.by(lead)}</a>'
-    fig = (f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
-           f'<figcaption>{E(lead.get("credit", ""))}</figcaption></figure>') if show_photo and lead.get("_hires") else ""
-    centre = (f'<div class="zn lead"><div class="k">{E(S.topic(lead))} &middot; <time datetime="{S.iso(lead["published"])}">{S.hhmm(lead["published"])}</time> UTC</div>'
-              f'<h1 class="lh"><a href="{S.href(lead)}" class="hl">{E(lead["headlines"][0])}</a></h1><p class="dk">{E(lead.get("dek", ""))}</p>'
-              f'<div class="by">{S.cover(lead)}</div>{fig}<div class="tx">{paras(lead)}</div>{jump}</div>')
-    lcol = ('<div class="zn"><div class="sec"><span>Latest</span><a class="dm" href="' + S.BASE + '/latest/">All</a></div>'
-            + "".join(card(p, "s", photo=False, dek=i < 2) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
-    rcol = ('<div class="zn"><div class="sec"><span>Also at the top</span></div>'
-            + "".join(card(p, "m", photo=ph(p), ratio="4/3", meter=True) for p in seconds) + markets.rates_box(m, S.BASE, compact=True) + "</div>")
-    blocks = ""
-    for t in S.TOPIC_ORDER:
+    fig = ((f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
+            f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if show_photo and lead.get("_hires")
+           else (f'<figure class="plate-fig">{S.plate_html(lead)}</figure>' if S.ART_ON else ""))
+    lead_html = (f'<div class="lead"><div class="mt">{E(S.topic(lead))} &middot; <time datetime="{S.iso(lead["published"])}">{S.hhmm(lead["published"])}</time> UTC &middot; {nroom(lead)}</div>'
+                 f'<h1 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h1>{fig}<p class="dk">{E(lead.get("dek", ""))}</p>'
+                 f'<div class="tx">{paras(lead)}</div><a class="more" href="{S.href(lead)}">Read the article</a></div>')
+    latest = ('<div class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2><ul>'
+              + "".join(f'<li><a href="{S.href(p)}"><time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time><span>{E(p["headlines"][0])}</span></a></li>' for p in left) + "</ul></div>")
+    rail = ('<div class="toprail"><h2 class="sh">Also at the top</h2>'
+            + "".join(f'<article class="second"><a href="{S.href(p)}"><div class="mt">{E(S.topic(p))} &middot; {S.hhmm(p["published"])} &middot; {nroom(p)}</div><h3>{E(p["headlines"][0])}</h3></a><p>{E(p.get("dek", ""))}</p></article>' for p in seconds)
+            + markets.rates_box(m, S.BASE, compact=True) + "</div>")
+
+    def section(t, n=3, lead_photo=True):
         rows = [p for p in shown if S.topic(p) == t]
-        fresh = [p for p in rows if p["id"] not in used][:3]
+        fresh = [p for p in rows if p["id"] not in used][:n + 1]
         if not fresh:
-            continue
-        used |= {p["id"] for p in fresh}
-        blocks += (f'<div><div class="sec"><a href="{S.BASE}/t/{t.lower()}/">{t}</a><span class="dm">{len(rows)}</span></div>'
-                   + "".join(card(p, "m" if k == 0 else "s", photo=(k == 0 and ph(p)), dek=(k == 0), topic=False) for k, p in enumerate(fresh)) + "</div>")
-    inside = "".join(f'<a href="{S.BASE}{u}"><b>{n}</b><span>{d}</span></a>' for k, u, n, d in (
-        ("board", "/board/", "Board", "Every article as a departure, with the names in the news and a wire of who reported what."),
-        ("feed", "/feed/", "Feed", "The news as cards, the way it runs on Instagram."),
-        ("brief", "/brief/", "Brief", "The day's top articles, one minute. It ends."),
-        ("play", "/play/", "Play", "Three daily games built from today's news."),
-        ("numbers", "/numbers/", "Numbers", "The figures in the news, and the official rate series."),
-        ("paper", "/paper/", "Paper", "The last full day as a printed edition. Turn the pages."))
-        if k in S.SHIPPED or k == "brief")
-    week = [p for p in sorted(S.by_score([p for p in shown if S.dt(shown[0]["published"]) - S.dt(p["published"]) <= timedelta(days=7)]), key=S.shared, reverse=True) if p["id"] not in used]
-    wk = (f'<section aria-labelledby="wh">{S.sec_head("This week", f"{S.BASE}/week/", "Top 10").replace("<h2", "<h2 id=\"wh\"", 1)}{S.ranked(week, 5)}</section>') if len(week) >= 3 else ""
-    duo = f'<div class="duo{"" if wk else " solo"}">{wk}{S.follow_block()}</div>'
-    return ('<p class="since" id="since" role="status" hidden></p>' f'<div class="front">{lcol}{centre}{rcol}</div>'
-            f'<div class="sects">{blocks}</div><div class="inside">{inside}</div>{duo}')
+            return ""
+        used.update(p["id"] for p in fresh)
+        first, rest = fresh[0], fresh[1:]
+        return (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}/t/{t.lower()}/">{t}</a></h2>'
+                f'<article class="slead"><a href="{S.href(first)}">{img(first, "4/3") if lead_photo and ph(first) else ""}<h3>{E(first["headlines"][0])}</h3></a><p>{E(first.get("dek", ""))}</p>'
+                f'<div class="mt"><time datetime="{S.iso(first["published"])}">{S.hhmm(first["published"])}</time> &middot; {nroom(first)}</div></article>'
+                + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt"><time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time></div></a></article>' for p in rest[:n]) + "</section>")
+    r1 = [x for x in (section(t) for t in ("Markets", "Economy", "Business", "Politics", "World")) if x]
+    r2 = [x for x in (section(t) for t in ("Tech", "AI", "Culture")) if x]
+    row1, row2 = "".join(r1), "".join(r2)
+    return ('<p class="since" id="since" role="status" hidden></p>'
+            f'<div class="front">{latest}{lead_html}{rail}</div><div class="sects" style="--n:{max(len(r1), 4)}">{row1}</div>' + (f'<div class="sects" style="--n:{max(len(r2), 3)}">{row2}</div>' if row2 else ""))
+
+
+def edition_strip(rows):
+    """The day's mark, larger: one bar per article, as tall as the newsrooms that reported it (the small one sits in the masthead)."""
+    day = sorted(rows, key=lambda p: p["published"])
+    if len(day) < 3 or not S.ART_ON:
+        return ""
+    return (f'<figure class="edition">{art.barcode([S.coverage(p) for p in day], 1240, 72)}'
+            f'<figcaption>The day in coverage: one bar for each of the {len(day)} articles, oldest to newest, as tall as the number of newsrooms that reported it.</figcaption></figure>')
 
 
 # ---------------------------------------------------------------- names
@@ -225,11 +227,11 @@ def board_rows(rows):
     for p in rows:
         big = bool(p.get("_hires")) and S.coverage(p) >= 4
         th = img(p, "3/2") if p.get("_thumb") else '<span class="th"></span>'
-        out += (f'<article class="row{" big" if big else ""}"><span class="tm"><time datetime="{S.iso(p["published"])}">{flaps(S.hhmm(p["published"]), go=True)}'
+        out += (f'<article class="row dep{" big" if big else ""}"><span class="tm"><time datetime="{S.iso(p["published"])}">{flaps(S.hhmm(p["published"]), go=True)}'
                 f'<span class="sr">{S.hhmm(p["published"])} UTC</span></time></span><span class="sc" title="{E(S.topic(p))}">{CODE[S.topic(p)]}</span>'
                 f'<div class="ti"><h3><a href="{S.href(p)}">{E(p["headlines"][0])}</a></h3>'
                 + (f'<p class="dk">{E(p.get("dek", ""))}</p>' if big else "") + f'</div><span class="src">{S.by(p)}</span>'
-                f'<span class="cv">{seats(p)}</span><span class="agec">{age_attr(p)}</span><span class="imgc">{th}</span></article>')
+                f'<span class="cv">{nroom(p)}</span><span class="agec">{age_attr(p)}</span><span class="imgc">{th}</span></article>')
     return out
 
 
@@ -244,7 +246,7 @@ def matrix(rows, cap=26):
     body = ""
     for p in rows:
         have = {n.lower() for n in outlets.newsrooms(p)}
-        cells = "".join(f'<td>{f"<i title=\"{E(n)}\"></i><span class=\"sr\">{E(n)}</span>" if n.lower() in have else ""}</td>' for n, _ in order)
+        cells = "".join(f'<td>{f"<span title=\"{E(n)}\" aria-hidden=\"true\">&#9679;</span><span class=\"sr\">{E(n)}</span>" if n.lower() in have else ""}</td>' for n, _ in order)
         body += (f'<tr><th scope="row"><small>{S.hhmm(p["published"])} &middot; {CODE[S.topic(p)]}</small><a href="{S.href(p)}">{E(p["headlines"][0])}</a></th>{cells}</tr>')
     foot = "".join(f"<td>{c}</td>" for _, c in order)
     hidden = len({n for p in rows for n in outlets.newsrooms(p)}) - len(order)
@@ -266,48 +268,41 @@ def board(shown, m):
         hero = (f'<section class="hero" aria-label="Top of the board"><div class="ph">{img(top, "4/3", thumb=False)}</div><div class="hg"><div>'
                 f'<div class="hm">{flaps(S.hhmm(top["published"]), go=True)}<span class="sec">{CODE[S.topic(top)]}</span><span class="cap dm">Top of the board</span></div>'
                 f'<h2><a href="{S.href(top)}">{E(top["headlines"][0])}</a></h2><p class="dek">{E(top.get("dek", ""))}</p></div>'
-                f'<div class="seatbox"><div class="seatscale">{seats(top, "mtr big")}<span class="cap dm">{PLURAL(S.coverage(top), "seat")} of {S.COVER_TICKS}</span></div>{seat_list}</div></div></section>')
+                f'<div class="seatbox"><div class="seatscale"><span class="cap dm">Reported by {PLURAL(S.coverage(top), "newsroom")}</span></div>{seat_list}</div></div></section>')
     nm = names(rows)
     tape = "".join(f'<span class="tk">{E(n)}<small>{PLURAL(len(ps), "article")}</small><em>{k}</em></span>' for n, ps, k in nm)
     nrows = "".join(f'<div class="nm-row"><span class="rk">{i:02d}</span><h3>{E(n)}</h3><ul>'
                     + "".join(f'<li><span>{S.hhmm(x["published"])}</span><a href="{S.href(x)}">{E(x["headlines"][0])}</a></li>' for x in ps)
                     + f'</ul><div class="bars"><div><b>{k}</b>newsroom pickups</div><div><b>{len(ps)}</b>{"article" if len(ps) == 1 else "articles"}</div></div></div>'
                     for i, (n, ps, k) in enumerate(nm, 1))
-    names_sec = (f'<section id="names" class="bsec"><div class="sec cap"><span>Names</span><span class="dm">People and companies, by newsroom pickups</span></div>'
+    names_sec = (f'<section id="names" class="bsec"><div class="sec"><span>Names</span><span class="dm">People and companies, by newsroom pickups</span></div>'
                  f'<div class="tape" aria-hidden="true"><div class="tape-in">{tape}{tape}</div></div>{nrows}</section>') if nm else ""
-    wire = (f'<section id="wire" class="bsec"><div class="sec cap"><span>The wire</span><span class="dm">A filled square: that newsroom reported it</span></div>'
+    wire = (f'<section id="wire" class="bsec"><div class="sec"><span>The wire</span><span class="dm">A dot: that newsroom reported it</span></div>'
             f'<p class="vsub">Read across to see how widely an article was reported, down to see what a newsroom led with. The wire shows who reported, not when.</p>'
             f'{matrix(rows)}</section>')
     hdr = ('<div class="vh"><div class="cap dm">Departures, newest first</div><h1 class="cd">The Board</h1>'
            f'<p class="vsub">{PLURAL(len(rows), "article")} from {PLURAL(len({n.lower() for p in rows for n in outlets.newsrooms(p)}), "newsroom")}. '
-           'Each seat is one newsroom that reported the article.</p>'
+           'Coverage is the number of newsrooms that reported the article.</p>'
            '<nav class="jumps cap" aria-label="On this page"><a href="#river">River</a><a href="#names">Names</a><a href="#wire">Wire</a></nav></div>')
-    head_row = '<div class="bh"><span>Time</span><span>Sec</span><span>Headline</span><span>Newsrooms</span><span>Seats</span><span>Age</span><span></span></div>'
+    head_row = '<div class="bh"><span>Time</span><span>Sec</span><span>Headline</span><span>Newsrooms</span><span>Coverage</span><span>Age</span><span></span></div>'
     return hdr + hero + f'<section id="river" class="bsec board" aria-label="Departures">{head_row}{board_rows([p for p in rows if p is not top])}</section>' + names_sec + wire
 
 
 # ---------------------------------------------------------------- the feed and the cover
 
-def tile(p, cls, cols, photo):
-    kind = "sc" if photo else ("w" if int(p["id"][-1:] or 0) % 2 else "k")
-    media = f'<img src="{S.BASE}/img/{p["id"]}{"" if cls in ("xl", "l") and p.get("_hires") else "-t"}.jpg" width="{960 if cls in ("xl", "l") else 480}" height="{640 if cls in ("xl", "l") else 320}" alt="" loading="{"eager" if cls == "xl" else "lazy"}" decoding="async">' if photo else ""
-    return (f'<a class="tile {cls} {kind}" style="--cols:{cols}" href="{S.href(p)}">{media}<span class="in"><span class="tg">{E(S.topic(p))} &middot; {S.hhmm(p["published"])} UTC</span>'
-            f'<h2>{E(p["headlines"][0])}</h2><span class="ft"><span>{S.cover(p)}</span></span></span></a>')
+def fcard(p, first=False):
+    """A feed card: the photo at 4:3 (when it shows its subject), the headline, the plain meta. Without a photo the card is text."""
+    media = img(p, "4/3", thumb=False) if photo_ok(p) else ""
+    return (f'<article class="fcard{" first" if first else ""}{"" if media else " textonly"}"><a href="{S.href(p)}">{media}'
+            f'<div class="mt">{E(S.topic(p))} &middot; {S.hhmm(p["published"])} UTC &middot; {nroom(p)}</div><h2>{E(p["headlines"][0])}</h2></a>'
+            f'<p>{E(p.get("dek", ""))}</p></article>')
 
 
 def feed(shown):
-    rows = S.by_score(S.window(shown, 48))[:21] if len(S.window(shown, 48)) >= 5 else shown[:21]
-    groups, i = [], 0
-    for size in [1, 2, 3, 4, 3, 2, 3, 4, 1, 2]:
-        if i >= len(rows):
-            break
-        groups.append(rows[i:i + size])
-        i += size
-    cls = {1: "xl", 2: "l", 3: "m", 4: "s"}
-    tiles = "".join(tile(p, cls[len(g)], 12 // len(g), bool(p.get("_thumb"))) for g in groups for p in g)
-    return (f'<div class="fmast"><a href="{S.BASE}/" class="fw" aria-label="boardread. front page">boardread.</a></div>'
-            f'<div class="fmrow"><span>The Feed, printed</span><span><a href="{S.BASE}/cover/">This week\'s cover</a></span></div>'
-            f'<div class="mos">{tiles}</div>')
+    pool = S.window(shown, 48)
+    rows = sorted(pool, key=front_score, reverse=True)[:21] if len(pool) >= 5 else shown[:21]  # same news-value order as the front page
+    return (head("The news as cards", "The Feed", 'The day\'s articles in the order of the front page, the way they run on Instagram. <a href="' + S.BASE + '/cover/">This week\'s cover</a>.')
+            + '<div class="fgrid">' + "".join(fcard(p, i == 0) for i, p in enumerate(rows)) + "</div>")
 
 
 def week_rows(shown):
@@ -324,11 +319,12 @@ def cover_page(shown):
     lines = "".join(f'<li><a href="{S.href(p)}">{E(p["headlines"][0])}</a></li>' for p in [q for q in top if q is not lead][:4])
     photo = f'<img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">' if lead.get("_hires") else ""
     unfinished = wk == datetime.now(timezone.utc).strftime("%G-W%V")
-    return (head(f"Week {wk[-2:]}, {wk[:4]}" + (", so far" if unfinished else ""), "The cover",
-                 "The week's top articles as one card, ready to share.")
-            + f'<div class="cover4"><a class="cv-card {"sc" if photo else "k"}" href="{S.href(lead)}">{photo}<span class="cin"><span class="cw">boardread.</span>'
-              f'<span class="cg">Week {wk[-2:]} &middot; {wk[:4]}</span><h2>{E(lead["headlines"][0])}</h2></span></a>'
-              f'<div class="cside"><div class="sec cap"><span>Also this week</span></div><ol class="cl">{lines}</ol>'
+    unfinished = wk == datetime.now(timezone.utc).strftime("%G-W%V")
+    photo = f'<img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">' if photo_ok(lead) and lead.get("_hires") else ""
+    return (head(f"Week {wk[-2:]}, {wk[:4]}" + (", so far" if unfinished else ""), "The cover", "The week's top articles as one card, ready to share.")
+            + f'<div class="cover4"><a class="cv-card" href="{S.href(lead)}">{photo}<span class="cin"><span class="cg">boardread. &middot; Week {wk[-2:]}</span>'
+              f'<h2>{E(lead["headlines"][0])}</h2></span></a>'
+              f'<div class="cside"><h2 class="sh">Also this week</h2><ol class="cl">{lines}</ol>'
               f'<p class="attr">Chosen by shares and saves, then by the desk\'s ranking. <a href="{S.BASE}/week/{wk}/">The full Top 10 of week {wk[-2:]}</a>.</p></div></div>')
 
 
@@ -431,7 +427,7 @@ def paper_page(shown, m, day, days):
     mob = "".join(f'<div class="pgw"><div class="pgi">{p}</div></div>' for p in pages)
     labels = ["Page 1"] + [f"Pages {i} and {i + 1}" for i in range(2, len(pages), 2)] + [f"Page {len(pages)}"]
     arch = "".join(f'<li{" class=\"cur\"" if d == day else ""}><a href="{S.BASE}/paper/{d}/">{S.day_label(d)}</a></li>' for d in days[:30])
-    return (f'<div class="pp-wrap"><div class="pp-top"><div><div class="cap dm">Edition of {S.day_label(day)}</div><h1 class="cd">Yesterday\'s<br>paper</h1></div>'
+    return (f'<div class="pp-wrap">{edition_strip(rows)}<div class="pp-top"><div><div class="cap dm">Edition of {S.day_label(day)}</div><h1 class="cd">Yesterday\'s<br>paper</h1></div>'
             f'<div class="ctl" role="group" aria-label="Turn pages"><button type="button" data-prev aria-label="Previous page" disabled>&larr;</button>'
             f'<span class="lab" aria-live="polite">{labels[0]}</span><button type="button" data-next aria-label="Next page">&rarr;</button></div></div>'
             f'<div class="stage" data-labels="{E("|".join(labels))}"><div class="book" data-s="0">{leaves}</div><div class="mob" tabindex="0" aria-label="Pages, swipe sideways">{mob}</div></div>'
