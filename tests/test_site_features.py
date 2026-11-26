@@ -1,8 +1,10 @@
+import os
 import xml.etree.ElementTree as ET
 import unittest
 from datetime import timedelta
 from unittest import mock
 
+os.environ.setdefault("DESK_SITE_OFFLINE", "1")  # building a site in a test never fetches market data or rewrites state/markets.json
 from aidaily import desk, outlets, site, sitepages, views
 from test_desk import Tmp
 
