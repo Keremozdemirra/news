@@ -1,0 +1,48 @@
+name: story-now
+# One-off: sends one queued Instagram story now, past the cooldown, when the owner asks for it.
+# A block answer still goes to note_block and resets the cooldown.
+on:
+  workflow_dispatch:
+    inputs:
+      id:
+        description: queued story id
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Send
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          STORY_ID: ${{ inputs.id }}
+        run: |
+          export DESK_MEDIA_REF=$(git ls-remote origin refs/heads/media | cut -f1)
+          python3 - <<'PY'
+          import os
+          from aidaily import desk
+          from aidaily.instagram import Client
+          sid = os.environ["STORY_ID"]
+          post, path = next((p, f) for p, f in desk.posts() if p["id"] == sid)
+          assert post.get("kind") == "story" and post.get("status") == "queued" and not post.get("attempted"), post.get("status")
+          post["attempted"] = desk.now().isoformat(timespec="seconds")
+          desk._save(path, post)
+          try:
+              post.update(status="published", published=desk.now().isoformat(timespec="seconds"),
+                          media_id=desk._send_story(Client(), post))
+          except Exception as e:
+              desk.note_block(e)
+              post.update(status="failed", error=str(e)[:400])
+          desk._save(path, post)
+          print(sid, post["status"], post.get("error", ""))
+          PY
+      - name: Commit
+        if: always()
+        run: scripts/commit.sh "desk: story now ${{ inputs.id }}"
