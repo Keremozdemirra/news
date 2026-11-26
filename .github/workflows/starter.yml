@@ -1,0 +1,17 @@
+name: starter
+# Run by hand: creates the Bluesky starter pack once (the script stops if a pack with the same name exists).
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  starter:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Create
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+        run: python3 scripts/bsky_starter_pack.py
