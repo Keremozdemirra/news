@@ -1,7 +1,6 @@
 /* Yesterday's paper: a six-page edition, turned like a book on wide screens and swiped on phones. */
 .pp-wrap{padding:22px 0 60px}
 .pp-top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:18px}
-.pp-top h1{font-size:clamp(64px,8vw,104px);line-height:.82;margin-top:10px}
 .ctl{display:flex;gap:8px;align-items:center}
 .ctl button{all:unset;box-sizing:border-box;cursor:pointer;width:46px;height:46px;border:1px solid var(--ink);display:grid;place-items:center;font:800 22px var(--f)}
 .ctl button:hover:not(:disabled){background:var(--ink);color:var(--paper)}
@@ -26,7 +25,7 @@
 .pg .sc{border-top:3px solid var(--ink);margin:10px 0 8px;padding-top:4px;font:800 28px/1 var(--f);}
 .pg .cl{display:grid;gap:0 18px;counter-reset:none}.pg .cl>div+div{border-left:1px solid var(--rule);padding-left:18px}
 .pg .cl li{all:unset}
-.pg h3{font:800 30px/.92 var(--f);text-wrap:balance}.pg h3.x{font-size:56px;line-height:.86}.pg h3.y{font-size:30px}
+.pg h3{font:600 28px/1.15 var(--serif);text-wrap:balance}
 .pg .a{padding:9px 0 11px;border-bottom:1px solid var(--rule)}.pg .a:last-child{border-bottom:0}
 .pg .a p{color:var(--soft);margin-top:5px;font-size:11.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .pg .a img{width:100%;display:block;object-fit:cover;margin-bottom:6px}
@@ -52,3 +51,4 @@
   .arch{grid-template-columns:1fr}.arch .attr{grid-column:1}.arch ul{columns:1;margin-top:10px}
 }
 .pg .cv-in{color:var(--ink);margin:6px 0}.pg .cv-in svg{width:100%;height:auto;display:block}
+.pg h3.x{font-size:40px;line-height:1.1}.pg h3.y{font-size:24px;line-height:1.15}.pg .a p{font-family:var(--serif)}

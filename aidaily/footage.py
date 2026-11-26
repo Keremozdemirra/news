@@ -34,10 +34,13 @@ about across against between per via who what when where why how also one two th
 his her their our your you they them he she we us""".split())
 
 # NASA's library holds footage that is not NASA's: contractor, partner and foreign-agency material.
-THIRD_PARTY = re.compile(r"spacex|boeing|lockheed|northrop|blue origin|sierra space|axiom|esa\b|jaxa|roscosmos|csa\b|"
-                         r"courtesy|copyright|©|licensed|used with permission|all rights reserved", re.I)
+# Checked against the creator field: footage credited to these is theirs, even when NASA hosts it.
+THIRD_PARTY_CREATOR = re.compile(r"spacex|boeing|lockheed|northrop|blue origin|sierra space|axiom|\besa\b|jaxa|roscosmos|"
+                                 r"\bcsa\b|airbus|ula\b|rocket lab|virgin|firefly|intuitive machines", re.I)
+# Checked against the description: words that say someone holds rights.
+THIRD_PARTY_RIGHTS = re.compile(r"courtesy|copyright|©|licensed|used with permission|all rights reserved|video provided by", re.I)
 # a talking head or a meeting is not footage of an event, and it carries speaker likenesses we cannot clear
-NOT_BROLL = re.compile(r"news conference|briefing|press conference|hangout|live (?:coverage|stream)|town hall|"
+NOT_BROLL = re.compile(r"news conference|briefing|press conference|hangout|live (?:\w+ )?(?:coverage|stream)|town hall|"
                        r"interview|podcast|trailer|promo|music|song|full replay|webcast", re.I)
 # Commons "public domain" is the uploader's claim; we accept it only when the credit names a US federal author
 US_GOV = re.compile(r"\bNASA\b|NOAA|U\.?S\.? (?:Navy|Army|Air Force|Marine|Coast Guard|Department|Geological|Forest|"
@@ -59,15 +62,20 @@ def _json(url):
     return json.loads(_get(url))
 
 
+def _stem(w):
+    return re.sub(r"(?:ing|ed|es|s)$", "", w) if len(w) > 4 else w
+
+
 def words(text):
-    return {w for w in re.findall(r"[a-z0-9][a-z0-9\-]+", (text or "").lower().replace("’", "'")) if w not in STOP and len(w) > 2}
+    """Content words, lightly stemmed so 'launches' meets 'launch'."""
+    return {_stem(w) for w in re.findall(r"[a-z0-9][a-z0-9\-]+", (text or "").lower().replace("’", "'")) if w not in STOP and len(w) > 2}
 
 
 def subjects(post):
     """Named subjects of the story: company, person, and the capitalised names in the headline."""
     head = post["headlines"][0]
     names = [post.get("company"), post.get("person")]
-    names += re.findall(r"(?<![.!?] )\b[A-Z][A-Za-z0-9\-]+(?: [A-Z][A-Za-z0-9\-]+)*", head)
+    names += re.findall(r"(?<![.!?] )\b[A-Z][A-Za-z0-9\-]+(?: [A-Z0-9][A-Za-z0-9\-]*)*", head)
     out = []
     for n in names:
         n = (n or "").strip()
@@ -79,12 +87,13 @@ def subjects(post):
 def relevance(post, title, desc):
     """(ok, why). The named subject must be in the clip's title or description, and at least two of the headline's
     other key words must too: 'SpaceX' alone matches every Crew launch, which is not the story."""
-    text = f"{title} {desc}".lower().replace("’", "'")
-    subs = [s for s in subjects(post) if s.lower() in text]
+    squash = lambda t: re.sub(r"[\s\-]+", "", t.lower().replace("’", "'"))  # noqa: E731  "Space X" meets "SpaceX"
+    text = squash(f"{title} {desc}")
+    subs = [s for s in subjects(post) if squash(s) in text]
     if not subs:
         return False, "no named subject of the story appears in the clip's title or description"
     head_words = words(post["headlines"][0]) - words(" ".join(subjects(post)))
-    hits = sorted(head_words & words(text))
+    hits = sorted(head_words & words(f"{title} {desc}"))
     if len(hits) < 2:
         return False, f"subject {subs[0]!r} matches but only {len(hits)} other headline word(s) do ({hits})"
     return True, f"subject {subs[0]!r}, words {hits}"
@@ -112,24 +121,36 @@ def _dt(s):
     return datetime(int(m[1]), 7, 1, tzinfo=timezone.utc) if m else None
 
 
-def _query(post, keep=6):
+def queries(post):
+    """Search strings, narrow first: the headline's key words, then each named subject alone. The search engines
+    AND their terms, so the long query finds the exact event and the short one finds archive footage of the subject."""
     head = post["headlines"][0]
     ws = [w for w in re.findall(r"[A-Za-z0-9\-]+", head) if w.lower() not in STOP and len(w) > 2]
-    return " ".join(ws[:keep])
+    subs = subjects(post)
+    rest = [w for w in ws if not any(w.lower() in s.lower() for s in subs)]
+    out = [" ".join(ws[:4])] + [f"{s} {k}" for s in subs[:1] for k in rest[:3]] + subs[:2]
+    return list(dict.fromkeys(q for q in out if q))
 
 
 # ---- NASA Image and Video Library ------------------------------------------------------------------------------
 
 def nasa_candidates(post, now):
-    q = urllib.parse.quote(_query(post))
-    got = _json(f"{NASA_API}/search?q={q}&media_type=video&year_start={now.year - 3}")["collection"]["items"]
-    for it in got[:40]:
-        d = it["data"][0]
-        yield {"source": "nasa", "id": d["nasa_id"], "title": d.get("title", ""), "desc": d.get("description", ""),
-               "date": _dt(d.get("date_created")), "center": d.get("center", ""),
-               "creator": " ".join(filter(None, [d.get("photographer"), d.get("secondary_creator")])),
-               "licence": "NASA media, not subject to copyright in the US",
-               "page": f"https://images.nasa.gov/details/{urllib.parse.quote(d['nasa_id'])}"}
+    seen = set()
+    for q in queries(post):
+        got = _json(f"{NASA_API}/search?q={urllib.parse.quote(q)}&media_type=video&year_start={now.year - 3}")["collection"]["items"]
+        for it in got[:25]:
+            d = it["data"][0]
+            if d["nasa_id"] not in seen:
+                seen.add(d["nasa_id"])
+                yield _nasa_item(d)
+
+
+def _nasa_item(d):
+    return {"source": "nasa", "id": d["nasa_id"], "title": d.get("title", ""), "desc": d.get("description", ""),
+            "date": _dt(d.get("date_created")), "center": d.get("center", ""),
+            "creator": " ".join(filter(None, [d.get("photographer"), d.get("secondary_creator")])),
+            "licence": "NASA media, not subject to copyright in the US",
+            "page": f"https://images.nasa.gov/details/{urllib.parse.quote(d['nasa_id'])}"}
 
 
 def nasa_check(c):
@@ -137,10 +158,9 @@ def nasa_check(c):
     out = []
     if not c["center"]:
         out.append("no NASA centre code, so not NASA-produced")
-    blob = f"{c['creator']} {c['title']} {c['desc']}"
-    m = THIRD_PARTY.search(blob)
+    m = THIRD_PARTY_CREATOR.search(c["creator"]) or THIRD_PARTY_RIGHTS.search(f"{c['title']} {c['desc']}")
     if m:
-        out.append(f"third-party marker {m.group(0)!r} in creator, title or description")
+        out.append(f"third-party marker {m.group(0)!r} in the creator or description")
     return out
 
 
@@ -163,10 +183,13 @@ def _strip(h):
 
 
 def commons_candidates(post, now):
-    q = urllib.parse.quote(f"filetype:video {_query(post, 5)}")
-    url = (f"{COMMONS_API}?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=30&gsrsearch={q}"
-           f"&prop=imageinfo&iiprop=url|mime|size|timestamp|mediatype|extmetadata&iiextmetadatafilter={COMMONS_META}")
-    for p in (_json(url).get("query", {}).get("pages", {}) or {}).values():
+    pages = {}
+    for q in queries(post):
+        url = (f"{COMMONS_API}?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=20&gsrsearch="
+               f"{urllib.parse.quote('filetype:video ' + q)}&prop=imageinfo&iiprop=url|mime|size|timestamp|mediatype|extmetadata"
+               f"&iiextmetadatafilter={COMMONS_META}")
+        pages.update(_json(url).get("query", {}).get("pages", {}) or {})
+    for p in pages.values():
         ii = (p.get("imageinfo") or [{}])[0]
         m = {k: _strip(v.get("value", "")) for k, v in (ii.get("extmetadata") or {}).items()}
         if ii.get("mediatype") != "VIDEO":
@@ -190,7 +213,7 @@ def commons_check(c):
         out.append(f"licence {lic!r} is not CC0, CC BY or verified US-government public domain")
     if c["restrictions"]:
         out.append(f"Commons marks a restriction: {c['restrictions']}")
-    if THIRD_PARTY.search(f"{c['creator']} {c['credit']}") and not re.search(r"NASA", c["creator"] + c["credit"]):
+    if THIRD_PARTY_CREATOR.search(f"{c['creator']} {c['credit']}") and not re.search(r"NASA", c["creator"] + c["credit"]):
         out.append("credited to a company or foreign agency")
     return out
 
