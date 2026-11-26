@@ -191,16 +191,20 @@ class Chrome(Features):
         for href in ("/brief/", "/numbers/", "/week/", "/search/"):
             self.assertIn(f'href="{site.BASE}{href}"', h)
         for gone in ("/board/", "/feed/", "/paper/", "/play/", "/quiz/"):  # not shipped: no menu entry, no page
-            self.assertNotIn(f'class="cap" href="{site.BASE}{gone}"', h)
+            self.assertNotIn(f'<a href="{site.BASE}{gone}">', h)
             if gone != "/quiz/":  # the old questions page stays at its address, unlinked, until the games replace it
                 self.assertFalse((self.out / gone.strip("/") / "index.html").exists(), gone)
 
-    def test_masthead_counts_and_archivo_headlines_are_self_hosted(self):
+    def test_one_typeface_self_hosted_and_a_two_row_masthead(self):
         h = self.read("index.html")
-        self.assertIn("Articles today", h)
-        self.assertIn("Archivo-var.woff2", h)
-        self.assertTrue((self.out / "fonts" / "Archivo-var.woff2").exists())
-        self.assertIn("Archivo", (self.out / "fonts" / "OFL.txt").read_text())
+        self.assertIn("articles from", h)  # the masthead counts, in the utility row
+        self.assertNotIn("Archivo", h)
+        self.assertFalse((self.out / "fonts" / "Archivo-var.woff2").exists())
+        self.assertNotIn("Archivo", (self.out / "fonts" / "OFL.txt").read_text())
+        self.assertTrue((self.out / "fonts" / "LibreFranklin-800.woff2").exists())
+        for name in ("site.css", "views.css"):
+            self.assertNotIn("Archivo", (self.out / "assets" / name).read_text())
+            self.assertNotIn("font-stretch", (self.out / "assets" / name).read_text())
 
     def test_numbers_page_shows_the_figure_and_no_oil_row_without_a_key(self):
         h = self.read("numbers/index.html")
@@ -251,7 +255,7 @@ class Views(Features):
     def test_nav_links_the_shipped_pages(self):
         h = self.read("index.html")
         for href in ("/board/", "/feed/"):
-            self.assertIn(f'class="cap" href="{site.BASE}{href}"', h)
+            self.assertIn(f'<a href="{site.BASE}{href}">', h)
 
     def test_paper_has_an_even_number_of_pages_a_dated_archive_and_no_script_needed_to_read(self):
         h = self.read("paper/index.html")

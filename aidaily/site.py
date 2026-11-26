@@ -135,8 +135,6 @@ FACES = (
     "@font-face{font-family:'Libre Franklin';font-weight:500;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-500.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:600;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-600.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:800;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-800.woff2') format('woff2')}"
-    # Archivo: one variable file, weight and width axes; the condensed cut (width 62) sets headlines, figures and the flaps
-    "@font-face{font-family:'Archivo';font-weight:100 900;font-stretch:62% 125%;font-style:normal;font-display:swap;src:url('{b}/fonts/Archivo-var.woff2') format('woff2')}"
     # stand-in sized to the web font, so the swap moves nothing
     "@font-face{font-family:'Franklin Fallback';src:local('Arial');size-adjust:103%;ascent-override:92%;descent-override:22%;line-gap-override:0%}"
 ).replace("{b}", BASE)
@@ -217,12 +215,13 @@ def nav_items():
 
 
 def nav_bar(active):
+    """One scrollable row: the pages, a divider, then the sections."""
     here = lambda k: ' aria-current="page"' if active == k else ""  # noqa: E731
-    main = "".join(f'<a class="cap" href="{BASE}{h}"{here(k)}>{n}</a>' for h, n, k in nav_items())
+    main = "".join(f'<a href="{BASE}{h}"{here(k)}>{n}</a>' for h, n, k in nav_items())
     topics = [(f"{BASE}/latest/", "Latest", "latest")] + [(f"{BASE}/t/{t.lower()}/", t, t.lower()) for t in TOPIC_ORDER]
-    links = "".join(f'<li><a href="{h}"{here(k)}>{n}</a></li>' for h, n, k in topics)
-    return (f'<nav class="nav" aria-label="Main">{main}</nav>'
-            f'<nav class="topics" aria-label="Sections"><ul>{links}</ul></nav>')
+    links = "".join(f'<a href="{h}"{here(k)}>{n}</a>' for h, n, k in topics)
+    return (f'<div class="navrow"><nav class="nav" aria-label="Main">{main}</nav><span class="navsep" aria-hidden="true"></span>'
+            f'<nav class="topics" aria-label="Sections">{links}</nav></div>')
 
 
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
@@ -242,8 +241,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
         active = "front"
     word = (f'<h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>' if front
             else f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>')
-    ix = (f'<div class="ix"><div><b>{MAST["articles"]}</b><span class="cap dm">Articles today</span></div>'
-          f'<div><b>{MAST["newsrooms"]}</b><span class="cap dm">Newsrooms</span></div></div>') if MAST["articles"] else ""
+    ix = (f'<span class="ix">{MAST["articles"]} articles from {MAST["newsrooms"]} newsrooms today &middot; all times UTC</span>') if MAST["articles"] else '<span class="ix">All times UTC</span>'
     foot_topics = "".join(f'<li><a href="{BASE}/t/{t.lower()}/">{t}</a></li>' for t in TOPIC_ORDER)
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     nl = desk.CONFIG.get("newsletter_url")
@@ -266,7 +264,6 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 {own_feed}<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="{BASE}/fonts/Archivo-var.woff2" as="font" type="font/woff2" crossorigin>
 <meta property="og:site_name" content="{NAME}"><meta property="og:type" content="{og_type}">
 <meta property="og:title" content="{E(og_title or title)}"><meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{E(url)}"><meta property="og:image" content="{E(img)}">
@@ -279,9 +276,8 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <body class="{'front-page' if front else 'compact'} {body_class}">
 <a class="skip" href="#main">Skip to the news</a>
 <header class="mh"><div class="wrap">
-<div class="strip cap"><span class="dates"><span class="dl">{now.strftime("%A %-d %B %Y")}</span><span class="ds">{now.strftime("%-d %b %Y")}</span></span><span class="ed">Edition of {now.strftime("%H:%M")} UTC &middot; all times UTC</span>
-<span class="tools"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</span></div>
-<div class="np">{word}{ix}</div><div class="dbl"></div>
+<div class="top">{word}<div class="util"><span class="dates"><span class="dl">{now.strftime("%A %-d %B %Y")}</span><span class="ds">{now.strftime("%-d %b %Y")}</span></span>{ix}
+<span class="tools"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</span></div></div>
 {nav_bar(active)}
 </div></header>
 <main id="main" class="wrap {main_class}">{body}</main>
@@ -524,7 +520,7 @@ def seat_list(p):
     return [(n, links.get(n.lower())) for n in outlets.newsrooms(p)]
 
 
-def related(p, rows, n=4):
+def related(p, rows, n=3):
     pool = [o for o in rows if o is not p]
     same_co = [o for o in pool if p.get("company") and o.get("company") == p["company"]]
     same_t = [o for o in pool if topic(o) == topic(p) and o not in same_co]

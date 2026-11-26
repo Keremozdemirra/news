@@ -134,7 +134,7 @@ def front(shown, cos, m):
               f'<h1 class="lh"><a href="{S.href(lead)}" class="hl">{E(lead["headlines"][0])}</a></h1><p class="dk">{E(lead.get("dek", ""))}</p>'
               f'<div class="by">{S.cover(lead)}</div>{fig}<div class="tx">{paras(lead)}</div>{jump}</div>')
     lcol = ('<div class="zn"><div class="sec"><span>Latest</span><a class="dm" href="' + S.BASE + '/latest/">All</a></div>'
-            + "".join(card(p, "s", photo=ph(p) if i == 0 else False, dek=i < 2) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
+            + "".join(card(p, "s", photo=False, dek=i < 2) for i, p in enumerate(left)) + S.most_covered_block(shown, cos, 5) + "</div>")
     rcol = ('<div class="zn"><div class="sec"><span>Also at the top</span></div>'
             + "".join(card(p, "m", photo=ph(p), ratio="4/3", meter=True) for p in seconds) + markets.rates_box(m, S.BASE, compact=True) + "</div>")
     blocks = ""

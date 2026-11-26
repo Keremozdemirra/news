@@ -1,15 +1,11 @@
-The two faces this site is set in, and the licence they arrive under.
-Libre Franklin (text, interface and the wordmark) and Archivo (the condensed headline cut, tabular figures and the
-board flaps) are both under the SIL Open Font License, Version 1.1. Their copyright lines are below; the licence text
-follows once at the end. Libre Franklin: the Latin subsets Google Fonts serves, unmodified, at weights 400, 500, 600
-and 800 (LibreFranklin-400.woff2, -500, -600, -800). Archivo: the variable font from Google Fonts, unmodified,
-weight 100 to 900 and width 62 to 125 (Archivo-var.woff2), by Omnibus-Type.
+The one face this site is set in, and the licence it arrives under.
+Libre Franklin is under the SIL Open Font License, Version 1.1. Its copyright line is below; the licence
+text follows once at the end. The files are the Latin subsets Google Fonts serves, unmodified, at weights
+400, 500, 600 and 800 (LibreFranklin-400.woff2, -500, -600, -800).
 
 ---- librefranklin (LibreFranklin-400.woff2, LibreFranklin-500.woff2, LibreFranklin-600.woff2, LibreFranklin-800.woff2)
 Copyright 2020 The Libre Franklin Project Authors (https://github.com/googlefonts/Libre-Franklin)
 
----- archivo (Archivo-var.woff2)
-Copyright 2019 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
 
 ================================================================
 
