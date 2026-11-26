@@ -70,6 +70,12 @@ def story_url(post_id):
     return f"{CONFIG['site_url']}/s/{post_id}/"
 
 
+def brand_domain():
+    """The domain printed on cards, frames and captions. Separate from site_url: it can name the new domain
+    before the pages are served there, while story links keep pointing at the address that works."""
+    return CONFIG.get("brand_domain") or CONFIG["site_url"].split("://")[-1]
+
+
 # queue
 
 SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
@@ -472,9 +478,10 @@ def _name_in(name, text):
 
 
 def _quiz_pair(day, slot, question, answer, title, **extra):
-    """The question now, the answer a minute later: it is the very next story, and never goes out before the question."""
+    """The question now, the answer a minute later: it is the very next story. The answer carries "after", the
+    question's id, and the publish step sends it only once that question is out, the same day."""
     q = _queue_story(f"{day}-{slot}", question, title, **extra)
-    a = _queue_story(f"{day}-{slot}-a", answer, f"{title} answer", delay=1, **extra)
+    a = _queue_story(f"{day}-{slot}-a", answer, f"{title} answer", delay=1, after=f"{day}-{slot}", **extra)
     return [q, a]
 
 
@@ -510,13 +517,24 @@ def _meaningful(p):
     return (fig, m.group(1)) if m else None
 
 
+QUALIFIERS = r"up to|over|more than|at least|about|around|nearly|almost|under|less than|roughly|as many as|as much as|just|only"
+
+
+def _qualifier(p):
+    """The hedge the headline puts right before the figure ("up to 1 million"), capitalised, or "". A story that
+    drops it would state the figure more firmly than the post did."""
+    fig, head_ = (p.get("figure") or "").strip(), _head(p)
+    m = re.search(rf"\b({QUALIFIERS})\s+{re.escape(fig)}", head_, re.I) if fig else None
+    return m.group(1).capitalize() if m else ""
+
+
 def _number(day, slot, label):
-    used = {r for p in _story_posts("number1", 1) + _story_posts("number2", 1) for r in p.get("refs", [])}
+    used = {r for p in _story_posts(slot, 1) for r in p.get("refs", [])}
     nums = [(p, m) for p in _published(18) if p["id"] not in used and (m := _meaningful(p))]
     if not nums:
         return []
     p, (fig, unit) = max(nums, key=lambda x: _score(x[0]))
-    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit), "Number", refs=[p["id"]])]
+    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit, _qualifier(p)), "Number", refs=[p["id"]])]
 
 
 def _s_quiz(day, label):
@@ -532,7 +550,7 @@ def _s_quiz(day, label):
         return []
     letter = "ABCD"[options.index(p["company"])]
     return _quiz_pair(day, "quiz", R.T.story_quiz(hint, label, options),
-                      R.T.story_answer(letter, p["company"], [_head(p)], label, logo_uri=_logo(p)), "Guess the company", refs=[p["id"]])
+                      R.T.story_answer(letter, options, label, _head(p), p["company"], logo_uri=_logo(p)), "Guess the company", refs=[p["id"]])
 
 
 def _s_fill(day, label):
@@ -544,7 +562,7 @@ def _s_fill(day, label):
         if wrong and "___" in hint and not re.search(re.escape(re.sub(r"[^\d.]", "", fig)), hint.replace(",", "")):
             options = _order(day, [fig] + wrong)
             return _quiz_pair(day, "fill", R.T.story_quiz(hint, label, options, "Fill the<br>number."),
-                              R.T.story_answer("ABCD"[options.index(fig)], fig, [head_], label), "Fill the number", refs=[p["id"]])
+                              R.T.story_answer("ABCD"[options.index(fig)], options, label, head_, fig), "Fill the number", refs=[p["id"]])
     return []
 
 
@@ -565,10 +583,11 @@ def _s_complete(day, label):
                 continue
             hint = re.sub(rf"\b{re.escape(w)}\b", "___", head_)
             return _quiz_pair(day, "complete", R.T.story_quiz(hint, label, options, "Complete the<br>headline."),
-                              R.T.story_answer("ABCD"[options.index(w)], w, [head_], label), "Complete the headline", refs=[p["id"]])
+                              R.T.story_answer("ABCD"[options.index(w)], options, label, head_, w), "Complete the headline", refs=[p["id"]])
     return []
 
 
+KIND_NAME = {"raise": "funding round"}  # what the question calls a kind: "Anthropic funding round", not "Anthropic raise"
 KINDS = (("valuation", r"valuation|valued"), ("raise", r"raises|raised|raise|funding|round"), ("revenue", r"revenues?|sales"))
 
 
@@ -610,13 +629,13 @@ def _s_bigger(day, label):
                 best = (_score(a) + _score(b), (a, ma), (b, mb))
     if not best:
         return []
-    kind = best[1][1][1]
+    kind = KIND_NAME.get(best[1][1][1], best[1][1][1])
     (first, mf), (second, ms) = _order(day, [best[1], best[2]], key=lambda x: x[0]["id"])
     big, mbig = (first, mf) if mf[3] > ms[3] else (second, ms)
     letter = "A" if big is first else "B"
     return _quiz_pair(day, "bigger", R.T.story_bigger(kind, (mf[0], _logo(first)), (ms[0], _logo(second)), label),
-                      R.T.story_answer(letter, mbig[0], [f"A. {first['figure'].strip()}: {_head(first)}", f"B. {second['figure'].strip()}: {_head(second)}"],
-                                       label, logo_uri=_logo(big)),
+                      R.T.story_answer(letter, [(f"{m[0]} {kind}", p["figure"].strip(), _head(p)) for p, m in ((first, mf), (second, ms))],
+                                       label),
                       "Which is bigger", refs=[first["id"], second["id"]])
 
 
@@ -641,7 +660,7 @@ def _s_whois(day, label):
     credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
     photo = _media(p, "photo.jpg")
     return _quiz_pair(day, "whois", R.T.story_whois(photo, label, options, credit),
-                      R.T.story_answer("ABCD"[options.index(p["person"])], p["person"], [_head(p)], label, photo_uri=photo,
+                      R.T.story_answer("ABCD"[options.index(p["person"])], options, label, _head(p), p["person"], photo_uri=photo,
                                        credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"])
 
 
@@ -690,8 +709,7 @@ def _s_board(day, label):
 
 def _s_top5(day, slot, label):
     top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p))[:5]
-    first = (_story_posts("top5a", 1) or [{}])[0].get("refs")
-    if len(top) < 3 or (slot == "top5b" and first == [p["id"] for p in top]):
+    if len(top) < 3:
         return []
     return [_queue_story(f"{day}-{slot}", R.T.story_list(f"Today's<br>top {len(top)}.", [_head(p) for p in top], label),
                          f"Today's top {len(top)}", refs=[p["id"] for p in top])]
@@ -725,7 +743,7 @@ def _s_numbers(day, label):
     figs = sorted([(p, m) for p in _published(24 * 7) if (m := _meaningful(p))], key=lambda x: -_score(x[0]))[:5]
     if len(figs) < 3:
         return []
-    return [_queue_story(f"{day}-numbers", R.T.story_numbers([(m[0], _head(q), m[1]) for q, m in figs], label),
+    return [_queue_story(f"{day}-numbers", R.T.story_numbers([(m[0], _head(q), m[1], _qualifier(q)) for q, m in figs], label),
                          "The week in numbers", refs=[q["id"] for q, _ in figs])]
 
 
@@ -734,44 +752,71 @@ def _s_follow(day, label):
                          user_tags=[{"username": CONFIG["handle"].lstrip("@"), "x": 0.5, "y": 0.5}])]
 
 
-MON_WED_FRI, TUE_THU, ALL = (0, 2, 4), (1, 3), range(7)
-# slot -> (weekdays, builder). Times are in desk.json story_hours, UTC.
+MON_WED_FRI, TUE_THU, ALL, MON_SAT, SUN = (0, 2, 4), (1, 3), range(7), range(6), (6,)
+# slot -> (weekdays, builder). Times are in desk.json story_hours, UTC. Instagram counts stories toward its 100-a-day
+# publishing limit and a reader will not sit through twenty, so a weekday carries at most eight: last 12 hours, one
+# number, one quiz (two stories), one feature, in the news today, today's top five, and the follow story on two days.
+# Sunday swaps the quiz and the feature for the three weekly formats.
 STORY_SLOTS = {
     "last12": (ALL, lambda d, s, l: _s_last12(d, l)),
-    "number1": (ALL, lambda d, s, l: _number(d, s, l)),
-    "quiz": (ALL, lambda d, s, l: _s_quiz(d, l)),
+    "number": (ALL, lambda d, s, l: _number(d, s, l)),
+    # quizzes: one a day. Each runs on its own days and "complete" backs them up on every day but Sunday, so a day
+    # whose preferred quiz has no data still gets one.
+    "bigger": ((5,), lambda d, s, l: _s_bigger(d, l)),
+    "whois": ((0, 3), lambda d, s, l: _s_whois(d, l)),
+    "quiz": ((1, 4), lambda d, s, l: _s_quiz(d, l)),
+    "fill": ((2,), lambda d, s, l: _s_fill(d, l)),
+    "complete": (MON_SAT, lambda d, s, l: _s_complete(d, l)),
+    # features: one a day, in this order of preference
     "company": (MON_WED_FRI, lambda d, s, l: _s_company(d, l)),
     "board": (TUE_THU, lambda d, s, l: _s_board(d, l)),
-    "top5a": (ALL, lambda d, s, l: _s_top5(d, s, l)),
-    "whois": (MON_WED_FRI, lambda d, s, l: _s_whois(d, l)),
-    "person": ((1, 3, 5, 6), lambda d, s, l: _s_person(d, l)),
-    "fill": (MON_WED_FRI, lambda d, s, l: _s_fill(d, l)),
-    "complete": (TUE_THU, lambda d, s, l: _s_complete(d, l)),
-    "bigger": ((5,), lambda d, s, l: _s_bigger(d, l)),
-    "number2": (ALL, lambda d, s, l: _number(d, s, l)),
-    "follow": (ALL, lambda d, s, l: _s_follow(d, l)),
+    "person": (MON_SAT, lambda d, s, l: _s_person(d, l)),
+    "numbers": (SUN, lambda d, s, l: _s_numbers(d, l)),
+    "shared": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
+    "saved": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     "today": (ALL, lambda d, s, l: _s_today(d, l)),
-    "top5b": (ALL, lambda d, s, l: _s_top5(d, s, l)),
-    "shared": ((6,), lambda d, s, l: _s_ranked(d, s, l)),
-    "numbers": ((6,), lambda d, s, l: _s_numbers(d, l)),
-    "saved": ((6,), lambda d, s, l: _s_ranked(d, s, l)),
+    "follow": ((1, 4), lambda d, s, l: _s_follow(d, l)),
+    "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),
 }
+QUIZ_SLOTS = ("bigger", "whois", "quiz", "fill", "complete")
+FEATURE_SLOTS = ("company", "board", "person")
+WEEKLY_SLOTS = ("shared", "saved", "numbers", "board")  # the ones whose date label reads "Week 48"
+
+
+def _story_label(slot, t):
+    """The kicker: the week for the formats that sum up a week, otherwise today's date. Always real, never in the future."""
+    return t.strftime("Week %V") if slot in WEEKLY_SLOTS else t.strftime("%-d %b")
+
+
+def _over_story_quota(extra=0):
+    """Meta's 100-a-day limit counts stories too: stop short of story_quota_stop, with `extra` stories still to go."""
+    return published_last_24h() + stories_last_24h() + extra >= CONFIG["story_quota_stop"]
 
 
 def scheduled_stories():
     """Each story format once in its slot (desk.json story_hours, UTC), from posts already published. A slot runs
-    from its time to the end of its grace window; with too little data it is skipped and tried again on the next run."""
-    if paused() or not CONFIG.get("story_concepts", True):
+    from its time to the end of its grace window; with too little data it is skipped and tried again on the next run.
+    Nothing is built while Instagram is cooling down or near the daily limit: a story queued then would only go
+    out late, and the publish step drops stories that old. One quiz and one feature a day: the first slot above
+    that has data takes it."""
+    if paused() or not CONFIG.get("story_concepts", True) or cooldown_until() or _over_story_quota(2):
         return []
     t = now()
     day, made = t.strftime("%Y-%m-%d"), []
+
+    def today(slot):
+        return (QUEUE / f"{day}-{slot}" / "post.json").exists()
+
     for slot, (weekdays, build) in STORY_SLOTS.items():
         at = CONFIG["story_hours"].get(slot)
-        if not at or t.weekday() not in weekdays or (QUEUE / f"{day}-{slot}" / "post.json").exists():
+        if not at or t.weekday() not in weekdays or today(slot):
+            continue
+        group = QUIZ_SLOTS if slot in QUIZ_SLOTS else FEATURE_SLOTS if slot in FEATURE_SLOTS else ()
+        if any(today(other) for other in group):
             continue
         start = t.replace(hour=int(at[:2]), minute=int(at[3:]), second=0, microsecond=0)
         if start <= t < start + timedelta(hours=CONFIG.get("story_grace_hours", 3)):
-            made += build(day, slot, t.strftime("Week %V") if slot in ("shared", "saved", "numbers") else t.strftime("%-d %b"))
+            made += build(day, slot, _story_label(slot, t))
     return made
 
 
@@ -1224,6 +1269,7 @@ def expire_stale():
     """Queued feed posts older than max_publish_age_hours are too old for Instagram, never published there.
     They drop to the web tier, so the story still reaches the site and Bluesky/Threads. A post with a send
     marker may already be on Instagram, so it is only marked expired and a person looks."""
+    expire_stale_stories()
     cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
     for post, path in posts():
         if post.get("status") == "queued" and post.get("kind") != "story" and datetime.fromisoformat(post["created"]) < cut:
@@ -1234,6 +1280,38 @@ def expire_stale():
             _save(path, post)
             print(f"{post['id']}: older than {CONFIG['max_publish_age_hours']}h, {post['status']}")
             _close_if_done(post.get("issue"))
+
+
+def _answer_state(post):
+    """For a quiz answer: "wait" while its question is still queued, "skip" when the question will never be there for
+    it (failed, held, expired, skipped, missing) or the day has turned, else None. An answer with no question is a
+    riddle, and one a day late answers something nobody remembers."""
+    qid = post.get("after")
+    if not qid:
+        return None
+    q = _load(QUEUE / qid / "post.json", {})
+    if q.get("status") == "queued":
+        return "wait"
+    if q.get("status") != "published" or q.get("published", "")[:10] != now().strftime("%Y-%m-%d"):
+        return "skip"
+    return None
+
+
+def expire_stale_stories():
+    """A story is for its hour. One still queued after story_max_age_hours (an Instagram cooldown, the daily limit)
+    is dropped, never sent late; so is an answer whose question did not go out."""
+    cut = now() - timedelta(hours=CONFIG.get("story_max_age_hours", 3))
+    for post, path in posts():
+        if post.get("kind") == "story" and post.get("status") == "queued" and not post.get("attempted") \
+                and datetime.fromisoformat(post["created"]) < cut:
+            post.update(status="expired", error="too old to go out")
+            _save(path, post)
+            print(f"{post['id']}: story older than {CONFIG.get('story_max_age_hours', 3)}h, expired")
+    for post, path in posts():
+        if post.get("kind") == "story" and post.get("status") == "queued" and _answer_state(post) == "skip":
+            post.update(status="skipped", error="its question did not go out")
+            _save(path, post)
+            print(f"{post['id']}: answer skipped, its question did not go out today")
 
 
 def _github_note(issue, text):
@@ -1332,6 +1410,17 @@ def _publish(client, dry):
         due = due_posts()
     for post, path in due:
         if post.get("kind") == "story":
+            state = _answer_state(post)
+            if state == "wait":
+                continue
+            if state == "skip":
+                post.update(status="skipped", error="its question did not go out")
+                _save(path, post)
+                print(f"{post['id']}: answer skipped, its question did not go out today")
+                continue
+            if _over_story_quota():
+                print(f"{post['id']}: near Instagram's daily publishing limit, story left queued")
+                continue
             if dry:
                 print(f"{post['id']}: would publish a story")
                 return 0

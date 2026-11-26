@@ -795,7 +795,15 @@ def _at(day, hh, mm=40):
 
 
 OPT = re.compile(r'color:#9aa0a8">([ABCD])</span><span[^>]*>([^<]*)</span>')
-ANS = re.compile(r"Answer: ([ABCD]) ([^<]*?)\.<")
+ANS_LETTER = re.compile(r"Answer ([ABCD])<")
+LIT = re.compile(r'background:#f2f2f0;color:#111214"><div[^>]*><span[^>]*>([ABCD])</span><span[^>]*>([^<]*)</span>')
+
+
+def answer_of(html):
+    """(letter, text) of an answer slide: the "Answer D" line, and the option that is lit, which must be that letter."""
+    letter, lit = ANS_LETTER.search(html).group(1), LIT.search(html)
+    assert lit and lit.group(1) == letter, "the lit option is not the answer"
+    return letter, lit.group(2)
 
 
 class Formats(Tmp):
@@ -845,23 +853,28 @@ class Formats(Tmp):
         self.assertEqual(self.run_at(_at(3, 9, 30), "last12"), {})
         self.assertEqual(list(self.run_at(_at(3, 6, 36), "last12")), ["last12"])
 
-    def test_number_twice_a_day_never_the_same_post(self):
-        self.pub("a", "Fed holds rates at 5.25%", _at(3, 7), 3, figure="5.25%", score=9)
-        self.assertEqual(self.run_at(_at(3, 6, 50), "number1", "number2"), {})
-        out = self.run_at(_at(3, 7, 36), "number1", "number2")
-        self.assertEqual(list(out), ["number1"])
-        self.assertIn("5.25%", out["number1"])
-        self.assertEqual(self.run_at(_at(3, 17, 36), "number1", "number2"), {})  # the only figure was already used
-        self.pub("b", "UK net migration falls to 77,000 people", _at(3, 17), 1, figure="77,000", score=5)
-        self.assertEqual(list(self.run_at(_at(3, 17, 36), "number1", "number2")), ["number2"])
-        self.assertEqual(self.run_at(_at(4, 7, 36), "number1", "number2"), {}) if False else None
+    def test_number_once_a_day_never_the_same_post(self):
+        self.pub("a", "Fed holds rates at 5.25%", _at(3, 8), 3, figure="5.25%", score=9)
+        self.assertEqual(self.run_at(_at(3, 8, 20), "number"), {})  # before 08:30
+        out = self.run_at(_at(3, 8, 40), "number")
+        self.assertEqual(list(out), ["number"])
+        self.assertIn("5.25%", out["number"])
+        self.assertEqual(self.run_at(_at(3, 8, 50), "number"), {})  # one a day
+
+    def test_number_keeps_the_hedge_the_headline_puts_before_the_figure(self):
+        self.pub("a", "FCC clears SpaceX to deploy up to 1 million Starmind satellites", _at(3, 8), 3, figure="1 million", score=9)
+        out = self.run_at(_at(3, 8, 40), "number")
+        self.assertIn(">Up to<", out["number"])
+        self.assertEqual(desk._qualifier({"figure": "$33B", "headlines": ["ElevenLabs valued at $33B"]}), "")
+        self.assertEqual(desk._qualifier({"figure": "40%", "headlines": ["Costs rise more than 40% in a year"]}), "More than")
+        self.assertEqual(desk._qualifier({"figure": "40%", "headlines": ["Costs rise 40%, over 1 year"]}), "")
 
     def test_number_skips_a_figure_with_no_digit(self):
-        self.pub("a", "Policy lasts five-year", _at(3, 7), figure="five-year")
-        self.assertEqual(self.run_at(_at(3, 7, 36), "number1"), {})
+        self.pub("a", "Policy lasts five-year", _at(3, 8), figure="five-year")
+        self.assertEqual(self.run_at(_at(3, 8, 36), "number"), {})
 
     def test_company_quiz_hides_only_the_company_and_the_answer_matches(self):
-        w = _at(3, 9)
+        w = _at(1, 11)  # Tuesday
         self.pub("a", "ElevenLabs in talks to raise at a $33B valuation", w, 5, company="ElevenLabs", figure="$33B", score=9)
         for i, co in enumerate(["Nvidia", "Norse Atlantic", "Altria"]):
             self.pub(f"o{i}", f"{co} makes news today", w, 20 + i, company=co, score=1)
@@ -870,37 +883,39 @@ class Formats(Tmp):
         self.assertNotIn("ElevenLabs in talks", out["quiz"])
         opts = OPT.findall(out["quiz"])
         self.assertEqual(len(opts), 4)
-        letter, value = ANS.search(out["quiz-a"]).groups()
+        letter, value = answer_of(out["quiz-a"])
         self.assertEqual(dict(opts)[letter], value)
         self.assertEqual(value, "ElevenLabs")
         self.assertIn("Answer on the next story", out["quiz"])
-        q, a = (json.loads((desk.QUEUE / f"2026-11-26-{k}" / "post.json").read_text()) for k in ("quiz", "quiz-a"))
+        q, a = (json.loads((desk.QUEUE / f"2026-11-24-{k}" / "post.json").read_text()) for k in ("quiz", "quiz-a"))
         self.assertGreater(a["publish_after"], q["publish_after"])
+        self.assertEqual(a["after"], q["id"])
+        self.assertNotIn("after", q)
 
     def test_company_quiz_needs_four_companies(self):
-        w = _at(3, 9)
+        w = _at(1, 11)
         self.pub("a", "ElevenLabs raises $33B", w, 5, company="ElevenLabs", figure="$33B")
         self.pub("b", "Nvidia news", w, 5, company="Nvidia")
         self.assertEqual(self.run_at(w, "quiz"), {})
 
     def test_fill_the_number_blanks_the_figure_and_keeps_it_as_one_option(self):
-        w = _at(4, 13)  # Friday
+        w = _at(2, 11)  # Wednesday
         self.pub("a", "Tech giant is fined since 1997 by regulators", w, 3, figure="1997", score=9)
         self.pub("b", "No figure in this headline at all", w, 3, figure="40%", score=11)
         out = self.run_at(w, "fill")
         self.assertEqual(sorted(out), ["fill", "fill-a"])
         self.assertIn("fined since <span", out["fill"])  # the blank sits where the figure was
-        letter, value = ANS.search(out["fill-a"]).groups()
+        letter, value = answer_of(out["fill-a"])
         self.assertEqual(value, "1997")
         self.assertEqual(dict(OPT.findall(out["fill"]))[letter], "1997")
         self.assertEqual(len({v for _, v in OPT.findall(out["fill"])}), 4)
         self.assertIn("Fill the<br>number.", out["fill"])
 
     def test_fill_the_number_only_when_the_figure_is_in_the_headline_and_on_its_days(self):
-        self.pub("a", "Stocks climb after the report", _at(4, 13), 3, figure="40%")
-        self.assertEqual(self.run_at(_at(4, 13), "fill"), {})
-        self.pub("b", "Fed holds rates at 5.25%", _at(1, 13), 3, figure="5.25%")
-        self.assertEqual(self.run_at(_at(1, 13), "fill"), {})  # Tuesday runs Complete the headline, not this
+        self.pub("a", "Stocks climb after the report", _at(2, 11), 3, figure="40%")
+        self.assertEqual(self.run_at(_at(2, 11), "fill"), {})
+        self.pub("b", "Fed holds rates at 5.25%", _at(1, 11), 3, figure="5.25%")
+        self.assertEqual(self.run_at(_at(1, 11), "fill"), {})  # Tuesday is not its day
 
     def test_distractors_never_equal_the_answer_and_keep_the_unit(self):
         for fig in ["1997", "2026", "40%", "5.25%", "$33B", "$4.5B", "1,000", "77,000", "42", "14", "3", "1", "2", "€2.5 billion",
@@ -921,14 +936,14 @@ class Formats(Tmp):
         self.assertEqual(desk.distractors("AA-"), [])
 
     def test_complete_the_headline_never_blanks_a_name_or_a_number(self):
-        w = _at(3, 13)  # Thursday
+        w = _at(3, 11)  # Thursday
         self.pub("a", "Nvidia halts chip shipments to 14 countries", w, 3, company="Nvidia", score=9)
         for i, h in enumerate(["Mistral suspends cloud shipments", "Intel delays factory plan amid weak demand",
                                "Google cuts costs across divisions", "Amazon limits warehouse hiring", "Meta raises investor payouts"]):
             self.pub(f"o{i}", h, w, 20 + i, score=1)
         out = self.run_at(w, "complete")
         self.assertEqual(sorted(out), ["complete", "complete-a"])
-        letter, value = ANS.search(out["complete-a"]).groups()
+        letter, value = answer_of(out["complete-a"])
         self.assertEqual(dict(OPT.findall(out["complete"]))[letter], value)
         self.assertEqual(value, "halts")
         q = out["complete"]
@@ -948,7 +963,7 @@ class Formats(Tmp):
         self.assertEqual(desk._pos("unknownword"), "")
 
     def test_complete_skips_when_other_headlines_offer_no_same_kind_of_word(self):
-        w = _at(3, 13)
+        w = _at(3, 11)
         self.pub("a", "Nvidia halts chip shipments", w, 3, company="Nvidia")
         self.pub("b", "Fed holds rates", w, 4)
         self.assertEqual(self.run_at(w, "complete"), {})
@@ -960,21 +975,21 @@ class Formats(Tmp):
                      photo_file=f"{name.split()[-1]} portrait 2026.jpg", credit="Photo: Someone, CC BY 4.0, via Wikimedia Commons")
 
     def test_whois_needs_four_people_and_a_portrait_that_carries_the_name(self):
-        w = _at(2, 12)  # Wednesday
+        w = _at(0, 11)  # Monday
         self.people(w, 3)
         self.assertEqual(self.run_at(w, "whois"), {})
         self.pub("p3", "Pablo Hernández de Cos makes news", w, 9, person="Pablo Hernández de Cos", photo=True, photo_file="Hernandez.jpg")
         out = self.run_at(w, "whois")
         self.assertEqual(sorted(out), ["whois", "whois-a"])
-        letter, value = ANS.search(out["whois-a"]).groups()
+        letter, value = answer_of(out["whois-a"])
         self.assertEqual(dict(OPT.findall(out["whois"]))[letter], value)
         self.assertEqual(value, "Jensen Huang")
         self.assertNotIn("makes news", out["whois"])  # the headline stays on the answer slide
         self.assertEqual(len(OPT.findall(out["whois"])), 4)
-        self.assertIn("Who is<br>this?", out["whois"])
+        self.assertIn("Who is this?", out["whois"])
 
     def test_whois_will_not_use_a_photo_that_does_not_carry_the_name(self):
-        w = _at(2, 12)
+        w = _at(0, 11)
         self.people(w, 5)
         for pid in list(desk.QUEUE.iterdir()):
             d = json.loads((pid / "post.json").read_text())
@@ -982,25 +997,18 @@ class Formats(Tmp):
             (pid / "post.json").write_text(json.dumps(d))
         self.assertEqual(self.run_at(w, "whois"), {})
 
-    def test_person_runs_on_its_days_and_never_for_the_person_quizzed_that_day(self):
-        self.people(_at(1, 12), 5)
-        out = self.run_at(_at(1, 12), "person", "whois")  # Tuesday
+    def test_person_never_repeats_the_person_quizzed_that_day(self):
+        self.people(_at(0, 12), 5)  # Monday: Jensen Huang scores highest
+        self.assertEqual(sorted(self.run_at(_at(0, 11), "person", "whois")), ["whois", "whois-a"])  # person's hour is 13:30
+        out = self.run_at(_at(0, 13), "person", "whois")
         self.assertEqual(list(out), ["person"])
-        self.assertIn("Jensen Huang", out["person"])
-        self.assertEqual(self.run_at(_at(1, 16), "person", "whois"), {})
-        # on a Wednesday the quiz runs and person does not
-        self.assertEqual(sorted(self.run_at(_at(2, 12), "person", "whois")), ["whois", "whois-a"])
-        # had the quiz used Jensen Huang the same day, the person story would pick someone else
-        _save = desk._save
-        _save(desk.QUEUE / "2026-11-28-whois" / "post.json", {"id": "2026-11-28-whois", "kind": "story", "person": "Jensen Huang",
-                                                             "created": _at(5, 12).isoformat()})
-        self.pub("late", "Sam Altman speaks", _at(5, 12), 1, person="Sam Altman", photo=True, score=1, photo_file="Altman.jpg")
-        out = self.run_at(_at(5, 12), "person", "whois")
-        self.assertIn("Sam Altman", out["person"])
-        self.assertNotIn("Jensen Huang", out["person"].split("Sam Altman")[0])
+        self.assertNotIn("Jensen Huang", out["person"].split("Donald Trump")[0])
+        self.assertIn("Donald Trump", out["person"])
+        self.assertEqual(self.run_at(_at(0, 16), "person", "whois"), {})  # once a day
+        self.assertEqual(self.run_at(_at(6, 13), "person"), {})  # not on Sunday
 
     def test_bigger_compares_two_companies_valuations_and_shows_no_figure(self):
-        w = _at(5, 13)  # Saturday
+        w = _at(5, 11)  # Saturday
         self.pub("a", "ElevenLabs in talks to raise at a $33B valuation", w, 3, figure="$33B", company="ElevenLabs", logo=True, score=9)
         self.pub("b", "Fed holds rates at 5.25%", w, 3, figure="5.25%", score=9)
         self.pub("x", "OpenAI limits hit 40% faster", w, 3, figure="40%", company="OpenAI", score=9)
@@ -1014,23 +1022,23 @@ class Formats(Tmp):
         for hidden in ("$33B", "$12B", "ElevenLabs in talks", "5.25"):
             self.assertNotIn(hidden, q)
         self.assertEqual(q.count("<img"), 1)  # only ElevenLabs has a logo
-        letter, value = ANS.search(out["bigger-a"]).groups()
-        self.assertEqual(value, "ElevenLabs")
+        letter, value = answer_of(out["bigger-a"])
+        self.assertEqual(value, "ElevenLabs valuation")
         self.assertEqual(letter, "A" if q.index("ElevenLabs") < q.index("Mistral") else "B")
         for shown in ("$33B", "$12B", "ElevenLabs in talks to raise", "Mistral valued"):
             self.assertIn(shown, out["bigger-a"])
 
     def test_bigger_names_the_kind_from_the_words_next_to_the_figure(self):
-        w = _at(5, 13)
+        w = _at(5, 11)
         self.pub("a", "Anthropic closes $4B funding round", w, 3, figure="$4B", company="Anthropic")
         self.pub("b", "Mistral raises $1B", w, 3, figure="$1B", company="Mistral")
         out = self.run_at(w, "bigger")
-        self.assertIn("Anthropic raise", out["bigger"])
-        self.assertIn("Mistral raise", out["bigger"])
+        self.assertIn("Anthropic funding round", out["bigger"])
+        self.assertIn("Mistral funding round", out["bigger"])
         self.assertNotIn("$4B", out["bigger"])
 
     def test_bigger_never_mixes_kinds_or_currencies_or_percentages(self):
-        w = _at(5, 13)
+        w = _at(5, 11)
         self.pub("a", "ElevenLabs valued at $33B", w, 3, figure="$33B", company="ElevenLabs")
         self.pub("b", "Mistral raises $1B", w, 3, figure="$1B", company="Mistral")
         self.pub("c", "Klarna revenue hits $3B", w, 3, figure="$3B", company="Klarna")
@@ -1039,25 +1047,25 @@ class Formats(Tmp):
         self.assertEqual(self.run_at(w, "bigger"), {})
 
     def test_bigger_never_compares_a_company_with_itself_or_close_figures(self):
-        w = _at(5, 13)
+        w = _at(5, 11)
         self.pub("a", "ElevenLabs valued at $33B", w, 3, figure="$33B", company="ElevenLabs")
         self.pub("b", "ElevenLabs valuation reaches $40B", w, 3, figure="$40B", company="elevenlabs")
         self.pub("c", "Mistral valued at $35B", w, 3, figure="$35B", company="Mistral")
         self.assertEqual(self.run_at(w, "bigger"), {})
 
     def test_bigger_needs_a_figure_that_parses_and_a_company(self):
-        w = _at(5, 13)
+        w = _at(5, 11)
         self.pub("a", "ElevenLabs valued at $33B", w, 3, figure="$33B", company="ElevenLabs")
         self.pub("b", "Mistral valuation is high", w, 3, figure="high", company="Mistral")
         self.pub("c", "Unknown valued at $5B", w, 3, figure="$5B")
         self.assertEqual(self.run_at(w, "bigger"), {})
 
     def test_number_uses_money_percent_and_quantities_with_their_unit(self):
-        w = _at(3, 7)
+        w = _at(3, 8)
         self.pub("a", "FCC clears up to 1 million Starmind satellites", w, 3, figure="1 million", score=9)
-        out = self.run_at(w, "number1")
-        self.assertIn("1 million", out["number1"])
-        self.assertIn("satellites", out["number1"])
+        out = self.run_at(w, "number")
+        self.assertIn("1 million", out["number"])
+        self.assertIn("satellites", out["number"])
         for fig, head_ in (("$33B", "ElevenLabs valued at $33B"), ("5.25%", "Fed holds rates at 5.25%"), ("77,000", "UK migration falls to 77,000 people")):
             self.assertTrue(desk._meaningful({"figure": fig, "headlines": [head_]}), fig)
         self.assertEqual(desk._meaningful({"figure": "77,000", "headlines": ["UK migration falls to 77,000 people"]}), ("77,000", "people"))
@@ -1070,13 +1078,13 @@ class Formats(Tmp):
             self.assertIsNone(desk._meaningful({"figure": fig, "headlines": [head_]}), fig)
 
     def test_number_stories_skip_what_means_nothing_alone(self):
-        w = _at(3, 7)
+        w = _at(3, 8)
         self.pub("a", "42 state AGs move to stop Character.AI", w, 3, figure="42", score=30)
         self.pub("b", "UK migration lowest since 1997", w, 3, figure="1997", score=20)
-        self.assertEqual(self.run_at(w, "number1"), {})
+        self.assertEqual(self.run_at(w, "number"), {})
 
     def test_week_in_numbers_shows_units_and_drops_bare_counts(self):
-        w = _at(6, 16)
+        w = _at(6, 11)
         self.pub("a", "ElevenLabs valued at $33B", w, 20, figure="$33B", score=9)
         self.pub("b", "Fed holds rates at 5.25%", w, 30, figure="5.25%", score=8)
         self.pub("c", "FCC clears up to 1 million Starmind satellites", w, 40, figure="1 million", score=7)
@@ -1088,10 +1096,10 @@ class Formats(Tmp):
         for gone in ("42 state", ">42<", "1997"):
             self.assertNotIn(gone, out["numbers"])
         self.pub("f", "Policy lasts five-year", w, 5, figure="five-year")
-        self.assertEqual(self.run_at(_at(6, 16, 1), "numbers"), {})  # already ran once today
+        self.assertEqual(self.run_at(_at(6, 11, 1), "numbers"), {})  # already ran once today
 
     def test_company_file_monday_has_three_dated_headlines_and_a_logo(self):
-        w = _at(0, 10)
+        w = _at(0, 13)
         for i, d in enumerate([30, 50, 70]):
             self.pub(f"n{i}", f"Nvidia headline {i}", w, d, company="Nvidia", logo=True)
         self.pub("x", "Other news", w, 3, company="Altria")
@@ -1100,48 +1108,47 @@ class Formats(Tmp):
         self.assertIn("Company<br>file.", out["company"])
         for h in range(3):
             self.assertIn(f"Nvidia headline {h}", out["company"])
-        self.assertIn("22 Nov", out["company"])  # 30 hours before Monday 10:40
-        self.assertEqual(self.run_at(_at(1, 10), "company"), {})  # Tuesday has the topic board, not the company file
+        self.assertIn("22 Nov", out["company"])  # 30 hours before Monday 13:40
+        self.assertEqual(self.run_at(_at(1, 13), "company"), {})  # Tuesday has the topic board, not the company file
 
     def test_company_file_needs_a_logo_and_three_headlines(self):
-        w = _at(0, 10)
+        w = _at(0, 13)
         for i in range(3):
             self.pub(f"n{i}", f"Nvidia headline {i}", w, 5 + i, company="Nvidia")
         self.assertEqual(self.run_at(w, "company"), {})
 
     def test_topic_board_four_headlines_of_one_topic_and_no_repeat_topic_next_time(self):
         for i in range(4):
-            self.pub(f"m{i}", f"Markets headline {i}", _at(1, 10), 5 + i, topic="Markets", score=9 - i)
+            self.pub(f"m{i}", f"Markets headline {i}", _at(1, 13), 5 + i, topic="Markets", score=9 - i)
         for i in range(4):
-            self.pub(f"t{i}", f"Tech headline {i}", _at(1, 10), 5 + i, topic="Tech", score=3)
-        out = self.run_at(_at(1, 10), "board")
+            self.pub(f"t{i}", f"Tech headline {i}", _at(1, 13), 5 + i, topic="Tech", score=3)
+        out = self.run_at(_at(1, 13), "board")
         self.assertEqual(list(out), ["board"])
         self.assertIn("Markets<br>this week.", out["board"])
         self.assertEqual(out["board"].count("Markets headline"), 4)
         self.assertNotIn("Tech headline", out["board"])
-        out = self.run_at(_at(3, 10), "board")  # Thursday: the other topic
+        out = self.run_at(_at(3, 13), "board")  # Thursday: the other topic
         self.assertIn("Tech<br>this week.", out["board"])
 
     def test_topic_board_skips_with_three(self):
         for i in range(3):
-            self.pub(f"m{i}", f"Markets headline {i}", _at(1, 10), 5 + i, topic="Markets")
-        self.assertEqual(self.run_at(_at(1, 10), "board"), {})
+            self.pub(f"m{i}", f"Markets headline {i}", _at(1, 13), 5 + i, topic="Markets")
+        self.assertEqual(self.run_at(_at(1, 13), "board"), {})
 
-    def test_top5_morning_and_evening_and_never_the_same_list_twice(self):
-        w = _at(3, 11)
-        for i in range(3):
+    def test_top5_is_an_evening_story_of_three_to_five_from_today(self):
+        w = _at(3, 19)
+        for i in range(2):
             self.pub(f"t{i}", f"Today headline {i}", w, 1 + i, score=9 - i)
-        out = self.run_at(w, "top5a", "top5b")
-        self.assertEqual(list(out), ["top5a"])
-        self.assertIn("Today's<br>top 3.", out["top5a"])
-        self.assertEqual(self.run_at(_at(3, 20), "top5a", "top5b"), {})
-        self.pub("t9", "Later headline", _at(3, 20), 1, score=20)
-        out = self.run_at(_at(3, 20), "top5a", "top5b")
-        self.assertEqual(list(out), ["top5b"])
-        self.assertIn("Later headline", out["top5b"])
+        self.assertEqual(self.run_at(w, "top5"), {})
+        self.pub("t2", "Today headline 2", w, 3, score=5)
+        self.pub("old", "Yesterday headline", w, 20, score=30)
+        out = self.run_at(w, "top5")
+        self.assertEqual(list(out), ["top5"])
+        self.assertIn("Today's<br>top 3.", out["top5"])
+        self.assertNotIn("Yesterday headline", out["top5"])
 
     def test_in_the_news_today_is_a_grid_of_six_to_nine_logos(self):
-        w = _at(3, 19)
+        w = _at(3, 16)
         for i in range(5):
             self.pub(f"c{i}", f"Company {i} news", w, 1 + i % 3, company=f"Co{i}", logo=True)
         self.assertEqual(self.run_at(w, "today"), {})
@@ -1154,7 +1161,7 @@ class Formats(Tmp):
         self.assertIn("In the news<br>today.", out["today"])
 
     def test_most_shared_and_saved_need_three_posts_with_numbers(self):
-        w = _at(6, 10)  # Sunday
+        w = _at(6, 13)  # Sunday
         for i in range(3):
             self.pub(f"i{i}", f"Insight headline {i}", w, 24 * (i + 1), insights={"shares": 5 - i, "saved": 0})
         out = self.run_at(w, "shared", "saved")
@@ -1173,7 +1180,7 @@ class Formats(Tmp):
         self.assertIn("Most saved<br>this week.", out["saved"])
 
     def test_most_shared_skips_when_two_posts_have_numbers(self):
-        w = _at(6, 10)
+        w = _at(6, 13)
         self.pub("a", "A headline", w, 24, insights={"shares": 3})
         self.pub("b", "B headline", w, 48, insights={"shares": 2})
         self.pub("c", "C headline", w, 72)
@@ -1181,23 +1188,44 @@ class Formats(Tmp):
 
     def test_week_in_numbers_on_sunday_only(self):
         for i, f in enumerate(["5.25%", "$33B", "7.5%"]):
-            self.pub(f"f{i}", f"Headline with {f} inside", _at(6, 16), 30 + i, figure=f, score=9 - i)
-        out = self.run_at(_at(6, 16), "numbers")
+            self.pub(f"f{i}", f"Headline with {f} inside", _at(6, 11), 30 + i, figure=f, score=9 - i)
+        out = self.run_at(_at(6, 11), "numbers")
         self.assertEqual(list(out), ["numbers"])
         self.assertIn("The week<br>in numbers.", out["numbers"])
-        self.assertEqual(self.run_at(_at(5, 16), "numbers"), {})
+        self.assertIn("Week 48", out["numbers"])
+        self.assertEqual(self.run_at(_at(5, 11), "numbers"), {})
 
     def test_follow_asks_for_a_plain_mention_and_needs_no_data(self):
-        out = self.run_at(_at(2, 18), "follow")
+        out = self.run_at(_at(1, 18), "follow")  # Tuesday
         self.assertEqual(list(out), ["follow"])
         self.assertIn("@boardread", out["follow"])
         self.assertIn("The news that moves business.", out["follow"])
-        post = json.loads((desk.QUEUE / "2026-11-25-follow" / "post.json").read_text())
+        post = json.loads((desk.QUEUE / "2026-11-24-follow" / "post.json").read_text())
         self.assertEqual(post["user_tags"], [{"username": "boardread", "x": 0.5, "y": 0.5}])
+
+    def test_one_quiz_and_one_feature_a_day_the_first_slot_with_data_wins(self):
+        w = _at(0, 11)  # Monday: whois is first, complete backs it up
+        for i, h in enumerate(["Nvidia halts chip shipments", "Mistral suspends cloud shipments", "Intel delays factory plan amid weak demand",
+                               "Google cuts costs across divisions", "Amazon limits warehouse hiring", "Meta raises investor payouts"]):
+            self.pub(f"h{i}", h, w, 3 + i, company="Nvidia" if i == 0 else "", score=9)
+        got = self.run_at(w, "whois", "complete")
+        self.assertEqual(sorted(got), ["complete", "complete-a"])  # no portraits, so the backup ran
+        self.assertEqual(self.run_at(_at(0, 11, 50), "whois", "complete"), {})  # and nothing a second time that day
+
+    def test_nothing_is_built_during_an_instagram_cooldown_or_near_the_daily_limit(self):
+        w = _at(3, 6)
+        for i in range(3):
+            self.pub(str(i), f"Headline {i}", w)
+        desk._save(desk.STATE / "cooldown.json", {"until": (w + timedelta(hours=5)).isoformat()})
+        self.assertEqual(self.run_at(w, "last12"), {})
+        (desk.STATE / "cooldown.json").unlink()
+        self.assertEqual(list(self.run_at(w, "last12")), ["last12"])
+        with mock.patch.dict(desk.CONFIG, {"story_quota_stop": 3}):
+            self.assertEqual(self.run_at(_at(4, 6), "last12"), {})
 
     def test_copy_rules_hold_in_every_format(self):
         """Nothing a reader sees says story, AI, or a stock phrase; question slides end on the same footer."""
-        w = _at(4, 13)
+        w = _at(2, 11)  # Wednesday: the Fill the number day
         self.pub("a", "Tech giant is fined since 1997 by regulators", w, 3, figure="1997", company="Tech giant")
         out = self.run_at(w)
         for html in out.values():
@@ -1208,14 +1236,112 @@ class Formats(Tmp):
 
 
 class ScheduledStories(Tmp):
+    REAL = json.loads(Path(__file__).resolve().parent.parent.joinpath("desk.json").read_text())
+
     def test_story_slots_in_desk_json_are_utc_times_and_cover_every_slot(self):
-        real = json.loads(Path(__file__).resolve().parent.parent.joinpath("desk.json").read_text())
+        real = self.REAL
         for slot in desk.STORY_SLOTS:
             self.assertRegex(real["story_hours"][slot], r"^\d\d:\d\d$", slot)
+        self.assertEqual(set(real["story_hours"]), set(desk.STORY_SLOTS))
         self.assertFalse(real["story_concepts"])
         self.assertFalse(real["stories"])
         self.assertEqual(real["story_hours"]["last12"], "06:15")  # 07:15 CET
-        self.assertEqual(real["story_hours"]["top5b"], "20:30")  # 21:30 CET
+        self.assertEqual(real["story_hours"]["top5"], "19:30")  # 20:30 CET
+
+    def test_no_weekday_carries_more_than_eight_stories(self):
+        """Quizzes count twice (question and answer) but run one a day; features run one a day. Instagram counts
+        stories toward its 100-a-day limit, beside 12+ feed posts and the reel."""
+        for day in range(7):
+            slots = [s for s, (days, _) in desk.STORY_SLOTS.items() if day in days]
+            n = sum(1 for s in slots if s not in desk.QUIZ_SLOTS + desk.FEATURE_SLOTS)
+            n += 2 * any(s in desk.QUIZ_SLOTS for s in slots) + any(s in desk.FEATURE_SLOTS for s in slots)
+            self.assertLessEqual(n, 8, day)
+            self.assertGreaterEqual(n, 5, day)
+        self.assertLess(8 * 3, self.REAL["story_quota_stop"])
+
+    def test_labels_are_dates_except_on_weekly_formats(self):
+        t = _at(3, 11)
+        self.assertEqual(desk._story_label("last12", t), "26 Nov")
+        self.assertEqual(desk._story_label("quiz", t), "26 Nov")
+        for slot in ("shared", "saved", "numbers", "board"):
+            self.assertEqual(desk._story_label(slot, t), "Week 48", slot)
+
+
+class QuizPairing(Tmp):
+    """The answer is the story right after its question, the same day, and never goes out alone."""
+
+    def setUp(self):
+        super().setUp()
+        self.ig = FakeIG()
+        self.ig.story = lambda url, user_tags=None: "s1"
+        self.when = _at(2, 11, 0)
+        self.patches.append(mock.patch.object(desk, "now", return_value=self.when))
+        self.patches[-1].start()
+        self.q = self.write_post("2026-11-25-quiz", kind="story", story="story.jpg", cards=[])
+        self.a = self.write_post("2026-11-25-quiz-a", kind="story", story="story.jpg", cards=[], after="2026-11-25-quiz",
+                                 publish_after=(self.when - timedelta(minutes=1)).isoformat())
+
+    def status(self, path):
+        return json.loads(path.read_text())["status"]
+
+    def test_question_first_then_answer_on_the_next_run(self):
+        self.assertEqual(desk.publish(client=self.ig), 1)
+        self.assertEqual((self.status(self.q), self.status(self.a)), ("published", "queued"))
+        self.assertEqual(desk.publish(client=self.ig), 1)
+        self.assertEqual(self.status(self.a), "published")
+
+    def test_answer_never_goes_out_before_its_question(self):
+        d = json.loads(self.q.read_text())
+        d["publish_after"] = (self.when + timedelta(minutes=30)).isoformat()  # the question is not due yet
+        self.q.write_text(json.dumps(d))
+        self.assertEqual(desk.publish(client=self.ig), 0)
+        self.assertEqual(self.status(self.a), "queued")
+
+    def test_answer_is_skipped_when_the_question_failed_or_was_dropped(self):
+        for state in ("failed", "held", "expired", "skipped"):
+            d = json.loads(self.q.read_text())
+            d["status"] = state
+            self.q.write_text(json.dumps(d))
+            a = json.loads(self.a.read_text())
+            a["status"] = "queued"
+            self.a.write_text(json.dumps(a))
+            self.assertEqual(desk.publish(client=self.ig), 0, state)
+            self.assertEqual(self.status(self.a), "skipped", state)
+
+    def test_a_question_that_fails_to_send_takes_its_answer_with_it(self):
+        class Boom(FakeIG):
+            def story(self, url, user_tags=None):
+                raise instagram.IGError("(#100) bad image")
+        self.assertEqual(desk.publish(client=Boom()), 0)
+        self.assertEqual(self.status(self.q), "failed")
+        self.assertEqual(desk.publish(client=self.ig), 0)
+        self.assertEqual(self.status(self.a), "skipped")
+
+    def test_answer_a_day_late_is_skipped(self):
+        d = json.loads(self.q.read_text())
+        d.update(status="published", published=(self.when - timedelta(days=1)).isoformat())
+        self.q.write_text(json.dumps(d))
+        self.assertEqual(desk.publish(client=self.ig), 0)
+        self.assertEqual(self.status(self.a), "skipped")
+
+    def test_old_queued_stories_expire_instead_of_going_out_late(self):
+        old = (self.when - timedelta(hours=4)).isoformat()
+        for path in (self.q, self.a):
+            d = json.loads(path.read_text())
+            d["created"] = old
+            path.write_text(json.dumps(d))
+        solo = self.write_post("2026-11-25-follow", kind="story", story="story.jpg", cards=[], created=old)
+        self.assertEqual(desk.publish(client=self.ig), 0)
+        self.assertEqual([self.status(p) for p in (self.q, self.a, solo)], ["expired", "expired", "expired"])
+
+    def test_no_story_goes_out_during_a_cooldown_or_near_the_daily_limit(self):
+        with mock.patch.dict(desk.CONFIG, {"story_quota_stop": 1}):
+            self.write_post("2026-11-25-1", status="published", published=(self.when - timedelta(hours=2)).isoformat(), cards=["c"])
+            self.assertEqual(desk.publish(client=self.ig), 0)
+            self.assertEqual(self.status(self.q), "queued")
+        desk._save(desk.STATE / "cooldown.json", {"until": (self.when + timedelta(hours=5)).isoformat()})
+        self.assertEqual(desk.publish(client=self.ig), 0)
+        self.assertEqual(self.status(self.q), "queued")
 
 
 class Render(unittest.TestCase):
@@ -1228,9 +1354,9 @@ class Render(unittest.TestCase):
         s["_assets"]["photo"] = ""
         self.assertIn("Nvidia", T.card(dict(s, _assets=dict(s["_assets"]))))
         self.assertIn("Nvidia", T.detail(s, "body", ["X"]))
-        for html in (T.story_frame("file:///c.jpg"), T.story_list("T", ["a"], "l"), T.story_number("$1B", "h", "l"), T.story_number("1 million", "h", "l", "satellites"),
+        for html in (T.story_frame("file:///c.jpg"), T.story_list("T", ["a"], "l"), T.story_number("$1B", "h", "l"), T.story_number("1 million", "h", "l", "satellites", "Up to"),
                      T.story_company("", "Co", [("01 Nov", "h")], "l"), T.story_person("file:///p.jpg", "N", "h", "c", "l"),
-                     T.story_quiz("___ raises", "l"), T.story_answer("A", "Co", ["h"], "l"), T.story_numbers([("1 million", "h", "satellites"), ("$1B", "h")], "l"),
+                     T.story_quiz("___ raises", "l"), T.story_answer("A", ["Co", "Other"], "l", "Co raises", "Co"), T.story_numbers([("1 million", "h", "satellites", "Up to"), ("$1B", "h")], "l"),
                      T.story_whois("file:///p.jpg", "l", ["a", "b", "c", "d"], "c"), T.story_bigger("valuation", ("A Co", "file:///l.svg"), ("B Co", ""), "l"),
                      T.story_today(["file:///a.svg"] * 7, "l"), T.story_follow("@boardread", "line", "l")):
             self.assertIn("boardread.", html)
