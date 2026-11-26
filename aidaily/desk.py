@@ -360,6 +360,8 @@ def audit(post):
         problems.append("headline ends with a full stop")
     if post.get("dek") and copy.repeats(post["dek"], head_):
         problems.append("dek repeats the headline")
+    if "Source:" in (post.get("body") or ""):
+        problems.append("the source line ran into the report")
     cap = post.get("caption", "")
     tags = re.findall(r"#\w+", cap)
     if len(tags) > 5 or len(set(tags)) != len(tags):

@@ -374,7 +374,8 @@ def apply(stories, reply_rows):
             # hype the source used ("massive revision") is still hype in our voice: the intensifier goes, the fact stays
             for f in ("headline", "dek", "x_post", "linkedin_post"):
                 if isinstance(c.get(f), str):
-                    c[f] = re.sub(r"\s{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip()
+                    # spaces only: the report's blank line before "Source:" must survive
+                    c[f] = re.sub(r"[ \t]{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip()
         problems = verify(s, c) if c else ["no copy returned"]
         # a headline over the limit is the model's slip, not a wrong fact: the source's own headline stands in when
         # it fits and everything else checked out (a Meloni post was lost to five extra characters)

@@ -152,6 +152,15 @@ class Copy(unittest.TestCase):
         copy.apply([s], rows)
         self.assertEqual(s["dek"], "")
 
+    def test_source_line_stays_off_the_report(self):
+        # the hype pass once collapsed "\n\nSource: BBC" into the report, and "Source: BBC" ran on the slide
+        s = {"title": "US announces new tariffs on a host of countries", "summary": "The levies hit many partners.",
+             "source": "BBC"}
+        rows = [{"id": 0, "headline": "US announces new tariffs on a host of countries", "dek": "", "x_post": "",
+                 "linkedin_post": "The levies hit many partners.\n\nSource: BBC", "figure": ""}]
+        copy.apply([s], rows)
+        self.assertEqual(desk.body(s), "The levies hit many partners.")
+
     def test_person_not_named_in_our_text_is_not_pictured(self):
         s = {"title": "Argentina's Congress approves central bank overhaul backed by Milei", "summary": "", "source": "BA Times"}
         rows = [{"id": 0, "headline": "Argentina's Congress approves central bank overhaul", "dek": "", "x_post": "",
@@ -298,6 +307,7 @@ class Audit(unittest.TestCase):
             "dek repeats": self.post(dek="Nvidia halts chip shipments to Southeast Asia, it says."),
             "full stop": self.post(headlines=["Nvidia halts chip shipments."]),
             "SOURCE ask": self.post(source_cta=True),
+            "source line ran": self.post(body="The pause covers four countries. Source: CNBC"),
         }
         for want, p in cases.items():
             self.assertTrue(any(want in x for x in desk.audit(p)), (want, desk.audit(p)))
