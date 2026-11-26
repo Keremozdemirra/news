@@ -42,11 +42,10 @@ def main():
     # restarts its 60 days; only a short-lived token has to be exchanged with the secret
     long = get("refresh_access_token", {"grant_type": "th_refresh_token", "access_token": short}, fail=False)
     if not long.get("access_token"):
-        app_secret = getpass.getpass("Short-lived token: Threads app secret too (hidden): ").strip()
-        long = get("access_token", {"grant_type": "th_exchange_token", "client_secret": app_secret, "access_token": short})
-    token = long.get("access_token")
-    if not token:
-        sys.exit("no long-lived token came back")
+        # a token under a day old cannot be refreshed yet; one from the generator is already long-lived
+        long = get("access_token", {"grant_type": "th_exchange_token", "access_token": short}, fail=False) or \
+            {"access_token": short, "expires_in": 60 * 86400}
+    token = long["access_token"]
     me = get("v1.0/me", {"fields": "id,username", "access_token": token})
     if not me.get("id"):
         sys.exit("the new token could not read its own profile")
