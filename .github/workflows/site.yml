@@ -11,6 +11,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read   # the status page lists the last runs
 concurrency:
   group: site
   cancel-in-progress: false
@@ -32,8 +33,13 @@ jobs:
           want=$(git ls-tree HEAD queue state/insights state/followers.json state/markets.json aidaily assets-site desk.json | sha1sum | cut -d' ' -f1)
           url=$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')
           live=$(curl -fsS --max-time 20 "$url/built-from.txt?t=$(date +%s)" || true)
+          # /status/ must stay current while nothing else changes (a cooldown, a quiet night): rebuild hourly anyway
+          age=$( (curl -fsS --max-time 20 "$url/status/status.json?t=$(date +%s)" || true) | python3 -c '
+          import json, sys, datetime as d
+          try: print(int((d.datetime.now(d.timezone.utc) - d.datetime.fromisoformat(json.load(sys.stdin)["generated"])).total_seconds() // 60))
+          except Exception: print(9999)')
           echo "want=$want" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$want" != "$live" ]; then
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$want" != "$live" ] || [ "$age" -ge 60 ]; then
             echo "build=yes" >> "$GITHUB_OUTPUT"
           else
             echo "build=no" >> "$GITHUB_OUTPUT"; echo "site already up to date"
@@ -57,6 +63,7 @@ jobs:
         env:
           # the build starts from the committed state/markets.json and refreshes it; the EIA key is optional (the keyless dnav pages are the fallback)
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship
           command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
@@ -74,6 +81,11 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
       - if: steps.deploy.outcome == 'failure'
         run: sleep 30
+      # A second miss is still a GitHub-side blip: the next run (minutes away) deploys again, and the health check
+      # opens one issue if the live site falls hours behind. So it warns here instead of mailing the owner.
       - id: deploy2
         if: steps.deploy.outcome == 'failure'
+        continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      - if: steps.deploy2.outcome == 'failure'
+        run: echo "::warning::Pages deploy failed twice; the next site run retries"

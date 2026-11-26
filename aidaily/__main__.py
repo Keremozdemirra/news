@@ -158,8 +158,12 @@ def main(argv=None):
     rl.add_argument("stage", choices=["due", "build", "send"])
     sub.add_parser("insights", help="weekly numbers and category weights")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
-    sub.add_parser("site", help="build the news pages into _site/")
     sub.add_parser("markets", help="refresh state/markets.json from the official sources (never fails)")
+    sub.add_parser("site", help="build the news pages into _site/, the status page included")
+    st = sub.add_parser("status", help="write status.json and the status page into DIR")
+    st.add_argument("dir")
+    he = sub.add_parser("health", help="check what needs the owner; open, update or close the one health issue")
+    he.add_argument("--weekly", action="store_true", help="the Monday report issue instead")
     rd = sub.add_parser("redirects", help="write meta-refresh stubs for the old address (keremozdemir.de/news/...) into DIR")
     rd.add_argument("dir")
     sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
@@ -168,6 +172,10 @@ def main(argv=None):
     dl = sub.add_parser("delete", help="delete posts or stories by queue id, and mark them deleted")
     dl.add_argument("ids", nargs="+")
     args = p.parse_args(argv)
+    # the Action logs are public: nothing this run prints may carry a secret, whatever printed it
+    from . import redact
+    if not isinstance(sys.stdout, redact.Stream):
+        sys.stdout, sys.stderr = redact.Stream(sys.stdout), redact.Stream(sys.stderr)
     if args.cmd == "serve":
         from . import server
         server.serve(args.port)
@@ -176,17 +184,28 @@ def main(argv=None):
         from . import desk
         from .instagram import Client
         c = Client()
+        failed = 0
         for pid in args.ids:
             path = desk.QUEUE / pid / "post.json"
+            if not path.exists():
+                print(f"{pid}: no such post")
+                failed += 1
+                continue
             post = desk._load(path, {})
             mid = post.get("media_id")
-            ok = c.delete(mid) if mid else False
-            if post.get("story_id"):
-                c.delete(post["story_id"])
+            # one refused id (Meta answers code 10 for posts the app may not delete) must not stop the others
+            try:
+                ok = c.delete(mid) if mid else False
+                if post.get("story_id"):
+                    c.delete(post["story_id"])
+            except Exception as e:  # noqa: BLE001
+                ok = False
+                print(f"{pid}: Instagram refused the delete: {str(e)[:200]}; delete it in the app, then mark it deleted")
             post.update(status="deleted" if ok else post.get("status"), deleted=desk.now().isoformat(timespec="seconds") if ok else None)
             desk._save(path, post)
             print(f"{pid}: {'deleted' if ok else 'not deleted'}")
-        return 0
+            failed += not ok
+        return 1 if failed else 0
     if args.cmd == "crosspost":
         from . import desk
         wanted = set(args.ids)
@@ -207,6 +226,11 @@ def main(argv=None):
         c = Client() if os.environ.get("IG_TOKEN") else None
         if os.environ.get("IG_TOKEN"):
             print(f"account: @{c.own_username()}; quota: {c.quota()}")
+            try:
+                end = c.token_expiry()
+                print(f"instagram token: {'no expiry reported' if end is None else f'expires {end:%Y-%m-%d}'}")
+            except Exception as e:  # noqa: BLE001
+                print(f"instagram token: expiry unknown ({str(e)[:160]})")
         from . import platforms
         for name, cls in platforms.CLIENTS.items():
             try:
@@ -221,6 +245,12 @@ def main(argv=None):
                 print(f"{name}: {client.check()}")
             except Exception as e:  # noqa: BLE001  report every platform, not only the first broken one
                 print(f"{name}: FAILED {e}")
+            if hasattr(client, "token_expiry"):
+                try:
+                    end = client.token_expiry()
+                    print(f"{name} token: {'no expiry reported' if end is None else f'expires {end:%Y-%m-%d}'}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"{name} token: expiry unknown ({str(e)[:160]})")
         return 0
     if args.cmd == "reel":
         from . import reel
@@ -241,8 +271,34 @@ def main(argv=None):
             print(f"markets: not refreshed ({e!r})")
         return 0
     if args.cmd == "site":
-        from . import site
-        site.build()
+        from . import site, status
+        out = site.build()
+        try:
+            status.write(out / "status")
+        except Exception as e:  # noqa: BLE001  the news pages ship even if the status page cannot be made
+            print(f"status page failed: {str(e)[:200]}")
+        return 0
+    if args.cmd == "status":
+        from . import status
+        status.write(args.dir)
+        return 0
+    if args.cmd == "health":
+        from . import status
+        # health never fails its run: a red run is an e-mail, and the issue is the one channel for problems
+        try:
+            if args.weekly:
+                from . import instagram, platforms
+                dates = {}
+                for name, make in (("instagram", instagram.Client), ("facebook", platforms.Facebook)):
+                    try:
+                        dates[name] = make().token_expiry()
+                    except Exception as e:  # noqa: BLE001  the report goes out without Meta's date
+                        print(f"{name} token date unavailable: {str(e)[:160]}")
+                status.weekly(meta_expiry=dates)
+            else:
+                status.health(live_site=status.live_status())
+        except Exception as e:  # noqa: BLE001
+            print(f"health check crashed: {str(e)[:200]}")
         return 0
     if args.cmd == "redirects":
         from . import site

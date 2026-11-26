@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: read   # the health step reads the run list
 concurrency:
   group: desk
   cancel-in-progress: false
@@ -51,6 +52,12 @@ jobs:
               python3 -m aidaily reel send
             fi
           fi
+      # what will not fix itself goes to one "Desk health" issue (opened, updated, closed by the check); never fails the run
+      - name: Health
+        if: ${{ !cancelled() }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m aidaily health
       - name: Commit
         if: always()
         run: |

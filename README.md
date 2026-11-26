@@ -20,6 +20,13 @@ GitHub may start a scheduled run up to half an hour late.
 - A whole run: close its issue.
 - Everything: commit a file named `PAUSED` at the root, or set the repository variable `DESK_PAUSED` to `1`. The repository ships with `PAUSED` in place; deleting it is the go-live step.
 
+## Watching it
+
+- `/status/` on the site (and `/status/status.json`): last run of every workflow, last post and today's count per platform, cooldowns, the queue, and the last day's errors as HTTP status and platform code. The site rebuilds it at least hourly; if the page says it has not been rebuilt for a while, the desk has stopped.
+- One issue, "Desk health: needs attention", opened by the `publish` run when something will not fix itself (a platform rejecting its token, posts stuck, a workflow failing again and again, no tick running, the site hours behind). A problem must last 20 minutes first; the issue gets one comment when the list changes and closes itself after 30 clear minutes. Cooldowns and single failed runs never open it.
+- Every Monday the `weekly` run opens "Weekly health" with the week's posts per platform, failures and token dates, and closes last week's.
+- Duplicates: before any send, Instagram, Threads, Facebook and Bluesky are checked for the post already being live, so a lost status commit is recorded and the post stays single. Telegram cannot be read back by a bot; there the marker written before the send is the only guard.
+
 ## What keeps it safe
 
 - The two model calls (copy and comment replies) run `claude -p` with no tools, no MCP and no user settings. They read untrusted text and can only return text.
@@ -63,6 +70,8 @@ Instagram fetches each JPEG from its raw URL on the `media` branch, which is why
 | `aidaily/desk.py` | queue, publish, replies, weekly weights, token check |
 | `aidaily/instagram.py` | the Instagram API calls (graph.facebook.com with a unified-login system-user token, v27.0) |
 | `aidaily/github.py` | the veto issues |
+| `aidaily/status.py` | the status page, `status.json`, the health and weekly issues |
+| `aidaily/redact.py` | removes secrets from every saved file and every printed line |
 | `desk.json` | caps, window, hashtags, skipped topics |
 | `aidaily/site.py`, `assets-site/` | the news site (front page, stories, topics, week, archive, search, static pages, RSS, sitemaps); one address setting, `site_url` |
 | `scripts/media.sh` | the `media` branch: one commit of the JPEGs Instagram fetches and the thumbnails the pages show, pruned by age |
