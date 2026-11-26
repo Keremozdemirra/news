@@ -45,4 +45,5 @@ jobs:
           PY
       - name: Commit
         if: always()
-        run: scripts/commit.sh "desk: story now ${{ inputs.id }}"
+        run: |
+          scripts/commit.sh "desk: story now ${{ inputs.id }}"
