@@ -193,10 +193,16 @@ class Threads(Client):
             self.sleep(pause)
         raise PlatformError(f"threads container {container}: not ready after {tries * pause}s")
 
+    def check(self):
+        """Reads the profile the token belongs to and posts nothing."""
+        me = self.call("GET", self.env["THREADS_USER_ID"], {"fields": "id,username"})
+        return f"token reaches @{me.get('username')}"
+
     def post(self, post):
         uid = self.env["THREADS_USER_ID"]
         urls = _images(post)
-        extra = {"text": threads_text(post), "is_made_with_ai": "true"}
+        # no is_made_with_ai label: it marks the media as AI-made, and the photos are real; the text says "Written by AI."
+        extra = {"text": threads_text(post)}
         if threads_tag(post):
             extra["topic_tag"] = threads_tag(post)
         if len(urls) == 1:

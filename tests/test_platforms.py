@@ -141,7 +141,7 @@ class Clients(Env):
         parent = [r for r in fake.seen if b"CAROUSEL" in (r.data or b"")][0].data.decode()
         self.assertIn("children=c1%2Cc2", parent)
         self.assertIn("topic_tag=business", parent)
-        self.assertIn("is_made_with_ai=true", parent)
+        self.assertNotIn("is_made_with_ai", parent)
 
     def test_facebook_attaches_unpublished_photos(self):
         n = []
