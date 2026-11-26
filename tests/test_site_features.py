@@ -343,9 +343,25 @@ class FrontBuilt(Features):
         import re
         h = self.read("index.html")
         main = h[h.index('<main'):h.index("</main>")]
-        links = re.findall(r'<(?:h1|h3)[^>]*><a[^>]*href="[^"]*/s/([^/"]+)/"|<a href="[^"]*/s/([^/"]+)/"><div class="mt"', main)
+        links = re.findall(r'<(?:h2|h3)[^>]*><a[^>]*href="[^"]*/s/([^/"]+)/"|<a href="[^"]*/s/([^/"]+)/"><div class="mt"', main)
         ids = [a or b for a, b in links]
         self.assertEqual(len(ids), len(set(ids)), ids)
+
+    def test_front_page_has_one_h1_and_the_strips_clip_their_hidden_text(self):
+        import re
+        h = self.read("index.html")
+        self.assertEqual(len(re.findall(r"<h1[ >]", h)), 1)
+        css = (site.ASSETS / "views.css").read_text() if hasattr(site, "ASSETS") else open("assets-site/views.css").read()
+        # a screen-reader span is absolutely positioned: without a positioned scroller it escapes the clip and widens the page on a phone
+        for sel in (".mstrip{", ".mh .sections{"):
+            self.assertIn("position:relative", css[css.index(sel):css.index("}", css.index(sel))], sel)
+
+    def test_photo_alt_drops_camera_numbers_and_crop_tags(self):
+        for name, want in (("Elon Musk (54816836217) (cropped 2) (b).jpg", "Elon Musk"),
+                           ("Jensen Huang Stanford 2026-04-30 010 (cropped).jpg", "Jensen Huang Stanford 010"),
+                           ("European Central Bank Frankfurt Germany 18 Feb 2023.jpg", "European Central Bank Frankfurt Germany 18 Feb 2023"),
+                           ("", "")):
+            self.assertEqual(site.photo_alt({"photo_file": name}), want)
 
     def test_most_covered_stays_out_until_three_companies_have_two_articles(self):
         self.assertNotIn("Most covered", self.read("index.html"))  # only SAP has two articles

@@ -120,7 +120,7 @@ def front(shown, cos, m):
            f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
     first = next((x for x in (lead.get("body") or "").split("\n") if x.strip()), "")
     lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}/t/{S.topic(lead).lower()}/">{E(S.topic(lead))}</a>'
-                 f'<h1 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h1><p class="dk">{E(lead.get("dek", ""))}</p>'
+                 f'<h2 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h2><p class="dk">{E(lead.get("dek", ""))}</p>'
                  f'<div class="mt">{rel_time(lead)} &middot; {nroom(lead)}</div>{fig}'
                  f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{markets.rates_box(m, S.BASE)}</div>')
 

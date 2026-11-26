@@ -45,11 +45,11 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .mh .chans a{display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:44px;color:var(--soft)}
 .mh .chans a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .mh .chans .t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.mh .sections{display:flex;gap:var(--s3);overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
+.mh .sections{position:relative;display:flex;gap:var(--s3);overflow-x:auto;scrollbar-width:none;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
 .mh .sections::-webkit-scrollbar{display:none}
 .mh .sections a{flex:none;display:flex;align-items:center;min-height:44px;font:600 15px/1 var(--f);color:var(--ink);border-bottom:2px solid transparent;margin-bottom:-1px}
 .mh .sections a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}.mh .sections a[aria-current]{border-bottom-color:var(--ink);font-weight:700}
-.mstrip{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);min-height:44px;font:500 var(--t-meta)/1.3 var(--f);border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:none}
+.mstrip{position:relative;display:flex;justify-content:space-between;align-items:center;gap:var(--s3);min-height:44px;font:500 var(--t-meta)/1.3 var(--f);border-bottom:1px solid var(--rule);overflow-x:auto;scrollbar-width:none}
 .mstrip::-webkit-scrollbar{display:none}
 .mstrip ul{display:flex;gap:var(--s3);white-space:nowrap}.mstrip li{display:flex;gap:6px;align-items:baseline}
 .mstrip .sl{color:var(--soft)}.mstrip b{font-weight:700}.mstrip>a{flex:none;color:var(--ink);font-weight:600}
