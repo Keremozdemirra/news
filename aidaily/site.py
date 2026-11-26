@@ -31,7 +31,7 @@ from email.utils import format_datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import desk, markets, outlets
+from . import desk, markets, outlets, seo
 
 E = lambda s: html.escape(s or "", quote=True)  # noqa: E731
 # DESK_SITE_URL builds the same pages for another address (a local preview, a staging host) without touching desk.json
@@ -254,9 +254,10 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     css = "".join(f'<link rel="stylesheet" href="{BASE}/assets/{n}.css?v={ASSET_V}">' for n in styles)
     js = "".join(f'<script src="{BASE}/assets/{n}.js?v={ASSET_V}" defer></script>' for n in scripts)
+    counter_host, counter = seo.analytics(desk.CONFIG)  # off unless desk.json analytics.goatcounter is set
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:{" " + counter_host if counter_host else ""}; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff">
@@ -296,7 +297,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC. &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
-</footer></body></html>"""
+</footer>{counter(BASE + path) if counter else ""}</body></html>"""
 
 
 # ---------------------------------------------------------------- pieces
@@ -513,8 +514,8 @@ def article_ld(p, image):
           "headline": clip(p["headlines"][0], 110), "description": p.get("dek", ""),
           "image": [ORIGIN + (image or DEFAULT_OG)], "datePublished": iso(p["published"]), "dateModified": iso(p["published"]),
           "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
-          "author": {"@type": "Organization", "name": NAME, "url": SITE + "/"},
-          "publisher": {"@type": "Organization", "name": NAME, "url": SITE + "/", "logo": {"@type": "ImageObject", "url": f"{SITE}/logo.png"}}}
+          "author": {"@type": "Organization", "name": NAME, "url": SITE + "/about/"},
+          "publisher": seo.organization(SITE, NAME, accounts())}
     if p.get("company"):
         ld["about"] = {"@type": "Organization", "name": p["company"]}
     return ld
@@ -903,7 +904,8 @@ def build(out=desk.HERE / "_site"):
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
     if shown:
         site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/", "inLanguage": "en",
-                   "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"}}
+                   "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"},
+                   "publisher": seo.organization(SITE, NAME, accounts())}
         put(out, "/", page(f"boardread. · {TAGLINE}", views.front(shown, companies(shown), MARKETS), desc, "/", ld=site_ld, front=True))
     else:
         put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first articles are on their way.</div>', desc, "/", front=True))
@@ -978,7 +980,7 @@ def build(out=desk.HERE / "_site"):
     (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
         "display": "browser", "background_color": "#ffffff", "theme_color": "#12356b",
         "icons": [{"src": f"{BASE}/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": f"{BASE}/icon-512.png", "sizes": "512x512", "type": "image/png"}]}))
-    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
+    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\nSitemap: {SITE}/news-sitemap.xml\n")
     (out / ".nojekyll").write_text("")
     print(f"site: {len(shown)} articles, {len(weeks)} weeks -> {out}")
     return out

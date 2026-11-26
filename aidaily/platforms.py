@@ -81,8 +81,8 @@ def _ai(post):
     return desk.CONFIG["ai_note"] if desk.CONFIG["ai_note"] in (post.get("caption") or "") else ""
 
 
-def story_page(post):
-    return desk.story_url(post["id"])
+def story_page(post, channel=None):
+    return desk.story_url(post["id"], channel)
 
 
 def _tail(post, link):
@@ -134,12 +134,14 @@ def threads_text(post):
 
 
 def threads_reply_text(post):
-    return f"Sources: {story_page(post)}"
+    return f"Sources: {story_page(post, 'threads')}"
 
 
 def threads_tag(post):
-    """One topic tag (Threads uses a single one): 1-50 characters, no periods or ampersands."""
-    tag = desk.CONFIG["topic_tags"].get(post.get("topic") or "", "").lstrip("#")
+    """One topic tag (Threads uses a single one): 1-50 characters, no periods or ampersands. desk.json
+    threads_topic_tags may name a Threads community tag per topic (it can hold spaces); else the hashtag word."""
+    topic = post.get("topic") or ""
+    tag = (desk.CONFIG.get("threads_topic_tags") or {}).get(topic) or desk.CONFIG["topic_tags"].get(topic, "").lstrip("#")
     return re.sub(r"[.&]", "", tag)[:50]
 
 
@@ -153,8 +155,8 @@ def bluesky_description(post):
     return post.get("dek") or post.get("body") or ""
 
 
-def _long_text(post, limit):
-    return _with_ticker(post, _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post)), limit), limit)
+def _long_text(post, limit, channel=None):
+    return _with_ticker(post, _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post, channel)), limit), limit)
 
 
 def is_breaking(post):
@@ -164,8 +166,21 @@ def is_breaking(post):
 def digest_text(posts):
     lines = ["Today on Boardread", ""]
     for i, p in enumerate(posts, 1):
-        lines += [f"{i}. {_head(p)}", story_page(p), ""]
-    return "\n".join(lines).rstrip()
+        lines += [f"{i}. {_head(p)}", story_page(p, "telegram"), ""]
+    return "\n".join(lines + cross_links("telegram")).rstrip()
+
+
+def cross_links(here):
+    """One closing line naming the brand's other places, for digests: the site and the channels that have an address."""
+    others = [a for a in desk.CONFIG.get("accounts", []) if a.get("url") and a["name"].lower() != here]
+    if not others:
+        return []
+    return [f"Every story: {desk.CONFIG['site_url']}", "Also on " + ", ".join(f"{a['name']} {a['url']}" for a in others)]
+
+
+def telegram_tag(post):
+    """The topic as one hashtag: Telegram's post search finds channel posts by hashtag."""
+    return desk.CONFIG["topic_tags"].get(post.get("topic") or "", "")
 
 
 def facebook_skip(post):
@@ -178,11 +193,14 @@ def facebook_skip(post):
 
 
 def telegram_caption(post):
-    return _long_text(post, 1024)  # sendPhoto and InputMediaPhoto: 0-1024 characters
+    tag = telegram_tag(post)
+    if not tag:
+        return _long_text(post, 1024, "telegram")  # sendPhoto and InputMediaPhoto: 0-1024 characters
+    return _long_text(post, 1024 - len(tag) - 2, "telegram") + "\n\n" + tag
 
 
 def facebook_text(post):
-    return _long_text(post, 2000)  # no documented cap; kept to a short report like the other platforms
+    return _long_text(post, 2000, "facebook")  # no documented cap; kept to a short report like the other platforms
 
 
 def _images(post):
@@ -388,7 +406,7 @@ class Bluesky(Client):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         jwt, did = sess["accessJwt"], sess["did"]
-        card = {"uri": story_page(post), "title": _head(post), "description": bluesky_description(post)}
+        card = {"uri": story_page(post, "bluesky"), "title": _head(post), "description": bluesky_description(post)}
         data = self.fetch(_images(post)[0])
         # a link card without a thumbnail still works, so an oversize card is skipped rather than failing the post
         if len(data) <= self.MAX_BYTES:
@@ -441,6 +459,15 @@ class Telegram(Client):
             first = self.call("sendMediaGroup", {"chat_id": chat, "media": media, **silent})[0]
         username = (first.get("chat") or {}).get("username") or (chat.lstrip("@") if chat.startswith("@") else "")
         return {"id": str(first["message_id"]), "url": f"https://t.me/{username}/{first['message_id']}" if username else ""}
+
+    def pin(self, text):
+        """Send one silent message and pin it. Channels never notify on a pin (core.telegram.org/bots/api#pinchatmessage);
+        the bot needs can_pin_messages, or can_edit_messages in a channel."""
+        chat = self.env["TG_CHANNEL"]
+        got = self.call("sendMessage", {"chat_id": chat, "text": text, "disable_notification": True,
+                                        "link_preview_options": {"is_disabled": True}, "disable_web_page_preview": True})
+        self.call("pinChatMessage", {"chat_id": chat, "message_id": got["message_id"], "disable_notification": True})
+        return {"id": str(got["message_id"])}
 
     def digest(self, posts):
         """The evening digest: one silent text message, links not expanded."""

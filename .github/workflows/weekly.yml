@@ -1,5 +1,5 @@
 name: weekly
-# Monday: read last month's numbers into category weights, extend the token, warn before it expires.
+# Monday: read last month's numbers from every platform into category weights and learned timing, extend the token, warn before it expires.
 on:
   schedule:
     - cron: "1 6 * * 1"
@@ -17,10 +17,18 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # every platform's numbers; one without its secrets is skipped and named in the weekly file
       - name: Insights
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 -m aidaily insights
       # the token check is a separate step so a failed insights call does not skip the expiry warning
