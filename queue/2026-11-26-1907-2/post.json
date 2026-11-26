@@ -47,5 +47,16 @@
  "credit": "Photo: Doremo, CC BY-SA 4.0, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-26T19:07:32+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "threads": {
+   "attempted": "2026-11-26T19:10:16+00:00",
+   "error": "threads POST threads: HTTP 400: {\"error\":{\"<secret>ssage\":\"Error validating access token: Session has expired on Thursday, 26-Nov-26 11:00:00 PST. The current ti<secret> is Thursday, 26-Nov-26 11:10:17 PST.\",\"type\":\"OAuthException\",\"code\":190,\"error_subcode\":0,\"fbtrace_id\":\"AzSB3fhAsQWKRrSry8dR61o\"}"
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3aesvfwgs23",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3aesvfwgs23",
+   "at": "2026-11-26T19:10:18+00:00"
+  }
+ }
 }
