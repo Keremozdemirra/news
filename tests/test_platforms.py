@@ -149,8 +149,11 @@ class Clients(Env):
         def out(req):
             n.append(req.data.decode())
             return {"id": "ph1"} if "/photos" in req.full_url else {"id": "p1_99"}
-        got = platforms.Facebook(opener=Fake({"/p1/": out})).post(post())
+        fake = Fake({"fields=name": {"name": "Boardread", "access_token": "page-tok"}, "/p1/": out})
+        got = platforms.Facebook(opener=fake).post(post())
         self.assertEqual(got["url"], "https://www.facebook.com/p1_99")
+        # the stored system-user token only reads the Page; the posts go out with the Page's own token
+        self.assertIn("access_token=page-tok", n[0])
         self.assertIn("published=false", n[0])
         self.assertIn("attached_media%5B1%5D", n[2])
 
@@ -183,10 +186,12 @@ class Clients(Env):
         self.assertNotIn("caption", media[1])
 
     def test_errors_never_carry_secrets(self):
-        fake = Fake({"/photos": http_error(400, "bad token fb-secret here")})
+        fake = Fake({"fields=name": {"access_token": "page-secret"},
+                     "/photos": http_error(400, "bad token fb-secret here and page-secret")})
         with self.assertRaises(platforms.PlatformError) as cm:
             platforms.Facebook(opener=fake).post(post())
         self.assertNotIn("fb-secret", str(cm.exception))
+        self.assertNotIn("page-secret", str(cm.exception))
         fake = Fake({"sendMediaGroup": {"ok": False, "description": "tg-secret"}})
         with self.assertRaises(platforms.PlatformError) as cm:
             platforms.Telegram(opener=fake).post(post())

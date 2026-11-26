@@ -226,9 +226,27 @@ class Facebook(Client):
     host = os.environ.get("FB_API_HOST", "https://graph.facebook.com")
     version = os.environ.get("FB_API_VERSION", "v27.0")
 
+    _page_token = None
+
+    def page_token(self):
+        """The Page's own token. A system-user token is stored once and never expires; posting as the Page
+        needs the Page token it can read (developers.facebook.com/docs/pages-api/getting-started)."""
+        if self._page_token is None:
+            got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}",
+                            {"fields": "name,access_token", "access_token": self.env["FB_PAGE_TOKEN"]}, "facebook GET page")
+            self._page_token = got.get("access_token") or self.env["FB_PAGE_TOKEN"]
+            self.env["_page_token"] = self._page_token  # scrubbed from errors like the stored secrets
+            self.page_name = got.get("name", "")
+        return self._page_token
+
     def call(self, path, params):
-        return self.form("POST", f"{self.host}/{self.version}/{path}", {**params, "access_token": self.env["FB_PAGE_TOKEN"]},
+        return self.form("POST", f"{self.host}/{self.version}/{path}", {**params, "access_token": self.page_token()},
                          f"facebook POST {path.split('/')[-1]}")
+
+    def check(self):
+        """Reads the Page and posts nothing."""
+        self.page_token()
+        return f"page {self.page_name!r} reachable" + ("" if self._page_token != self.env["FB_PAGE_TOKEN"] else " (stored token used as is)")
 
     def post(self, post):
         page = self.env["FB_PAGE_ID"]
