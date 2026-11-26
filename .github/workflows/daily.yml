@@ -4,7 +4,7 @@ name: daily
 # Nothing here can post: the Instagram token is not in this job.
 on:
   schedule:
-    - cron: "5,35 * * * *"
+    - cron: "6,36 * * * *"
   workflow_dispatch:
 permissions:
   contents: write

@@ -2,7 +2,7 @@ name: engage
 # Every five minutes: DMs the sources to anyone who comments SOURCE, and answers new comments on the last week's posts. Replies come from a no-tool model call and pass fixed checks.
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "4-59/5 * * * *"
   workflow_dispatch:
 permissions:
   contents: write

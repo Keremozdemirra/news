@@ -2,7 +2,7 @@ name: weekly
 # Monday: read last month's numbers into category weights, extend the token, warn before it expires.
 on:
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "1 6 * * 1"
   workflow_dispatch:
 permissions:
   contents: write
