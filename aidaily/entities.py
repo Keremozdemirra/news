@@ -84,9 +84,10 @@ def company_entity(name):
     both come from this one lookup, so they can never disagree about which entity is the company."""
     label, claims = _entity(name)
     extra = (label or "").lower().replace(name.lower(), "", 1) if label and name.lower() in label.lower() else None
-    # beyond the name, only a legal form ("Altria Group", "Nvidia Corporation"): "Congress" found the United States
-    # Congress and its seal went on a car-import post as if it were a company logo
-    if extra is None or re.search(r"\d", extra) or not LEGAL_FORM.match(extra):
+    # words may follow the name ("Norse Atlantic Airways", "Meta Platforms") but not precede it, unless they are a
+    # legal form: "Congress" found the United States Congress and its seal went on a car-import post as a logo
+    starts = (label or "").lower().startswith(name.lower())
+    if extra is None or re.search(r"\d", extra) or not (starts or LEGAL_FORM.match(extra)):
         raise LookupError(f"Wikidata's {label!r} is not {name!r}")
     return label, claims
 
@@ -150,6 +151,12 @@ def logo(name, domain="", fetch=True):
         return None
     try:
         label, claims = company_entity(name)
+        # a place has a population; its coat of arms is not a company logo ("Alberta", "New York" on 2026-11-27).
+        # Wikidata then says nothing about the company; only the company's own site, if the copy gave it, may
+        if "P1082" in claims:
+            label, claims = name, {}
+            if not domain:
+                raise LookupError(f"{name!r} is a place on Wikidata")
         f = pick_logo(label or name, claims)
         if f:
             url = _commons_info(f, width=600 if not f.lower().endswith(".svg") else None)

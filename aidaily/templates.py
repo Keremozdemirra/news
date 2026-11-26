@@ -108,6 +108,18 @@ def assets(story, fetch=True):
     return story["_assets"]
 
 
+def _own_logo(story):
+    """(logo uri, name) for the story's company, only when the headline names it: on 2026-11-27 Stellantis's logo
+    headed a slide about Ontario's premier because the company was named further down the report."""
+    a = assets(story)
+    co = story.get("company", "")
+    if co and co in (a.get("logo_names") or []):
+        return a["logo"], co
+    if co and not a.get("logo") and in_headline(co, (story.get("headline") or story.get("title") or "").lower()):
+        return "", co  # no logo file: the name is set in type, and only because the headline names it too
+    return "", ""
+
+
 def layout(story):
     a = assets(story)
     if a["photo"]:
@@ -233,7 +245,7 @@ def card(story, brand=BRAND):
         return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
-<div style="margin-top:88px">{_logo_block(a['logo'], story.get('company', ''), 62)}</div>
+<div style="margin-top:88px">{_logo_block(*_own_logo(story), 62)}</div>
 <div style="margin-top:52px;font-size:{300 if len(fig) <= 4 else 250 if len(fig) == 5 else 205}px;font-weight:800;line-height:0.82;letter-spacing:-12px">{e(fig)}</div>
 <div style="flex:1"></div>
 <h1 style="margin:0;font-size:{_size(title, 76, 70, 60)}px;font-weight:800;line-height:1.04;letter-spacing:-1.5px">{t(title)}</h1>
@@ -241,7 +253,7 @@ def card(story, brand=BRAND):
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
-<div style="margin-top:88px">{_logo_block(a['logo'], story.get('company', ''), 62)}</div>
+<div style="margin-top:88px">{_logo_block(*_own_logo(story), 62)}</div>
 <div style="flex:1"></div>
 <h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:-2px">{t(title)}</h1>
 <div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
@@ -266,7 +278,7 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta(story))}</span>
-<div style="opacity:0.9">{_logo_block(a['logo'], '', 34) if a['logo'] else ''}</div></div>
+<div style="opacity:0.9">{_logo_block(_own_logo(story)[0], '', 34) if _own_logo(story)[0] else ''}</div></div>
 <h2 style="margin:72px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:-1px;text-wrap:balance">{t(title)}</h2>
 <div style="margin-top:44px;height:2px;width:96px;background:{BLACK}"></div>
 <div style="margin-top:44px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}

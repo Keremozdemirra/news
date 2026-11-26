@@ -107,6 +107,13 @@ class Copy(unittest.TestCase):
         self.assertFalse(copy.figure_ok("7,000 tonnes", "Tanker with up to 7,000 tonnes capsizes"))
         self.assertTrue(copy.figure_ok("77,000", "UK net migration falls to 77,000"))
 
+    def test_a_bare_count_needs_the_headline(self):
+        s = {"title": "China reserves right to act after 14-country tariff plan", "summary": "", "source": "CNA"}
+        rows = [{"id": 0, "headline": "China reserves right to act after Trump tariff proposals", "dek": "The levies cover "
+                 "14 trading partners.", "x_post": "", "linkedin_post": "", "figure": "14"}]
+        copy.apply([s], rows)
+        self.assertEqual(s["figure"], "")
+
     def test_headline_figure_fallback_respects_the_qualifier(self):
         s = {"headline": "Government moves more than £400m to defence", "title": "x", "dek": "", "figure": "",
              "_assets": {"photo": "", "logo": "", "logos": [], "credit": "", "file": ""}}
@@ -160,6 +167,19 @@ class Copy(unittest.TestCase):
                  "linkedin_post": "The levies hit many partners.\n\nSource: BBC", "figure": ""}]
         copy.apply([s], rows)
         self.assertEqual(desk.body(s), "The levies hit many partners.")
+
+    def test_a_surname_that_is_a_brand_gets_the_full_name(self):
+        s = {"title": "Ford and Unifor leader urge Ottawa to scrap automaker emissions rules", "summary": "Premier Doug Ford "
+             "and the Unifor leader want the rules gone.", "source": "The Globe and Mail"}
+        rows = [{"id": 0, "headline": "Ford and Unifor leader urge Ottawa to scrap automaker emissions rules", "dek": "",
+                 "x_post": "", "linkedin_post": "Premier Doug Ford and the Unifor leader want the rules gone.", "figure": "",
+                 "person": "Doug Ford"}]
+        copy.apply([s], rows)
+        self.assertEqual(s["headline"], "Doug Ford and Unifor leader urge Ottawa to scrap automaker emissions rules")
+
+    def test_accents_do_not_split_a_name(self):
+        self.assertTrue(desk.same_story({"headline": "European leaders pick Spain's Pablo Hernandez de Cos as ECB president"},
+                                        {"headline": "Eurozone leaders name Hernández de Cos ECB president"}))
 
     def test_person_not_named_in_our_text_is_not_pictured(self):
         s = {"title": "Argentina's Congress approves central bank overhaul backed by Milei", "summary": "", "source": "BA Times"}
@@ -247,6 +267,14 @@ class Photos(unittest.TestCase):
         with mock.patch.object(E, "_get", return_value=hits):
             self.assertEqual(E.person_entity("Andrew Bailey", "Australian cricketer"), (None, {}))
         self.assertEqual(E.person_entity("Andrew Bailey", ""), (None, {}))  # no role, no guess
+
+    def test_company_logo_only_when_the_headline_names_it(self):
+        s = {"headline": "Doug Ford and Unifor leader urge Ottawa to scrap automaker rules", "company": "Stellantis",
+             "_assets": {"logo": "file:///s.svg", "logos": [], "logo_names": [], "photo": "", "credit": "", "file": ""}}
+        self.assertEqual(T._own_logo(s), ("", ""))
+        self.assertNotIn("s.svg", T.detail(s, "Body.", ["The Globe and Mail"]))
+        s["headline"], s["_assets"]["logo_names"] = "Stellantis sells Ontario plant", ["Stellantis"]
+        self.assertEqual(T._own_logo(s), ("file:///s.svg", "Stellantis"))
 
     def test_main_company_without_a_logo_shows_no_other_logo(self):
         s = {"headline": "Z.AI and Moonshot AI delay flagship models", "company": "Z.AI", "orgs": ["Moonshot AI"]}

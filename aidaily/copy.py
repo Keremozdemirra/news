@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
@@ -131,9 +132,14 @@ def _stem(w):
     return st[:5]
 
 
+def _fold(text):
+    """"Hernández" and "Hernandez" are one name: accents go before words are compared."""
+    return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+
+
 def _stems(text):
     out = set()
-    for w in WORD.findall((text or "").lower()):
+    for w in WORD.findall(_fold(text).lower()):
         if w in FILLER or len(w) < 3:
             continue
         st = _stem(w)
@@ -413,6 +419,14 @@ def apply(stories, reply_rows):
             src = (s["title"] + " " + s.get("summary", "")).lower()
             orgs = c.get("orgs") if isinstance(c.get("orgs"), list) else []
             s["orgs"] = [o for o in orgs if isinstance(o, str) and o.strip() and o.lower() in src][:3]
+            # a surname that is also a company reads as the company: "Ford and Unifor leader urge Ottawa to scrap
+            # automaker emissions rules" is Ontario's premier, not Ford Motor. The headline gets the full name.
+            from .entities import BRANDS
+            if s.get("person") and len(s["person"].split()) > 1:
+                first, last = s["person"].split()[0], s["person"].split()[-1]
+                if (BRANDS.fullmatch(last.lower()) and re.search(rf"(?<!{re.escape(first)} )\b{re.escape(last)}\b", s["headline"])
+                        and len(s["headline"]) + len(first) + 1 <= MAX_HEADLINE):
+                    s["headline"] = re.sub(rf"(?<!{re.escape(first)} )\b{re.escape(last)}\b", f"{first} {last}", s["headline"], count=1)
             # the same holds for a face: only a person the source names may be pictured, and only when our own text
             # names them too, or the reader sees a face nobody on the card is
             # the card shows the headline, the detail slide the report: the dek alone is not on either
@@ -430,5 +444,8 @@ def apply(stories, reply_rows):
             if fig and not ((_numbers(fig) & _numbers(seen)) if _numbers(fig) else fig.lower() in seen.lower()):
                 s["figure"] = ""
             if s["figure"] and not figure_ok(s["figure"], seen):
+                s["figure"] = ""
+            # a bare count ("14") set huge says nothing unless the headline right under it says 14 of what
+            if s["figure"] and not re.search(r"[$€£¥%]|\d\s?[A-Za-z]", s["figure"]) and not (_numbers(s["figure"]) & _numbers(s["headline"])):
                 s["figure"] = ""
     return rejected
