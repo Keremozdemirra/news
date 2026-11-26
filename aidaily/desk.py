@@ -198,6 +198,10 @@ def send_line(m, s):
     and different stories rotate through the set."""
     if not growth("send_prompt"):
         return CONFIG["send_line"]
+    # a named company makes the ask concrete ("covers Nvidia"); only one the headline itself names
+    co = (s.get("company") or "").strip()
+    if co and CONFIG.get("send_company_line") and R.T.in_headline(co, (m.get("headline") or "").lower()):
+        return CONFIG["send_company_line"].format(company=co)
     topic = s.get("topic") or ""
     rows = [r["line"] for r in CONFIG.get("send_prompts", []) if topic in r.get("topics", [])]
     rows = rows or [r["line"] for r in CONFIG.get("send_prompts", [])]

@@ -120,14 +120,14 @@
   "facebook_daily_max": 4,
   "story_concepts": false,
   "platforms": {
-    "threads": false,
+    "threads": true,
     "facebook": true,
     "bluesky": true,
     "telegram": true
   },
   "growth": {
     "so_what": false,
-    "send_prompt": false,
+    "send_prompt": true,
     "alt_text": true,
     "keyword_caption": true,
     "daily_reel": false,
@@ -139,53 +139,46 @@
   },
   "send_prompts": [
     {
-      "line": "Send this to someone who trades.",
+      "line": "Send this to whoever on your team watches the markets.",
       "topics": [
-        "Markets",
+        "Markets"
+      ]
+    },
+    {
+      "line": "Send this to whoever on your team tracks the economy.",
+      "topics": [
         "Economy"
       ]
     },
     {
-      "line": "Send this to a colleague who follows the economy.",
+      "line": "Send this to whoever on your team follows policy.",
       "topics": [
-        "Economy",
-        "Markets",
-        "Politics",
-        "World"
+        "Politics"
       ]
     },
     {
-      "line": "Send this to someone who works with AI.",
+      "line": "Send this to whoever on your team builds with AI.",
       "topics": [
-        "AI",
+        "AI"
+      ]
+    },
+    {
+      "line": "Send this to whoever on your team covers tech.",
+      "topics": [
         "Tech"
       ]
     },
     {
-      "line": "Send this to a teammate who works in tech.",
+      "line": "Send this to whoever on your team tracks global risk.",
       "topics": [
-        "Tech",
-        "AI"
+        "World"
       ]
     },
     {
-      "line": "Send this to a colleague who runs a team.",
+      "line": "Send this to whoever on your team covers this sector.",
       "topics": [
         "Business",
-        "Culture",
-        "Politics",
-        "World",
-        "Economy"
-      ]
-    },
-    {
-      "line": "Send this to a colleague who follows this industry.",
-      "topics": [
-        "Business",
-        "Culture",
-        "Markets",
-        "Tech",
-        "AI"
+        "Culture"
       ]
     }
   ],
@@ -195,5 +188,6 @@
   "token_expiry": {
     "threads": "2027-01-25",
     "facebook": "2027-01-25"
-  }
+  },
+  "send_company_line": "Send this to whoever on your team covers {company}."
 }

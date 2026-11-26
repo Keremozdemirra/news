@@ -41,9 +41,9 @@ class Defaults(unittest.TestCase):
     def test_shipped_switches_match_the_owners_choices(self):
         # approved 2026-11-26: alt text and keyword captions on; what-it-means off; send lines and the reel wait
         cfg = json.loads((desk.HERE / "desk.json").read_text())["growth"]
-        for name in ("so_what", "send_prompt", "daily_reel"):
+        for name in ("so_what", "daily_reel"):
             self.assertIs(cfg[name], False, name)
-        for name in ("alt_text", "keyword_caption"):
+        for name in ("alt_text", "keyword_caption", "send_prompt"):
             self.assertIs(cfg[name], True, name)
         self.assertEqual(cfg["reel_trial"], "")
 
@@ -130,7 +130,7 @@ class SendPrompt(unittest.TestCase):
 
     def test_on_picks_an_approved_line_for_the_topic_and_is_stable(self):
         approved = {r["line"]: r["topics"] for r in desk.CONFIG["send_prompts"]}
-        self.assertEqual(len(approved), 6)
+        self.assertEqual(len(approved), 7)
         with on(send_prompt=True):
             for topic in ("AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"):
                 seen = set()
@@ -401,3 +401,12 @@ class Assemble(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompanySendLine(unittest.TestCase):
+    def test_company_named_in_headline_gets_its_own_line(self):
+        with mock.patch.dict(desk.CONFIG["growth"], {"send_prompt": True}):
+            line = desk.send_line({"headline": "Nvidia halts chip shipments"}, {"company": "Nvidia", "topic": "Tech"})
+            self.assertEqual(line, "Send this to whoever on your team covers Nvidia.")
+            line = desk.send_line({"headline": "Chip shipments halted"}, {"company": "Nvidia", "topic": "Tech"})
+            self.assertEqual(line, "Send this to whoever on your team covers tech.")
