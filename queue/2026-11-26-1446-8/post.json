@@ -47,6 +47,11 @@
    "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3a5egbf3o25",
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3a5egbf3o25",
    "at": "2026-11-26T16:56:56+00:00"
+  },
+  "telegram": {
+   "id": "13",
+   "url": "https://t.me/boardread/13",
+   "at": "2026-11-26T17:10:56+00:00"
   }
  }
 }
