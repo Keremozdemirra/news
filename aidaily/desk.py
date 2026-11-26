@@ -156,29 +156,61 @@ def story_frame(img):
     png.unlink()
 
 
-def digest_story(min_posts=3):
-    """Once an evening (after 18:00 UTC): a story with the day's top five posts, published right away."""
-    day = now().strftime("%Y-%m-%d")
-    if now().hour < CONFIG["digest_hour_utc"] or (QUEUE / f"{day}-digest" / "post.json").exists() or paused():
-        return None
-    today = [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
-             and p.get("published", "")[:10] == day]
-    if len(today) < min_posts:
-        return None
-    top = sorted(today, key=lambda p: -(p.get("score") or 0))[:5]
-    pid = f"{day}-digest"
+def _published(hours):
+    cut = (now() - timedelta(hours=hours)).isoformat()
+    return [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+            and p.get("published", "") > cut]
+
+
+def _queue_story(pid, html, title):
     img = MEDIA / pid
     img.mkdir(parents=True, exist_ok=True)
     png = img / "story.png"
-    R.shoot(R.T.story_digest([p["headlines"][0] for p in top], now().strftime("%-d %b")), png, 1080, 1920)
+    R.shoot(html, png, 1080, 1920)
     R.jpeg(png)
     png.unlink()
     post = {"id": pid, "kind": "story", "created": now().isoformat(timespec="seconds"),
             "publish_after": now().isoformat(timespec="seconds"), "status": "queued", "story": "story.jpg",
-            "urls": [], "headlines": [f"Today's top {len(top)}"]}
+            "urls": [], "headlines": [title]}
     _save(QUEUE / pid / "post.json", post)
-    print(f"queued {pid}: evening story with {len(top)} headlines")
+    print(f"queued {pid}: {title}")
     return QUEUE / pid / "post.json"
+
+
+def scheduled_stories():
+    """Stories of their own, each once a day after its hour (UTC), from posts already published and checked:
+    a morning brief, the number of the day, the evening top five, and on Sundays the week's top ten."""
+    if paused():
+        return []
+    day, hour, made = now().strftime("%Y-%m-%d"), now().hour, []
+    T = R.T
+
+    def due(kind, at):
+        return hour >= at and not (QUEUE / f"{day}-{kind}" / "post.json").exists()
+
+    if due("morning", CONFIG["story_hours"]["morning"]):
+        top = sorted(_published(14), key=lambda p: -(p.get("score") or 0))[:3]
+        if len(top) >= 2:
+            made.append(_queue_story(f"{day}-morning", T.story_list("Before<br>you start.", [p["headlines"][0] for p in top],
+                                                                   now().strftime("%-d %b")), "Before you start"))
+    if due("number", CONFIG["story_hours"]["number"]):
+        nums = [p for p in _published(18) if p.get("figure")]
+        if nums:
+            p = max(nums, key=lambda p: p.get("score") or 0)
+            made.append(_queue_story(f"{day}-number", T.story_number(p["figure"], p["headlines"][0], now().strftime("%-d %b")),
+                                     "Number of the day"))
+    if due("digest", CONFIG["story_hours"]["evening"]):
+        top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -(p.get("score") or 0))[:5]
+        if len(top) >= 3:
+            made.append(_queue_story(f"{day}-digest", T.story_list(f"Today's<br>top {len(top)}.", [p["headlines"][0] for p in top],
+                                                                  now().strftime("%-d %b")), f"Today's top {len(top)}"))
+    if now().weekday() == 6 and due("week", CONFIG["story_hours"]["week"]):
+        top = sorted(_published(24 * 7), key=lambda p: (-(((p.get("insights") or {}).get("shares") or 0)
+                                                           + ((p.get("insights") or {}).get("saved") or 0)), -(p.get("score") or 0)))[:10]
+        if len(top) >= 5:
+            made.append(_queue_story(f"{day}-week", T.story_list("This week's<br>top 10.", [p["headlines"][0] for p in top],
+                                                                now().strftime("Week %V"), compact=True), "This week's top 10"))
+    return made
 
 
 def used_photos(days=45):
@@ -261,7 +293,7 @@ def queue(day_dir, batch=None, render=True):
                 "cards": ["card.jpg", "detail.jpg"], "story": "story.jpg" if render else "", "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
-                "score": m.get("score", 0), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
+                "score": m.get("score", 0), "figure": s.get("figure", ""), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],

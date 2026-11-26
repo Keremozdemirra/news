@@ -85,6 +85,11 @@
     "Your DMs have the full story."
   ],
   "stories": true,
-  "digest_hour_utc": 18,
-  "story_quota_stop": 90
+  "story_quota_stop": 90,
+  "story_hours": {
+    "morning": 6,
+    "number": 12,
+    "evening": 18,
+    "week": 17
+  }
 }

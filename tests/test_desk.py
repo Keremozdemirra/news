@@ -448,3 +448,29 @@ class Stories(Tmp):
         d = json.loads(p.read_text())
         self.assertEqual(d["status"], "published")
         self.assertIn("no stories", d["story_error"])
+
+
+class Topics(unittest.TestCase):
+    def test_culture_needs_culture_words(self):
+        from aidaily import copy
+        rows = {"id": 0, "headline": "Denny's reshares Nvidia origin story", "dek": "", "figure": "", "x_post": "",
+                "linkedin_post": "", "topic": "Culture"}
+        a = {"title": "Jensen Huang's Nvidia return gave Denny's a viral marketing moment", "summary": "", "source": "X", "url": "u"}
+        copy.apply([a], [dict(rows)])
+        self.assertEqual(a["topic"], "Business")
+        b = {"title": "GTA 6 trailer breaks streaming records", "summary": "", "source": "X", "url": "u"}
+        copy.apply([b], [dict(rows, headline="GTA 6 trailer breaks streaming records")])
+        self.assertEqual(b["topic"], "Culture")
+
+
+class ScheduledStories(Tmp):
+    def test_each_concept_once_a_day_from_published_posts(self):
+        for i, (h, fig) in enumerate([("Fed holds rates", "5.25%"), ("Nvidia halts shipments", ""), ("ECB picks president", "")]):
+            self.write_post(f"p{i}", status="published", published=desk.now().isoformat(), headlines=[h], score=9 - i, figure=fig)
+        with mock.patch.object(desk, "now", return_value=desk.now().replace(hour=19)), \
+             mock.patch.object(desk.R, "shoot"), mock.patch.object(desk.R, "jpeg"), mock.patch.object(Path, "unlink"):
+            first = desk.scheduled_stories()
+            again = desk.scheduled_stories()
+        kinds = sorted(Path(p).parent.name.rsplit("-", 1)[-1] for p in first)
+        self.assertEqual(kinds, ["digest", "morning", "number"])
+        self.assertEqual(again, [])

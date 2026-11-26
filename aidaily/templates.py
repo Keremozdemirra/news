@@ -233,15 +233,27 @@ def story_frame(card_uri, kicker="New post"):
     return _story_shell(inner, kicker)
 
 
-def story_digest(headlines, label):
-    """The evening story: the day's top stories as a numbered list."""
-    rows = "".join(f'<div style="display:grid;grid-template-columns:92px 1fr;gap:20px;padding:34px 0;border-top:1px solid #2a2c31">'
-                   f'<span style="font-size:52px;font-weight:800;color:#6b7078;letter-spacing:-2px">{i:02d}</span>'
-                   f'<span style="font-size:{50 if len(h) < 70 else 44}px;font-weight:800;line-height:1.08;letter-spacing:-1.5px">{e(h)}</span></div>'
+def story_list(title, headlines, label, compact=False):
+    """A numbered list story: the morning brief, the evening top five, the week's top ten."""
+    big, small, pad = (40, 36, 22) if compact else (50, 44, 34)
+    rows = "".join(f'<div style="display:grid;grid-template-columns:92px 1fr;gap:20px;padding:{pad}px 0;border-top:1px solid #2a2c31">'
+                   f'<span style="font-size:{big + 2}px;font-weight:800;color:#6b7078;letter-spacing:-2px">{i:02d}</span>'
+                   f'<span style="font-size:{big if len(h) < 70 else small}px;font-weight:800;line-height:1.08;letter-spacing:-1.5px">{e(h)}</span></div>'
                    for i, h in enumerate(headlines, 1))
-    inner = (f'<div style="margin-top:110px;font-size:120px;font-weight:800;letter-spacing:-5px;line-height:.92">Today\'s<br>top {len(headlines)}.</div>'
+    inner = (f'<div style="margin-top:{70 if compact else 110}px;font-size:{104 if compact else 120}px;font-weight:800;letter-spacing:-5px;line-height:.92">{title}</div>'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{rows}</div>'
              f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Every article with its sources: keremozdemir.de/news</div>')
+    return _story_shell(inner, label)
+
+
+def story_number(figure, headline, label):
+    """The number of the day: one figure from a published post, and the headline it belongs to."""
+    size = 330 if len(figure) <= 4 else 270 if len(figure) <= 6 else 210
+    inner = (f'<div style="margin-top:110px;font-size:40px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#9aa0a8">Number of the day</div>'
+             f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">'
+             f'<div style="font-size:{size}px;font-weight:800;letter-spacing:-14px;line-height:.85">{e(figure)}</div>'
+             f'<div style="margin-top:70px;font-size:60px;font-weight:800;line-height:1.08;letter-spacing:-2px">{e(headline)}</div></div>'
+             f'<div style="font-size:34px;font-weight:600;color:#9aa0a8;text-align:center">Read it on the feed</div>')
     return _story_shell(inner, label)
 
 

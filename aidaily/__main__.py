@@ -201,7 +201,7 @@ def daily(args):
         return 0
     out = run(args)
     digest = json.loads((out / "digest.json").read_text())
-    desk.digest_story()
+    desk.scheduled_stories()
     picked = desk.select(digest["stories"])
     if not picked:
         print("no new story above the bar this run")

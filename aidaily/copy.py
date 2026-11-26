@@ -61,6 +61,9 @@ FILLER = set("that this with from their they have been will would could about in
              "also more most such which what when where while there these those its it's the and for are "
              "was were has had not but one two all any each other some said says according reportedly report "
              "source".split())
+CULTURE = re.compile(r"\b(film|films|movie|movies|box office|game|games|gaming|console|music|album|song|singer|"
+                     r"concert|tour|sport|sports|football|soccer|nba|nfl|olympic\w*|series|streaming|netflix|"
+                     r"festival|art|artist|museum|celebrity|actor|actress|oscar\w*|grammy|book|novel|tv|show)\b", re.I)
 GROUNDED = 0.6  # share of a sentence's content words that must come from the source
 
 
@@ -159,6 +162,9 @@ def apply(stories, reply_rows):
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
                                                  "figure", "x_post", "linkedin_post", "image_query", "topic")},
                      copy_status="ok")
+            # "Culture" only when the story is about culture: a company's viral marketing is a business story
+            if s.get("topic") == "Culture" and not CULTURE.search(s["title"] + " " + s.get("summary", "")):
+                s["topic"] = "Business"
             # a logo for an organisation the source never names would put a company on a story it is not in
             src = (s["title"] + " " + s.get("summary", "")).lower()
             orgs = c.get("orgs") if isinstance(c.get("orgs"), list) else []
