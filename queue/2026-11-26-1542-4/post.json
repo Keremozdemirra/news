@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-1542-4",
+ "batch": "2026-11-26-1542",
+ "n": 4,
+ "created": "2026-11-26T15:42:11+00:00",
+ "publish_after": "2026-11-26T16:01:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "Altria explores takeover bid for Imperial Brands\n\nAltria is exploring a takeover bid for Imperial Brands. A deal would remove another of the UK's large listed companies from the London stock market.\n\nReported by FT; The Wall Street Journal. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #altria",
+ "urls": [
+  "https://www.ft.com/content/696e99b0-f6d1-4a1a-95b0-f68de88520d9?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.ft.com/content/696e99b0-f6d1-4a1a-95b0-f68de88520d9?syn-25a6b1a6=1",
+  "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=pls_whats_news_us_business_f",
+  "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=rss_markets_main"
+ ],
+ "headlines": [
+  "Altria explores takeover bid for Imperial Brands"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Business",
+ "photo_file": "Altria Building (8156028882).jpg",
+ "score": 8.816,
+ "figure": "",
+ "company": "Altria",
+ "person": "",
+ "logo_names": [
+  "Altria",
+  "Imperial Brands"
+ ],
+ "dek": "A deal would remove another of the UK's large listed companies from the London stock market.",
+ "body": "Altria is exploring a takeover bid for Imperial Brands. A deal would remove another of the UK's large listed companies from the London stock market.",
+ "sources": [
+  "FT",
+  "The Wall Street Journal"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/696e99b0-f6d1-4a1a-95b0-f68de88520d9?syn-25a6b1a6=1",
+  "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=pls_whats_news_us_business_f",
+  "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=rss_markets_main"
+ ],
+ "credit": "Photo: Packer1028, CC0, via Wikimedia Commons"
+}

@@ -1,0 +1,42 @@
+{
+ "id": "2026-11-26-1542-5",
+ "batch": "2026-11-26-1542",
+ "n": 5,
+ "created": "2026-11-26T15:42:13+00:00",
+ "publish_after": "2026-11-26T16:06:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "Global stocks climb after volatile US trading over AI risks\n\nGlobal stocks climbed after volatile trading in the US over AI risks. Tech shares were hit this month by fears over whether the boom can be sustained.\n\nReported by FT. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #markets",
+ "urls": [
+  "https://www.ft.com/content/6e217409-9fbb-456c-b405-2eb15bb69679?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.ft.com/content/6e217409-9fbb-456c-b405-2eb15bb69679?syn-25a6b1a6=1"
+ ],
+ "headlines": [
+  "Global stocks climb after volatile US trading over AI risks"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "New York Stock Exchange August 2017 02.jpg",
+ "score": 8.757,
+ "figure": "",
+ "company": "",
+ "person": "",
+ "logo_names": [],
+ "dek": "Tech shares were hit this month by fears over whether the AI boom can be sustained.",
+ "body": "Global stocks climbed after volatile trading in the US over AI risks. Tech shares were hit this month by fears over whether the boom can be sustained.",
+ "sources": [
+  "FT"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/6e217409-9fbb-456c-b405-2eb15bb69679?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: Myrmux, CC BY-SA 4.0, via Wikimedia Commons"
+}

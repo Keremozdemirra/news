@@ -1,0 +1,42 @@
+{
+ "id": "2026-11-26-1542-8",
+ "batch": "2026-11-26-1542",
+ "n": 8,
+ "created": "2026-11-26T15:42:18+00:00",
+ "publish_after": "2026-11-26T16:21:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "U.S. plans fresh tariff hikes on 14 trading partners\n\nThe U.S. planned a fresh tariff salvo on 14 trading partners. It is also offering some countries lower rates if they secure trade deals with Washington.\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #economy",
+ "urls": [
+  "https://www.cnbc.com/2026/11/26/us-tariffs-hike-trade-agreement.html"
+ ],
+ "links": [
+  "https://www.cnbc.com/2026/11/26/us-tariffs-hike-trade-agreement.html"
+ ],
+ "headlines": [
+  "U.S. plans fresh tariff hikes on 14 trading partners"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Economy",
+ "photo_file": "2021-11-19 Damaged container ship, MV ZIM KINGSTON - IMO 9389693.jpg",
+ "score": 8.554,
+ "figure": "14",
+ "company": "",
+ "person": "",
+ "logo_names": [],
+ "dek": "Some countries are offered lower rates if they secure trade deals with Washington.",
+ "body": "The U.S. planned a fresh tariff salvo on 14 trading partners. It is also offering some countries lower rates if they secure trade deals with Washington.",
+ "sources": [
+  "CNBC"
+ ],
+ "source_urls": [
+  "https://www.cnbc.com/2026/11/26/us-tariffs-hike-trade-agreement.html"
+ ],
+ "credit": "Photo: Petar Milošević, CC BY-SA 4.0, via Wikimedia Commons"
+}

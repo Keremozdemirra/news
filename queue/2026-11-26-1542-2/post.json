@@ -1,0 +1,45 @@
+{
+ "id": "2026-11-26-1542-2",
+ "batch": "2026-11-26-1542",
+ "n": 2,
+ "created": "2026-11-26T15:42:07+00:00",
+ "publish_after": "2026-11-26T15:51:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "MPs say ministers 'failed to make the case' for Heathrow third runway\n\nThe Commons transport committee said on Thursday that ministers have \"failed to make the case\" for a third runway at Heathrow. Its report says the detailed policy papers laid out by the government show expansion of the London airport would fall short of pledges on the economy and climate.\n\nReported by The Guardian; FT. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #politics",
+ "urls": [
+  "https://www.theguardian.com/environment/2026/nov/26/ministers-fail-to-make-case-for-heathrow-third-runway-mps-report-says"
+ ],
+ "links": [
+  "https://www.ft.com/content/9c271b6d-3280-4abc-9e8f-a93caf594d21?syn-25a6b1a6=1",
+  "https://www.theguardian.com/environment/2026/nov/26/ministers-fail-to-make-case-for-heathrow-third-runway-mps-report-says"
+ ],
+ "headlines": [
+  "MPs say ministers 'failed to make the case' for Heathrow third runway"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Politics",
+ "photo_file": "Middle East Airlines A321-200 (F-ORMF) landing at London Heathrow Airport.jpg",
+ "score": 8.991,
+ "figure": "",
+ "company": "",
+ "person": "",
+ "logo_names": [],
+ "dek": "The Commons transport committee says government policy papers show expansion would fall short of pledges on economy and climate.",
+ "body": "The Commons transport committee said on Thursday that ministers have \"failed to make the case\" for a third runway at Heathrow. Its report says the detailed policy papers laid out by the government show expansion of the London airport would fall short of pledges on the economy and climate.",
+ "sources": [
+  "The Guardian",
+  "FT"
+ ],
+ "source_urls": [
+  "https://www.theguardian.com/environment/2026/nov/26/ministers-fail-to-make-case-for-heathrow-third-runway-mps-report-says",
+  "https://www.ft.com/content/9c271b6d-3280-4abc-9e8f-a93caf594d21?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: Brian Robert Marshall, CC BY-SA 2.0, via Wikimedia Commons"
+}

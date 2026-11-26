@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-1542-1",
+ "batch": "2026-11-26-1542",
+ "n": 1,
+ "created": "2026-11-26T15:42:05+00:00",
+ "publish_after": "2026-11-26T15:46:35+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "story": "",
+ "caption": "42 state AGs move to stop Character.AI from selling user chats\n\nA coalition of 42 state attorneys general is trying to prevent Character.AI from selling user data during its Chapter 11 bankruptcy proceedings. In nearly identical press releases, the AGs accuse the company of planning to auction off the private chat histories of more than 21 million U.S. accounts.\n\nReported by The Verge; Engadget; TechCrunch. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #politics #characterai",
+ "urls": [
+  "https://www.theverge.com/policy/1042620/character-ai-sale-state-ags-block-selling-users-chats"
+ ],
+ "links": [
+  "https://techcrunch.com/2026/11/25/state-ags-fight-character-ais-plan-to-auction-off-users-private-chats/",
+  "https://www.engadget.com/2328630/state-ags-are-trying-to-stop-characterai-from-auctioning-off-users-chat-histories/",
+  "https://www.theverge.com/policy/1042620/character-ai-sale-state-ags-block-selling-users-chats"
+ ],
+ "headlines": [
+  "42 state AGs move to stop Character.AI from selling user chats"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "AI generated image of Loab character.jpg",
+ "score": 9.347,
+ "figure": "42",
+ "company": "Character.AI",
+ "person": "",
+ "logo_names": [
+  "Character.AI"
+ ],
+ "dek": "The AGs say the company plans to auction chat histories of more than 21 million U.S. accounts during Chapter 11 proceedings.",
+ "body": "A coalition of 42 state attorneys general is trying to prevent Character.AI from selling user data during its Chapter 11 bankruptcy proceedings. In nearly identical press releases, the AGs accuse the company of planning to auction off the private chat histories of more than 21 million U.S. accounts.",
+ "sources": [
+  "The Verge",
+  "Engadget",
+  "TechCrunch"
+ ],
+ "source_urls": [
+  "https://www.theverge.com/policy/1042620/character-ai-sale-state-ags-block-selling-users-chats",
+  "https://techcrunch.com/2026/11/25/state-ags-fight-character-ais-plan-to-auction-off-users-private-chats/",
+  "https://www.engadget.com/2328630/state-ags-are-trying-to-stop-characterai-from-auctioning-off-users-chat-histories/"
+ ],
+ "credit": "Photo: Abigor, CC BY-SA 3.0, via Wikimedia Commons"
+}
