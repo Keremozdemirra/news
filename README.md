@@ -47,7 +47,7 @@ Instagram fetches each JPEG from its raw URL on the `media` branch, which is why
 | `aidaily/copy.py` | the copy prompt and the checks against the source text |
 | `aidaily/templates.py`, `render.py` | 1080x1350 cards and the daily cover, rendered by headless Chrome, saved as JPEG |
 | `aidaily/desk.py` | queue, publish, replies, weekly weights, token check |
-| `aidaily/instagram.py` | the Instagram API calls (graph.instagram.com, v27.0) |
+| `aidaily/instagram.py` | the Instagram API calls (graph.facebook.com with a unified-login system-user token, v27.0) |
 | `aidaily/github.py` | the veto issues |
 | `desk.json` | caps, window, hashtags, skipped topics |
 | `aidaily/site.py` | the pages at keremozdemir.de/news: latest stories, one page per story, weekly issues, RSS |

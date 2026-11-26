@@ -156,10 +156,16 @@ def main(argv=None):
     sub.add_parser("insights", help="weekly numbers and category weights")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("site", help="build the news pages into _site/")
+    sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
     args = p.parse_args(argv)
     if args.cmd == "serve":
         from . import server
         server.serve(args.port)
+        return 0
+    if args.cmd == "ping":
+        from .instagram import Client
+        c = Client()
+        print(f"account: @{c.own_username()}; quota: {c.quota()}")
         return 0
     if args.cmd == "site":
         from . import site

@@ -17,7 +17,10 @@ import urllib.request
 
 from .feeds import CTX
 
-HOST = "https://graph.instagram.com"
+# Meta's apps created after 2025 use "API setup with Unified login": a system-user token that never
+# expires, on graph.facebook.com. Older Instagram-login tokens live on graph.instagram.com.
+HOST = os.environ.get("IG_API_HOST", "https://graph.facebook.com")
+SYSTEM_TOKEN = "graph.facebook.com" in HOST
 VERSION = os.environ.get("IG_API_VERSION", "v27.0")
 
 
@@ -116,7 +119,8 @@ class Client:
                          {"recipient": json.dumps({"comment_id": comment_id}), "message": json.dumps({"text": text})})
 
     def own_username(self):
-        return self.call("GET", "me", {"fields": "username"}).get("username", "")
+        # "me" is the system user under a unified-login token, so ask the Instagram account itself
+        return self.call("GET", self.user_id, {"fields": "username"}).get("username", "")
 
     # insights
 
@@ -135,12 +139,15 @@ class Client:
         return out
 
     def followers(self):
-        return self.call("GET", "me", {"fields": "followers_count,media_count"})
+        return self.call("GET", self.user_id, {"fields": "followers_count,media_count"})
 
     # token
 
     def refresh(self):
-        """Extends a long-lived token by 60 days. Returns seconds until expiry; the token itself is not returned."""
+        """Extends a long-lived token by 60 days. Returns seconds until expiry; the token itself is not returned.
+        A system-user token never expires, so there is nothing to refresh."""
+        if SYSTEM_TOKEN:
+            return {"expires_in": 10 ** 9, "changed": False}
         got = self.call("GET", "refresh_access_token", {"grant_type": "ig_refresh_token"}, versioned=False)
         if got.get("access_token") and got["access_token"] != self.token:
             # the stored secret must be replaced by hand; the new value never goes to a log
