@@ -39,7 +39,8 @@ class Tmp(unittest.TestCase):
         d = desk.QUEUE / pid
         d.mkdir(parents=True)
         post = {"id": pid, "created": desk.now().isoformat(), "publish_after": (desk.now() - timedelta(minutes=1)).isoformat(),
-                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 stories.", "urls": ["u"]}
+                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 stories.", "urls": ["u"],
+                "headlines": ["Lab ships a model"], "topic": "Tech"}
         post.update(kw)
         (d / "post.json").write_text(json.dumps(post))
         return d / "post.json"
@@ -535,3 +536,29 @@ class Logos(unittest.TestCase):
                "linkedin_post": "", "company": "SpaceX", "backer": "Boston Consulting Group", "orgs": ["SpaceX", "BCG"]}
         copy.apply([s], [row])
         self.assertEqual((s["company"], s["backer"], s["orgs"]), ("SpaceX", "", ["SpaceX"]))
+
+
+class Audit(Tmp):
+    def good(self, **kw):
+        p = {"headlines": ["FCC clears SpaceX to deploy 1 million satellites"], "topic": "Tech", "logo_names": ["SpaceX"],
+             "body": "The FCC authorized SpaceX. Boston Consulting Group estimates costs stay high.", "dek": "",
+             "caption": "FCC clears SpaceX\n\n#news #business #spacex", "photo_file": "Earth.jpg", "credit": "Photo: NASA"}
+        p.update(kw)
+        return p
+
+    def test_clean_post_passes(self):
+        self.assertEqual(desk.audit(self.good()), [])
+
+    def test_each_mistake_holds_the_post(self):
+        self.assertIn("logo for Boston Consulting Group, which the headline does not name",
+                      desk.audit(self.good(logo_names=["SpaceX", "Boston Consulting Group"])))
+        self.assertTrue(desk.audit(self.good(topic="Culture")))
+        self.assertTrue(desk.audit(self.good(caption="x #news #news")))
+        self.assertTrue(desk.audit(self.good(credit="")))
+        self.assertTrue(desk.audit(self.good(dek="A game-changer for the landscape")))
+        self.assertTrue(desk.audit(self.good(person="Sam Altman")))
+
+    def test_held_post_is_not_published(self):
+        p = self.write_post("a", headlines=["FCC clears SpaceX"], topic="Culture", caption="c")
+        self.assertEqual(desk.publish(client=FakeIG()), 0)
+        self.assertEqual(json.loads(p.read_text())["status"], "held")

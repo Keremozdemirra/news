@@ -74,7 +74,7 @@ FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 def _recent_posts(days):
     cut = now() - timedelta(days=days)
-    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed", "deleted")
+    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed", "deleted", "held")
             and datetime.fromisoformat(p["created"]) > cut]
 
 
@@ -148,6 +148,40 @@ def caption(m, s):
              CONFIG["source_line"], CONFIG["send_line"], "", " ".join(hashtags(m, s))]
     text = "\n".join(lines)
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
+
+
+SLOP = re.compile(r"\b(delve|game[- ]changer|landscape|unlock|revolutioni[sz]e|it'?s worth noting|in today'?s|"
+                  r"buckle up|here'?s what|everything you need to know|must[- ]read|you won'?t believe|"
+                  r"not just|a testament|navigat(e|ing) the)\b", re.I)
+TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"}
+
+
+def audit(post):
+    """Fixed checks a post must pass before it is queued and again before it is published. Any problem holds it."""
+    problems = []
+    head_ = post["headlines"][0]
+    if post.get("topic") not in TOPICS:
+        problems.append(f"topic {post.get('topic')!r} is not one of the eight")
+    if post.get("topic") == "Culture" and not copy.CULTURE.search(head_ + " " + post.get("body", "")):
+        problems.append("Culture label on a story with no culture in it")
+    for n in post.get("logo_names", []):
+        if not R.T.in_headline(n, head_.lower()):
+            problems.append(f"logo for {n}, which the headline does not name")
+    if post.get("person") and post["person"].split()[-1].lower() not in (head_ + " " + post.get("body", "")).lower():
+        problems.append(f"photo of {post['person']}, who the text does not name")
+    if post.get("photo_file") and not post.get("credit"):
+        problems.append("photo without a credit line")
+    cap = post.get("caption", "")
+    tags = re.findall(r"#\w+", cap)
+    if len(tags) > 5 or len(set(tags)) != len(tags):
+        problems.append(f"hashtags {tags}")
+    if len(cap) > 2200:
+        problems.append("caption over 2,200 characters")
+    for text in (head_, post.get("dek", ""), post.get("body", ""), cap):
+        m = SLOP.search(text or "")
+        if m:
+            problems.append(f"stock phrase {m.group(0)!r}")
+    return problems
 
 
 def story_frame(img, kicker="New post"):
@@ -357,11 +391,15 @@ def queue(day_dir, batch=None, render=True):
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
-                "person": s.get("person", ""), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
+                "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.", u)][:5],
                 "credit": s.get("_assets", {}).get("credit", "")}
+        problems = audit(post)
+        if problems:
+            post.update(status="held", held=problems)
+            print(f"held {out.name}: {'; '.join(problems)}")
         _save(out / "post.json", post)
         made.append(out / "post.json")
         print(f"queued {out.name}: {m['headline'][:60]} at {slot:%H:%M} UTC")
@@ -443,6 +481,12 @@ def publish(client=None, dry=False):
             _save(path, post)
             print(f"{post['id']}: vetoed")
             _close_if_done(post.get("issue"))
+            continue
+        problems = audit(post)
+        if problems:
+            post.update(status="held", held=problems)
+            _save(path, post)
+            print(f"{post['id']}: held: {'; '.join(problems)}")
             continue
         if published_last_24h() >= CONFIG["api_daily_limit"]:
             print("Instagram's 24-hour publishing limit reached; waiting")
