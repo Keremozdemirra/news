@@ -5,6 +5,7 @@ writes out/<date>/digest.json, digest.md and feeds.log.
 """
 import argparse
 import json
+import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -181,8 +182,23 @@ def main(argv=None):
         return 0
     if args.cmd == "ping":
         from .instagram import Client
-        c = Client()
-        print(f"account: @{c.own_username()}; quota: {c.quota()}")
+        c = Client() if os.environ.get("IG_TOKEN") else None
+        if os.environ.get("IG_TOKEN"):
+            print(f"account: @{c.own_username()}; quota: {c.quota()}")
+        from . import platforms
+        for name, cls in platforms.CLIENTS.items():
+            try:
+                client = cls()
+            except platforms.Missing:
+                print(f"{name}: no secrets")
+                continue
+            if not hasattr(client, "check"):
+                print(f"{name}: secrets set, no check yet")
+                continue
+            try:
+                print(f"{name}: {client.check()}")
+            except Exception as e:  # noqa: BLE001  report every platform, not only the first broken one
+                print(f"{name}: FAILED {e}")
         return 0
     if args.cmd == "site":
         from . import site

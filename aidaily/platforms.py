@@ -133,6 +133,8 @@ class Client:
         self.env = {k: os.environ.get(k, "") for k in self.secrets}
         if not all(self.env.values()):
             raise Missing(", ".join(self.secrets))
+        if self.env.get("BSKY_HANDLE"):
+            self.env["BSKY_HANDLE"] = self.env["BSKY_HANDLE"].strip().lstrip("@")
 
     def _scrub(self, text):
         for v in self.env.values():
@@ -258,6 +260,12 @@ class Bluesky(Client):
             return json.loads(self._open(req, f"bluesky {name}"))
         return self.json(f"{self.host}/xrpc/{name}", body, f"bluesky {name}", headers)
 
+    def check(self):
+        """Logs in and posts nothing: proves the handle and app password before the platform is switched on."""
+        sess = self.xrpc("com.atproto.server.createSession",
+                         {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
+        return f"logged in as @{sess.get('handle')}"
+
     def post(self, post):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
@@ -297,6 +305,15 @@ class Telegram(Client):
         if not got.get("ok"):
             raise PlatformError(self._scrub(f"telegram {method}: {json.dumps(got)[:300]}"))
         return got["result"]
+
+    def check(self):
+        """Reads the bot and the channel and posts nothing; fails if the bot cannot post there."""
+        bot = self.call("getMe", {})
+        chat = self.call("getChat", {"chat_id": self.env["TG_CHANNEL"]})
+        member = self.call("getChatMember", {"chat_id": self.env["TG_CHANNEL"], "user_id": bot["id"]})
+        if member.get("status") != "creator" and not member.get("can_post_messages"):
+            raise PlatformError(f"telegram: @{bot.get('username')} is not allowed to post in {chat.get('title')}")
+        return f"bot @{bot.get('username')} can post in {chat.get('title')} (@{chat.get('username') or 'private'})"
 
     def post(self, post):
         urls = _images(post)[:10]
