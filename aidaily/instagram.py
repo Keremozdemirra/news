@@ -16,6 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import redact
 from .feeds import CTX
 
 # Meta's apps created after 2025 use "API setup with Unified login": a system-user token that never
@@ -41,7 +42,7 @@ class Client:
             raise IGError("IG_TOKEN and IG_USER_ID must be set")
 
     def _scrub(self, text):
-        return (text or "").replace(self.token, "<token>")
+        return redact.scrub((text or "").replace(self.token, "<token>"))
 
     def call(self, method, path, params=None, versioned=True):
         url = f"{HOST}/{VERSION}/{path}" if versioned else f"{HOST}/{path}"
@@ -121,7 +122,7 @@ class Client:
     def recent_media(self, limit=25):
         """The account's newest feed posts, newest first. The duplicate check reads this before every publish."""
         return self.call("GET", f"{self.user_id}/media",
-                         {"fields": "id,caption,timestamp,permalink", "limit": limit}).get("data", [])
+                         {"fields": "id,caption,timestamp,permalink,comments_count", "limit": limit}).get("data", [])
 
     def quota(self):
         rows = self.call("GET", f"{self.user_id}/content_publishing_limit", {"fields": "quota_usage,config"}).get("data", [])
@@ -209,6 +210,15 @@ class Client:
         return self.call("GET", self.user_id, {"fields": "followers_count,media_count"})
 
     # token
+
+    def token_expiry(self):
+        """When IG_TOKEN stops working, from Meta's debug_token (a token may inspect itself): the earlier of
+        expires_at and data_access_expires_at as a UTC datetime, or None when Meta reports no end (a system-user
+        token). refresh() assumes a token on graph.facebook.com never expires; this is what checks that."""
+        from datetime import datetime, timezone
+        got = self.call("GET", "debug_token", {"input_token": self.token}).get("data", {})
+        ends = [v for v in (got.get("expires_at"), got.get("data_access_expires_at")) if v]
+        return datetime.fromtimestamp(min(ends), timezone.utc) if ends else None
 
     def refresh(self):
         """Extends a long-lived token by 60 days. Returns seconds until expiry; the token itself is not returned.

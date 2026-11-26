@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from . import copy, github
+from . import copy, github, redact
 from . import render as R
 
 HERE = Path(__file__).resolve().parent.parent
@@ -48,8 +48,11 @@ def _load(p, default):
 
 
 def _save(p, data):
+    """Every queue and state file is committed to a public repository: errors are scrubbed of anything
+    token-shaped, and the whole file of the secret values themselves (redact.py)."""
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(redact.scrub_data(data), indent=1, ensure_ascii=False) + "\n"
+    p.write_text(redact.scrub(text, patterns=False))
 
 
 def posts():
@@ -1142,8 +1145,27 @@ def find_live(media, post):
 
 
 def platform_cooldown(name):
-    until = _load(STATE / f"cooldown-{name}.json", {}).get("until")
-    return datetime.fromisoformat(until) if until and datetime.fromisoformat(until) > now() else None
+    got = _load(STATE / f"cooldown-{name}.json", {})
+    until = got.get("until")
+    if not until or datetime.fromisoformat(until) <= now():
+        return None
+    if got.get("auth") and got.get("token"):
+        from . import platforms
+        if platforms.fingerprint(name) not in ("", got["token"]):
+            return None  # the owner stored a new credential: try it now, not when the day is up
+    return datetime.fromisoformat(until)
+
+
+def platform_pause(name, error, auth=False):
+    """A platform refused: a rate limit or block (24 h), or a credential it no longer accepts (24 h, or until the
+    secret changes). Either way every further call that day would only fail again."""
+    from . import platforms
+    until = now() + timedelta(hours=COOLDOWN_HOURS)
+    got = {"until": until.isoformat(timespec="seconds"), "set": now().isoformat(timespec="seconds"), "error": str(error)[:300]}
+    if auth:
+        got.update(auth=True, token=platforms.fingerprint(name))
+    _save(STATE / f"cooldown-{name}.json", got)
+    print(f"{name}: {'credential rejected' if auth else 'rate limited'}, paused until {until:%Y-%m-%d %H:%M} UTC")
 
 
 def platform_sent_last_24h(name):
@@ -1230,6 +1252,23 @@ def cross_post(post, path, factories=None, names=None):
             client = (factories or platforms.CLIENTS)[name]()
         except platforms.Missing:
             continue  # not connected yet
+        if hasattr(client, "find"):
+            # the same rule as Instagram: look at the account before sending. A send whose status commit was lost
+            # (a failed push, a killed runner) is found here and recorded instead of going out a second time.
+            try:
+                live = client.find(post)
+            except Exception as e:  # noqa: BLE001  no answer is not "not there": leave it for the next run
+                text = str(e)
+                if platforms.AUTH.search(text) or platforms.BLOCKED.search(text):
+                    platform_pause(name, text, auth=bool(platforms.AUTH.search(text)))
+                print(f"{post['id']}: {name}: could not check the account, not sent now: {text[:200]}")
+                continue
+            if live:
+                post["platforms"][name] = {"id": live["id"], "url": live.get("url", ""), "at": now().isoformat(timespec="seconds"),
+                                           "found_live": True}
+                _save(path, post)
+                print(f"{post['id']}: {name}: already live, recorded {live.get('url', '')}")
+                continue
         post["platforms"][name] = {"attempted": now().isoformat(timespec="seconds")}
         _save(path, post)  # on disk before the call, same as Instagram
         try:
@@ -1241,9 +1280,10 @@ def cross_post(post, path, factories=None, names=None):
         except Exception as e:  # noqa: BLE001
             text = str(e)
             post["platforms"][name]["error"] = text[:300]
-            if platforms.BLOCKED.search(text):
-                until = now() + timedelta(hours=COOLDOWN_HOURS)
-                _save(STATE / f"cooldown-{name}.json", {"until": until.isoformat(timespec="seconds"), "error": text[:300]})
+            if platforms.AUTH.search(text):
+                platform_pause(name, text, auth=True)
+            elif platforms.BLOCKED.search(text):
+                platform_pause(name, text)
             print(f"{post['id']}: {name}: failed, not retried: {text[:200]}")
         _save(path, post)
 
@@ -1663,6 +1703,18 @@ def engage(client=None, ask=copy.ask_text, dry=False):
         return 0
     cut = now() - timedelta(days=CONFIG["reply_window_days"])
     sent = dms = 0
+    # One call reads the comment count of the newest posts; a post whose count has not moved since the last run is
+    # not read again. Reading every post of the week every ten minutes was hundreds of calls an hour against Meta's
+    # per-account request budget, the same budget whose exhaustion ("Application request limit reached") blocks
+    # publishing. A post missing from the list, or a failed list call, is read the old way.
+    try:
+        counts = {m["id"]: m.get("comments_count") for m in client.recent_media(limit=50) if "comments_count" in m}
+    except Exception as e:  # noqa: BLE001
+        if note_block(e):
+            print(f"could not read the account's posts, no replies now: {str(e)[:160]}")
+            return 0
+        counts = {}
+    seen = log.setdefault("counts", {})
 
     def save():
         # after every comment: a crash later in the run must not lose what was already answered
@@ -1673,6 +1725,9 @@ def engage(client=None, ask=copy.ask_text, dry=False):
         if (post.get("status") != "published" or post.get("kind") == "story"
                 or datetime.fromisoformat(post["published"]) < cut):
             continue
+        count = counts.get(post["media_id"])
+        if count is not None and seen.get(post["media_id"]) == count:
+            continue  # nothing new under this post since it was last read
         try:
             comments = client.comments(post["media_id"])
         except Exception as e:  # noqa: BLE001  one unreadable post must not stop replies on the others
@@ -1680,7 +1735,7 @@ def engage(client=None, ask=copy.ask_text, dry=False):
             if note_block(e):
                 break
             continue
-        halted = False
+        halted = waiting = False
         for c in comments:
             if halted:  # Instagram blocked the account: every further call digs the hole deeper
                 break
@@ -1692,6 +1747,7 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 continue
             is_source = bool(KEYWORD.search(c.get("text", "")))
             if not is_source and budget <= 0:
+                waiting = True  # left for tomorrow's budget, so the post must be read again
                 continue
             # judged once, replied or not: recorded before anything is sent, so a failure here is never retried
             log["answered"].append(c["id"])
@@ -1743,6 +1799,11 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 save()
         if halted:
             break
+        if count is not None and not waiting:
+            seen[post["media_id"]] = count
+    # only posts still in the reply window are worth remembering
+    live = {p.get("media_id") for p, _ in posts()}
+    log["counts"] = {k: v for k, v in seen.items() if k in live and k in counts}
     save()
     print(f"source DMs: {dms}, replies sent: {sent}")
     return sent + dms

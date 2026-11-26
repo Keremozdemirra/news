@@ -16,9 +16,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from . import desk, entities
+from . import desk, entities, redact
 from .feeds import CTX
 
 NAMES = ("threads", "facebook", "bluesky", "telegram")
@@ -27,6 +27,31 @@ NAMES = ("threads", "facebook", "bluesky", "telegram")
 # Telegram flood control (retry_after)
 BLOCKED = re.compile(r"HTTP 429|rate.?limit|RateLimitExceeded|retry_after|\"code\":\s*(4|17|32|613)\b|"
                      r"temporarily blocked|Action is blocked|Too Many Requests", re.I)
+
+
+# the platform no longer accepts the credential: Meta OAuth code 190 (expired or revoked token), Bluesky's
+# AuthenticationRequired / ExpiredToken, Telegram's 401. Retrying cannot fix it; the owner has to store a new secret.
+AUTH = re.compile(r"\"code\":\s*190\b|Error validating access token|Session has expired|InvalidToken|ExpiredToken|"
+                  r"AuthenticationRequired|Invalid identifier or password|HTTP 401|\"error_code\":\s*401\b|Unauthorized", re.I)
+
+# the secret whose change ends an auth cooldown: a renewed token is tried at once, not a day later
+CREDENTIAL = {"threads": "THREADS_TOKEN", "facebook": "FB_PAGE_TOKEN", "bluesky": "BSKY_APP_PASSWORD", "telegram": "TG_BOT_TOKEN"}
+
+
+def fingerprint(name):
+    """Eight hex characters of the SHA-256 of the platform's credential: enough to notice a new secret, nothing
+    that helps anyone guess it."""
+    import hashlib
+    v = os.environ.get(CREDENTIAL.get(name, ""), "")
+    return hashlib.sha256(v.encode()).hexdigest()[:8] if v else ""
+
+
+def _same_line(a, b):
+    return " ".join((a or "").split()).casefold() == " ".join((b or "").split()).casefold()
+
+
+# secrets that name an account rather than unlock it; kept readable in errors
+PUBLIC_IDS = ("THREADS_USER_ID", "FB_PAGE_ID", "BSKY_HANDLE", "TG_CHANNEL")
 
 
 class Missing(RuntimeError):
@@ -204,10 +229,11 @@ class Client:
             self.env["BSKY_HANDLE"] = self.env["BSKY_HANDLE"].strip().lstrip("@")
 
     def _scrub(self, text):
-        for v in self.env.values():
-            if v:
-                text = text.replace(v, "<secret>").replace(urllib.parse.quote(v, safe=""), "<secret>")
-        return text
+        # identifiers (THREADS_USER_ID is "me") are not credentials: replacing them garbled every error message
+        creds = [v for k, v in self.env.items() if v and k not in PUBLIC_IDS and len(v) >= 4]
+        for v in sorted(creds, key=len, reverse=True):
+            text = text.replace(v, "<secret>").replace(urllib.parse.quote(v, safe=""), "<secret>")
+        return redact.scrub(text)
 
     def _open(self, req, label):
         try:
@@ -260,6 +286,20 @@ class Threads(Client):
                 raise PlatformError(f"threads container {container}: {got.get('status')} {got.get('error_message', '')}")
             self.sleep(pause)
         raise PlatformError(f"threads container {container}: not ready after {tries * pause}s")
+
+    def find(self, post):
+        """This story already on the profile: a post whose first line is the headline as threads_text writes it,
+        not older than the queue entry. Run before every send, so a lost status commit never means a second post."""
+        head = threads_text(post).split("\n", 1)[0]
+        born = desk._stamp(post.get("created", ""))
+        got = self.call("GET", f"{self.env['THREADS_USER_ID']}/threads", {"fields": "id,text,permalink,timestamp", "limit": 25})
+        for t in got.get("data", []):
+            seen = desk._stamp(t.get("timestamp", ""))
+            if born and seen and seen < born - timedelta(minutes=5):
+                continue
+            if _same_line((t.get("text") or "").split("\n", 1)[0], head):
+                return {"id": t["id"], "url": t.get("permalink", "")}
+        return None
 
     def check(self):
         """Reads the profile the token belongs to and posts nothing."""
@@ -348,6 +388,26 @@ class Facebook(Client):
         self.page_token()
         return f"page {self.page_name!r} reachable" + (" (stored token is the Page token)" if self._page_token == self.env["FB_PAGE_TOKEN"] else " (Page token read through the user token)")
 
+    def find(self, post):
+        """This story already on the Page: a post whose text carries the story's own page address."""
+        page, url = self.env["FB_PAGE_ID"], story_page(post)
+        got = self.form("GET", f"{self.host}/{self.version}/{page}/posts",
+                        {"fields": "id,message,permalink_url,created_time", "limit": 25, "access_token": self.page_token()},
+                        "facebook GET posts")
+        for m in got.get("data", []):
+            if url in (m.get("message") or ""):
+                return {"id": m["id"], "url": m.get("permalink_url") or f"https://www.facebook.com/{m['id']}"}
+        return None
+
+    def token_expiry(self):
+        """When the stored token stops working, from Meta's debug_token (a token may inspect itself): the earlier of
+        expires_at and data_access_expires_at, as a datetime, or None when Meta reports no end. Posts nothing."""
+        tok = self.env["FB_PAGE_TOKEN"]
+        got = self.form("GET", f"{self.host}/{self.version}/debug_token", {"input_token": tok, "access_token": tok},
+                        "facebook GET debug_token").get("data", {})
+        ends = [v for v in (got.get("expires_at"), got.get("data_access_expires_at")) if v]
+        return datetime.fromtimestamp(min(ends), timezone.utc) if ends else None
+
     def post(self, post):
         self.page_token()
         page = self.env["FB_PAGE_ID"]
@@ -383,6 +443,22 @@ class Bluesky(Client):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         return f"logged in as @{sess.get('handle')}"
+
+    APPVIEW = os.environ.get("BSKY_APPVIEW", "https://public.api.bsky.app")
+
+    def find(self, post):
+        """This story already on the profile: a recent post whose link card points at the story page. The public
+        AppView answers without logging in, so the check costs no session."""
+        url = story_page(post)
+        got = self.form("GET", f"{self.APPVIEW}/xrpc/app.bsky.feed.getAuthorFeed",
+                        {"actor": self.env["BSKY_HANDLE"], "limit": 30, "filter": "posts_no_replies"}, "bluesky getAuthorFeed")
+        for item in got.get("feed", []):
+            p = item.get("post") or {}
+            ext = ((p.get("record") or {}).get("embed") or {}).get("external") or {}
+            if ext.get("uri") == url:
+                rkey = p.get("uri", "").rsplit("/", 1)[-1]
+                return {"id": p.get("uri", ""), "url": f"https://bsky.app/profile/{self.env['BSKY_HANDLE']}/post/{rkey}"}
+        return None
 
     def post(self, post):
         sess = self.xrpc("com.atproto.server.createSession",
