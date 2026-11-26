@@ -93,6 +93,20 @@
     list[at].scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   });
 
+
+  // "2h 14m ago" on the Board: the page is built a few times a day, so the age is worked out here; without the script the date stays
+  var ages = document.querySelectorAll("time[data-age]");
+  if (ages.length) {
+    var tick = function () {
+      var now = Date.now();
+      ages.forEach(function (t) {
+        var m = Math.max(0, Math.round((now - Date.parse(t.getAttribute("datetime"))) / 60000));
+        t.textContent = m < 60 ? m + "m ago" : m < 1440 ? Math.floor(m / 60) + "h " + ("0" + (m % 60)).slice(-2) + "m ago" : Math.floor(m / 1440) + "d ago";
+      });
+    };
+    tick(); setInterval(tick, 60000);
+  }
+
   // quiz: the answer is in the page (inside a details element, so it works without this script); a click only marks the choice
   var quiz = document.querySelector("[data-quiz]");
   if (quiz) {

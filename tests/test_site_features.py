@@ -96,9 +96,10 @@ class Features(Tmp):
 
     def test_brief_has_at_most_eight_stories_end_marker_archive_and_nav_link(self):
         h = self.read("brief/index.html")
-        self.assertLessEqual(h.count('<span class="h-m">'), 8)
-        self.assertGreaterEqual(h.count('<span class="h-m">'), 5)
-        self.assertRegex(h, r"That(&#x27;|')s the brief\.")
+        self.assertLessEqual(h.count('<article class="bn">'), 8)
+        self.assertGreaterEqual(h.count('<article class="bn">'), 5)
+        self.assertIn("End of the brief.", h)  # the column ends, with the closing mark
+        self.assertIn("&ndash; 30 &ndash;", h)
         self.assertTrue((self.out / "brief" / "2026-11-26" / "index.html").exists())
         self.assertIn(f'href="{site.BASE}/brief/"', self.read("index.html"))
         self.assertNotIn("Earlier briefs", h)  # one day of stories: no empty heading
@@ -168,3 +169,28 @@ class Features(Tmp):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Chrome(Features):
+    """The masthead, navigation and markets of the broadsheet design."""
+
+    def test_nav_lists_only_pages_that_exist_and_names_the_quiz_until_play_ships(self):
+        h = self.read("index.html")
+        for href in ("/brief/", "/numbers/", "/week/", "/search/", "/quiz/"):
+            self.assertIn(f'href="{site.BASE}{href}"', h)
+        for gone in ("/board/", "/feed/", "/paper/", "/play/"):  # not shipped: no menu entry, no page
+            self.assertNotIn(f'class="cap" href="{site.BASE}{gone}"', h)
+            self.assertFalse((self.out / gone.strip("/") / "index.html").exists(), gone)
+
+    def test_masthead_counts_and_archivo_headlines_are_self_hosted(self):
+        h = self.read("index.html")
+        self.assertIn("Articles today", h)
+        self.assertIn("Archivo-var.woff2", h)
+        self.assertTrue((self.out / "fonts" / "Archivo-var.woff2").exists())
+        self.assertIn("Archivo", (self.out / "fonts" / "OFL.txt").read_text())
+
+    def test_numbers_page_shows_the_figure_and_no_oil_row_without_a_key(self):
+        h = self.read("numbers/index.html")
+        self.assertIn("10,000", h)
+        self.assertNotIn("Brent", h)
+        self.assertNotIn("Pending", h)

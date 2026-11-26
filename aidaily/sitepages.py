@@ -8,8 +8,9 @@ import shutil
 from datetime import timedelta
 from email.utils import format_datetime
 
-from . import desk, outlets
+from . import desk, markets, outlets, play
 from . import site as S
+from . import views as V
 
 BRIEF_N = 8
 E = S.E
@@ -25,13 +26,25 @@ def brief_rows(shown, day):
     return S.by_score(pool)[:BRIEF_N]
 
 
-def brief_page(shown, day):
+def brief_words(rows):
+    """Words in the brief and the seconds it takes to read them at a scanning pace (about 205 words a minute)."""
+    words = sum(len((p["headlines"][0] + " " + p.get("dek", "")).split()) for p in rows)
+    return words, round(words / 3.4)
+
+
+def brief_page(shown, day, m=None):
+    """The brief of a day: a finite column of the top articles, one block each, ending with the closing mark."""
     rows = brief_rows(shown, day)
-    items = "".join(f'<li><a href="{S.href(p)}"><span class="h-m">{E(p["headlines"][0])}</span>'
-                    f'{S.meta(E(S.topic(p)), S.t_tag(p), S.cover(p))}</a></li>' for p in rows)
-    return (S.pagehead("The brief", f"{S.day_label(day)}. The day's top {len(rows)} articles, one line each, about a minute.")
-            + f'<div class="brief"><ol>{items}</ol><p class="end">That\'s the brief.</p>'
-              f'<p class="after"><a href="{S.BASE}/quiz/">Play today\'s quiz</a><a href="{S.BASE}/latest/">Everything else, newest first</a></p></div>')
+    words, sec = brief_words(rows)
+    items = "".join(f'<article class="bn"><b>{k}</b><div><div class="cap dm">{E(S.topic(p))}</div><h2><a class="hl" href="{S.href(p)}">{E(p["headlines"][0])}</a></h2>'
+                    f'<p>{E(p.get("dek", ""))}</p><div class="mt cap">{S.hhmm(p["published"])} UTC &middot; {V.nroom(p)} {V.seats(p)}</div></div></article>'
+                    for k, p in enumerate(rows, 1))
+    more = len([p for p in shown if S.day_of(p["published"]) == day]) - len(rows)
+    stop = (f'<div class="stop"><b>&ndash; 30 &ndash;</b><p>End of the brief. {V.PLURAL(len(rows), "article")}, {words} words, about {sec // 60} minute{"" if sec // 60 == 1 else "s"} '
+            f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
+            f'<a class="btn" href="{S.BASE}/board/">The Board</a> <a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a></div>')
+    head = V.head(S.day_label(day), "In<br>brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read. It ends.")
+    return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
 def quiz_questions(shown):
@@ -148,25 +161,56 @@ def feed_for(out, shown_rows, path, title, link):
     (d / "feed.xml").write_text(S.rss(title, link, items, self_path=f"{path}feed.xml"))
 
 
+def build_views(out, shown, sm, m, days):
+    """The Board, the Feed, the weekly cover, the numbers and Yesterday's paper with its dated editions."""
+    if not shown:
+        return
+    latest = S.iso(shown[0]["published"])
+    pages = (("/board/", "The Board · boardread.", lambda: V.board(shown, m), "Every article as a departure: the newest first, who reported it, the names in the news and a wire.", "board"),
+             ("/feed/", "The Feed · boardread.", lambda: V.feed(shown), "The news as cards: photo cards and text cards, the biggest first.", "feed"),
+             ("/cover/", "The weekly cover · boardread.", lambda: V.cover_page(shown), "The week's top articles as one shareable card.", "feed"),
+             ("/numbers/", "The numbers · boardread.", lambda: V.numbers_page(shown, m), "The figures in the news and the official rate series behind them.", "numbers"))
+    for path, title, body, desc, active in pages:
+        if active not in S.SHIPPED:  # a page is built only once it has shipped, so no menu or link points at a missing page
+            continue
+        S.put(out, path, S.page(title, body(), desc, path, active=active, body_class="v-" + active))
+        sm.append((S.SITE + path, latest))
+    if "paper" not in S.SHIPPED:
+        return
+    ed = V.edition_day(shown)
+    eds = sorted({S.day_of(p["published"]) for p in shown}, reverse=True)
+    for path, day in [("/paper/", ed)] + [(f"/paper/{d}/", d) for d in eds]:
+        S.put(out, path, S.page(f"Yesterday's paper, {S.day_label(day)} · boardread.", V.paper_page(shown, m, day, eds),
+                                f"The paper of {S.day_label(day)}: six pages of the day's news to turn.", path, active="paper",
+                                styles=("views", "paper"), scripts=("paper",), body_class="v-paper"))
+        sm.append((S.SITE + path, latest))
+
+
 def build(out, shown, sm, cos):
     """Pages: /brief/ and its dated archive, /quiz/, /how-it-works/, /c/<slug>/ and the per-topic and per-company feeds."""
     latest = S.iso(shown[0]["published"]) if shown else None
+    m = S.MARKETS
     days = list(dict.fromkeys(S.day_of(p["published"]) for p in shown))
     if shown:
-        earlier = ('<div class="prose"><h2>Earlier briefs</h2><ul class="past">'
+        earlier = ('<div class="prose past-wrap"><h2>Earlier briefs</h2><ul class="past">'
                    + "".join(f'<li><a href="{S.BASE}/brief/{d}/">{S.day_label(d)}</a></li>' for d in days[1:30]) + "</ul></div>") if days[1:] else ""
-        S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, days[0]) + earlier,
-              "The day's top articles in about a minute, one line each.", "/brief/", active="brief"))
+        S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, days[0], m) + earlier,
+              "The day's top articles in about a minute, one block each. It ends.", "/brief/", active="brief"))
         for d in days:
-            S.put(out, f"/brief/{d}/", S.page(f"The brief, {S.day_label(d)} · boardread.", brief_page(shown, d),
-                                              f"The top articles of {S.day_label(d)}, one line each.", f"/brief/{d}/", active="brief"))
+            S.put(out, f"/brief/{d}/", S.page(f"The brief, {S.day_label(d)} · boardread.", brief_page(shown, d, m),
+                                              f"The top articles of {S.day_label(d)}, one block each.", f"/brief/{d}/", active="brief"))
             sm.append((f"{S.SITE}/brief/{d}/", S.iso(brief_rows(shown, d)[0]["published"])))
     else:
         S.put(out, "/brief/", S.page("The brief · boardread.", S.pagehead("The brief") + '<div class="empty">The first brief is on its way.</div>',
                                      "The day's top articles in about a minute.", "/brief/", active="brief"))
-    S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/"))
+    build_views(out, shown, sm, m, days)
+    if "play" in S.SHIPPED:
+        play.build(out, shown, sm)
+    else:  # until the games ship, the questions of the day stay where they were
+        S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/", active="play"))
+        sm.append((S.SITE + "/quiz/", latest))
     S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown), "How the desk turns feeds into articles, with live counts.", "/how-it-works/"))
-    for path in ("/brief/", "/quiz/", "/how-it-works/"):
+    for path in ("/brief/", "/how-it-works/"):
         sm.append((S.SITE + path, latest))
     (out / "img").mkdir(exist_ok=True)
     for slug, (name, rows) in cos.items():

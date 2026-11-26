@@ -31,7 +31,7 @@ from email.utils import format_datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import desk, outlets
+from . import desk, markets, outlets
 
 E = lambda s: html.escape(s or "", quote=True)  # noqa: E731
 # DESK_SITE_URL builds the same pages for another address (a local preview, a staging host) without touching desk.json
@@ -128,12 +128,15 @@ def stats():
     return followers
 
 
-ASSET_V = hashlib.sha1(b"".join((ASSETS / f).read_bytes() for f in ("site.css", "site.js"))).hexdigest()[:8]
+ASSET_FILES = ("site.css", "views.css", "paper.css", "play.css", "site.js", "paper.js", "play.js")
+ASSET_V = hashlib.sha1(b"".join((ASSETS / f).read_bytes() for f in ASSET_FILES if (ASSETS / f).exists())).hexdigest()[:8]
 FACES = (
     "@font-face{font-family:'Libre Franklin';font-weight:400;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-400.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:500;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-500.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:600;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-600.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:800;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-800.woff2') format('woff2')}"
+    # Archivo: one variable file, weight and width axes; the condensed cut (width 62) sets headlines, figures and the flaps
+    "@font-face{font-family:'Archivo';font-weight:100 900;font-stretch:62% 125%;font-style:normal;font-display:swap;src:url('{b}/fonts/Archivo-var.woff2') format('woff2')}"
     # stand-in sized to the web font, so the swap moves nothing
     "@font-face{font-family:'Franklin Fallback';src:local('Arial');size-adjust:103%;ascent-override:92%;descent-override:22%;line-gap-override:0%}"
 ).replace("{b}", BASE)
@@ -189,18 +192,38 @@ def accounts():
     return [a for a in desk.CONFIG.get("accounts", []) if a.get("url")]
 
 
+# What the masthead counts, set by build() before any page is written: articles in the last 24 hours and the newsrooms behind them.
+MARKETS = None  # official rates for the pages that show them, loaded once per build
+MAST = {"articles": 0, "newsrooms": 0}
+# The main navigation. Key is what a page passes as active; Play is the daily word game at /quiz/ (its bonus questions are at /quiz/more/).
+NAV = [("/", "Front page", "front"), ("/board/", "Board", "board"), ("/feed/", "Feed", "feed"), ("/brief/", "Brief", "brief"),
+       ("/quiz/", "Play", "play"), ("/numbers/", "The Numbers", "numbers"), ("/paper/", "Yesterday\u2019s paper", "paper"),
+       ("/week/", "Week", "week"), ("/search/", "Search", "search")]
+
+
+# Pages that have shipped. A view is built, linked from the menu, the footer and the front page only while its key is here.
+SHIPPED = {"numbers"}
+
+
+def nav_items():
+    return [("/quiz/" if k == "play" and "play" not in SHIPPED else h, ("Quiz" if k == "play" and "play" not in SHIPPED else n), k) for h, n, k in NAV
+            if k not in ("board", "feed", "paper", "numbers", "play") or k in SHIPPED or k == "play"]
+
+
 def nav_bar(active):
-    items = [(f"{BASE}/latest/", "Latest", "latest"), (f"{BASE}/brief/", "Brief", "brief")] + [(f"{BASE}/t/{t.lower()}/", t, t.lower()) for t in TOPIC_ORDER] \
-        + [(f"{BASE}/week/", "This week", "week")]
-    links = "".join(f'<li><a href="{h}"{" aria-current=\"page\"" if active == k else ""}>{n}</a></li>' for h, n, k in items)
-    return (f'<div class="sections"><div class="wrap"><nav aria-label="Sections"><ul>{links}</ul></nav>'
-            f'<a class="find kick" href="{BASE}/search/"{" aria-current=\"page\"" if active == "search" else ""}>Search</a></div></div>')
+    here = lambda k: ' aria-current="page"' if active == k else ""  # noqa: E731
+    main = "".join(f'<a class="cap" href="{BASE}{h}"{here(k)}>{n}</a>' for h, n, k in nav_items())
+    topics = [(f"{BASE}/latest/", "Latest", "latest")] + [(f"{BASE}/t/{t.lower()}/", t, t.lower()) for t in TOPIC_ORDER]
+    links = "".join(f'<li><a href="{h}"{here(k)}>{n}</a></li>' for h, n, k in topics)
+    return (f'<nav class="nav" aria-label="Main">{main}</nav>'
+            f'<nav class="topics" aria-label="Sections"><ul>{links}</ul></nav>')
 
 
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
-         noindex=False, rel=None, main_class="", feed=None):
+         noindex=False, rel=None, main_class="", feed=None, styles=("views",), scripts=(), body_class=""):
     """Every page. path is relative to the site root and becomes the canonical and og:url; image is the
-    site-relative link-preview image (the shared default when a article has no photo). rel: {"prev": path, "next": path}."""
+    site-relative link-preview image (the shared default when a article has no photo). rel: {"prev": path, "next": path}.
+    styles and scripts name extra files of assets/ (views, paper, play / paper, play) loaded only by the pages that use them."""
     url = SITE + path
     img = ORIGIN + (image or DEFAULT_OG)
     og_dims = f'<meta property="og:image:width" content="{OG_W}"><meta property="og:image:height" content="{OG_H}">\n' \
@@ -208,19 +231,26 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
     links = "".join(f'<link rel="{k}" href="{E(SITE + v)}">' for k, v in (rel or {}).items())
     # a topic or company page offers its own feed beside the site-wide one: feed = (title, path)
     own_feed = f'<link rel="alternate" type="application/rss+xml" title="{E(feed[0])}" href="{E(SITE + feed[1])}">\n' if feed else ""
-    today = datetime.now(timezone.utc).strftime("%A %-d %B %Y")
-    word = f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>'
-    mast = (f'<div class="mast"><h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>'
-            f'<p class="tag">{TAGLINE}</p></div>') if front else f'<div class="mast">{word}<p class="tag">{TAGLINE}</p></div>'
+    now = datetime.now(timezone.utc)
+    if front:
+        active = "front"
+    word = (f'<h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>' if front
+            else f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>')
+    ix = (f'<div class="ix"><div><b>{MAST["articles"]}</b><span class="cap dm">Articles today</span></div>'
+          f'<div><b>{MAST["newsrooms"]}</b><span class="cap dm">Newsrooms</span></div></div>') if MAST["articles"] else ""
     foot_topics = "".join(f'<li><a href="{BASE}/t/{t.lower()}/">{t}</a></li>' for t in TOPIC_ORDER)
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     nl = desk.CONFIG.get("newsletter_url")
+    foot_names = {"board": "The Board", "feed": "The Feed", "brief": "The brief", "play": "Play", "numbers": "The numbers", "paper": "Yesterday's paper"}
+    foot_views = "".join(f'<li><a href="{BASE}{h}">{n if k == "play" else foot_names[k]}</a></li>' for h, n, k in nav_items() if k in foot_names)
+    css = "".join(f'<link rel="stylesheet" href="{BASE}/assets/{n}.css?v={ASSET_V}">' for n in styles)
+    js = "".join(f'<script src="{BASE}/assets/{n}.js?v={ASSET_V}" defer></script>' for n in scripts)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#0d0d0e" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2ef" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#131313" media="(prefers-color-scheme: dark)">
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
 <link rel="canonical" href="{E(url)}">{links}
@@ -229,6 +259,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 {own_feed}<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{BASE}/fonts/Archivo-var.woff2" as="font" type="font/woff2" crossorigin>
 <meta property="og:site_name" content="{NAME}"><meta property="og:type" content="{og_type}">
 <meta property="og:title" content="{E(og_title or title)}"><meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{E(url)}"><meta property="og:image" content="{E(img)}">
@@ -236,26 +267,26 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="{E(og_title or title)}">
 <meta name="twitter:description" content="{E(desc)}"><meta name="twitter:image" content="{E(img)}">
 {"".join(ld_json(x) for x in (ld if isinstance(ld, list) else [ld])) if ld else ""}
-<style>{FACES}</style><link rel="stylesheet" href="{BASE}/assets/site.css?v={ASSET_V}">
-<script src="{BASE}/assets/site.js?v={ASSET_V}" defer></script></head>
-<body class="{'' if front else 'compact'}">
+<style>{FACES}</style><link rel="stylesheet" href="{BASE}/assets/site.css?v={ASSET_V}">{css}
+<script src="{BASE}/assets/site.js?v={ASSET_V}" defer></script>{js}</head>
+<body class="{'front-page' if front else 'compact'} {body_class}">
 <a class="skip" href="#main">Skip to the news</a>
-<header>
-<div class="top"><div class="wrap"><span class="dates"><span class="dl">{today}</span><span class="ds">{datetime.now(timezone.utc).strftime("%-d %b %Y")}</span></span><nav aria-label="About Boardread"><a href="{BASE}/quiz/">Quiz</a><a href="{BASE}/about/">About</a><a href="{BASE}/standards/">Standards</a><a href="{BASE}/archive/">Archive</a><a href="{BASE}/feed.xml">RSS</a></nav>
-<ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul></div></div>
-<div class="wrap">{mast}</div>
+<header class="mh"><div class="wrap">
+<div class="strip cap"><span class="dates"><span class="dl">{now.strftime("%A %-d %B %Y")}</span><span class="ds">{now.strftime("%-d %b %Y")}</span></span><span class="ed">Edition of {now.strftime("%H:%M")} UTC &middot; all times UTC</span>
+<ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul></div>
+<div class="np">{word}{ix}</div><div class="dbl"></div>
 {nav_bar(active)}
-</header>
+</div></header>
 <main id="main" class="wrap {main_class}">{body}</main>
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">
 <div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every article with its sources linked.</p></div>
 <div><h2>Sections</h2><ul>{foot_topics}</ul></div>
-<div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/brief/">The brief</a></li><li><a href="{BASE}/quiz/">Quiz</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
+<div><h2>Boardread</h2><ul>{foot_views}<li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. <a href="{BASE}/standards/">Corrections</a>. All times UTC.</span>
-<span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button> &middot; &copy; {datetime.now(timezone.utc).year} Boardread &middot; <a href="{LEGAL['impressum']}">Impressum</a> &middot; <a href="{LEGAL['privacy']}">Privacy</a></span></div>
+<span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button> &middot; &copy; {now.year} Boardread &middot; <a href="{LEGAL['impressum']}">Impressum</a> &middot; <a href="{LEGAL['privacy']}">Privacy</a></span></div>
 </div></footer></body></html>"""
 
 
@@ -479,6 +510,13 @@ def article_ld(p, image):
     return ld
 
 
+def seat_list(p):
+    """[(newsroom, url or None)]: one seat per newsroom the article names, linked when the article URLs hold a link to it.
+    The meter, the count in the byline and this list all come from the same names, so they always agree."""
+    links = {o.lower(): u for o, u in outlets.source_mix(p)}
+    return [(n, links.get(n.lower())) for n in outlets.newsrooms(p)]
+
+
 def related(p, rows, n=4):
     pool = [o for o in rows if o is not p]
     same_co = [o for o in pool if p.get("company") and o.get("company") == p["company"]]
@@ -547,7 +585,7 @@ def number_box(p):
     for text in (p["headlines"][0], p.get("dek") or ""):
         if desk._in_text(fig, text):
             return (f'<aside class="numbox" aria-labelledby="nb"><h2 id="nb">The number</h2><p class="big">{E(fig)}</p>'
-                    f'<p class="cap">{E(text)}</p></aside>')
+                    f'<p class="ncap">{E(text)}</p></aside>')
     return ""
 
 
@@ -561,7 +599,7 @@ def how_made(p, counts):
               "Names: each sentence is compared with the source text; a sentence whose words are mostly missing from it is rejected.",
               "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this article has no photo."),
               "Audit: topic, photo, hashtag and stock-phrase checks passed."]
-    return (f'<details class="made"><summary>How this article was made</summary><div class="made-body">'
+    return (f'<details class="made" open><summary>How this article was made</summary><div class="made-body">'
             f'<p>An AI model wrote it from the text of {len(rooms)} newsroom{"" if len(rooms) == 1 else "s"} and had no other input. '
             f'Fixed code checked it before it went up.</p>'
             f'<dl><dt>Feeds scanned</dt><dd>{counts["feeds"]} feeds, every 30 minutes</dd>'
@@ -575,10 +613,15 @@ def story(p, rows, cos=None, counts=None):
     cos = companies(rows) if cos is None else cos
     counts = counts or desk_counts(rows)
     mix = outlets.source_mix(p)
-    srcs = "".join(f'<li><a href="{E(u)}" rel="nofollow noopener" target="_blank"><b>{E(o)}</b><span>Read the original &nearr;</span></a></li>'
-                   for o, u in mix)
+    seat_rows = seat_list(p)
+    n_seats = len(seat_rows)
+    srcs = "".join((f'<li><a href="{E(u)}" rel="nofollow noopener" target="_blank"><i>{k}</i><b>{E(o)}</b><small>Read the original &nearr;</small></a></li>' if u
+                    else f'<li><span class="nolink"><i>{k}</i><b>{E(o)}</b><small>Reported it</small></span></li>') for k, (o, u) in enumerate(seat_rows, 1))
     if p.get("permalink"):
-        srcs += f'<li><a href="{E(p["permalink"])}" rel="noopener" target="_blank"><b>The post on Instagram</b><span>instagram.com &nearr;</span></a></li>'
+        srcs += f'<li><a href="{E(p["permalink"])}" rel="noopener" target="_blank"><i>&middot;</i><b>The post on Instagram</b><small>instagram.com &nearr;</small></a></li>'
+    # seats: one square per newsroom that reported it, on a faint scale of six; unfilled seats get no row
+    seat_row = (f'<div class="seats" role="img" aria-label="{n_seats} of {COVER_TICKS} seats filled">'
+                + "".join(f'<i class="on"></i>' if k < n_seats else "<i></i>" for k in range(COVER_TICKS)) + "</div>")
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = Path(p.get("photo_file") or "").stem
     fig = (f'<figure><span class="pic"><img src="{BASE}/img/{p["id"]}.jpg" width="960" height="640" alt="{E(alt)}" fetchpriority="high"></span>'
@@ -600,16 +643,19 @@ def story(p, rows, cos=None, counts=None):
                    else f'<span><a href="{BASE}/search/?q={urllib.parse.quote(name)}">More on {E(name)}</a></span>')
         if ticker_of(p):
             company += f"<span>{ticker_html(ticker_of(p))}</span>"
-    body = f"""<article class="art"><div>
+    ctx = markets.context_for(p, MARKETS, BASE)
+    body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}/t/{topic(p).lower()}/">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>
-<div class="byline meta"><span>By the Boardread desk (AI)</span><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span>{company}</div></header>
-{fig}<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>
-{number_box(p)}{how_made(p, counts)}
-<p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p>
+<div class="byline cap"><span>By the Boardread desk (AI)</span><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span>{company}</div></header>
+<div class="cols">
+<aside class="col-seats" aria-label="About this article"><div class="sec cap"><span>Reported by</span><span>{n_seats} of {COVER_TICKS}</span></div>{seat_row}<ol class="ledger src">{srcs}</ol>
+<section class="sharebox"><div class="sec cap"><span>Share</span></div>{share_links(p)}</section></aside>
+<div class="col-main">{fig}<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>
+<p class="end-mark" aria-hidden="true">&ndash; 30 &ndash;</p>
+<p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p></div>
+<aside class="col-side" aria-label="Context and method">{ctx}{number_box(p)}{how_made(p, counts)}</aside>
 </div>
-<aside class="rail" aria-label="About this article"><section><h2>Reported by</h2><ul class="src">{srcs}</ul></section>
-<section><h2>Share</h2>{share_links(p)}</section></aside>
 {more}{prevnext}</article>"""
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": NAME, "item": SITE + "/"},
@@ -804,29 +850,7 @@ def most_covered_block(shown, cos, n=5):
     return (f'<div class="covered">{sec_head("Most covered this week", f"{BASE}/week/", "All", level=3)}{lst}</div>') if lst else ""
 
 
-def home(shown, cos=None):
-    cos = companies(shown) if cos is None else cos
-    today = window(shown)
-    ranked_today = by_score(today)
-    lead = next((p for p in ranked_today if p.get("_hires")), ranked_today[0]) if ranked_today else None
-    pairs = [p for p in ranked_today if p is not lead and p.get("_thumb")][:2]
-    pairs += [p for p in ranked_today if p is not lead and p not in pairs][:2 - len(pairs)]
-    week = by_score([p for p in shown if dt(shown[0]["published"]) - dt(p["published"]) <= timedelta(days=7)])
-    week = sorted(week, key=shared, reverse=True)
-    used = [lead] + pairs
-    blocks = ""
-    for t in TOPIC_ORDER:
-        if rows := [p for p in shown if topic(p) == t]:
-            blocks += topic_block(t, rows, used)
-    front = (f'<div class="front"><section class="latest" aria-labelledby="lh">{sec_head("Latest", f"{BASE}/latest/", "All latest").replace("<h2", "<h2 id=\"lh\"", 1)}'
-             f'{stream(shown, 10)}</section>'
-             f'<div class="lead-col">{lead_block(lead)}{pair_block(pairs)}</div>'
-             f'<section class="important" aria-labelledby="ih">{sec_head("Most important today").replace("<h2", "<h2 id=\"ih\"", 1)}{ranked(ranked_today, 5)}'
-             f'<p class="col-foot"><a href="{BASE}/week/">The week\'s top articles</a></p>'
-             f'{most_covered_block(shown, cos)}</section></div>')
-    duo = (f'<div class="duo"><section aria-labelledby="wh">{sec_head("This week", f"{BASE}/week/", "Top 10").replace("<h2", "<h2 id=\"wh\"", 1)}'
-           f'{ranked(week, 5)}</section>{follow_block()}</div>')
-    return '<p class="since" id="since" role="status" hidden></p>' + front + blocks + duo
+from . import views  # noqa: E402 (imports this module, so only once it is loaded)
 
 
 def build(out=desk.HERE / "_site"):
@@ -836,8 +860,11 @@ def build(out=desk.HERE / "_site"):
     for d in ("img", "og", "assets"):
         (out / d).mkdir(parents=True)
     shutil.copytree(ASSETS / "fonts", out / "fonts")  # Libre Franklin and its OFL licence
-    for f in ("site.css", "site.js"):
-        shutil.copy(ASSETS / f, out / "assets" / f)
+    for f in ASSET_FILES:
+        if (ASSETS / f).exists():
+            shutil.copy(ASSETS / f, out / "assets" / f)
+    shutil.copy(ASSETS / "words.txt", out / "assets" / "words.txt")  # the guess list of the word game
+    shutil.copy(ASSETS / "words-NOTICE.txt", out / "assets" / "words-NOTICE.txt")
     for f in ("og-default.png", "logo.png", "icon.svg"):  # the preview image of every non-story page, the publisher logo, the favicon
         shutil.copy(ASSETS / f, out / f)
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
@@ -862,12 +889,17 @@ def build(out=desk.HERE / "_site"):
         for p, ok in zip(shown, pool.map(card, shown)):
             if ok:
                 p["_og"] = True
+    global MARKETS
+    # DESK_SITE_OFFLINE=1 builds from the last good copy of the rates without touching the network (tests, a plane)
+    MARKETS = markets.load(live=os.environ.get("DESK_SITE_OFFLINE") != "1")
+    day = window(shown)
+    MAST.update(articles=len(day), newsrooms=len({o.lower() for p in day for o in outlets.newsrooms(p)}))
     sm = []
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
     if shown:
         site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/", "inLanguage": "en",
                    "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"}}
-        put(out, "/", page(f"boardread. · {TAGLINE}", home(shown, companies(shown)), desc, "/", ld=site_ld, active="", front=True))
+        put(out, "/", page(f"boardread. · {TAGLINE}", views.front(shown, companies(shown), MARKETS), desc, "/", ld=site_ld, front=True))
     else:
         put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first articles are on their way.</div>', desc, "/", front=True))
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
