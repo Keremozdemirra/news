@@ -96,7 +96,9 @@ def assets(story, fetch=True):
         # a generic scene ("AI data center") put a stranger's wall on a story; no photo beats a wrong one,
         # so only the named person or the company's own photos are used
         # the person's role picks the right one of several people with the name (person_entity)
-        subjects = [(story.get("person", ""), True, story.get("person_role", "")), (co, False)]
+        # and the company's photo only when the headline names the company, like its logo: a Stellantis plant in
+        # France once ran over a headline about Ontario's premier
+        subjects = [(story.get("person", ""), True, story.get("person_role", "")), (co if co in names else "", False)]
         ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
         if file_:
             USED.add(file_)

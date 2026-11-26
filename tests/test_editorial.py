@@ -268,6 +268,14 @@ class Photos(unittest.TestCase):
             self.assertEqual(E.person_entity("Andrew Bailey", "Australian cricketer"), (None, {}))
         self.assertEqual(E.person_entity("Andrew Bailey", ""), (None, {}))  # no role, no guess
 
+    def test_company_photo_only_when_the_headline_names_it(self):
+        s = {"headline": "Ontario's Ford and Unifor urge Ottawa to scrap emissions rules", "company": "Stellantis"}
+        seen = []
+        with mock.patch.object(E, "logo", return_value=None), mock.patch.object(E, "ticker", return_value=None), \
+             mock.patch.object(E, "fresh_photo", side_effect=lambda subj, *a, **k: seen.append(subj) or (None, "", "")):
+            T.assets(s)
+        self.assertEqual([x[0] for x in seen[0]], ["", ""])
+
     def test_company_logo_only_when_the_headline_names_it(self):
         s = {"headline": "Doug Ford and Unifor leader urge Ottawa to scrap automaker rules", "company": "Stellantis",
              "_assets": {"logo": "file:///s.svg", "logos": [], "logo_names": [], "photo": "", "credit": "", "file": ""}}
