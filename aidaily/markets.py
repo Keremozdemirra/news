@@ -6,11 +6,12 @@ others current. Every value is shown with the date of its series, never the buil
 
   ECB reference rates, 90 days (EUR/USD; USD/JPY, GBP/USD and USD/CNY calculated from them)
   U.S. Treasury daily par yield curve, four months (10-year, 2-year, and the curve itself)
-  EIA (needs EIA_API_KEY, a GitHub secret): Brent and WTI spot, US regular gasoline retail (weekly, $/gal), Henry Hub gas
+  EIA: Brent and WTI spot, US regular gasoline retail (weekly, $/gal), Henry Hub gas. The v2 data API is tried first when
+  EIA_API_KEY is set (one try, 15 s; it times out from GitHub runners at times); otherwise, or when it fails, the keyless
+  history pages under https://www.eia.gov/dnav/ carry the same published values.
   ECB deposit facility rate
 
-No equity prices and no index levels appear anywhere. EIA rows exist only when the key fetched them: without it they are not
-rendered at all, never "Pending". The euro-area fuel price of the Commission's Weekly Oil Bulletin is not included: its
+No equity prices and no index levels appear anywhere. A series with no data is not rendered at all, never "Pending". The euro-area fuel price of the Commission's Weekly Oil Bulletin is not included: its
 reuse notice was not confirmed.
 """
 import csv
@@ -50,6 +51,14 @@ EIA_GROUPS = (  # route, frequency, series ids, days of history, rows
     ("petroleum/pri/gnd", "weekly", ("EMM_EPMR_PTE_NUS_DPG",), 330, 60),
     ("natural-gas/pri/fut", "daily", ("RNGWHHD",), 130, 120),
 )
+# the keyless history pages: series id -> (path under /dnav/, frequency). The daily pages list weeks as "2026 Nov-16 to Nov-20", Mon-Fri.
+DNAV = {
+    "RBRTE": ("pet/hist/RBRTED.htm", "daily"),
+    "RWTC": ("pet/hist/RWTCD.htm", "daily"),
+    "RNGWHHD": ("ng/hist/RNGWHHDD.htm", "daily"),
+    "EMM_EPMR_PTE_NUS_DPG": ("pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_NUS_DPG&f=W", "weekly"),
+}
+DNAV_BASE = "https://www.eia.gov/dnav/"
 CALC = "Calculated from ECB reference rates"
 SRC_ECB = "Source: ECB statistics."
 SRC_UST = "Source: U.S. Department of the Treasury."
@@ -150,6 +159,63 @@ def parse_eia(js):
     return {k: sorted(v) for k, v in by.items()}
 
 
+_MONTHS = {m: i for i, m in enumerate("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec".split(), 1)}
+_ROW = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S | re.I)
+_CELL = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.S | re.I)
+
+
+def _cells(row):
+    return [html.unescape(re.sub(r"<[^>]+>", "", c)).replace("\xa0", " ").strip() for c in _CELL.findall(row)]
+
+
+def _num(t):
+    try:
+        return float(t)
+    except ValueError:
+        return None
+
+
+def parse_dnav(page, freq):
+    """[(date, value), ...] oldest first from an EIA dnav history page: daily pages carry one row per week
+    ("2026 Nov-16 to Nov-20", then Mon to Fri), the weekly page one row per month (label "2026-Nov", then pairs of week-ending
+    date "11/23" and value). Empty cells are skipped; values are taken as published."""
+    out = []
+    for row in _ROW.findall(page):
+        c = _cells(row)
+        if freq == "daily":
+            m = c and re.match(r"(\d{4}) ([A-Z][a-z]{2})-\s*(\d{1,2}) to ", c[0])
+            if not m or len(c) < 6 or m.group(2) not in _MONTHS:
+                continue
+            monday = date(int(m.group(1)), _MONTHS[m.group(2)], int(m.group(3)))
+            for i, t in enumerate(c[1:6]):
+                if _num(t) is not None:
+                    out.append(((monday + timedelta(days=i)).isoformat(), _num(t)))
+        else:
+            m = c and re.match(r"(\d{4})-([A-Z][a-z]{2})$", c[0])
+            if not m or m.group(2) not in _MONTHS:
+                continue
+            for d, t in zip(c[1::2], c[2::2]):
+                dm = re.match(r"(\d\d)/(\d\d)$", d)
+                if dm and _num(t) is not None:
+                    out.append((f"{m.group(1)}-{dm.group(1)}-{dm.group(2)}", _num(t)))
+    return sorted(set(out))
+
+
+def eia_dnav(ids):
+    """{series id: [(date, value), ...]} from the dnav history pages for the ids that fetch; one that fails is left out."""
+    got = {}
+    for i in ids:
+        path, freq = DNAV[i]
+        try:
+            pts = parse_dnav(_get(DNAV_BASE + path, timeout=30), freq)
+        except Exception as e:  # noqa: BLE001 (one series failing must not take the others with it)
+            print(f"markets: dnav {i} not fetched ({e!r})")
+            continue
+        if pts:
+            got[i] = pts[-HISTORY * 2:]
+    return got
+
+
 def eia_url(route, freq, ids, days, n):
     start = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
     facets = "&".join(f"facets%5Bseries%5D%5B%5D={i}" for i in ids)
@@ -173,17 +239,17 @@ def fetch():
             raise ValueError("no Treasury rows")
         return rows
     jobs["ust"] = treasury
-    if os.environ.get("EIA_API_KEY"):
-        for i, (route, freq, ids, days, n) in enumerate(EIA_GROUPS):
-            def one(route=route, freq=freq, ids=ids, days=days, n=n):
-                url = eia_url(route, freq, ids, days, n)
-                for attempt in (1, 2):  # the EIA data API answers slowly or with 504 at times: two tries of 30 s, no curl (it is the server, not TLS)
-                    try:
-                        return parse_eia(json.loads(_get(url, timeout=30, retry_curl=False)))
-                    except (OSError, subprocess.SubprocessError, ValueError):
-                        if attempt == 2:
-                            raise
-            jobs[f"eia{i}"] = one
+    for i, (route, freq, ids, days, n) in enumerate(EIA_GROUPS):
+        def one(route=route, freq=freq, ids=ids, days=days, n=n):
+            got = {}
+            if os.environ.get("EIA_API_KEY"):
+                try:  # one try of 15 s: the EIA data API answers slowly or with 504 from the runners, and the dnav pages carry the same values
+                    got = parse_eia(json.loads(_get(eia_url(route, freq, ids, days, n), timeout=15, retry_curl=False)))
+                except (OSError, subprocess.SubprocessError, ValueError, KeyError) as e:
+                    print(f"markets: EIA API not used for {','.join(ids)} ({e!r}); trying the dnav pages")
+            missing = [x for x in ids if not got.get(x)]
+            return {**got, **eia_dnav(missing)} if missing else got
+        jobs[f"eia{i}"] = one
 
     def run(item):
         key, job = item
@@ -218,11 +284,13 @@ def load(live=True):
     old = desk._load(file(), {})
     new = fetch() if live else {}
     data = {**old, **{k: v for k, v in new.items() if k != "series"}}
-    data["series"] = {**old.get("series", {}), **new.get("series", {})}
+    data["series"] = dict(old.get("series", {}))
+    for k, pts in new.get("series", {}).items():  # a fresh series replaces the kept one unless it ends earlier
+        if not data["series"].get(k) or pts[-1][0] >= data["series"][k][-1][0]:
+            data["series"][k] = pts
     stored = {**data, "series": dict(data["series"])}
-    if not os.environ.get("EIA_API_KEY"):  # never show an energy price the key did not just fetch or keep
-        data["series"] = {k: v for k, v in data["series"].items() if SERIES.get(k, ("", "", 0, ""))[3] != "eia"}
-    if new:
+    if new and {k: v for k, v in stored.items() if k != "fetched"} != {k: v for k, v in old.items() if k != "fetched"}:
+        # written only when the data moved, so the hourly desk run commits nothing on a day the publishers did not update
         data["fetched"] = stored["fetched"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
         file().parent.mkdir(parents=True, exist_ok=True)
         file().write_text(json.dumps(stored, indent=1) + "\n")

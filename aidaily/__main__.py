@@ -159,6 +159,7 @@ def main(argv=None):
     sub.add_parser("insights", help="weekly numbers and category weights")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("site", help="build the news pages into _site/")
+    sub.add_parser("markets", help="refresh state/markets.json from the official sources (never fails)")
     rd = sub.add_parser("redirects", help="write meta-refresh stubs for the old address (keremozdemir.de/news/...) into DIR")
     rd.add_argument("dir")
     sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
@@ -230,6 +231,14 @@ def main(argv=None):
         if args.stage == "build":
             return 0 if reel.build() else 1
         reel.send()
+        return 0
+    if args.cmd == "markets":
+        from . import markets
+        try:
+            m = markets.load(live=True)
+            print("markets:", ", ".join(f"{k} {v[-1][0]}" for k, v in sorted((m or {}).get("series", {}).items())) or "nothing")
+        except Exception as e:  # noqa: BLE001 (the markets data must never fail a workflow; the last good file stays)
+            print(f"markets: not refreshed ({e!r})")
         return 0
     if args.cmd == "site":
         from . import site

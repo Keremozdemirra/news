@@ -65,19 +65,52 @@ class Markets(unittest.TestCase):
         self.assertNotIn("USD/CNY", markets.rates_box(m))  # on the numbers page only
         self.assertIn("What it is.", markets.cards(m))
 
-    def test_load_drops_eia_series_without_a_key_and_keeps_last_good_blocks(self):
+    def test_load_keeps_last_good_blocks_and_does_not_replace_a_series_with_older_data(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d) / "markets.json"
             old = data(True)
-            f.write_text(json.dumps({"series": {k: v for k, v in old["series"].items() if k.startswith("ust")}}))
-            fresh = {"series": {k: v for k, v in old["series"].items() if k in ("eurusd", "brent")}}
-            env = {k: v for k, v in os.environ.items() if k != "EIA_API_KEY"}
-            with mock.patch.object(markets, "FILE", f), mock.patch.object(markets, "fetch", return_value=fresh), mock.patch.dict(os.environ, env, clear=True):
+            f.write_text(json.dumps({"series": {k: v for k, v in old["series"].items() if k.startswith("ust") or k == "brent"}}))
+            older = [["2026-11-01", 70.0], ["2026-11-02", 71.0]]
+            fresh = {"series": {"eurusd": old["series"]["eurusd"], "brent": older, "wti": old["series"]["wti"]}}
+            with mock.patch.object(markets, "FILE", f), mock.patch.object(markets, "fetch", return_value=fresh):
                 m = markets.load(live=True)
-                self.assertEqual(sorted(m["series"]), ["eurusd", "ust10", "ust2"])  # last-good yields kept, fresh rate added, Brent dropped
-                self.assertIn("brent", json.loads(f.read_text())["series"])  # kept on disk for a build that has the key
-                os.environ["EIA_API_KEY"] = "test-key"
-                self.assertIn("brent", markets.load(live=True)["series"])
+                self.assertEqual(sorted(m["series"]), ["brent", "eurusd", "ust10", "ust2", "wti"])  # no key needed for energy rows
+                self.assertEqual(m["series"]["brent"][-1][0], "2026-11-25")  # the older fresh copy did not replace the kept one
+                self.assertIn("wti", json.loads(f.read_text())["series"])
+                stamp = json.loads(f.read_text())["fetched"]
+                with mock.patch.object(markets, "fetch", return_value=fresh):
+                    markets.load(live=True)
+                self.assertEqual(json.loads(f.read_text())["fetched"], stamp)  # nothing moved: the file is left as it was
+
+    def test_dnav_pages_parse_to_dated_values(self):
+        fx = Path(__file__).parent / "fixtures"
+        for sid, name, last in (("RBRTE", "eia_rbrte_d.html", ("2026-11-24", 91.8)), ("RWTC", "eia_rwtc_d.html", ("2026-11-24", 82.24)),
+                                ("RNGWHHD", "eia_rngwhhd_d.html", ("2026-11-24", 3.3)), ("EMM_EPMR_PTE_NUS_DPG", "eia_gasoline_w.html", ("2026-11-23", 3.642))):
+            pts = markets.parse_dnav((fx / name).read_text(), markets.DNAV[sid][1])
+            self.assertEqual(pts[-1], last, sid)
+            self.assertEqual(pts, sorted(pts))
+        brent = dict(markets.parse_dnav((fx / "eia_rbrte_d.html").read_text(), "daily"))
+        self.assertEqual([brent[d] for d in ("2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20")], [92.90, 92.94, 92.88, 95.17, 92.76])
+        self.assertIn("2025-12-29", brent)  # a week that runs over the new year is dated from its Monday
+        self.assertIn("2026-01-02", brent)
+        self.assertEqual(dict(markets.parse_dnav((fx / "eia_gasoline_w.html").read_text(), "weekly"))["2025-12-29"], 2.811)
+
+    def test_fetch_falls_back_to_dnav_when_the_api_fails_and_has_no_key_path(self):
+        fx = Path(__file__).parent / "fixtures"
+        pages = {"RBRTED.htm": "eia_rbrte_d.html", "RWTCD.htm": "eia_rwtc_d.html", "RNGWHHDD.htm": "eia_rngwhhd_d.html", "NUS_DPG&f=W": "eia_gasoline_w.html"}
+
+        def get(url, timeout=20, retry_curl=True):
+            if "api.eia.gov" in url:
+                raise OSError("504")
+            for k, v in pages.items():
+                if url.endswith(k):
+                    return (fx / v).read_text()
+            raise OSError("not reachable in the test")
+        for env in ({}, {"EIA_API_KEY": "test-key"}):
+            with mock.patch.object(markets, "_get", get), mock.patch.dict(os.environ, env):
+                got = markets.fetch()["series"]
+            self.assertEqual({k: got[k][-1] for k in ("brent", "wti", "henryhub", "gasoline")},
+                             {"brent": ["2026-11-24", 91.8], "wti": ["2026-11-24", 82.24], "henryhub": ["2026-11-24", 3.3], "gasoline": ["2026-11-23", 3.642]})
 
     def test_context_box_only_when_a_series_matches(self):
         m = data(True)

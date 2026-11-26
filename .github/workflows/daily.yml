@@ -27,11 +27,17 @@ jobs:
         run: scripts/media.sh pull
       - name: Run the day
         env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
         run: python3 -m aidaily daily
       - name: Push media
         run: scripts/media.sh push
+      - name: Markets (official rates and prices; a failure here changes nothing)
+        continue-on-error: true
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: python3 -m aidaily markets
       - name: Commit the queue
         run: |
           scripts/commit.sh "desk: queue $(date -u +%F-%H%M)"

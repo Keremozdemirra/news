@@ -29,7 +29,7 @@ jobs:
         id: changed
         run: |
           # tree ids are content hashes, so this works on a shallow checkout
-          want=$(git ls-tree HEAD queue state/insights state/followers.json aidaily assets-site desk.json | sha1sum | cut -d' ' -f1)
+          want=$(git ls-tree HEAD queue state/insights state/followers.json state/markets.json aidaily assets-site desk.json | sha1sum | cut -d' ' -f1)
           url=$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')
           live=$(curl -fsS --max-time 20 "$url/built-from.txt?t=$(date +%s)" || true)
           echo "want=$want" >> "$GITHUB_OUTPUT"
@@ -55,7 +55,7 @@ jobs:
       - name: Build
         if: steps.changed.outputs.build == 'yes'
         env:
-          # Brent and WTI rows: the EIA key is used at build time only; without it the rows are left out of the pages
+          # the build starts from the committed state/markets.json and refreshes it; the EIA key is optional (the keyless dnav pages are the fallback)
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: |
           # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship
