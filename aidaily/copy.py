@@ -172,6 +172,11 @@ def apply(stories, reply_rows):
             # the same holds for a face: only a person the source names may be pictured
             if s.get("person") and s["person"].split()[-1].lower() not in src:
                 s["person"] = ""
+            # and for every logo: a company or backer the source does not name gets no logo on the card. An
+            # unchecked "backer" once put the BCG logo on an FCC story.
+            for field in ("company", "backer"):
+                if s.get(field) and s[field].lower() not in src:
+                    s[field] = ""
             # a big figure the reader cannot find in the headline or dek reads as the story's number when it is not
             seen = s["headline"] + " " + s["dek"]
             fig = s["figure"]

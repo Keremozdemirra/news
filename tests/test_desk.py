@@ -522,3 +522,13 @@ class Render(unittest.TestCase):
                      T.story_company("", "Co", ["h"], "l"), T.story_person("file:///p.jpg", "N", "h", "c", "l"),
                      T.story_quiz("___ raises", "l"), T.story_answer("", "Co", "h", "l"), T.story_numbers([("1", "h")], "l")):
             self.assertIn("boardread.", html)
+
+
+class Logos(unittest.TestCase):
+    def test_company_and_backer_must_be_in_the_source(self):
+        from aidaily import copy
+        s = {"title": "FCC clears SpaceX to deploy 1 million satellites", "summary": "", "source": "X", "url": "u"}
+        row = {"id": 0, "headline": "FCC clears SpaceX to deploy 1 million satellites", "dek": "", "figure": "", "x_post": "",
+               "linkedin_post": "", "company": "SpaceX", "backer": "Boston Consulting Group", "orgs": ["SpaceX", "BCG"]}
+        copy.apply([s], [row])
+        self.assertEqual((s["company"], s["backer"], s["orgs"]), ("SpaceX", "", ["SpaceX"]))
