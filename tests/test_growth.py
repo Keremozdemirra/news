@@ -140,7 +140,9 @@ class SendPrompt(unittest.TestCase):
                     self.assertIn(topic, approved[line])
                     self.assertEqual(line, desk.send_line({"headline": f"headline {i}"}, {"topic": topic}))
                 self.assertTrue(seen, topic)
-            self.assertGreater(len({desk.send_line({"headline": f"h{i}"}, {"topic": "Business"}) for i in range(40)}), 1)
+            # one line per beat now, so the variety is across topics, not within one
+        with on(send_prompt=True):
+            self.assertEqual(len({desk.send_line({"headline": "h"}, {"topic": t}) for t in ("AI", "Markets", "World")}), 3)
 
     def test_lines_are_plain(self):
         for r in desk.CONFIG["send_prompts"]:
