@@ -129,6 +129,12 @@ def finish(args):
     return 0
 
 
+def _dates(d):
+    """Meta's two token dates as one line for the ping log."""
+    exp, data = d.get("expires"), d.get("data_access")
+    return (f"expires {exp:%Y-%m-%d}" if exp else "never expires") + (f"; data access until {data:%Y-%m-%d}" if data else "")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="aidaily")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -227,8 +233,7 @@ def main(argv=None):
         if os.environ.get("IG_TOKEN"):
             print(f"account: @{c.own_username()}; quota: {c.quota()}")
             try:
-                end = c.token_expiry()
-                print(f"instagram token: {'no expiry reported' if end is None else f'expires {end:%Y-%m-%d}'}")
+                print(f"instagram token: {_dates(c.token_expiry())}")
             except Exception as e:  # noqa: BLE001
                 print(f"instagram token: expiry unknown ({str(e)[:160]})")
         from . import platforms
@@ -247,8 +252,7 @@ def main(argv=None):
                 print(f"{name}: FAILED {e}")
             if hasattr(client, "token_expiry"):
                 try:
-                    end = client.token_expiry()
-                    print(f"{name} token: {'no expiry reported' if end is None else f'expires {end:%Y-%m-%d}'}")
+                    print(f"{name} token: {_dates(client.token_expiry())}")
                 except Exception as e:  # noqa: BLE001
                     print(f"{name} token: expiry unknown ({str(e)[:160]})")
         return 0

@@ -32,7 +32,7 @@ BLOCKED = re.compile(r"HTTP 429|rate.?limit|RateLimitExceeded|retry_after|\"code
 # the platform no longer accepts the credential: Meta OAuth code 190 (expired or revoked token), Bluesky's
 # AuthenticationRequired / ExpiredToken, Telegram's 401. Retrying cannot fix it; the owner has to store a new secret.
 AUTH = re.compile(r"\"code\":\s*190\b|Error validating access token|Session has expired|InvalidToken|ExpiredToken|"
-                  r"AuthenticationRequired|Invalid identifier or password|HTTP 401|\"error_code\":\s*401\b|Unauthorized", re.I)
+                  r"AuthenticationRequired|Invalid identifier or password|\bHTTP 401\b|\"error_code\":\s*401\b|\bUnauthorized\b", re.I)
 
 # the secret whose change ends an auth cooldown: a renewed token is tried at once, not a day later
 CREDENTIAL = {"threads": "THREADS_TOKEN", "facebook": "FB_PAGE_TOKEN", "bluesky": "BSKY_APP_PASSWORD", "telegram": "TG_BOT_TOKEN"}
@@ -376,7 +376,8 @@ class Facebook(Client):
                 raise PlatformError("facebook: the stored token is neither a Page token nor a user token that manages a Page")
             self._page_token, self.page_name = tok, me.get("name", "")
             self.env["FB_PAGE_ID"] = str(me["id"])
-        self.env["_page_token"] = self._page_token  # scrubbed from errors like the stored secrets
+        self.env["_page_token"] = self._page_token  # scrubbed from this client's errors like the stored secrets
+        redact.register(self._page_token)  # and from every saved file and log line of the run
         return self._page_token
 
     def call(self, path, params):
@@ -400,13 +401,15 @@ class Facebook(Client):
         return None
 
     def token_expiry(self):
-        """When the stored token stops working, from Meta's debug_token (a token may inspect itself): the earlier of
-        expires_at and data_access_expires_at, as a datetime, or None when Meta reports no end. Posts nothing."""
+        """When the stored token stops working, from Meta's debug_token (a token may inspect itself): 
+        expires_at and data_access_expires_at, as {"expires", "data_access"} datetimes (None: no end reported). Posts nothing."""
         tok = self.env["FB_PAGE_TOKEN"]
         got = self.form("GET", f"{self.host}/{self.version}/debug_token", {"input_token": tok, "access_token": tok},
                         "facebook GET debug_token").get("data", {})
-        ends = [v for v in (got.get("expires_at"), got.get("data_access_expires_at")) if v]
-        return datetime.fromtimestamp(min(ends), timezone.utc) if ends else None
+        # expires_at 0 means the token itself never expires; data_access_expires_at is the separate 90-day window
+        # after which Meta stops returning user data until someone re-authorises the app. Both are reported, apart.
+        at = lambda k: datetime.fromtimestamp(got[k], timezone.utc) if got.get(k) else None  # noqa: E731
+        return {"expires": at("expires_at"), "data_access": at("data_access_expires_at")}
 
     def post(self, post):
         self.page_token()

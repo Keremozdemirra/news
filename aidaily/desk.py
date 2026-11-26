@@ -1257,11 +1257,18 @@ def cross_post(post, path, factories=None, names=None):
             # (a failed push, a killed runner) is found here and recorded instead of going out a second time.
             try:
                 live = client.find(post)
-            except Exception as e:  # noqa: BLE001  no answer is not "not there": leave it for the next run
+            except Exception as e:  # noqa: BLE001  no answer is not "not there": nothing is sent, and it is tried again
                 text = str(e)
                 if platforms.AUTH.search(text) or platforms.BLOCKED.search(text):
                     platform_pause(name, text, auth=bool(platforms.AUTH.search(text)))
-                print(f"{post['id']}: {name}: could not check the account, not sent now: {text[:200]}")
+                # recorded without "attempted" (nothing went out), so retry_unchecked and web_social offer it again;
+                # after CHECK_TRIES failed checks the platform is skipped for this post and the status page shows why
+                tries = slot.get("checks", 0) + 1
+                post["platforms"][name] = {"check_error": text[:300], "checked": now().isoformat(timespec="seconds"), "checks": tries}
+                if tries >= CHECK_TRIES:
+                    post["platforms"][name]["skipped"] = f"account could not be checked {tries} times"
+                _save(path, post)
+                print(f"{post['id']}: {name}: could not check the account, not sent now ({tries}/{CHECK_TRIES}): {text[:200]}")
                 continue
             if live:
                 post["platforms"][name] = {"id": live["id"], "url": live.get("url", ""), "at": now().isoformat(timespec="seconds"),
@@ -1286,6 +1293,30 @@ def cross_post(post, path, factories=None, names=None):
                 platform_pause(name, text)
             print(f"{post['id']}: {name}: failed, not retried: {text[:200]}")
         _save(path, post)
+
+
+CHECK_TRIES = 6  # failed duplicate checks before a platform gives up on one post
+RETRY_PER_RUN = 3
+
+
+def retry_unchecked(factories=None):
+    """Instagram posts whose cross-post stopped at a failed duplicate check (a network blip, a platform outage)
+    are offered to those platforms again, a few per run, while they are still fresh. Web-tier posts get the same
+    through web_social. Returns how many posts were offered."""
+    from . import platforms
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    n = 0
+    for post, path in posts():
+        if n >= RETRY_PER_RUN:
+            break
+        if post.get("status") != "published" or post.get("kind") in NO_CROSSPOST or (_stamp(post.get("published", "")) or cut) <= cut:
+            continue
+        names = [k for k, slot in (post.get("platforms") or {}).items()
+                 if k in platforms.NAMES and slot.get("check_error") and not _slot_done(post, k)]
+        if names:
+            cross_post(post, path, factories, names=names)
+            n += 1
+    return n
 
 
 # Instagram-only formats: the other platforms mirror the feed carousels, never stories or the daily recap reel
@@ -1452,6 +1483,10 @@ def publish(client=None, dry=False):
             web_social()
         except Exception as e:  # noqa: BLE001  a web-tier problem never reaches the Instagram flow
             print(f"web posts crashed: {str(e)[:200]}")
+        try:
+            retry_unchecked()
+        except Exception as e:  # noqa: BLE001
+            print(f"cross-post retries crashed: {str(e)[:200]}")
         try:
             evening_digest()
         except Exception as e:  # noqa: BLE001

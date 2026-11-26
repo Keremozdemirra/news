@@ -2,8 +2,10 @@
 
 The repository and its logs are public. GitHub masks the exact secret values it knows, but not a value derived
 from one (the Facebook Page token read through the user token) and not anything written into a committed file.
-So every JSON file the desk saves and everything it prints passes through scrub(): the value of every secret
-environment variable, then the shapes tokens have even when their variable is unknown.
+So every JSON file the desk saves and every line its Python code writes to stdout or stderr passes through
+scrub(): the value of every secret environment variable and every registered derived secret, then the shapes
+tokens have even when their variable is unknown. Output of subprocesses (git, curl, the claude CLI) writes to
+the file descriptors directly and is not covered; GitHub's own masking is what covers those.
 
 A value shorter than MIN_LEN is not replaced: THREADS_USER_ID is "me", and replacing every "me" turned an error
 message into "<secret>ssage". Short values are identifiers, not credentials.
@@ -13,7 +15,7 @@ import re
 import urllib.parse
 
 SECRET_ENV = ("IG_TOKEN", "THREADS_TOKEN", "FB_PAGE_TOKEN", "BSKY_APP_PASSWORD", "TG_BOT_TOKEN",
-              "CLAUDE_CODE_OAUTH_TOKEN", "GITHUB_TOKEN", "GH_TOKEN", "EIA_API_KEY", "_page_token")
+              "CLAUDE_CODE_OAUTH_TOKEN", "GITHUB_TOKEN", "GH_TOKEN", "EIA_API_KEY")
 MIN_LEN = 12
 
 PATTERNS = (
@@ -31,9 +33,19 @@ PATTERNS = (
 )
 
 
+# secrets that exist only in memory, never in the environment: the Facebook Page token read through the user token
+_DERIVED = set()
+
+
+def register(value):
+    """A secret made during the run (not an environment variable) that must be scrubbed like one."""
+    if value and len(value) >= MIN_LEN:
+        _DERIVED.add(value)
+
+
 def values(environ=None):
     environ = os.environ if environ is None else environ
-    got = {environ.get(k, "").strip() for k in SECRET_ENV}
+    got = {environ.get(k, "").strip() for k in SECRET_ENV} | _DERIVED
     return sorted((v for v in got if len(v) >= MIN_LEN), key=len, reverse=True)
 
 
@@ -66,7 +78,8 @@ def scrub_data(data, environ=None):
 
 
 class Stream:
-    """A text stream that scrubs every write: wraps sys.stdout and sys.stderr for the whole run."""
+    """A text stream that scrubs every write made through it: wraps sys.stdout and sys.stderr, so it covers what
+    Python prints (print, tracebacks), not what a subprocess writes to the same descriptor."""
 
     def __init__(self, inner):
         self.inner = inner

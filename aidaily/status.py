@@ -70,7 +70,8 @@ def classify(error):
         parts.append(f"code {code.group(1)}" + (f"/{sub.group(1)}" if sub and sub.group(1) != "0" else ""))
     if not label:
         for rx, name in ((r"timed? ?out", "timed out"), (r"Temporary failure|Name or service|resolve", "network"),
-                         (r"RateLimit|429|Too Many", "rate limit"), (r"ExpiredToken|InvalidToken|AuthenticationRequired|Unauthorized|401", "credential rejected"),
+                         (r"RateLimit|\bHTTP 429\b|Too Many Requests", "rate limit"),
+                         (r"ExpiredToken|InvalidToken|AuthenticationRequired|\bUnauthorized\b|\bHTTP 401\b", "credential rejected"),
                          (r"not ready after", "media not ready"), (r"HTTP 5\d\d", "platform error"),
                          (r"already attempted|result is unknown", "earlier send unconfirmed")):
             if re.search(rx, text, re.I):
@@ -110,6 +111,10 @@ def snapshot(runs=None):
             st = desk._stamp(slot.get("attempted") or slot.get("at") or "")
             if slot.get("error") and st and st > cut:
                 errors.append({"at": iso(st), "post": p["id"], "where": name, "summary": classify(slot["error"])})
+            ck = desk._stamp(slot.get("checked") or "")
+            if slot.get("check_error") and ck and ck > cut:
+                errors.append({"at": iso(ck), "post": p["id"], "where": name, "check": True,
+                               "summary": "duplicate check failed, not sent · " + classify(slot["check_error"])})
     errors.sort(key=lambda e: e["at"], reverse=True)
     plats = {}
     for name in _platform_names():
@@ -215,7 +220,10 @@ def problems(snap, live_site=None):
     for name, p in snap["platforms"].items():
         if not p["enabled"]:
             continue
-        rejected = [e for e in snap["errors"] if e["where"] == name and "credential" in e["summary"]]
+        # a rejection older than the platform's last good send is history: a renewed token clears the alarm at once
+        good = desk._stamp((p["last_post"] or {}).get("at") or "")
+        rejected = [e for e in snap["errors"] if e["where"] == name and "credential" in e["summary"]
+                    and not (good and desk._stamp(e["at"]) <= good)]
         if p["cooldown_kind"] == "credential rejected" or rejected:
             if not p["cooldown_reason"] and rejected:
                 p = {**p, "cooldown_reason": rejected[0]["summary"]}
@@ -248,10 +256,7 @@ def problems(snap, live_site=None):
         made = desk._stamp(live_site.get("generated", "")) if isinstance(live_site, dict) else None
         if made and t - made > timedelta(hours=STALE_SITE_HOURS):
             out.append(("site", f"The site has not been rebuilt since {made:%Y-%m-%d %H:%M} UTC."))
-    for name, day in snap["tokens"].items():
-        left = (datetime.fromisoformat(day).date() - t.date()).days
-        if left <= 7:
-            out.append((f"token-{name}", f"The {name} token expires {day} ({left} days)."))
+    # token dates are not repeated here: the Monday run already opens one reminder issue per token (desk.py)
     return out
 
 
@@ -334,7 +339,9 @@ def weekly(gh=github, runs=None, meta_expiry=None):
     """The Monday report: a week of posts and failures in one issue; last week's report is closed."""
     t = now()
     cut = t - timedelta(days=7)
-    snap = snapshot(runs if runs is not None else fetch_runs(per=100))
+    if runs is None:
+        runs = fetch_runs(per=100) or {}
+    snap = snapshot(runs)
     allp = [p for p, _ in desk.posts()]
     ig = sum(1 for p in allp if p.get("status") == "published" and p.get("kind") != "story"
              and (desk._stamp(p.get("published", "")) or cut) > cut)
@@ -352,10 +359,11 @@ def weekly(gh=github, runs=None, meta_expiry=None):
     found = problems(snap)
     lines += ["Open problems:" if found else "Open problems: none."] + [f"- {m}" for _, m in found]
     tokens = dict(snap["tokens"])
-    for name, end in (meta_expiry or {}).items():
-        tokens[f"{name} (Meta's debug_token)"] = f"{end:%Y-%m-%d}" if end else "no expiry"
+    for name, d in (meta_expiry or {}).items():
+        end, data = (d or {}).get("expires"), (d or {}).get("data_access")
+        tokens[f"{name} (Meta's debug_token)"] = (f"expires {end:%Y-%m-%d}" if end else "never expires") + (
+            f", data access until {data:%Y-%m-%d}" if data else "")
         if end and (end - t) <= timedelta(days=10):
-            found.append((f"meta-{name}", f"The {name} token expires {end:%Y-%m-%d} by Meta's own record."))
             lines.append(f"- The {name} token expires {end:%Y-%m-%d} by Meta's own record.")
     if tokens:
         lines += ["", "Token dates: " + ", ".join(f"{k} {v}" for k, v in tokens.items()) + "."]

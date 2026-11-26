@@ -212,13 +212,15 @@ class Client:
     # token
 
     def token_expiry(self):
-        """When IG_TOKEN stops working, from Meta's debug_token (a token may inspect itself): the earlier of
-        expires_at and data_access_expires_at as a UTC datetime, or None when Meta reports no end (a system-user
-        token). refresh() assumes a token on graph.facebook.com never expires; this is what checks that."""
+        """When IG_TOKEN stops working, from Meta's debug_token (a token may inspect itself):
+        expires_at and data_access_expires_at as {"expires", "data_access"} UTC datetimes (None: no end reported,
+        as for a system-user token). refresh() assumes a token on graph.facebook.com never expires; this is what checks that."""
         from datetime import datetime, timezone
         got = self.call("GET", "debug_token", {"input_token": self.token}).get("data", {})
-        ends = [v for v in (got.get("expires_at"), got.get("data_access_expires_at")) if v]
-        return datetime.fromtimestamp(min(ends), timezone.utc) if ends else None
+        # expires_at 0 means the token itself never expires; data_access_expires_at is the separate 90-day window
+        # after which Meta stops returning user data until someone re-authorises the app. Both are reported, apart.
+        at = lambda k: datetime.fromtimestamp(got[k], timezone.utc) if got.get(k) else None  # noqa: E731
+        return {"expires": at("expires_at"), "data_access": at("data_access_expires_at")}
 
     def refresh(self):
         """Extends a long-lived token by 60 days. Returns seconds until expiry; the token itself is not returned.

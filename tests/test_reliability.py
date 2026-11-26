@@ -106,10 +106,50 @@ class CrossPostGuards(Tmp):
         slot = self.run_one("bluesky", c)
         self.assertEqual((c.sent, slot["id"], slot["found_live"]), (0, "old", True))
 
-    def test_unanswered_check_leaves_no_marker(self):
+    def test_unanswered_check_is_recorded_without_a_send_marker_and_retried(self):
         c = Find(error="bluesky getAuthorFeed: HTTP 502: bad gateway")
-        self.assertIsNone(self.run_one("bluesky", c))
+        slot = self.run_one("bluesky", c)
         self.assertEqual(c.sent, 0)
+        self.assertNotIn("attempted", slot)
+        self.assertIn("check_error", slot)
+        self.assertIn("duplicate check failed", status.snapshot()["errors"][0]["summary"])
+        # the next publish run offers the Instagram post to that platform again
+        ok = Find()
+        with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}}):
+            self.assertEqual(desk.retry_unchecked({"bluesky": lambda: ok}), 1)
+        self.assertEqual(ok.sent, 1)
+        got = json.loads((desk.QUEUE / "p1" / "post.json").read_text())["platforms"]["bluesky"]
+        self.assertEqual(got["id"], "new")
+        with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}}):
+            self.assertEqual(desk.retry_unchecked({"bluesky": lambda: ok}), 0)  # done means done
+
+    def test_check_gives_up_after_its_tries(self):
+        p, path = self.post()
+        bad = Find(error="HTTP 502")
+        with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}}):
+            for _ in range(desk.CHECK_TRIES):
+                desk.cross_post(json.loads(path.read_text()), path, {"bluesky": lambda: bad})
+        slot = json.loads(path.read_text())["platforms"]["bluesky"]
+        self.assertIn("skipped", slot)
+        self.assertEqual(bad.sent, 0)
+
+    def test_facebook_find_reads_the_page_posts_with_the_page_token(self):
+        p, _ = self.post()
+        page = desk.story_url(p["id"])
+        seen = []
+
+        def opener(req, timeout=None, context=None):
+            seen.append(req.full_url)
+            if "/me/accounts" in req.full_url:
+                return _Resp({"data": [{"id": "111", "name": "Boardread", "access_token": "page-token-value-123"}]})
+            return _Resp({"data": [{"id": "111_9", "message": f"Lab ships a model\n\nSources: {page}",
+                                    "permalink_url": "https://www.facebook.com/111/posts/9"}]})
+        fb = platforms.Facebook(opener=opener)
+        self.assertEqual(fb.find(p), {"id": "111_9", "url": "https://www.facebook.com/111/posts/9"})
+        self.assertIn("/111/posts?", seen[-1])
+        self.assertIn("access_token=page-token-value-123", seen[-1])
+        self.assertIsNone(fb.find({**p, "id": "other"}))
+        self.assertNotIn("page-token-value-123", redact.scrub("x page-token-value-123 y"))  # registered derived secret
 
     def test_rejected_credential_pauses_until_a_new_secret(self):
         class Expired(Find):
@@ -230,6 +270,17 @@ class Health(Tmp):
         self.post(platforms={"threads": {"attempted": desk.now().isoformat(),
                                          "error": 'threads: HTTP 400: {"error":{"message":"Error validating access token","code":190}}'}})
 
+    def test_renewed_token_clears_the_alarm_at_once(self):
+        self.broken_threads()
+        self.assertEqual([k for k, _ in status.problems(status.snapshot())], ["auth-threads"])
+        self.post("p2", platforms={"threads": {"id": "t1", "url": "https://t/1", "at": (desk.now() + timedelta(minutes=1)).isoformat()}})
+        self.assertEqual(status.problems(status.snapshot()), [])
+
+    def test_numbers_in_a_body_are_not_auth_errors(self):
+        self.assertNotIn("credential", status.classify('HTTP 500: {"id": "1401", "n": 4012}'))
+        self.assertNotIn("rate limit", status.classify('HTTP 500: {"id": "14290"}'))
+        self.assertIn("credential", status.classify("telegram: HTTP 401: Unauthorized"))
+
     def test_classify_never_quotes_the_message(self):
         text = 'HTTP 400: {"error":{"message":"secret words here","code":190,"error_subcode":0}}'
         self.assertEqual(status.classify(text), "HTTP 400 · code 190 · credential expired or revoked")
@@ -301,7 +352,10 @@ class Health(Tmp):
         gh = FakeGH()
         gh.issues.append({"number": 1, "title": "Weekly health 2026-W47", "body": ""})
         self.post()
-        status.weekly(gh=gh, runs={})
+        runs = {"publish": [{"status": "completed", "conclusion": "failure", "created": desk.now().isoformat(), "url": "https://g/1"}]}
+        body = status.weekly(gh=gh, runs=runs)
+        self.assertIn("| publish | failure", body)
+        self.assertRegex(body, r"\| publish \|.*\| 1 \|")
         self.assertEqual(gh.closed, [1])
         self.assertTrue(gh.issues[-1]["title"].startswith("Weekly health"))
 
