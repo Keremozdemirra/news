@@ -39,5 +39,26 @@
   "https://techcrunch.com/2026/11/26/as-anthropic-ipos-grand-theft-auto-vi-proves-why-efficiency-isnt-a-virtue/"
  ],
  "credit": "Photo: Shixart1985, CC BY 2.0, via Wikimedia Commons",
- "issue": 5
+ "issue": 5,
+ "platforms": {
+  "threads": {
+   "id": "18357360448286799",
+   "url": "https://www.threads.com/@boardread/post/DgOUwkuj2K2",
+   "at": "2026-11-26T23:51:22+00:00",
+   "reply": {
+    "id": "18646253521035448"
+   }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3aujklxyi2z",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3aujklxyi2z",
+   "at": "2026-11-26T23:51:25+00:00"
+  },
+  "telegram": {
+   "id": "23",
+   "url": "https://t.me/boardread/23",
+   "at": "2026-11-26T23:51:27+00:00"
+  }
+ },
+ "lead_published": "2026-11-26T23:51:22+00:00"
 }
