@@ -4,7 +4,7 @@
  "n": 7,
  "created": "2026-11-26T14:46:56+00:00",
  "publish_after": "2026-11-26T15:26:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -41,5 +41,8 @@
  ],
  "credit": "Photo: Raimond Spekking, CC BY-SA 4.0, via Wikimedia Commons",
  "issue": 2,
- "story": "story.jpg"
+ "story": "story.jpg",
+ "published": "2026-11-26T15:32:59+00:00",
+ "media_id": "18119490965590843",
+ "permalink": "https://www.instagram.com/p/DgNbzJAknIz/"
 }
