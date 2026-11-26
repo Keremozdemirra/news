@@ -492,6 +492,14 @@ def share_card(p, photo, dest):
     return dest.exists()
 
 
+def photo_alt(p):
+    """Alt text from the Commons file name, without the camera numbers, dates and "(cropped)" tags that mean nothing read aloud."""
+    t = Path(p.get("photo_file") or "").stem.replace("_", " ")
+    t = re.sub(r"\([^)]*\)", " ", t)
+    t = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{5,}\b|\b\d{8}\b", " ", t)
+    return re.sub(r"\s+", " ", t).strip(" -,.")
+
+
 def credit_line(p):
     """The photo credit as licensed."""
     return (p.get("credit") or "").strip()
@@ -629,7 +637,7 @@ def story(p, rows, cos=None, counts=None):
     reported = (f'<span>Reported by {outlets_line}</span>' if outlets_line else "")
     insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
-    alt = Path(p.get("photo_file") or "").stem
+    alt = photo_alt(p)
     fig = (f'<figure><span class="pic"><img src="{BASE}/img/{p["id"]}.jpg" width="960" height="640" alt="{E(alt)}" fetchpriority="high"></span>'
            f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else ""
     rel = related(p, rows)
@@ -964,7 +972,7 @@ def build(out=desk.HERE / "_site"):
                               ("contact", "Contact", contact_page, "Corrections, tips and questions.")):
         put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
         sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
-    (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "", "/404.html", noindex=True))
+    (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(dt(p["published"])), p.get("dek", ""),
          {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,
