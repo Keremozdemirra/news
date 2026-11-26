@@ -4,7 +4,7 @@
  "n": 1,
  "created": "2026-11-26T14:46:42+00:00",
  "publish_after": "2026-11-26T14:47:26+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -50,5 +50,8 @@
   "https://www.cnbc.com/2026/11/26/dennys-jensen-huang-nvidia.html"
  ],
  "credit": "Photo: Anders Eidesvik, CC BY 4.0, via Wikimedia Commons",
- "issue": 2
+ "issue": 2,
+ "published": "2026-11-26T14:49:00+00:00",
+ "media_id": "18031505621872113",
+ "permalink": "https://www.instagram.com/p/DgNW0t8ja1G/"
 }
