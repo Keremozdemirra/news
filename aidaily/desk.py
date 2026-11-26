@@ -1675,8 +1675,21 @@ def platform_token_reminders(today=None):
     return due
 
 
+def weekly_reminders(today=None):
+    """The owner asked to be reminded each Monday; an issue is the one channel that reaches him by e-mail."""
+    today = today or now().date()
+    for title, body_ in CONFIG.get("weekly_reminders", []):
+        if github.enabled():
+            github.open_issue(f"{title} ({today:%d %b})", body_)
+    return len(CONFIG.get("weekly_reminders", []))
+
+
 def token_check(client=None):
     """Extend the token and say how long it has. Opens an issue when it needs the owner."""
+    try:
+        weekly_reminders()
+    except Exception as e:  # noqa: BLE001
+        print(f"weekly reminders failed: {str(e)[:200]}")
     try:
         for name, day, left in platform_token_reminders():
             print(f"{name} token: {left} days left (expires {day})")

@@ -189,5 +189,11 @@
     "threads": "2027-01-25",
     "facebook": "2027-01-25"
   },
-  "send_company_line": "Send this to whoever on your team covers {company}."
+  "send_company_line": "Send this to whoever on your team covers {company}.",
+  "weekly_reminders": [
+    [
+      "Weekly: check Instagram Account Status",
+      "Instagram → Settings → Account Status. Check that the account is eligible for recommendations (originality rule since 2026-04-30). Close this issue when done."
+    ]
+  ]
 }
