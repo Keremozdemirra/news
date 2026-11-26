@@ -4,7 +4,7 @@
  "n": 1,
  "created": "2026-11-26T14:46:42+00:00",
  "publish_after": "2026-11-26T14:47:26+00:00",
- "status": "published",
+ "status": "deleted",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -53,5 +53,7 @@
  "issue": 2,
  "published": "2026-11-26T14:49:00+00:00",
  "media_id": "18031505621872113",
- "permalink": "https://www.instagram.com/p/DgNW0t8ja1G/"
+ "permalink": "https://www.instagram.com/p/DgNW0t8ja1G/",
+ "deleted": "2026-11-26T15:06:27+00:00",
+ "note": "deleted by hand on Instagram (Meta API cannot delete); mislabelled Culture"
 }
