@@ -1,7 +1,10 @@
 name: tick
 # The desk's clock. GitHub never fired this repo's cron schedules, so one long job dispatches the other
-# workflows on their intervals and, before it times out, dispatches itself again. Runs triggered by
-# GITHUB_TOKEN through workflow_dispatch are allowed to start new runs; no outside token is needed.
+# workflows and, before it times out, dispatches itself again (tick-restart.yml catches a chain that breaks).
+# Runs triggered by GITHUB_TOKEN through workflow_dispatch are allowed to start new runs; no outside token is needed.
+#
+# All desk workflows share one concurrency group, where only one run can wait and a newer one replaces it.
+# So a tick never stacks work: while any desk run is queued it dispatches nothing, otherwise exactly one.
 on:
   workflow_dispatch:
   schedule:
@@ -22,16 +25,42 @@ jobs:
     steps:
       - name: Dispatch
         run: |
-          fire() { gh workflow run "$1" --ref main >/dev/null 2>&1 && echo "$(date -u +%H:%M) $1" || echo "$(date -u +%H:%M) $1 not started"; }
+          # prints the one workflow worth starting now, or nothing
+          pick() {
+            local runs h dow today
+            runs=$(gh run list --limit 100 --json workflowName,status,createdAt) || return 1
+            if jq -e '[.[] | select(.workflowName | IN("publish","engage","daily","weekly"))
+                           | select(.status | IN("queued","pending","waiting"))] | length > 0' <<<"$runs" >/dev/null; then
+              return 0
+            fi
+            since() { jq -r --arg n "$1" --arg t "$2" '[.[] | select(.workflowName == $n and .createdAt >= $t)] | length' <<<"$runs"; }
+            h=$((10#$(date -u +%H))); dow=$(date -u +%u); today=$(date -u +%FT00:00:00Z)
+            if [ "$dow" = 1 ] && [ "$h" -ge 6 ] && [ "$(since weekly "$today")" = 0 ]; then echo weekly.yml
+            elif [ "$(since daily "$(date -u -d '30 minutes ago' +%FT%TZ)")" = 0 ]; then echo daily.yml
+            elif [ $(( $(date +%s) / 300 % 2 )) = 0 ]; then echo publish.yml
+            else echo engage.yml; fi
+          }
+          fails=0
           end=$(( $(date +%s) + 335*60 ))
           while [ "$(date +%s)" -lt "$end" ]; do
-            m=$((10#$(date -u +%M))); h=$((10#$(date -u +%H))); dow=$(date -u +%u)
-            fire publish.yml
-            fire engage.yml
-            if [ $((m % 30)) -lt 5 ]; then fire daily.yml; fi
-            if [ "$dow" = 1 ] && [ "$h" = 6 ] && [ "$m" -lt 5 ]; then fire weekly.yml; fi
+            if ! next=$(pick); then
+              fails=$((fails + 1)); echo "$(date -u +%H:%M) could not read the run list ($fails in a row)"
+            elif [ -z "$next" ]; then
+              echo "$(date -u +%H:%M) a desk run is already queued"
+            elif gh workflow run "$next" --ref main >/dev/null 2>&1; then
+              fails=0; echo "$(date -u +%H:%M) $next"
+            else
+              fails=$((fails + 1)); echo "$(date -u +%H:%M) $next not started ($fails in a row)"
+            fi
+            # a clock that does nothing must not look healthy: red run, then tick-restart starts a fresh one
+            if [ "$fails" -ge 20 ]; then echo "::error::20 dispatches in a row failed"; exit 1; fi
             sleep $(( 300 - $(date +%s) % 300 ))
           done
       - name: Next
         if: ${{ !cancelled() }}
-        run: gh workflow run tick.yml --ref main
+        run: |
+          for i in 1 2 3; do
+            gh workflow run tick.yml --ref main && exit 0
+            sleep $((i * 10))
+          done
+          echo "::error::could not dispatch the next tick"; exit 1

@@ -31,6 +31,7 @@
   "api_daily_limit": 45,
   "min_score": 7.0,
   "max_age_hours": 24,
+  "max_publish_age_hours": 12,
   "site_url": "https://keremozdemir.de/news",
   "source_keyword": "SOURCE",
   "source_line": "Want the sources? Comment SOURCE and we'll send them to your DMs.",

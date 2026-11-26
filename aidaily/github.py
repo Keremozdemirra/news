@@ -53,12 +53,10 @@ def owner():
 
 def vetoed(number, n=1):
     """Post n of the issue's batch is stopped by a closed issue, a `veto` label, or a comment from the
-    repository owner reading `veto all` or `veto <n>`. Anything we cannot read counts as a veto."""
-    try:
-        got = issue(number)
-        notes = _call("GET", f"issues/{number}/comments?per_page=100")
-    except RuntimeError:
-        return True
+    repository owner reading `veto all` or `veto <n>`. Raises RuntimeError when the issue cannot be read: an API
+    error is not a veto, and the caller leaves the post queued for the next run."""
+    got = issue(number)
+    notes = _call("GET", f"issues/{number}/comments?per_page=100")
     labels = {lb["name"].lower() for lb in got.get("labels", [])}
     if got.get("state") != "open" or "veto" in labels:
         return True

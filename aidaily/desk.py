@@ -79,7 +79,7 @@ FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 def _recent_posts(days):
     cut = now() - timedelta(days=days)
-    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed", "deleted", "held")
+    return [p for p, _ in posts() if p.get("status") in ("queued", "published", "vetoed", "failed", "deleted", "held", "expired")
             and datetime.fromisoformat(p["created"]) > cut]
 
 
@@ -797,7 +797,11 @@ def notify():
                          f"{imgs}\n\n<details><summary>Caption</summary>\n\n```\n{post['caption']}\n```\n</details>\n\n{post['urls'][0]}")
         body_ = ("To stop one post, comment `veto 2` (or `veto 1, 3`). To stop all of them, comment `veto all` "
                  "or close this issue. Only the repository owner's comments count.\n\n" + "\n\n---\n\n".join(parts))
-        number = github.open_issue(f"Queued {len(rows)}: {rows[0][0]['headlines'][0][:60]}", body_)
+        try:
+            number = github.open_issue(f"Queued {len(rows)}: {rows[0][0]['headlines'][0][:60]}", body_)
+        except Exception as e:  # noqa: BLE001  the queue is already committed; the next run opens the issue
+            print(f"could not open the veto issue: {str(e)[:200]}")
+            continue
         for post, path in rows:
             post["issue"] = number
             _save(path, post)
@@ -812,6 +816,14 @@ def published_last_24h():
     cut = now() - timedelta(hours=24)
     return sum(1 for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
                and datetime.fromisoformat(p["published"]) > cut)
+
+
+def stories_last_24h():
+    """Stories sent in the last day: a feed post that carries its story_id, or a story-kind post."""
+    cut = (now() - timedelta(hours=24)).isoformat()
+    return sum(1 for q, _ in posts()
+               if (q.get("story_id") or (q.get("kind") == "story" and q.get("status") == "published"))
+               and q.get("published", "") > cut)
 
 
 COOLDOWN_HOURS = 24
@@ -905,8 +917,7 @@ def _mark_live(post, path, m):
                 media_id=m["id"], permalink=m.get("permalink", ""), found_live=True)
     post.pop("error", None)
     _save(path, post)
-    if post.get("issue") and github.enabled():
-        github.comment(post["issue"], f"{post.get('n', 1)}. Already live, recorded: {post['permalink']}")
+    _github_note(post.get("issue"), f"{post.get('n', 1)}. Already live, recorded: {post['permalink']}")
     _close_if_done(post.get("issue"))
     print(f"{post['id']}: already live on Instagram, recorded as published {post['permalink']}")
 
@@ -921,11 +932,35 @@ def configured():
     return bool(os.environ.get("IG_TOKEN") and os.environ.get("IG_USER_ID"))
 
 
+def expire_stale():
+    """Queued feed posts older than max_publish_age_hours are old news: mark them expired, never publish them."""
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    for post, path in posts():
+        if post.get("status") == "queued" and post.get("kind") != "story" and datetime.fromisoformat(post["created"]) < cut:
+            post["status"] = "expired"
+            _save(path, post)
+            print(f"{post['id']}: expired, older than {CONFIG['max_publish_age_hours']}h")
+            _close_if_done(post.get("issue"))
+
+
+def _github_note(issue, text):
+    """A comment on the veto issue is a courtesy: state is already saved, so a GitHub error must not fail the job."""
+    if not (issue and github.enabled()):
+        return
+    try:
+        github.comment(issue, text)
+    except Exception as e:  # noqa: BLE001
+        print(f"issue {issue}: comment failed: {str(e)[:160]}")
+
+
 def _close_if_done(issue):
     if not (issue and github.enabled()):
         return
-    if all(p.get("status") != "queued" for p, _ in posts() if p.get("issue") == issue):
-        github.close(issue)
+    try:
+        if all(p.get("status") != "queued" for p, _ in posts() if p.get("issue") == issue):
+            github.close(issue)
+    except Exception as e:  # noqa: BLE001
+        print(f"issue {issue}: close failed: {str(e)[:160]}")
 
 
 TAG_REJECTED = re.compile(r"user_tags|invalid parameter|\btag", re.I)
@@ -956,6 +991,8 @@ def publish(client=None, dry=False):
         return 0
 
     ramp()
+    if not dry:
+        expire_stale()
 
     def due_posts():
         return sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
@@ -989,9 +1026,17 @@ def publish(client=None, dry=False):
             if dry:
                 print(f"{post['id']}: would publish a story")
                 return 0
+            if post.get("attempted"):
+                # an earlier send may have gone out; a story cannot be looked up like a feed post, so a person decides
+                post.update(status="failed", error="a send was attempted earlier and its result is unknown; check Instagram before resending")
+                _save(path, post)
+                print(f"{post['id']}: story failed: send already attempted")
+                continue
             if client is None:
                 from .instagram import Client
                 client = Client()
+            post["attempted"] = now().isoformat(timespec="seconds")
+            _save(path, post)  # on disk before the call, same as feed posts
             try:
                 post.update(status="published", published=now().isoformat(timespec="seconds"),
                             media_id=_send_story(client, post))
@@ -999,12 +1044,19 @@ def publish(client=None, dry=False):
                 note_block(e)
                 if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
                     post["tries"] = post.get("tries", 0) + 1
+                    post.pop("attempted", None)  # Instagram never fetched the image, so nothing went out
                 else:
                     post.update(status="failed", error=str(e)[:400])
             _save(path, post)
             print(f"{post['id']}: story {post['status']}")
             return 1 if post["status"] == "published" else 0
-        if post.get("issue") and github.enabled() and github.vetoed(post["issue"], post.get("n", 1)):
+        try:
+            veto = bool(post.get("issue") and github.enabled() and github.vetoed(post["issue"], post.get("n", 1)))
+        except RuntimeError as e:
+            # an unreadable issue is not a veto: leave the post queued and try again next run
+            print(f"{post['id']}: could not read the veto issue, nothing published now: {str(e)[:160]}")
+            return 0
+        if veto:
             post["status"] = "vetoed"
             _save(path, post)
             print(f"{post['id']}: vetoed")
@@ -1065,26 +1117,26 @@ def publish(client=None, dry=False):
                 return 0
             post["status"], post["error"] = "failed", str(e)[:400]
             _save(path, post)
-            if post.get("issue") and github.enabled():
-                github.comment(post["issue"], f"{post.get('n', 1)}. Publishing failed: {post['error']}")
+            _github_note(post.get("issue"), f"{post.get('n', 1)}. Publishing failed: {post['error']}")
             print(f"{post['id']}: failed: {post['error']}")
             _close_if_done(post.get("issue"))
             continue
         post.update(status="published", published=now().isoformat(timespec="seconds"), media_id=media, permalink=link)
-        stories_24h = sum(1 for q, _ in posts() if q.get("story_id") or (q.get("kind") == "story" and q.get("status") == "published")
-                          and q.get("published", "") > (now() - timedelta(hours=24)).isoformat())
+        stories_24h = stories_last_24h()
         # Meta's 100-a-day limit counts stories too: near it, posts keep the room and stories wait
         if (post.get("story") and CONFIG.get("stories", True)
                 and published_last_24h() + stories_24h < CONFIG["story_quota_stop"]):
             # the story follows the post; a failed story never undoes a published post
+            # marker on disk first: a run killed mid-send must never lead to a second story
+            post["story_attempted"] = now().isoformat(timespec="seconds")
+            _save(path, post)
             try:
                 post["story_id"] = client.story(media_url(post["id"], post["story"]))
             except Exception as e:  # noqa: BLE001
                 note_block(e)
                 post["story_error"] = str(e)[:300]
         _save(path, post)
-        if post.get("issue") and github.enabled():
-            github.comment(post["issue"], f"{post.get('n', 1)}. Published: {link}")
+        _github_note(post.get("issue"), f"{post.get('n', 1)}. Published: {link}")
         _close_if_done(post.get("issue"))
         print(f"{post['id']}: published {link}")
         return 1
@@ -1137,15 +1189,30 @@ def engage(client=None, ask=copy.ask_text, dry=False):
     if client is None and not configured():
         print("Instagram not connected yet: no replies")
         return 0
+    blocked = cooldown_until()
+    if blocked:
+        print(f"Instagram cooldown until {blocked:%Y-%m-%d %H:%M} UTC: no replies")
+        return 0
     if client is None:
         from .instagram import Client
         client = Client()
     log = _load(STATE / "replies.json", {"answered": [], "days": {}})
     day = now().strftime("%Y-%m-%d")
     budget = CONFIG["reply_daily_cap"] - log["days"].get(day, 0)
-    me = client.own_username()
+    try:
+        me = client.own_username()
+    except Exception as e:  # noqa: BLE001  the next run tries again
+        note_block(e)
+        print(f"could not read the account name, no replies now: {str(e)[:160]}")
+        return 0
     cut = now() - timedelta(days=CONFIG["reply_window_days"])
     sent = dms = 0
+
+    def save():
+        # after every comment: a crash later in the run must not lose what was already answered
+        log["answered"] = log["answered"][-5000:]
+        _save(STATE / "replies.json", log)
+
     for post, _ in posts():
         if (post.get("status") != "published" or post.get("kind") == "story"
                 or datetime.fromisoformat(post["published"]) < cut):
@@ -1154,52 +1221,73 @@ def engage(client=None, ask=copy.ask_text, dry=False):
             comments = client.comments(post["media_id"])
         except Exception as e:  # noqa: BLE001  one unreadable post must not stop replies on the others
             print(f"{post['id']}: comments unreadable: {str(e)[:160]}")
+            if note_block(e):
+                break
             continue
+        halted = False
         for c in comments:
+            if halted:  # Instagram blocked the account: every further call digs the hole deeper
+                break
             if c["id"] in log["answered"] or c.get("username") == me:
                 continue
             if any(r.get("username") == me for r in c.get("replies", {}).get("data", [])):
                 log["answered"].append(c["id"])
+                save()
                 continue
-            if KEYWORD.search(c.get("text", "")):
-                # the reader asked for the links: one private reply, fixed text, sent once per comment
-                log["answered"].append(c["id"])
-                msg = CONFIG["source_dm"].format(headline=post["headlines"][0], url=story_url(post["id"]))
-                # the public reply tells the reader (and everyone after them) where the links went; it rotates
-                # through a fixed set so the thread does not read as one bot line pasted twenty times
-                note = CONFIG["source_replies"][log.get("source_n", 0) % len(CONFIG["source_replies"])]
+            is_source = bool(KEYWORD.search(c.get("text", "")))
+            if not is_source and budget <= 0:
+                continue
+            # judged once, replied or not: recorded before anything is sent, so a failure here is never retried
+            log["answered"].append(c["id"])
+            save()
+            try:
+                if is_source:
+                    # the reader asked for the links: one private reply, fixed text, sent once per comment
+                    msg = CONFIG["source_dm"].format(headline=post["headlines"][0], url=story_url(post["id"]))
+                    # the public reply tells the reader (and everyone after them) where the links went; it rotates
+                    # through a fixed set so the thread does not read as one bot line pasted twenty times
+                    note = CONFIG["source_replies"][log.get("source_n", 0) % len(CONFIG["source_replies"])]
+                    if dry:
+                        print(f"comment {c['id']}: would DM: {msg} / reply: {note}")
+                    else:
+                        try:
+                            client.private_reply(c["id"], msg)
+                        except Exception as e:  # noqa: BLE001  a closed inbox or an expired window costs one DM
+                            print(f"comment {c['id']}: DM failed: {str(e)[:160]}")
+                            if note_block(e):
+                                log["answered"].remove(c["id"])  # never sent: retry after the cooldown
+                                halted = True
+                            continue
+                        try:
+                            client.reply(c["id"], note)
+                        except Exception as e:  # noqa: BLE001  the DM went out; a failed public note is cosmetic
+                            print(f"comment {c['id']}: public reply failed: {str(e)[:160]}")
+                            note_block(e)
+                    log["source_n"] = log.get("source_n", 0) + 1
+                    dms += 1
+                    continue
+                reply = ask(REPLY_PROMPT.format(caption=post["caption"], comment=c.get("text", "")[:600])).strip()
+                problems = check_reply(reply, post["caption"])
+                if problems:
+                    print(f"comment {c['id']}: no reply ({', '.join(problems)})")
+                    continue
                 if dry:
-                    print(f"comment {c['id']}: would DM: {msg} / reply: {note}")
+                    print(f"comment {c['id']}: would reply: {reply}")
                 else:
-                    try:
-                        client.private_reply(c["id"], msg)
-                    except Exception as e:  # noqa: BLE001  a closed inbox or an expired window costs one DM
-                        print(f"comment {c['id']}: DM failed: {str(e)[:160]}")
-                        continue
-                    try:
-                        client.reply(c["id"], note)
-                    except Exception as e:  # noqa: BLE001  the DM went out; a failed public note is cosmetic
-                        print(f"comment {c['id']}: public reply failed: {str(e)[:160]}")
-                log["source_n"] = log.get("source_n", 0) + 1
-                dms += 1
-                continue
-            if budget <= 0:
-                continue
-            reply = ask(REPLY_PROMPT.format(caption=post["caption"], comment=c.get("text", "")[:600])).strip()
-            problems = check_reply(reply, post["caption"])
-            log["answered"].append(c["id"])  # a comment is judged once, replied or not
-            if problems:
-                print(f"comment {c['id']}: no reply ({', '.join(problems)})")
-                continue
-            if dry:
-                print(f"comment {c['id']}: would reply: {reply}")
-            else:
-                client.reply(c["id"], reply)
-            sent += 1
-            budget -= 1
-    log["days"][day] = log["days"].get(day, 0) + sent
-    log["answered"] = log["answered"][-5000:]
-    _save(STATE / "replies.json", log)
+                    client.reply(c["id"], reply)
+                sent += 1
+                budget -= 1
+                log["days"][day] = log["days"].get(day, 0) + 1
+            except Exception as e:  # noqa: BLE001  one bad comment must not cost the others, or the job
+                print(f"comment {c['id']}: failed: {str(e)[:160]}")
+                if note_block(e):
+                    log["answered"].remove(c["id"])
+                    halted = True
+            finally:
+                save()
+        if halted:
+            break
+    save()
     print(f"source DMs: {dms}, replies sent: {sent}")
     return sent + dms
 

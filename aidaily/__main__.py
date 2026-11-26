@@ -218,7 +218,10 @@ def daily(args):
         return 0
     out = run(args)
     digest = json.loads((out / "digest.json").read_text())
-    desk.scheduled_stories()
+    try:
+        desk.scheduled_stories()
+    except Exception as e:  # noqa: BLE001  the story slots are extras; the news below must still run
+        print(f"scheduled stories failed: {e}")
     picked = desk.select(digest["stories"])
     if not picked:
         print("no new story above the bar this run")

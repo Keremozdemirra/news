@@ -12,18 +12,25 @@ concurrency:
   cancel-in-progress: false
 jobs:
   weekly:
+    if: vars.DESK_PAUSED != '1'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Insights and token
+      - name: Insights
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          python3 -m aidaily insights
-          python3 -m aidaily token
+        run: python3 -m aidaily insights
+      # the token check is a separate step so a failed insights call does not skip the expiry warning
+      - name: Token
+        if: ${{ !cancelled() }}
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 -m aidaily token
       - name: Commit
         if: always()
         run: |

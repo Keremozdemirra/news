@@ -6,6 +6,7 @@ text, or the story falls back to the source headline. A wrong figure in a
 news post is the one mistake this brand cannot afford.
 """
 import json
+import os
 import re
 import subprocess
 
@@ -105,11 +106,22 @@ def verify(story, copy):
     return problems
 
 
+# The model reads untrusted text, so the CLI gets only what it needs to run: never the Instagram or GitHub tokens
+# that sit in the same job's environment.
+CLI_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "CLAUDE_CODE_OAUTH_TOKEN",
+           "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS")
+
+
+def cli_env(environ=None):
+    environ = os.environ if environ is None else environ
+    return {k: v for k, v in environ.items() if k in CLI_ENV}
+
+
 def ask_text(prompt, runner=subprocess.run):
     # no tools, no MCP, no user settings or hooks: the model reads untrusted text and may only answer
     r = runner(["claude", "-p", "--model", MODEL, "--tools", "", "--restricted", "--strict-mcp-config",
                 "--no-session-persistence", "--output-format", "json"],
-               input=prompt, capture_output=True, text=True, timeout=600)
+               input=prompt, capture_output=True, text=True, timeout=600, env=cli_env())
     if r.returncode != 0:
         raise RuntimeError(f"claude exited {r.returncode}: {r.stderr[-400:]}")
     return json.loads(r.stdout)["result"]

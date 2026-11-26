@@ -1,0 +1,26 @@
+name: tick-restart
+# The tick chain lives on one run dispatching the next. If that dispatch failed, the clock stops until the
+# 6-hourly cron (which GitHub may skip). This starts a new tick whenever one ends and none is waiting.
+on:
+  workflow_run:
+    workflows: [tick]
+    types: [completed]
+permissions:
+  actions: write
+jobs:
+  restart:
+    if: vars.DESK_PAUSED != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Restart tick
+        run: |
+          # a tick that fails at once would otherwise restart itself in a tight loop
+          sleep 60
+          live=$(gh run list --workflow tick.yml --limit 20 --json status \
+                 --jq '[.[] | select(.status | IN("queued","in_progress","pending","waiting"))] | length')
+          if [ "$live" != 0 ]; then echo "a tick is already queued or running"; exit 0; fi
+          gh workflow run tick.yml --ref main

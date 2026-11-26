@@ -11,6 +11,11 @@ case "${1:-}" in
     rm -rf media && git worktree prune
     if git fetch -q --depth=1 origin media 2>/dev/null; then
       git worktree add -q --detach media FETCH_HEAD
+    elif [ -n "$(git ls-remote origin refs/heads/media)" ]; then
+      # the branch exists, so a failed fetch is a network error, not first use: an empty checkout would
+      # make the next push replace the branch with nothing
+      echo "media branch exists on origin but could not be fetched" >&2
+      exit 1
     else
       git worktree add -q --detach media HEAD
       (cd media && git rm -rqf . && git clean -fdqx)

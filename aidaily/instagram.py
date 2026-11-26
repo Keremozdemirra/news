@@ -116,7 +116,11 @@ class Client:
             c = self.carousel(kids, caption)
         self.wait(c, sleep=sleep)
         media = self.publish(c)
-        return media, self.permalink(media)
+        try:
+            link = self.permalink(media)
+        except IGError:
+            link = ""  # the post is live; losing its id here would make the desk publish it again
+        return media, link
 
     # comments
 

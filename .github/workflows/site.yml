@@ -1,5 +1,7 @@
 name: site
-# Rebuilds keremozdemir.de/news after every run that may have published something. Static files only.
+# Rebuilds keremozdemir.de/news when what the pages are made from changed. Publish runs finish hundreds of times
+# a day; the live site carries a fingerprint of its inputs (built-from.txt), and a run whose fingerprint matches
+# stops there. Static files only.
 on:
   workflow_run:
     workflows: [daily, publish, weekly]
@@ -23,16 +25,35 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+      - name: Changed?
+        id: changed
+        run: |
+          # tree ids are content hashes, so this works on a shallow checkout
+          want=$(git ls-tree HEAD queue state/insights state/followers.json aidaily assets-site desk.json | sha1sum | cut -d' ' -f1)
+          url=$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')
+          live=$(curl -fsS --max-time 20 "$url/built-from.txt?t=$(date +%s)" || true)
+          echo "want=$want" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$want" != "$live" ]; then
+            echo "build=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=no" >> "$GITHUB_OUTPUT"; echo "site already up to date"
+          fi
       - name: Media branch
+        if: steps.changed.outputs.build == 'yes'
         run: scripts/media.sh pull
       - name: Build
-        run: python3 -m aidaily site
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: steps.changed.outputs.build == 'yes'
+        run: |
+          python3 -m aidaily site
+          echo "${{ steps.changed.outputs.want }}" > _site/built-from.txt
+      - if: steps.changed.outputs.build == 'yes'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
       # Pages' artifact lookup fails now and then ("No artifacts named github-pages"); a second try a little
       # later goes through, so one blip no longer fails the run and mails the owner
       - id: deploy
+        if: steps.changed.outputs.build == 'yes'
         continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
       - if: steps.deploy.outcome == 'failure'

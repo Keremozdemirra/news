@@ -1252,3 +1252,200 @@ class Audit(Tmp):
         p = self.write_post("a", headlines=["FCC clears SpaceX"], topic="Culture", caption="c")
         self.assertEqual(desk.publish(client=FakeIG()), 0)
         self.assertEqual(json.loads(p.read_text())["status"], "held")
+
+
+class EngageHardening(Tmp):
+    """One bad comment must not cost the run, the other comments, or the state saved so far."""
+    CAP = "AI today: Lab ships model with 40% faster inference. Sources: Outlet."
+
+    def setUp(self):
+        super().setUp()
+        self.write_post("a", status="published", published=desk.now().isoformat(), media_id="m1", caption=self.CAP)
+
+    def replies(self):
+        return json.loads((desk.STATE / "replies.json").read_text())
+
+    def client(self, comments, reply=None):
+        class IG:
+            sent = []
+
+            def own_username(self):
+                return "boardread"
+
+            def comments(self, media):
+                return comments
+
+        ig = IG()
+        ig.reply = reply or (lambda cid, msg: ig.sent.append(cid))
+        return ig
+
+    def test_a_failing_reply_is_recorded_and_the_next_comment_still_gets_its_answer(self):
+        def reply(cid, msg):
+            if cid == "c1":
+                raise instagram.IGError("HTTP 400: boom")
+            ig.sent.append(cid)
+        ig = self.client([{"id": "c1", "username": "ann", "text": "how much faster?"},
+                          {"id": "c2", "username": "bob", "text": "how fast?"}], reply)
+        n = desk.engage(client=ig, ask=lambda p: "The lab says the model runs inference 40% faster.")
+        self.assertEqual((n, ig.sent), (1, ["c2"]))
+        self.assertEqual(self.replies()["answered"], ["c1", "c2"])  # c1 is never retried
+
+    def test_state_is_saved_after_each_comment(self):
+        seen = []
+
+        def ask(prompt):
+            seen.append(json.loads((desk.STATE / "replies.json").read_text())["answered"] if (desk.STATE / "replies.json").exists() else [])
+            return "The lab says the model runs inference 40% faster."
+        ig = self.client([{"id": "c1", "username": "ann", "text": "one?"}, {"id": "c2", "username": "bob", "text": "two?"}])
+        desk.engage(client=ig, ask=ask)
+        self.assertEqual(seen, [["c1"], ["c1", "c2"]])  # c1 was on disk before c2 was asked about
+
+    def test_a_crashing_model_call_does_not_fail_the_job(self):
+        def ask(prompt):
+            raise RuntimeError("claude exited 1")
+        ig = self.client([{"id": "c1", "username": "ann", "text": "one?"}])
+        self.assertEqual(desk.engage(client=ig, ask=ask), 0)
+        self.assertEqual(self.replies()["answered"], ["c1"])
+
+    def test_unreadable_account_name_ends_the_run_quietly(self):
+        ig = self.client([])
+        ig.own_username = mock.Mock(side_effect=instagram.IGError("HTTP 500"))
+        self.assertEqual(desk.engage(client=ig), 0)
+
+    def test_cooldown_stops_engage_without_touching_instagram(self):
+        desk._save(desk.STATE / "cooldown.json", {"until": (desk.now() + timedelta(hours=3)).isoformat()})
+        ig = self.client([])
+        ig.own_username = mock.Mock(side_effect=AssertionError("Instagram was called"))
+        self.assertEqual(desk.engage(client=ig), 0)
+
+    def test_a_block_answer_sets_the_cooldown_stops_the_run_and_keeps_the_comment_for_later(self):
+        ig = self.client([{"id": "c1", "username": "ann", "text": "one?"}, {"id": "c2", "username": "bob", "text": "two?"}],
+                         lambda cid, msg: (_ for _ in ()).throw(instagram.IGError(Duplicates.BLOCK)))
+        asked = []
+        desk.engage(client=ig, ask=lambda p: asked.append(p) or "The lab says the model runs inference 40% faster.")
+        self.assertTrue(desk.cooldown_until())
+        self.assertEqual(len(asked), 1)  # c2 was never looked at
+        self.assertNotIn("c1", self.replies()["answered"])
+
+
+class Hardening(Tmp):
+    def test_story_count_only_takes_the_last_24_hours(self):
+        old = (desk.now() - timedelta(hours=30)).isoformat()
+        self.write_post("old-with-story", status="published", published=old, story_id="s0")
+        self.write_post("old-story", kind="story", status="published", published=old)
+        self.write_post("new-with-story", status="published", published=desk.now().isoformat(), story_id="s1")
+        self.write_post("new-story", kind="story", status="published", published=desk.now().isoformat())
+        self.assertEqual(desk.stories_last_24h(), 2)
+
+    def test_unreadable_veto_issue_leaves_the_post_queued(self):
+        p = self.write_post("a", issue=7, n=1)
+        ig = FakeIG()
+        with mock.patch.object(desk.github, "enabled", return_value=True), \
+             mock.patch.object(desk.github, "_call", side_effect=RuntimeError("GitHub GET issues/7: HTTP 502")):
+            self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual(json.loads(p.read_text())["status"], "queued")
+        self.assertEqual(ig.posted, [])
+
+    def test_vetoed_raises_on_api_error_and_is_true_only_for_a_real_veto(self):
+        from aidaily import github
+        with mock.patch.object(github, "_call", side_effect=RuntimeError("HTTP 500")):
+            with self.assertRaises(RuntimeError):
+                github.vetoed(7)
+        closed = {"state": "closed", "labels": []}
+        with mock.patch.object(github, "_call", return_value=closed):
+            self.assertTrue(github.vetoed(7))
+
+    def test_stale_queued_post_expires_and_is_never_published(self):
+        old = (desk.now() - timedelta(hours=desk.CONFIG["max_publish_age_hours"] + 1)).isoformat()
+        stale = self.write_post("stale", created=old)
+        fresh = self.write_post("fresh")
+        ig = FakeIG()
+        self.assertEqual(desk.publish(client=ig), 1)
+        self.assertEqual(json.loads(stale.read_text())["status"], "expired")
+        self.assertEqual(json.loads(fresh.read_text())["status"], "published")
+        self.assertEqual(len(ig.posted), 1)
+        self.assertEqual(desk.published_last_24h(), 1)
+
+    def test_expired_posts_stay_off_the_site(self):
+        from aidaily import site
+        self.write_post("x", status="expired", published=desk.now().isoformat())
+        self.assertEqual(site.published(), [])
+
+    def test_github_errors_after_publishing_do_not_fail_the_job(self):
+        p = self.write_post("a", issue=7, n=1)
+        with mock.patch.object(desk.github, "enabled", return_value=True), \
+             mock.patch.object(desk.github, "vetoed", return_value=False), \
+             mock.patch.object(desk.github, "comment", side_effect=RuntimeError("HTTP 502")), \
+             mock.patch.object(desk.github, "close", side_effect=RuntimeError("HTTP 502")):
+            self.assertEqual(desk.publish(client=FakeIG()), 1)
+        self.assertEqual(json.loads(p.read_text())["status"], "published")
+
+    def test_notify_survives_a_github_error(self):
+        p = self.write_post("a", cards=["c.jpg"], headlines=["H"], publish_after="2026-11-26T12:00:00", n=1)
+        with mock.patch.object(desk.github, "enabled", return_value=True), \
+             mock.patch.object(desk.github, "open_issue", side_effect=RuntimeError("HTTP 502")):
+            desk.notify()
+        self.assertNotIn("issue", json.loads(p.read_text()))
+
+    def test_a_story_is_marked_attempted_before_it_is_sent_and_never_sent_twice(self):
+        on_disk = []
+
+        class IG(FakeIG):
+            def story(self, url):
+                on_disk.append(json.loads(p.read_text()).get("attempted"))
+                raise KeyboardInterrupt  # the run dies mid-send
+        p = self.write_post("2026-11-26-digest", kind="story", story="story.jpg", cards=[])
+        with mock.patch.dict(desk.CONFIG, {"stories": True}), self.assertRaises(KeyboardInterrupt):
+            desk.publish(client=IG())
+        self.assertTrue(on_disk[0])
+        ig = IG()
+        ig.story = mock.Mock(side_effect=AssertionError("sent again"))
+        desk.publish(client=ig)
+        got = json.loads(p.read_text())
+        self.assertEqual(got["status"], "failed")
+        self.assertIn("attempted", got["error"])
+
+    def test_story_that_instagram_never_fetched_may_retry(self):
+        class IG(FakeIG):
+            def story(self, url):
+                raise instagram.IGError("Media download has failed 2207003")
+        p = self.write_post("2026-11-26-digest", kind="story", story="story.jpg", cards=[])
+        desk.publish(client=IG())
+        got = json.loads(p.read_text())
+        self.assertEqual((got["status"], got["tries"]), ("queued", 1))
+        self.assertNotIn("attempted", got)
+
+    def test_permalink_failure_keeps_the_media_id(self):
+        class C(instagram.Client):
+            def call(self, method, path, params=None, **kw):
+                if path.endswith("media_publish"):
+                    return {"id": "m9"}
+                if params and params.get("fields") == "permalink":
+                    raise instagram.IGError("HTTP 500")
+                return {"id": "c1", "status_code": "FINISHED"}
+        self.assertEqual(C(token="t", user_id="1").post_carousel(["https://x/1.jpg"], "cap", sleep=lambda s: None), ("m9", ""))
+
+    def test_daily_survives_the_story_scheduler_failing(self):
+        import argparse
+        from aidaily import __main__ as M
+        out = self.root / "out"
+        out.mkdir()
+        (out / "digest.json").write_text(json.dumps({"stories": []}))
+        with mock.patch.object(M, "run", return_value=out), \
+             mock.patch.object(desk, "scheduled_stories", side_effect=ValueError("bad slot")), \
+             mock.patch.object(desk, "select", return_value=[]):
+            self.assertEqual(M.daily(argparse.Namespace()), 0)
+
+    def test_the_model_cli_gets_no_instagram_or_github_secrets(self):
+        from aidaily import copy
+        env = {"PATH": "/bin", "HOME": "/h", "CLAUDE_CODE_OAUTH_TOKEN": "o", "IG_TOKEN": "i", "IG_USER_ID": "1",
+               "GITHUB_TOKEN": "g", "GH_TOKEN": "g2"}
+        self.assertEqual(copy.cli_env(env), {"PATH": "/bin", "HOME": "/h", "CLAUDE_CODE_OAUTH_TOKEN": "o"})
+        seen = {}
+        copy.ask_text("hi", runner=lambda *a, **k: seen.update(k) or mock.Mock(returncode=0, stdout='{"result": "x"}'))
+        self.assertNotIn("IG_TOKEN", seen["env"])
+
+    def test_the_committed_cooldown_blocks_until_the_known_time(self):
+        real = json.loads((Path(__file__).resolve().parent.parent / "state" / "cooldown.json").read_text())
+        self.assertEqual(real["until"], "2026-11-27T16:15:00+00:00")
+        self.assertEqual(real["error"], "manual: Instagram action block 2026-11-26")
