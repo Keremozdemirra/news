@@ -1588,6 +1588,8 @@ class Hardening(Tmp):
         env = {"PATH": "/bin", "HOME": "/h", "CLAUDE_CODE_OAUTH_TOKEN": "o", "IG_TOKEN": "i", "IG_USER_ID": "1",
                "GITHUB_TOKEN": "g", "GH_TOKEN": "g2"}
         self.assertEqual(copy.cli_env(env), {"PATH": "/bin", "HOME": "/h", "CLAUDE_CODE_OAUTH_TOKEN": "o"})
+        # with an API key the subscription token is withheld
+        self.assertEqual(copy.cli_env({**env, "ANTHROPIC_API_KEY": "k"}), {"PATH": "/bin", "HOME": "/h", "ANTHROPIC_API_KEY": "k"})
         seen = {}
         copy.ask_text("hi", runner=lambda *a, **k: seen.update(k) or mock.Mock(returncode=0, stdout='{"result": "x"}'))
         self.assertNotIn("IG_TOKEN", seen["env"])

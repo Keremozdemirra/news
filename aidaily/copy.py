@@ -192,13 +192,19 @@ def check_so_what(story, copy, text):
 
 # The model reads untrusted text, so the CLI gets only what it needs to run: never the Instagram or GitHub tokens
 # that sit in the same job's environment.
-CLI_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "CLAUDE_CODE_OAUTH_TOKEN",
+CLI_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
            "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS")
 
 
 def cli_env(environ=None):
     environ = os.environ if environ is None else environ
-    return {k: v for k, v in environ.items() if k in CLI_ENV}
+    env = {k: v for k, v in environ.items() if k in CLI_ENV}
+    # An automated service runs on an API key under the Commercial Terms; the subscription sign-in is for
+    # ordinary individual use (code.claude.com/docs/en/legal-and-compliance). Once the key exists, the
+    # subscription token is withheld so the CLI cannot fall back to it.
+    if env.get("ANTHROPIC_API_KEY"):
+        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+    return env
 
 
 def ask_text(prompt, runner=subprocess.run):
