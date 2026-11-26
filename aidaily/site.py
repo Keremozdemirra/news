@@ -104,7 +104,7 @@ def page(title, body, desc=""):
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 <link rel="alternate" type="application/rss+xml" title="boardread" href="{BASE}/feed.xml">
 <style>{CSS}</style></head><body><main>
-<header><div><a class="brand" href="{BASE}/">boardread</a> <span class="tag">The news that moves business</span></div>
+<header><div><a class="brand" href="{BASE}/">boardread.</a> <span class="tag">The news that moves business</span></div>
 <nav><a href="{BASE}/week/">Top 10</a>{sub}<a href="{BASE}/feed.xml">RSS</a></nav></header>
 {strip()}
 {body}

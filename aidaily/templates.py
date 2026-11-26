@@ -16,7 +16,7 @@ from datetime import datetime
 from . import entities
 
 FONTS = "https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap"
-BRAND = {"name": "boardread", "handle": "@boardread"}
+BRAND = {"name": "boardread.", "handle": "@boardread"}
 WHITE, BLACK, GREY, GREY_DARK, LINE = "#fcfcfb", "#111111", "#6f6f6f", "#a3a3a3", "#e4e4e2"
 LABEL = {"funding": "Funding", "launch": "Launch", "research": "Research", "policy": "Policy",
          "statement": "Statement", "markets": "Markets", "business": "Business", "news": "News"}

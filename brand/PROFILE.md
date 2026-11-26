@@ -5,7 +5,7 @@ Set by hand on each platform. Handle availability is checked by typing it into t
 ## Everywhere
 
 - Name: Boardread
-- Profile picture: `profile/boardread-stack.jpg`
+- Profile picture: `profile/boardread-logo.jpg`
 - Bio (118 characters; fits Instagram, Threads and Facebook's 150):
 
 ```
