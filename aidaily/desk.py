@@ -17,6 +17,7 @@ import shutil
 import os
 import re
 import urllib.parse
+import zlib
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -238,10 +239,14 @@ def scheduled_stories():
         if cands:
             p = max(cands, key=lambda q: q.get("score") or 0)
             hint = p["headlines"][0].replace(p["company"], "___")
-            if p["company"] not in hint:
-                made.append(_queue_story(f"{day}-quiz", T.story_quiz(hint, now().strftime("%-d %b")), "Guess the company"))
+            # three wrong answers, all real companies from our own recent posts; the order is fixed by the day
+            others = sorted({q["company"] for q in _published(24 * 7) if q.get("company") and q["company"] != p["company"]})
+            options = sorted([p["company"]] + others[:3], key=lambda c: zlib.crc32(f"{day}{c}".encode()))
+            if p["company"] not in hint and len(options) >= 3:
+                letter = "ABCD"[options.index(p["company"])]
+                made.append(_queue_story(f"{day}-quiz", T.story_quiz(hint, now().strftime("%-d %b"), options), "Guess the company"))
                 ans = _queue_story(f"{day}-answer", T.story_answer(media(p, "logo.svg", "logo.png", "logo.jpg"), p["company"],
-                                                                  p["headlines"][0], now().strftime("%-d %b")), "The answer")
+                                                                  p["headlines"][0], now().strftime("%-d %b"), letter), "The answer")
                 post = _load(ans, {})
                 post["publish_after"] = (now() + timedelta(hours=1)).isoformat(timespec="seconds")
                 _save(ans, post)

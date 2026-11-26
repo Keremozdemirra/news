@@ -490,7 +490,8 @@ class MoreStories(Tmp):
                 ("S&P weighs Nvidia downgrade", "Nvidia", "AA-", "Markets", ""),
                 ("UK net migration falls to 77,000", "", "77,000", "Politics", ""),
                 ("ECB picks new president", "", "", "Economy", "Pablo Hernández de Cos"),
-                ("Trump escalates tariffs", "", "", "Politics", "Donald Trump")]
+                ("Trump escalates tariffs", "", "", "Politics", "Donald Trump"),
+                ("Norse Atlantic suspends flights", "Norse Atlantic", "", "Business", "")]
         for i, (h, co, fig, top, person) in enumerate(rows):
             self.write_post(f"2026-11-26-1000-{i}", status="published", published=now, headlines=[h], score=10 - i,
                             company=co, figure=fig, topic=top, person=person)
