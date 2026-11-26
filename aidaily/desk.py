@@ -336,7 +336,8 @@ def queue(day_dir, batch=None, render=True):
             R.jpeg(png)
             png.unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
-            story_frame(img, "Breaking" if m.get("score", 0) >= CONFIG["breaking_score"] else "New post")
+            if CONFIG.get("stories"):
+                story_frame(img, "Breaking" if m.get("score", 0) >= CONFIG["breaking_score"] else "New post")
             logo = (s.get("_assets", {}).get("logos") or [""])[0]
             if logo.startswith("file://"):
                 lp = Path(urllib.parse.unquote(urllib.parse.urlparse(logo).path))
@@ -347,7 +348,7 @@ def queue(day_dir, batch=None, render=True):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
-                "cards": ["card.jpg", "detail.jpg"], "story": "story.jpg" if render else "", "caption": caption(m, s),
+                "cards": ["card.jpg", "detail.jpg"], "story": "story.jpg" if render and CONFIG.get("stories") else "", "caption": caption(m, s),
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),

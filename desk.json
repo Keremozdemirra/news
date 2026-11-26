@@ -84,7 +84,7 @@
     "Delivered to your DMs.",
     "Your DMs have the full story."
   ],
-  "stories": true,
+  "stories": false,
   "story_quota_stop": 90,
   "story_hours": {
     "morning": 6,

@@ -422,6 +422,12 @@ class PhotoChoice(unittest.TestCase):
 
 
 class Stories(Tmp):
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.dict(desk.CONFIG, {"stories": True})
+        p.start()
+        self.patches.append(p)
+
     def test_story_follows_post_and_story_kind_publishes_alone(self):
         class IG(FakeIG):
             stories = []
@@ -500,3 +506,19 @@ class MoreStories(Tmp):
         quiz = next(v for k, v in seen.items() if k.endswith("-quiz"))
         self.assertNotIn("ElevenLabs", quiz)
         self.assertIn("$33B", quiz)
+
+
+class Render(unittest.TestCase):
+    def test_every_template_builds(self):
+        from aidaily import templates as T
+        s = {"title": "Nvidia halts shipments", "headline": "Nvidia halts shipments", "dek": "d", "category": "launch",
+             "topic": "Tech", "published": desk.now().isoformat(), "source": "X", "outlets": ["X"],
+             "_assets": {"logo": "", "backer": "", "logos": [], "photo": "file:///p.jpg", "credit": "c", "file": "f"}}
+        self.assertIn("Nvidia", T.card(s))
+        s["_assets"]["photo"] = ""
+        self.assertIn("Nvidia", T.card(dict(s, _assets=dict(s["_assets"]))))
+        self.assertIn("Nvidia", T.detail(s, "body", ["X"]))
+        for html in (T.story_frame("file:///c.jpg"), T.story_list("T", ["a"], "l"), T.story_number("$1B", "h", "l"),
+                     T.story_company("", "Co", ["h"], "l"), T.story_person("file:///p.jpg", "N", "h", "c", "l"),
+                     T.story_quiz("___ raises", "l"), T.story_answer("", "Co", "h", "l"), T.story_numbers([("1", "h")], "l")):
+            self.assertIn("boardread.", html)
