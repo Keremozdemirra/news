@@ -3,7 +3,10 @@
   "auth-threads": "2026-11-26T23:00:17+00:00",
   "ig-failed": "2026-11-26T23:00:17+00:00"
  },
- "issue": null,
- "reported": [],
+ "issue": 9,
+ "reported": [
+  "auth-threads",
+  "ig-failed"
+ ],
  "clear_since": null
 }
