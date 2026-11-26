@@ -3,8 +3,8 @@ into ranking and timing within guard rails. Standard library only.
 
   pull      Instagram (reach, saves, shares, profile visits, follows), Threads (views, likes, replies, reposts,
             quotes, shares), Facebook (reactions, comments, shares, impressions where Meta still serves them),
-            Bluesky (likes, reposts, quotes, replies; the public AppView, no login) and Telegram (views read from
-            the channel's own public page t.me/s/<channel>, subscribers from the Bot API). Each result lands in
+            Bluesky (likes, reposts, quotes, replies; the public AppView, no login) and Telegram (views and
+            subscribers read from the channel's own public page t.me/s/<channel>, no bot token). Each result lands in
             post.json under "metrics"/<platform>, with the time it was read. A platform without secrets is skipped.
   analyse   one number per post and platform (the platform's own engagement measure), divided by that platform's
             median over the window, so a Threads post and a Telegram post can be compared: 1.0 is a typical post.
@@ -25,7 +25,7 @@ import statistics
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import timedelta
+from datetime import date, timedelta
 
 from . import desk
 from .feeds import CTX
@@ -41,6 +41,11 @@ MAX_QUIET = 6
 QUIET_BELOW = 0.7
 HOLD_RATIO = 0.8     # last 7 days' Instagram send rate under 80% of the 8-30 day median holds the ramp
 HOLD_MIN_N = 10
+REREAD_DAYS = 7      # posts older than this keep the numbers already stored; only never-measured ones are read
+COUNT_MIN_HOURS = 48  # count-based numbers (no audience size) are compared only once a post has had two days
+LEARNED_DAYS = 14    # learned values older than this are ignored and the shipped defaults apply
+QUIET_KEEP_DAYS = 14  # a quiet hour stays at least this long, so the schedule does not flip week to week
+COUNT_BASED = ("bluesky", "telegram")
 UA = "boardread-desk/1.0 (+https://boardread.news/about/)"
 
 
@@ -91,10 +96,20 @@ class Instagram(Source):
         self.client = client
 
     def fetch(self, post):
+        """One call with every metric comma-joined; only when Instagram refuses that call (a metric renamed or
+        not offered for this media type) does it fall back to one call per metric. A block answer is raised
+        untouched, so pull() can hand it to desk.note_block and stop."""
         if not post.get("media_id"):
             return None
-        got = self.client.media_insights(post["media_id"], metrics=self.METRICS)
-        return {k: v for k, v in got.items() if k != "_errors"} or None
+        from .instagram import IGError
+        try:
+            rows = self.client.call("GET", f"{post['media_id']}/insights", {"metric": ",".join(self.METRICS)}).get("data", [])
+            got = _metric_rows(rows)
+        except IGError as e:
+            if desk.BLOCKED.search(str(e)):
+                raise
+            got = {k: v for k, v in self.client.media_insights(post["media_id"], metrics=self.METRICS).items() if k != "_errors"}
+        return got or None
 
     def followers(self):
         return (self.client.followers() or {}).get("followers_count")
@@ -163,7 +178,7 @@ class Bluesky(Source):
 
     def __init__(self, opener=urllib.request.urlopen):
         super().__init__(opener)
-        self.handle = os.environ.get("BSKY_HANDLE", "").strip().lstrip("@") or "boardread.bsky.social"
+        self.handle = os.environ.get("BSKY_HANDLE", "").strip().lstrip("@") or None
         self.cache = {}
 
     def prefetch(self, posts):
@@ -179,6 +194,8 @@ class Bluesky(Source):
         return self.cache.get(((post.get("platforms") or {}).get("bluesky") or {}).get("id"))
 
     def followers(self):
+        if not self.handle:
+            return None
         return self.get_json(f"{self.HOST}/app.bsky.actor.getProfile", {"actor": self.handle}).get("followersCount")
 
 
@@ -203,33 +220,44 @@ def _count(text):
     return int(float(text.rstrip("KMk")) * mult)
 
 
+SUBSCRIBERS = re.compile(r'counter_value">([\d.,]+[KMk]?)</span>\s*<span class="counter_type">subscribers')
+
+
 class Telegram(Source):
-    """The Bot API does not return view counts of channel posts, so views are read from the channel's own public web
-    preview (https://t.me/s/<channel>), the same numbers anyone sees. Subscribers come from getChatMemberCount."""
+    """The Bot API does not return view counts of channel posts, so views and the subscriber count are read from the
+    channel's own public web preview (https://t.me/s/<channel>), the same numbers anyone sees. No bot token is used.
+    Pages go back until they reach the oldest Telegram post in the window, at most PAGES; if the cap stops them
+    first, `short` says so and the report labels the shorter window."""
     name = "telegram"
-    PAGES = 8
+    PAGES = 40
 
     def __init__(self, opener=urllib.request.urlopen):
         super().__init__(opener)
-        self.token, self.chat = os.environ.get("TG_BOT_TOKEN", ""), os.environ.get("TG_CHANNEL", "")
+        self.chat = os.environ.get("TG_CHANNEL", "")
         # the public page needs the username: TG_CHANNEL when it is one, else the t.me link in desk.json accounts
         link = next((a["url"] for a in desk.CONFIG.get("accounts", []) if a["name"] == "Telegram" and a.get("url")), "")
         self.username = self.chat[1:] if self.chat.startswith("@") else link.rstrip("/").rsplit("/", 1)[-1]
         if not self.username:
             raise LookupError("a public channel username (TG_CHANNEL=@name or the Telegram url in desk.json)")
-        self.views = {}
+        self.views, self.subscribers, self.short = {}, None, False
 
     def prefetch(self, posts):
+        ids = [int(s["id"]) for s in (((p.get("platforms") or {}).get("telegram") or {}) for p in posts) if str(s.get("id", "")).isdigit()]
+        oldest = min(ids, default=None)
         before = ""
         for _ in range(self.PAGES):
             html = self.get(f"https://t.me/s/{self.username}", {"before": before} if before else None, "telegram page").decode("utf-8", "replace")
+            if self.subscribers is None:
+                m = SUBSCRIBERS.search(html)
+                self.subscribers = _count(m.group(1)) if m else None
             found = page_views(html)
             if not found:
-                break
+                return
             self.views.update(found)
             before = str(min(found))
-            if min(found) <= 1:
-                break
+            if min(found) <= 1 or oldest is None or min(found) <= oldest:
+                return
+        self.short = True
 
     def fetch(self, post):
         slot = (post.get("platforms") or {}).get("telegram") or {}
@@ -237,10 +265,11 @@ class Telegram(Source):
         return {"views": self.views[mid]} if mid in self.views else None
 
     def followers(self):
-        if not (self.token and self.chat):
-            return None
-        got = self.get_json(f"https://api.telegram.org/bot{self.token}/getChatMemberCount", {"chat_id": self.chat}, "telegram members")
-        return got.get("result")
+        if self.subscribers is None:
+            html = self.get(f"https://t.me/s/{self.username}", None, "telegram page").decode("utf-8", "replace")
+            m = SUBSCRIBERS.search(html)
+            self.subscribers = _count(m.group(1)) if m else None
+        return self.subscribers
 
 
 SOURCES = {"instagram": Instagram, "threads": Threads, "facebook": Facebook, "bluesky": Bluesky, "telegram": Telegram}
@@ -262,7 +291,7 @@ def value(platform, m):
         return (g("replies") + g("reposts") + g("quotes") + g("shares")) / g("views") if g("views") >= 50 else None
     if platform == "facebook":
         act = g("shares") + g("comments") + g("reactions")
-        return act / g("reach") if g("reach") >= 50 else float(act)
+        return act / g("reach") if g("reach") >= 50 else float(act)  # a count: see counted()
     if platform == "bluesky":
         return g("likes") + 2 * (g("reposts") + g("quotes")) + g("replies")
     if platform == "telegram":
@@ -295,12 +324,29 @@ DIMENSIONS = {
 }
 
 
+def counted(name, m):
+    """True when the platform's number is a running count with no audience size, which keeps growing for days."""
+    return name in COUNT_BASED or (name == "facebook" and (m.get("reach") or 0) < 50)
+
+
+def usable(p, name, m):
+    """The post's value on a platform, or None. Counts are compared only once the post is COUNT_MIN_HOURS old,
+    so a fresh post's half-grown count is never read as a weak one."""
+    if not m:
+        return None
+    if counted(name, m):
+        at = desk._stamp(p.get("published", ""))
+        if not at or desk.now() - at < timedelta(hours=COUNT_MIN_HOURS):
+            return None
+    return value(name, m)
+
+
 def lifts(rows):
     """[(post, {platform: lift})]: each value over its platform's median in the window; posts with no usable value drop out."""
     per = {}
     for p in rows:
         for name, m in (p.get("metrics") or {}).items():
-            v = value(name, m)
+            v = usable(p, name, m)
             if v is not None:
                 per.setdefault(name, []).append(v)
     med = {k: statistics.median(v) for k, v in per.items() if v and statistics.median(v) > 0}
@@ -308,7 +354,7 @@ def lifts(rows):
     for p in rows:
         got = {}
         for name, m in (p.get("metrics") or {}).items():
-            v = value(name, m)
+            v = usable(p, name, m)
             if v is not None and name in med:
                 got[name] = v / med[name]
         if got:
@@ -383,17 +429,29 @@ def next_digest_hour(rows, current):
     return current + (1 if best > current else -1)
 
 
-def next_quiet_hours(rows):
+def next_quiet_hours(rows, previous=None, today=None):
     """UTC hours where Threads and Bluesky posts do clearly worse (shrunk lift under QUIET_BELOW, MIN_N posts):
-    web-tier posts wait for the next hour. At most MAX_QUIET hours, the worst first."""
+    web-tier posts wait for the next hour. Breaking posts are left out of the scoring, since they never wait.
+    A quiet hour, once set, stays QUIET_KEEP_DAYS. At most MAX_QUIET hours, the worst first.
+    previous: {hour (str): date set}. Returns the same shape."""
+    today = today or desk.now().date()
+    kept = {h: d for h, d in (previous or {}).items()
+            if (today - date.fromisoformat(d[:10])).days < QUIET_KEEP_DAYS}
     by = {}
     for p, got in lifts(rows):
+        if (p.get("score") or 0) >= desk.CONFIG["breaking_score"]:
+            continue
         v = [got[k] for k in ("threads", "bluesky") if k in got]
         if v:
             by.setdefault(hour(p), []).append(sum(v) / len(v))
     bad = {h: shrunk(sum(v) / len(v), len(v)) for h, v in by.items() if len(v) >= MIN_N}
     bad = {h: x for h, x in bad.items() if x < QUIET_BELOW}
-    return sorted(sorted(bad, key=bad.get)[:MAX_QUIET])
+    out = dict(kept)
+    for h in sorted(bad, key=bad.get):
+        if len(out) >= MAX_QUIET:
+            break
+        out.setdefault(str(h), today.isoformat())
+    return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
 
 
 def ramp_hold(rows, today):
@@ -415,7 +473,15 @@ def learned():
 
 
 def learned_value(key, default):
-    v = learned().get(key)
+    """A learned value, or the default when it is missing or the file is older than LEARNED_DAYS (a weekly run that
+    stopped must not leave a stale schedule in force)."""
+    got = learned()
+    at = desk._stamp(got.get("updated") or "")
+    if not at or desk.now() - at > timedelta(days=LEARNED_DAYS):
+        return default
+    v = got.get(key)
+    if key == "quiet_hours" and isinstance(v, dict):
+        v = [int(h) for h in v]
     return default if v is None else v
 
 
@@ -436,6 +502,9 @@ def window_posts(days=WINDOW_DAYS):
 def open_sources(factories=None):
     got, missing = {}, {}
     for name, cls in (factories or SOURCES).items():
+        if name == "instagram" and desk.cooldown_until():
+            missing[name] = f"cooldown until {desk.cooldown_until():%Y-%m-%d %H:%M} UTC"
+            continue
         try:
             got[name] = cls()
         except LookupError as e:
@@ -443,21 +512,37 @@ def open_sources(factories=None):
     return got, missing
 
 
+def due(p, name):
+    """Read again: posts up to REREAD_DAYS old, and older ones never measured on this platform."""
+    if not ((p.get("metrics") or {}).get(name)):
+        return True
+    at = desk._stamp(p.get("published", ""))
+    return bool(at) and desk.now() - at <= timedelta(days=REREAD_DAYS)
+
+
 def pull(rows, sources):
-    """Read every post on every source; errors are counted per source and never stop the others."""
+    """Read every due post on every source; errors are counted per source and never stop the others. Instagram is
+    checked against the desk's cooldown before every call, and a block answer goes to desk.note_block and stops
+    Instagram for this run, the same rule the publishing flow follows."""
     errors = {}
     for name, src in sources.items():
+        todo = [(p, path) for p, path in rows if due(p, name)]
         try:
-            if hasattr(src, "prefetch"):
-                src.prefetch([p for p, _ in rows])
+            if hasattr(src, "prefetch") and todo:
+                src.prefetch([p for p, _ in todo])
         except Exception as e:  # noqa: BLE001
             errors.setdefault(name, []).append(str(e)[:200])
             continue
-        for p, path in rows:
+        for p, path in todo:
+            if name == "instagram" and desk.cooldown_until():
+                errors.setdefault(name, []).append("stopped: Instagram cooldown")
+                break
             try:
                 m = src.fetch(p)
             except Exception as e:  # noqa: BLE001
                 errors.setdefault(name, []).append(str(e)[:200])
+                if name == "instagram" and desk.note_block(e):
+                    break
                 continue
             if m:
                 p.setdefault("metrics", {})[name] = {**m, "at": desk.now().isoformat(timespec="seconds")}
@@ -489,7 +574,7 @@ def run(factories=None):
     old = learned()
     from .desk import DIGEST_HOUR
     new = {"digest_hour": next_digest_hour(posts_, old.get("digest_hour", DIGEST_HOUR)),
-           "quiet_hours": next_quiet_hours(posts_),
+           "quiet_hours": next_quiet_hours(posts_, old.get("quiet_hours") if isinstance(old.get("quiet_hours"), dict) else {}),
            "ramp_hold": ramp_hold(posts_, desk.now()),
            "updated": desk.now().isoformat(timespec="seconds")}
 
@@ -501,6 +586,8 @@ def run(factories=None):
     report = {"week": week, "window_days": WINDOW_DAYS, "posts": len(posts_), "measured": len(lifts(posts_)),
               "account": {"followers_count": followers.get("Instagram")} if followers.get("Instagram") else {},
               "followers": followers, "missing": missing, "errors": errors,
+              "notes": (["telegram: views cover a shorter window than 30 days (page cap reached)"]
+                        if getattr(sources.get("telegram"), "short", False) else []),
               "signals": signals(table), "all": table, "by_platform": {k: v for k, v in per_platform.items() if v},
               "weights": {"before": old_weights, "after": weights},
               "learned": {"before": {k: old.get(k) for k in ("digest_hour", "quiet_hours", "ramp_hold")}, "after": new},
@@ -525,7 +612,7 @@ def summary_md(report):
     w = report["weights"]
     changed = {k: (w["before"].get(k, 1.0), v) for k, v in w["after"].items() if w["before"].get(k, 1.0) != v}
     lines += ["**Weight changes**", ""] + ([f"- {k}: {a} -> {b}" for k, (a, b) in sorted(changed.items())] or ["- none"]) + [""]
-    lines += [f"Learned: {json.dumps(report['learned']['after'])}"]
+    lines += [f"Learned: {json.dumps(report['learned']['after'])}"] + [f"Note: {n}" for n in report.get("notes", [])]
     if report["missing"]:
         lines += ["", "Not connected: " + ", ".join(sorted(report["missing"]))]
     return "\n".join(lines) + "\n"

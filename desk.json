@@ -138,9 +138,6 @@
     "reel_trial": "",
     "utm": false
   },
-  "analytics": {
-    "goatcounter": ""
-  },
   "send_prompts": [
     {
       "line": "Send this to whoever on your team watches the markets.",

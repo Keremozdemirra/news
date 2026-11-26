@@ -27,7 +27,6 @@ jobs:
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
-          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 -m aidaily insights

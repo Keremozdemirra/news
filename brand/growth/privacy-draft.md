@@ -14,9 +14,7 @@ The site is a set of static pages hosted by GitHub Pages (GitHub, Inc., USA). Wh
 
 [Only if the Cloudflare proxy is switched on:] Requests to boardread.news pass through Cloudflare, Inc. (USA) as our processor under a data processing agreement. Cloudflare counts requests, visits and the country they come from, and shows us those totals. We see no IP addresses and no individual visits. Data transfers to the USA rely on the EU-US Data Privacy Framework. Legal basis: Art. 6(1)(f) GDPR (delivery, security and aggregate reach measurement).
 
-[Only if the GoatCounter counter is switched on:] Each page loads a small image from GoatCounter ([operator, country]). It tells GoatCounter which page was opened. GoatCounter stores aggregate counts per page, derives browser and country totals, and does not store your IP address. No cookies or similar technologies are used, and nothing is read from your device beyond the request itself. Legal basis: [to be confirmed by the reviewer].
-
-The site sets no cookies. It loads fonts, scripts and images only from boardread.news itself, and it contains no advertising, no social media plugins and no tracking scripts. The light/dark setting you choose is kept in your browser's local storage and never leaves your device.
+The site sets no cookies. It loads fonts, scripts and images only from boardread.news itself, and it contains no advertising, no social media plugins and no tracking scripts. Your browser's local storage keeps two things that never leave your device: the light/dark setting you choose, and two timestamps (your last visit and the one before), which the site uses to mark stories that are new since you last came. You can clear both in your browser settings at any time. [Reviewer: check whether these need consent under § 25 TDDDG or fall under the "strictly necessary" exemption.]
 
 ### Following Boardread on other platforms
 
@@ -24,7 +22,11 @@ Boardread publishes on Instagram, Threads, Facebook (Meta Platforms Ireland Ltd.
 
 For Instagram and Facebook Pages, Meta and Boardread are jointly responsible for the page statistics ("Page Insights"), under Meta's joint-controller addendum: https://www.facebook.com/legal/terms/page_controller_addendum. [Check that the link is current.]
 
-If you comment the word SOURCE on an Instagram post, we send you one direct message with the article link. Your username and comment are processed by Meta, and our software reads them to send that one reply. Legal basis: Art. 6(1)(b) GDPR (you asked for it). We keep no list of who asked.
+If you comment the word SOURCE on an Instagram post, we send you one direct message with the article link. Legal basis: Art. 6(1)(b) GDPR (you asked for it).
+
+Other comments on our Instagram posts may get a short automated reply. To draft it, the text of your comment and of the post is sent to Anthropic ([entity, country]), which provides the AI model (Claude) that writes the reply. Your username is not part of what is sent. [Reviewer: confirm Anthropic's role (processor), the data-processing terms, the transfer basis, and the legal basis, likely Art. 6(1)(f) GDPR.]
+
+To answer each comment only once, we keep the IDs of the comments we have answered, with a daily count, in a file of the desk's software (state/replies.json). The IDs are pseudonymous: they hold no name or text, but Meta could link them to your account. [Reviewer: set a retention period.]
 
 ### Newsletter [only once it exists]
 

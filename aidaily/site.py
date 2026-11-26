@@ -254,10 +254,9 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     css = "".join(f'<link rel="stylesheet" href="{BASE}/assets/{n}.css?v={ASSET_V}">' for n in styles)
     js = "".join(f'<script src="{BASE}/assets/{n}.js?v={ASSET_V}" defer></script>' for n in scripts)
-    counter_host, counter = seo.analytics(desk.CONFIG)  # off unless desk.json analytics.goatcounter is set
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:{" " + counter_host if counter_host else ""}; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; font-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#ffffff">
@@ -297,7 +296,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC. &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
-</footer>{counter(BASE + path) if counter else ""}</body></html>"""
+</footer></body></html>"""
 
 
 # ---------------------------------------------------------------- pieces

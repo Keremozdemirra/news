@@ -1093,7 +1093,8 @@ def ramp():
     since, blocked = _stamp(got["since"]), _stamp(got.get("last_block", ""))
     from . import insights
     held = insights.learned_value("ramp_hold", False)  # the weekly insights saw per-post sends fall: hold, never cut
-    if held and since and now() - since >= window:
+    if held and since and now() - since >= window and got.get("held_noted") != f"{now():%Y-%m-%d}":
+        got["held_noted"] = f"{now():%Y-%m-%d}"  # ramp runs every publish; say it once a day
         print(f"daily post cap held at {got['cap']}: per-post Instagram sends fell last week (state/learned.json)")
     if (since and now() - since >= window and not (blocked and now() - blocked < window) and not held
             and got["cap"] < CONFIG["daily_posts_max"]):

@@ -30,7 +30,7 @@ All come from `state/insights/<week>.json` (Mondays 06:01 UTC) and Search Consol
 
 ## Week 2 (Dec 4 to 10): discovery surfaces
 
-- Owner: deploy the Bluesky feed Worker and write the record (`DISTRIBUTION.md`); add the feed to the starter pack; decide on the Cloudflare DNS move (`MEASUREMENT.md` step 2); ask the lawyer question on the pixel.
+- Owner: deploy the Bluesky feed Worker and write the record (`DISTRIBUTION.md`); add the feed to the starter pack; decide on the Cloudflare DNS move (`MEASUREMENT.md` step 2).
 - Desk: insights loop applies its first guarded changes (most categories will still sit under the 5-post minimum).
 - Targets: Bluesky 25 followers; Telegram 15 subscribers; Instagram median sends per reach measured on at least 30 posts.
 - Decision on Dec 8: a topic with a signal (≥5 posts, ±15%) gets one manual test: for example, if text cards beat photos, ask br-editorial to try more text cards for that topic. One change at a time, so its effect can be read the week after.

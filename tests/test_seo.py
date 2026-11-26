@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest import mock
 
 from aidaily import desk, seo, site
 
@@ -112,31 +111,15 @@ class Schema(unittest.TestCase):
         self.assertEqual(out, [])
 
 
-class Analytics(unittest.TestCase):
-    def test_off_by_default_and_in_the_shipped_config(self):
-        self.assertEqual(seo.analytics({}), ("", ""))
-        shipped = json.loads((desk.HERE / "desk.json").read_text())
-        self.assertEqual(seo.analytics(shipped), ("", ""))
-        self.assertIs(shipped["growth"]["utm"], False)
-
-    def test_rejects_anything_but_a_plain_site_code(self):
-        self.assertEqual(seo.analytics({"analytics": {"goatcounter": "evil.com/x"}}), ("", ""))
-
-    def test_on_adds_a_scriptless_pixel_and_its_csp_host(self):
-        host, tag = seo.analytics({"analytics": {"goatcounter": "boardread"}})
-        self.assertEqual(host, "https://boardread.goatcounter.com")
-        t = tag("/s/a/")
-        self.assertIn('src="https://boardread.goatcounter.com/count?p=/s/a/"', t)
-        self.assertIn('referrerpolicy="no-referrer"', t)
-        self.assertNotIn("<script", t)
-
-    def test_page_has_no_third_party_host_while_off_and_the_pixel_when_on(self):
-        off = site.page("T", "<p>x</p>", path="/")
-        self.assertNotIn("goatcounter", off)
-        with mock.patch.dict(desk.CONFIG, {"analytics": {"goatcounter": "boardread"}}):
-            on = site.page("T", "<p>x</p>", path="/s/a/")
-        self.assertIn("img-src 'self' data: https://boardread.goatcounter.com;", on)
-        self.assertIn("count?p=" + site.BASE + "/s/a/", on)
+class NoThirdParty(unittest.TestCase):
+    def test_pages_load_nothing_from_another_host_and_no_switch_exists(self):
+        # the owner allows no consent banner, so no config value may add a counter or widen the CSP
+        h = site.page("T", "<p>x</p>", path="/s/a/")
+        self.assertIn("img-src 'self' data:;", h)
+        self.assertNotIn("goatcounter", h)
+        self.assertNotIn("analytics", json.loads((desk.HERE / "desk.json").read_text()))
+        self.assertFalse(hasattr(seo, "analytics"))
+        self.assertIs(json.loads((desk.HERE / "desk.json").read_text())["growth"]["utm"], False)
 
 
 if __name__ == "__main__":

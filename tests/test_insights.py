@@ -61,7 +61,7 @@ class Analysis(unittest.TestCase):
         self.assertLess(t["topic"]["Tech"]["lift"], 1)
 
     def test_groups_cover_format_visual_tier_and_hour(self):
-        t = insights.analyse(self.rows() + [post("w", status="web", photo_file="", metrics={"telegram": {"views": 10}})])
+        t = insights.analyse(self.rows() + [post("w", hours_ago=72, status="web", photo_file="", metrics={"telegram": {"views": 10}})])
         for dim in ("format", "visual", "tier", "hour_utc", "category"):
             self.assertIn(dim, t)
         self.assertIn("text card", t["visual"])
@@ -84,12 +84,12 @@ class Feedback(unittest.TestCase):
         self.assertEqual(insights.next_weights(table, {"markets": 1.2})["markets"], 1.25)  # the ceiling
 
     def tg_rows(self, good_hour, other_hour):
-        rows = []
+        rows, day = [], desk.now() - timedelta(days=3)
         for i in range(6):
             rows.append(post(f"g{i}", metrics={"telegram": {"views": 100}}))
-            rows[-1]["published"] = desk.now().replace(hour=good_hour).isoformat(timespec="seconds")
+            rows[-1]["published"] = day.replace(hour=good_hour).isoformat(timespec="seconds")
             rows.append(post(f"o{i}", metrics={"telegram": {"views": 20}}))
-            rows[-1]["published"] = desk.now().replace(hour=other_hour).isoformat(timespec="seconds")
+            rows[-1]["published"] = day.replace(hour=other_hour).isoformat(timespec="seconds")
         return rows
 
     def test_digest_hour_moves_one_hour_toward_the_best_and_stays_in_window(self):
@@ -100,18 +100,38 @@ class Feedback(unittest.TestCase):
     def test_digest_hour_stays_without_data_for_the_current_hour(self):
         self.assertEqual(insights.next_digest_hour(self.tg_rows(21, 20), 19), 19)
 
-    def test_quiet_hours_need_min_n_and_are_capped(self):
+    def quiet_rows(self, bad_from=16, score=9.0):
         rows = []
         for h in range(24):
             for i in range(6):
-                v = 200 if h < 16 else 1  # eight bad hours
-                p = post(f"{h}-{i}", status="web", metrics={"bluesky": {"likes": v}})
-                p["published"] = desk.now().replace(hour=h).isoformat(timespec="seconds")
+                v = 200 if h < bad_from else 1
+                p = post(f"{h}-{i}", status="web", score=score, metrics={"bluesky": {"likes": v}})
+                p["published"] = (desk.now() - timedelta(days=3)).replace(hour=h).isoformat(timespec="seconds")
                 rows.append(p)
-        quiet = insights.next_quiet_hours(rows)
+        return rows
+
+    def test_quiet_hours_need_min_n_and_are_capped(self):
+        quiet = insights.next_quiet_hours(self.quiet_rows())
         self.assertEqual(len(quiet), insights.MAX_QUIET)
-        self.assertTrue(all(h >= 16 for h in quiet))
-        self.assertEqual(insights.next_quiet_hours(rows[:4]), [])
+        self.assertTrue(all(int(h) >= 16 for h in quiet))
+        self.assertEqual(insights.next_quiet_hours(self.quiet_rows()[:4]), {})
+
+    def test_breaking_posts_are_left_out_of_the_scoring(self):
+        self.assertEqual(insights.next_quiet_hours(self.quiet_rows(score=desk.CONFIG["breaking_score"])), {})
+
+    def test_a_quiet_hour_stays_two_weeks(self):
+        today = desk.now().date()
+        recent = (today - timedelta(days=insights.QUIET_KEEP_DAYS - 1)).isoformat()
+        old = (today - timedelta(days=insights.QUIET_KEEP_DAYS)).isoformat()
+        got = insights.next_quiet_hours([], {"3": recent, "4": old}, today)
+        self.assertEqual(got, {"3": recent})
+
+    def test_counts_wait_48_hours(self):
+        fresh = [post(f"f{i}", hours_ago=10, metrics={"telegram": {"views": 5}}) for i in range(3)]
+        aged = [post(f"a{i}", hours_ago=60, metrics={"telegram": {"views": 5}}) for i in range(3)]
+        self.assertEqual({p["id"] for p, _ in insights.lifts(fresh + aged)}, {"a0", "a1", "a2"})
+        rate = [post("r", hours_ago=2, **ig(1000, 10))]  # rates have their audience size: read at once
+        self.assertEqual(len(insights.lifts(rate)), 1)
 
     def test_ramp_hold_when_recent_sends_fall(self):
         recent = [post(f"r{i}", hours_ago=24, **ig(1000, 5)) for i in range(10)]
@@ -169,7 +189,82 @@ class Run(Tmp):
         self.assertEqual(report["signals"], [])
 
 
+class FakeIG:
+    def __init__(self, fail=None):
+        self.calls, self.fail = [], fail
+
+    def call(self, method, path, params=None, versioned=True):
+        from aidaily.instagram import IGError
+        self.calls.append(params["metric"])
+        if self.fail:
+            raise IGError(self.fail)
+        return {"data": [{"name": m, "values": [{"value": 3}]} for m in params["metric"].split(",")]}
+
+    def media_insights(self, media_id, metrics):
+        self.calls.append("per-metric")
+        return {"reach": 100}
+
+    def followers(self):
+        return {"followers_count": 1}
+
+
+class InstagramReader(Tmp):
+    def test_one_comma_joined_call_per_post(self):
+        c = FakeIG()
+        got = insights.Instagram(client=c).fetch({"media_id": "1"})
+        self.assertEqual(len(c.calls), 1)
+        self.assertEqual(c.calls[0], ",".join(insights.Instagram.METRICS))
+        self.assertEqual(got["reach"], 3)
+
+    def test_falls_back_per_metric_only_on_a_refusal(self):
+        c = FakeIG(fail='GET 1/insights: HTTP 400: {"error":{"code":100}}')
+        self.assertEqual(insights.Instagram(client=c).fetch({"media_id": "1"}), {"reach": 100})
+        self.assertEqual(c.calls[-1], "per-metric")
+
+    def test_a_block_goes_to_note_block_and_stops_instagram(self):
+        for i in range(3):
+            self.write_post(f"p{i}", status="published", media_id=str(i), published=desk.now().isoformat(timespec="seconds"))
+        c = FakeIG(fail='GET x/insights: HTTP 400: {"error":{"code":4}}')
+        report = insights.run({"instagram": lambda: insights.Instagram(client=c)})
+        self.assertEqual(len(c.calls), 1)  # the first block ends the run's Instagram reads
+        self.assertTrue(desk.cooldown_until())
+        self.assertEqual(report["errors"]["instagram"]["count"], 1)
+
+    def test_no_instagram_call_during_a_cooldown(self):
+        desk.STATE.mkdir(parents=True, exist_ok=True)
+        (desk.STATE / "cooldown.json").write_text(json.dumps({"until": (desk.now() + timedelta(hours=3)).isoformat()}))
+        self.write_post("p", status="published", media_id="1", published=desk.now().isoformat(timespec="seconds"))
+        factory = mock.Mock()
+        report = insights.run({"instagram": factory})
+        factory.assert_not_called()
+        self.assertIn("cooldown", report["missing"]["instagram"])
+
+    def test_old_posts_keep_their_numbers_and_new_ones_are_read(self):
+        self.assertTrue(insights.due(post("x", hours_ago=24 * 20), "instagram"))  # never measured
+        old = post("x", hours_ago=24 * 20, **ig(1000, 5))
+        self.assertFalse(insights.due(old, "instagram"))
+        self.assertTrue(insights.due(post("x", hours_ago=24 * 3, **ig(1000, 5)), "instagram"))
+
+
 class Readers(unittest.TestCase):
+    def test_telegram_subscribers_and_window_cover(self):
+        page = ('<span class="counter_value">1.5K</span> <span class="counter_type">subscribers</span>'
+                '<div data-post="boardread/50"><span class="tgme_widget_message_views">9</span></div>')
+        with mock.patch.dict(os.environ, {"TG_CHANNEL": "@boardread"}):
+            t = insights.Telegram(opener=lambda req, timeout, context: io.BytesIO(page.encode()))
+        t.PAGES = 3
+        t.prefetch([{"platforms": {"telegram": {"id": "10"}}}])
+        self.assertEqual(t.followers(), 1500)
+        self.assertTrue(t.short)  # every page stops at 50, never reaching message 10
+        with mock.patch.dict(os.environ, {"TG_CHANNEL": "@boardread"}):
+            t2 = insights.Telegram(opener=lambda req, timeout, context: io.BytesIO(page.encode()))
+        t2.prefetch([{"platforms": {"telegram": {"id": "60"}}}])
+        self.assertFalse(t2.short)
+
+    def test_bluesky_without_a_handle_reads_no_profile(self):
+        with mock.patch.dict(os.environ, {"BSKY_HANDLE": ""}):
+            self.assertIsNone(insights.Bluesky(opener=mock.Mock(side_effect=AssertionError)).followers())
+
     def test_telegram_page_views_pairs_each_block_with_its_own_counter(self):
         html = ('<div data-post="boardread/5"><span class="tgme_widget_message_views">1.2K</span></div>'
                 '<div data-post="boardread/6">service message</div>'
@@ -210,7 +305,28 @@ class Readers(unittest.TestCase):
 class DeskUsesLearned(Tmp):
     def learned(self, **kw):
         desk.STATE.mkdir(parents=True, exist_ok=True)
+        kw.setdefault("updated", desk.now().isoformat(timespec="seconds"))
         (desk.STATE / "learned.json").write_text(json.dumps(kw))
+
+    def test_learned_values_expire_after_two_weeks(self):
+        self.learned(digest_hour=21, updated=(desk.now() - timedelta(days=insights.LEARNED_DAYS + 1)).isoformat(timespec="seconds"))
+        self.assertEqual(insights.learned_value("digest_hour", 19), 19)
+        self.learned(digest_hour=21)
+        self.assertEqual(insights.learned_value("digest_hour", 19), 21)
+
+    def test_quiet_hours_read_from_the_dict_shape(self):
+        self.learned(quiet_hours={"3": "2026-11-20", "4": "2026-11-20"})
+        self.assertEqual(insights.learned_value("quiet_hours", []), [3, 4])
+
+    def test_cap_held_is_logged_once_a_day(self):
+        desk.STATE.mkdir(parents=True, exist_ok=True)
+        since = (desk.now() - timedelta(days=30)).isoformat(timespec="seconds")
+        (desk.STATE / "pace.json").write_text(json.dumps({"cap": 12, "since": since, "last_block": ""}))
+        self.learned(ramp_hold=True)
+        with mock.patch("builtins.print") as pr:
+            desk.ramp()
+            desk.ramp()
+        self.assertEqual(sum("held" in str(c) for c in pr.call_args_list), 1)
 
     def test_ramp_is_held_never_cut(self):
         desk.STATE.mkdir(parents=True, exist_ok=True)
@@ -230,7 +346,7 @@ class DeskUsesLearned(Tmp):
             self.assertNotIn("utm_", desk.story_url("a"))
 
     def test_web_social_waits_in_quiet_hours_except_breaking(self):
-        self.learned(quiet_hours=[desk.now().hour])
+        self.learned(quiet_hours={str(desk.now().hour): desk.now().date().isoformat()})
         with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}}):
             self.write_post("w1", status="web", score=desk.CONFIG["social_min_score"], published=desk.now().isoformat(timespec="seconds"))
             with mock.patch.object(desk, "cross_post") as cp:

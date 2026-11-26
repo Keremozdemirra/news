@@ -52,20 +52,6 @@ def organization(site_url, name="Boardread", accounts=()):
     return org
 
 
-def analytics(config):
-    """(csp_img_host, html) for the optional page counter, or ("", "") when it is off, which is the default.
-
-    The only mode is a GoatCounter counting pixel with no JavaScript: the path is written into the image URL at build
-    time, so the page reads nothing from the browser (no screen size, no referrer, no storage). Why it still ships
-    off, and the server-side alternative that needs no page code at all: brand/growth/MEASUREMENT.md."""
-    code = ((config or {}).get("analytics") or {}).get("goatcounter", "")
-    if not re.fullmatch(r"[a-z0-9-]{2,40}", code or ""):
-        return "", ""
-    host = f"https://{code}.goatcounter.com"
-    return host, lambda path: (f'<img class="gc" src="{host}/count?p={path}" alt="" width="1" height="1" '
-                               f'referrerpolicy="no-referrer" loading="eager" style="position:absolute;left:-9999px">')
-
-
 def _unescape(s):
     return s.replace("&amp;", "&").replace("&quot;", '"').replace("&#x27;", "'").replace("&#39;", "'")
 
