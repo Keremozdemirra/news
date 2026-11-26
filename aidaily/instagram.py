@@ -69,9 +69,13 @@ class Client:
     def single(self, image_url, caption):
         return self.call("POST", f"{self.user_id}/media", {"image_url": image_url, "caption": caption})["id"]
 
-    def story(self, image_url, sleep=time.sleep):
-        """A 1080x1920 image story. Returns the media id. Stories carry no caption and no link via the API."""
-        c = self.call("POST", f"{self.user_id}/media", {"media_type": "STORIES", "image_url": image_url})["id"]
+    def story(self, image_url, sleep=time.sleep, user_tags=None):
+        """A 1080x1920 image story. Returns the media id. Stories carry no caption and no link via the API;
+        user_tags ([{"username": ..., "x": 0.5, "y": 0.5}], supported on stories since July 2025) mentions an account."""
+        params = {"media_type": "STORIES", "image_url": image_url}
+        if user_tags:
+            params["user_tags"] = json.dumps(user_tags)
+        c = self.call("POST", f"{self.user_id}/media", params)["id"]
         self.wait(c, sleep=sleep)
         return self.publish(c)
 

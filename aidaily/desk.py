@@ -14,11 +14,13 @@ State lives in the repository, so every post and reply is a commit:
 import json
 import math
 import shutil
+import unicodedata
 import os
 import re
 import urllib.parse
 import zlib
 from datetime import datetime, timedelta, timezone
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from . import copy, github
@@ -207,111 +209,427 @@ def _published(hours):
             and p.get("published", "") > cut]
 
 
-def _queue_story(pid, html, title):
+def _queue_story(pid, html, title, delay=0, **extra):
     img = MEDIA / pid
     img.mkdir(parents=True, exist_ok=True)
     png = img / "story.png"
     R.shoot(html, png, 1080, 1920)
     R.jpeg(png)
     png.unlink()
+    when = (now() + timedelta(minutes=delay)).isoformat(timespec="seconds")
     post = {"id": pid, "kind": "story", "created": now().isoformat(timespec="seconds"),
-            "publish_after": now().isoformat(timespec="seconds"), "status": "queued", "story": "story.jpg",
+            "publish_after": when, "status": "queued", "story": "story.jpg",
             "urls": [], "headlines": [title]}
+    post.update(extra)
     _save(QUEUE / pid / "post.json", post)
     print(f"queued {pid}: {title}")
     return QUEUE / pid / "post.json"
 
 
+# Stories of their own: each format runs once in its slot, from posts already published and checked.
+# A format with too little data is skipped without a word and the next run tries again until its grace window ends.
+
+FIG = re.compile(r"^(?P<pre>[$€£]?)(?P<num>\d[\d,]*(?:\.\d+)?)(?P<suf>%| percent|B|M|K|T|bn| billion| million| trillion)?$")
+# present-tense headline verbs, nouns and adjectives: the only words the headline game will blank or offer.
+# A word outside these lists is never used, so a wrong part of speech cannot slip in.
+VERBS = set("""halts raises releases suspends blocks cuts falls rises climbs slashes signs wins loses buys sells launches unveils
+plans seeks faces hits posts reports warns expects weighs explores clears bans opens closes ends drops jumps surges slumps
+tumbles gains lifts pushes backs adds names picks hires fires sues settles delays extends expands approves rejects signals
+escalates announces agrees moves pays offers grants cancels secures acquires merges splits leads trails beats misses tops
+doubles triples narrows widens limits corrects previews debates hikes eases lowers boosts curbs freezes probes orders
+urges vows pledges threatens forces stalls lands wins claims takes gives sets puts shows sees finds makes gets""".split())
+NOUNS_PL = set("""shipments countries partners stocks shares profits prices rates tariffs markets investors funds discounts satellites
+flights chips talks costs losses jobs sales deals banks firms workers users drivers chatbots models agents systems rules
+stakes sanctions exports imports earnings revenues wages taxes loans bonds yields trades orders plans targets payments
+customers shareholders regulators lawmakers ministers voters talks negotiations projects investments subsidies tools""".split())
+NOUNS_SG = set("""shipment partner profit price tariff market investor discount satellite flight round valuation takeover
+merger deal bank firm worker driver chatbot model agent system limit rule stake sanction export import growth demand
+supply inflation recession election budget deficit surplus ceiling rally slump collapse bailout lawsuit ruling verdict
+settlement contract agreement partnership acquisition offering listing forecast outlook warning""".split())
+ADJ = set("""steep fresh major global higher lower highest lowest largest biggest latest weekly annual federal foreign domestic
+public private digital financial political economic national military strong weak rapid sharp deep broad faster slower
+cheaper wider tighter bigger smaller longer new record fiscal monetary strategic critical significant""".split())
+NOT_ING = {"during", "nothing", "something", "anything", "morning", "evening", "ceiling", "building", "everything", "spring"}
+NOUN_END = ("tion", "sion", "ment", "ness", "ity", "ship", "ance", "ence")
+ADJ_END = ("ous", "ive", "ful", "less", "able", "ible")
+
+
+def _pos(w):
+    """A coarse part of speech for a lowercase word, or "" when it is not one the lists and endings settle."""
+    if len(w) < 5 or not w.isalpha() or not w.islower():
+        return ""
+    if w in VERBS:
+        return "verb"
+    if w in NOUNS_PL or (w.endswith("s") and w[:-1].endswith(NOUN_END)):
+        return "noun-pl"
+    if w in NOUNS_SG or w.endswith(NOUN_END):
+        return "noun"
+    if w in ADJ or w.endswith(ADJ_END):
+        return "adj"
+    if w.endswith("ing") and w not in NOT_ING:
+        return "ing"
+    return ""
+
+
+def _fig_parts(fig):
+    m = FIG.match((fig or "").strip())
+    if not m:
+        return None
+    raw = m.group("num")
+    return m.group("pre"), Decimal(raw.replace(",", "")), (m.group("suf") or ""), "," in raw, len(raw.split(".")[1]) if "." in raw else 0
+
+
+def _round_like(v, dec, sig):
+    if dec:
+        return v.quantize(Decimal(1).scaleb(-dec), ROUND_HALF_UP)
+    if v < 1:
+        return None
+    q = Decimal(1).scaleb(max(len(str(int(v))) - sig, 0))
+    return (v / q).quantize(Decimal(1), ROUND_HALF_UP) * q
+
+
+def distractors(fig):
+    """Three wrong numbers in the unit and rounding of the right one, or [] when the figure is not one we can
+    vary honestly. A year moves by 10 and 20; any other figure is halved, raised by half, doubled, with
+    further factors only when rounding makes two of them collide."""
+    parts = _fig_parts(fig)
+    if not parts:
+        return []
+    pre, val, suf, comma, dec = parts
+    right, out = fig.strip(), []
+
+    def add(s):
+        if s != right and s not in out:
+            out.append(s)
+
+    if not pre and not suf and not comma and not dec and len(str(int(val))) == 4 and 1900 <= val <= 2100:
+        for step in (-10, 10, -20, 20, -30, 30):
+            if 1900 <= val + step <= 2100:
+                add(str(int(val) + step))
+        return out[:3] if len(out) >= 3 else []
+    sig = len(str(int(val)).rstrip("0")) or 1
+    for factor in ("0.5", "1.5", "2", "0.75", "1.25", "3", "0.25", "4", "5"):
+        cand = _round_like(val * Decimal(factor), dec, sig)
+        if cand is None or cand <= 0 or cand == val:
+            continue
+        if suf.strip() in ("%", "percent") and val <= 100 < cand:
+            continue
+        num = format(cand, f",.{dec}f") if comma else format(cand, f".{dec}f")
+        add(f"{pre}{num}{suf}")
+        if len(out) == 3:
+            return out
+    return []
+
+
+def _in_text(fig, text):
+    """The figure as its own token in the text, not inside a longer number."""
+    return re.search(rf"(?<![\d.,$€£]){re.escape(fig)}(?!\d|[.,]\d)", text) is not None
+
+
+def _blank(fig, text):
+    return re.sub(rf"(?<![\d.,$€£]){re.escape(fig)}(?!\d|[.,]\d)", "___", text)
+
+
+def _order(day, items, key=lambda x: x):
+    """A fixed shuffle for the day: the same input gives the same order, so a rerun never changes the answer."""
+    return sorted(items, key=lambda i: zlib.crc32(f"{day}{key(i)}".encode()))
+
+
+def _media(p, *names):
+    for n in names:
+        f = MEDIA / p["id"] / n
+        if f.exists():
+            return f"file://{f.resolve()}"
+    return ""
+
+
+def _logo(p):
+    return _media(p, "logo.svg", "logo.png", "logo.jpg")
+
+
+def _head(p):
+    return p["headlines"][0]
+
+
+def _score(p):
+    return p.get("score") or 0
+
+
+def _date(p, fmt="%d %b"):
+    return datetime.fromisoformat(p["published"]).strftime(fmt)
+
+
+def _story_posts(slot, days=7):
+    """Stories this slot queued in the last days, newest first."""
+    cut = (now() - timedelta(days=days)).isoformat()
+    return [p for p, _ in reversed(posts()) if p.get("kind") == "story" and p["id"][11:] == slot
+            and p.get("created", "") > cut]
+
+
+def _name_in(name, text):
+    """The person's last name, ignoring case and accents, in a file name or credit."""
+    flat = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
+    last = unicodedata.normalize("NFKD", name.split()[-1]).encode("ascii", "ignore").decode().lower()
+    return bool(last) and last in flat
+
+
+def _quiz_pair(day, slot, question, answer, title, **extra):
+    """The question now, the answer a minute later: it is the very next story, and never goes out before the question."""
+    q = _queue_story(f"{day}-{slot}", question, title, **extra)
+    a = _queue_story(f"{day}-{slot}-a", answer, f"{title} answer", delay=1, **extra)
+    return [q, a]
+
+
+def _s_last12(day, label):
+    top = sorted(_published(12), key=lambda p: -_score(p))[:3]
+    if len(top) < 3:
+        return []
+    return [_queue_story(f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label), "Last 12 hours",
+                         refs=[p["id"] for p in top])]
+
+
+def _number(day, slot, label):
+    used = {r for p in _story_posts("number1", 1) + _story_posts("number2", 1) for r in p.get("refs", [])}
+    nums = [p for p in _published(18) if re.search(r"\d", p.get("figure") or "") and p["id"] not in used]
+    if not nums:
+        return []
+    p = max(nums, key=_score)
+    return [_queue_story(f"{day}-{slot}", R.T.story_number(p["figure"], _head(p), label), "Number", refs=[p["id"]])]
+
+
+def _s_quiz(day, label):
+    """Guess the company: the headline with the company blanked and four companies from our own recent posts."""
+    cands = [p for p in _published(48) if p.get("company") and p.get("figure") and p["company"] in _head(p)]
+    if not cands:
+        return []
+    p = max(cands, key=_score)
+    hint = _head(p).replace(p["company"], "___")
+    others = sorted({q["company"] for q in _published(24 * 7) if q.get("company") and q["company"] != p["company"]})
+    options = _order(day, [p["company"]] + _order(day, others)[:3])
+    if p["company"] in hint or len(options) < 4:
+        return []
+    letter = "ABCD"[options.index(p["company"])]
+    return _quiz_pair(day, "quiz", R.T.story_quiz(hint, label, options),
+                      R.T.story_answer(letter, p["company"], [_head(p)], label, logo_uri=_logo(p)), "Guess the company", refs=[p["id"]])
+
+
+def _s_fill(day, label):
+    """Fill the number: the headline with its figure blanked, the figure and three plausible others as options."""
+    for p in sorted(_published(48), key=lambda p: -_score(p)):
+        fig, head_ = (p.get("figure") or "").strip(), _head(p)
+        wrong = distractors(fig) if fig and _in_text(fig, head_) else []
+        hint = _blank(fig, head_) if wrong else ""
+        if wrong and "___" in hint and not re.search(re.escape(re.sub(r"[^\d.]", "", fig)), hint.replace(",", "")):
+            options = _order(day, [fig] + wrong)
+            return _quiz_pair(day, "fill", R.T.story_quiz(hint, label, options, "Fill the<br>number."),
+                              R.T.story_answer("ABCD"[options.index(fig)], fig, [head_], label), "Fill the number", refs=[p["id"]])
+    return []
+
+
+def _s_complete(day, label):
+    """Complete the headline: one lowercase content word blanked, three words of the same kind from other recent headlines."""
+    recent = _published(24 * 7)
+    for p in sorted(_published(48), key=lambda p: -_score(p)):
+        head_ = _head(p)
+        names = " ".join([p.get("company") or "", p.get("person") or ""] + list(p.get("logo_names") or [])).lower()
+        words = [w for w in re.findall(r"[A-Za-z][A-Za-z'’-]*", head_)[1:] if _pos(w) and w.lower() not in names]
+        for w in sorted(words, key=lambda w: (_pos(w) != "verb", -len(w))):
+            pool = {t for q in recent if q["id"] != p["id"] for t in re.findall(r"[A-Za-z]+", _head(q))
+                    if _pos(t) == _pos(w) and t != w and not re.search(rf"\b{t}\b", head_, re.I)}
+            if len(pool) < 3:
+                continue
+            options = _order(day, [w] + _order(day, sorted(pool))[:3])
+            if len(re.findall(rf"\b{re.escape(w)}\b", head_)) != 1:
+                continue
+            hint = re.sub(rf"\b{re.escape(w)}\b", "___", head_)
+            return _quiz_pair(day, "complete", R.T.story_quiz(hint, label, options, "Complete the<br>headline."),
+                              R.T.story_answer("ABCD"[options.index(w)], w, [head_], label), "Complete the headline", refs=[p["id"]])
+    return []
+
+
+def _unit(fig):
+    parts = _fig_parts(fig)
+    if not parts:
+        return ""
+    pre, _, suf, _, _ = parts
+    return "$B" if pre == "$" and suf.strip() in ("B", "bn", "billion") else "%" if not pre and suf.strip() in ("%", "percent") else ""
+
+
+def _s_bigger(day, label):
+    """Which is bigger?: two figures of the same unit from two posts, each blanked in its own headline."""
+    best = None
+    rows = [p for p in _published(24 * 7) if p.get("figure") and _unit(p["figure"]) and _in_text(p["figure"].strip(), _head(p))]
+    for i, a in enumerate(rows):
+        for b in rows[i + 1:]:
+            va, vb = _fig_parts(a["figure"])[1], _fig_parts(b["figure"])[1]
+            if _unit(a["figure"]) != _unit(b["figure"]) or min(va, vb) <= 0 or max(va, vb) / min(va, vb) < Decimal("1.25"):
+                continue
+            if best is None or _score(a) + _score(b) > best[0]:
+                best = (_score(a) + _score(b), a, b)
+    if not best:
+        return []
+    first, second = _order(day, [best[1], best[2]], key=lambda p: p["id"])
+    big = max((first, second), key=lambda p: _fig_parts(p["figure"])[1])
+    letter = "A" if big is first else "B"
+    fig = lambda p: p["figure"].strip()  # noqa: E731
+    return _quiz_pair(day, "bigger", R.T.story_bigger(_blank(fig(first), _head(first)), _blank(fig(second), _head(second)), label),
+                      R.T.story_answer(letter, fig(big), [f"A. {_head(first)}", f"B. {_head(second)}"], label),
+                      "Which is bigger", refs=[first["id"], second["id"]])
+
+
+def _people(hours):
+    """Published posts about a person we hold a licensed portrait of; the portrait's file name must carry the name."""
+    return [p for p in _published(hours) if p.get("person") and _media(p, "photo.jpg") and _name_in(p["person"], p.get("photo_file", ""))]
+
+
+def _s_whois(day, label):
+    """Who is this?: the portrait without its name, four names from our own recent posts."""
+    named = sorted({p["person"] for p in _published(24 * 7) if p.get("person")})
+    if len(named) < 4:
+        return []
+    cands = _people(48)
+    if not cands:
+        return []
+    p = max(cands, key=_score)
+    others = [n for n in named if n != p["person"] and n.split()[-1] != p["person"].split()[-1]]
+    if len(others) < 3:
+        return []
+    options = _order(day, [p["person"]] + _order(day, others)[:3])
+    credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
+    photo = _media(p, "photo.jpg")
+    return _quiz_pair(day, "whois", R.T.story_whois(photo, label, options, credit),
+                      R.T.story_answer("ABCD"[options.index(p["person"])], p["person"], [_head(p)], label, photo_uri=photo,
+                                       credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"])
+
+
+def _s_person(day, label):
+    cut_day = [p for p in _published(24) if p.get("published", "")[:10] == day]
+    quizzed = {q.get("person") for q in _story_posts("whois", 1)}
+    people = [p for p in cut_day if p.get("person") and _media(p, "photo.jpg") and p["person"] not in quizzed]
+    if not people:
+        return []
+    p = max(people, key=_score)
+    return [_queue_story(f"{day}-person", R.T.story_person(_media(p, "photo.jpg"), p["person"], _head(p), p.get("credit", ""), label),
+                         f"In the news: {p['person']}", refs=[p["id"]])]
+
+
+def _s_company(day, label):
+    """Company file: the company's last three headlines with their dates, under its logo."""
+    by = {}
+    for p in _published(24 * 14):
+        if p.get("company") and _logo(p):
+            by.setdefault(p["company"], []).append(p)
+    shown = {q.get("company") for q in _story_posts("company", 14)[:2]}
+    rows = [(max(q["published"] for q in v), len(v), n, v) for n, v in by.items() if len(v) >= 3 and n not in shown]
+    if not rows:
+        return []
+    _, _, name, items = max(rows)
+    last = sorted(items, key=lambda q: q["published"], reverse=True)[:3]
+    return [_queue_story(f"{day}-company", R.T.story_company(_logo(last[0]), name, [(_date(q), _head(q)) for q in last], label),
+                         f"Company file: {name}", refs=[q["id"] for q in last], company=name)]
+
+
+def _s_board(day, label):
+    """Topic board: four headlines of the week's busiest topic, never the topic of the last board."""
+    by = {}
+    for p in _published(24 * 7):
+        if p.get("topic") in TOPICS:
+            by.setdefault(p["topic"], []).append(p)
+    last = (_story_posts("board", 7) or [{}])[0].get("topic")
+    rows = [(len(v), sum(map(_score, v)), t) for t, v in by.items() if len(v) >= 4 and t != last]
+    if not rows:
+        return []
+    topic = max(rows)[2]
+    top = sorted(by[topic], key=lambda p: -_score(p))[:4]
+    return [_queue_story(f"{day}-board", R.T.story_list(f"{topic}<br>this week.", [_head(p) for p in top], label),
+                         f"{topic} this week", refs=[p["id"] for p in top], topic=topic)]
+
+
+def _s_top5(day, slot, label):
+    top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p))[:5]
+    first = (_story_posts("top5a", 1) or [{}])[0].get("refs")
+    if len(top) < 3 or (slot == "top5b" and first == [p["id"] for p in top]):
+        return []
+    return [_queue_story(f"{day}-{slot}", R.T.story_list(f"Today's<br>top {len(top)}.", [_head(p) for p in top], label),
+                         f"Today's top {len(top)}", refs=[p["id"] for p in top])]
+
+
+def _s_today(day, label):
+    seen, tiles = set(), []
+    for p in sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p)):
+        key = ((p.get("logo_names") or [p.get("company")])[0] or "").lower()
+        if key and key not in seen and _logo(p):
+            seen.add(key)
+            tiles.append(_logo(p))
+    if len(tiles) < 6:
+        return []
+    return [_queue_story(f"{day}-today", R.T.story_today(tiles[:9], label), "In the news today")]
+
+
+def _s_ranked(day, slot, label):
+    """Most shared / Most saved this week: the top three by Instagram's own count, when three posts have one."""
+    metric = "shares" if slot == "shared" else "saved"
+    rows = sorted([p for p in _published(24 * 7) if ((p.get("insights") or {}).get(metric) or 0) > 0],
+                  key=lambda p: (-p["insights"][metric], -_score(p)))
+    if len(rows) < 3:
+        return []
+    title = f"Most {'shared' if metric == 'shares' else 'saved'}<br>this week."
+    return [_queue_story(f"{day}-{slot}", R.T.story_list(title, [_head(p) for p in rows[:3]], label),
+                         f"Most {metric if metric == 'saved' else 'shared'} this week", refs=[p["id"] for p in rows[:3]])]
+
+
+def _s_numbers(day, label):
+    figs = sorted([p for p in _published(24 * 7) if re.search(r"\d", p.get("figure") or "") and _in_text(p["figure"].strip(), _head(p))],
+                  key=lambda q: -_score(q))[:5]
+    if len(figs) < 3:
+        return []
+    return [_queue_story(f"{day}-numbers", R.T.story_numbers([(q["figure"], _head(q)) for q in figs], label),
+                         "The week in numbers", refs=[q["id"] for q in figs])]
+
+
+def _s_follow(day, label):
+    return [_queue_story(f"{day}-follow", R.T.story_follow(CONFIG["handle"], "The news that moves business.", label), "Follow",
+                         user_tags=[{"username": CONFIG["handle"].lstrip("@"), "x": 0.5, "y": 0.5}])]
+
+
+MON_WED_FRI, TUE_THU, ALL = (0, 2, 4), (1, 3), range(7)
+# slot -> (weekdays, builder). Times are in desk.json story_hours, UTC.
+STORY_SLOTS = {
+    "last12": (ALL, lambda d, s, l: _s_last12(d, l)),
+    "number1": (ALL, lambda d, s, l: _number(d, s, l)),
+    "quiz": (ALL, lambda d, s, l: _s_quiz(d, l)),
+    "company": (MON_WED_FRI, lambda d, s, l: _s_company(d, l)),
+    "board": (TUE_THU, lambda d, s, l: _s_board(d, l)),
+    "top5a": (ALL, lambda d, s, l: _s_top5(d, s, l)),
+    "whois": (MON_WED_FRI, lambda d, s, l: _s_whois(d, l)),
+    "person": ((1, 3, 5, 6), lambda d, s, l: _s_person(d, l)),
+    "fill": (MON_WED_FRI, lambda d, s, l: _s_fill(d, l)),
+    "complete": (TUE_THU, lambda d, s, l: _s_complete(d, l)),
+    "bigger": ((5,), lambda d, s, l: _s_bigger(d, l)),
+    "number2": (ALL, lambda d, s, l: _number(d, s, l)),
+    "follow": (ALL, lambda d, s, l: _s_follow(d, l)),
+    "today": (ALL, lambda d, s, l: _s_today(d, l)),
+    "top5b": (ALL, lambda d, s, l: _s_top5(d, s, l)),
+    "shared": ((6,), lambda d, s, l: _s_ranked(d, s, l)),
+    "numbers": ((6,), lambda d, s, l: _s_numbers(d, l)),
+    "saved": ((6,), lambda d, s, l: _s_ranked(d, s, l)),
+}
+
+
 def scheduled_stories():
-    """Stories of their own, each once a day after its hour (UTC), from posts already published and checked:
-    a morning brief, the number of the day, the evening top five, and on Sundays the week's top ten."""
+    """Each story format once in its slot (desk.json story_hours, UTC), from posts already published. A slot runs
+    from its time to the end of its grace window; with too little data it is skipped and tried again on the next run."""
     if paused() or not CONFIG.get("story_concepts", True):
         return []
-    day, hour, made = now().strftime("%Y-%m-%d"), now().hour, []
-    T = R.T
-
-    def due(kind, at):
-        return hour >= at and not (QUEUE / f"{day}-{kind}" / "post.json").exists()
-
-    if due("morning", CONFIG["story_hours"]["morning"]):
-        top = sorted(_published(14), key=lambda p: -(p.get("score") or 0))[:3]
-        if len(top) >= 2:
-            made.append(_queue_story(f"{day}-morning", T.story_list("Before<br>you start.", [p["headlines"][0] for p in top],
-                                                                   now().strftime("%-d %b")), "Before you start"))
-    if due("number", CONFIG["story_hours"]["number"]):
-        nums = [p for p in _published(18) if p.get("figure")]
-        if nums:
-            p = max(nums, key=lambda p: p.get("score") or 0)
-            made.append(_queue_story(f"{day}-number", T.story_number(p["figure"], p["headlines"][0], now().strftime("%-d %b")),
-                                     "Number of the day"))
-    if due("digest", CONFIG["story_hours"]["evening"]):
-        top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -(p.get("score") or 0))[:5]
-        if len(top) >= 3:
-            made.append(_queue_story(f"{day}-digest", T.story_list(f"Today's<br>top {len(top)}.", [p["headlines"][0] for p in top],
-                                                                  now().strftime("%-d %b")), f"Today's top {len(top)}"))
-    def media(p, *names):
-        for n in names:
-            f = MEDIA / p["id"] / n
-            if f.exists():
-                return f"file://{f.resolve()}"
-        return ""
-
-    day_posts = [p for p in _published(24) if p.get("published", "")[:10] == day]
-
-    if due("company", CONFIG["story_hours"]["company"]):
-        by = {}
-        for p in _published(24):
-            if p.get("company"):
-                by.setdefault(p["company"], []).append(p)
-        best = max(by.items(), key=lambda kv: (len(kv[1]), max(q.get("score") or 0 for q in kv[1])), default=None)
-        if best and len(best[1]) >= 2:
-            name, rows = best
-            logo = next((media(q, "logo.svg", "logo.png", "logo.jpg") for q in rows if media(q, "logo.svg", "logo.png", "logo.jpg")), "")
-            made.append(_queue_story(f"{day}-company", T.story_company(logo, name, [q["headlines"][0] for q in rows][:4],
-                                                                      now().strftime("%-d %b")), f"Company of the day: {name}"))
-    if due("person", CONFIG["story_hours"]["person"]):
-        people = [p for p in day_posts if p.get("person") and media(p, "photo.jpg")]
-        if people:
-            p = max(people, key=lambda q: q.get("score") or 0)
-            made.append(_queue_story(f"{day}-person", T.story_person(media(p, "photo.jpg"), p["person"], p["headlines"][0],
-                                                                    p.get("credit", ""), now().strftime("%-d %b")),
-                                     f"In the news: {p['person']}"))
-    if due("quiz", CONFIG["story_hours"]["quiz"]):
-        # the blank must hide the company and nothing else: its name has to be in the headline, the figure stays
-        cands = [p for p in _published(48) if p.get("company") and p.get("figure") and p["company"] in p["headlines"][0]]
-        if cands:
-            p = max(cands, key=lambda q: q.get("score") or 0)
-            hint = p["headlines"][0].replace(p["company"], "___")
-            # three wrong answers, all real companies from our own recent posts; the order is fixed by the day
-            others = sorted({q["company"] for q in _published(24 * 7) if q.get("company") and q["company"] != p["company"]})
-            options = sorted([p["company"]] + others[:3], key=lambda c: zlib.crc32(f"{day}{c}".encode()))
-            if p["company"] not in hint and len(options) >= 3:
-                letter = "ABCD"[options.index(p["company"])]
-                made.append(_queue_story(f"{day}-quiz", T.story_quiz(hint, now().strftime("%-d %b"), options), "Guess the company"))
-                ans = _queue_story(f"{day}-answer", T.story_answer(media(p, "logo.svg", "logo.png", "logo.jpg"), p["company"],
-                                                                  p["headlines"][0], now().strftime("%-d %b"), letter), "The answer")
-                post = _load(ans, {})
-                # the answer is the very next story; a minute later only so it never goes out before the question
-                post["publish_after"] = (now() + timedelta(minutes=1)).isoformat(timespec="seconds")
-                _save(ans, post)
-                made.append(ans)
-    if due("world", CONFIG["story_hours"]["world"]):
-        world = sorted([p for p in day_posts if p.get("topic") in ("World", "Politics", "Economy")],
-                       key=lambda q: -(q.get("score") or 0))[:5]
-        if len(world) >= 3:
-            made.append(_queue_story(f"{day}-world", T.story_list("Around<br>the world.", [q["headlines"][0] for q in world],
-                                                                 now().strftime("%-d %b")), "Around the world"))
-    if now().weekday() == 5 and due("numbers", CONFIG["story_hours"]["numbers"]):
-        figs = sorted([p for p in _published(24 * 7) if p.get("figure")], key=lambda q: -(q.get("score") or 0))[:5]
-        if len(figs) >= 3:
-            made.append(_queue_story(f"{day}-numbers", T.story_numbers([(q["figure"], q["headlines"][0]) for q in figs],
-                                                                      now().strftime("Week %V")), "The week in numbers"))
-    if now().weekday() == 6 and due("week", CONFIG["story_hours"]["week"]):
-        top = sorted(_published(24 * 7), key=lambda p: (-(((p.get("insights") or {}).get("shares") or 0)
-                                                           + ((p.get("insights") or {}).get("saved") or 0)), -(p.get("score") or 0)))[:10]
-        if len(top) >= 5:
-            made.append(_queue_story(f"{day}-week", T.story_list("This week's<br>top 10.", [p["headlines"][0] for p in top],
-                                                                now().strftime("Week %V"), compact=True), "This week's top 10"))
+    t = now()
+    day, made = t.strftime("%Y-%m-%d"), []
+    for slot, (weekdays, build) in STORY_SLOTS.items():
+        at = CONFIG["story_hours"].get(slot)
+        if not at or t.weekday() not in weekdays or (QUEUE / f"{day}-{slot}" / "post.json").exists():
+            continue
+        start = t.replace(hour=int(at[:2]), minute=int(at[3:]), second=0, microsecond=0)
+        if start <= t < start + timedelta(hours=CONFIG.get("story_grace_hours", 3)):
+            made += build(day, slot, t.strftime("Week %V") if slot in ("shared", "saved", "numbers") else t.strftime("%-d %b"))
     return made
 
 
@@ -463,6 +781,20 @@ def _close_if_done(issue):
         github.close(issue)
 
 
+TAG_REJECTED = re.compile(r"user_tags|invalid parameter|\btag", re.I)
+
+
+def _send_story(client, post):
+    url = media_url(post["id"], post["story"])
+    if post.get("user_tags"):
+        try:
+            return client.story(url, user_tags=post["user_tags"])
+        except Exception as e:  # noqa: BLE001  an account may refuse a tag; the image alone still goes out
+            if not TAG_REJECTED.search(str(e)):
+                raise
+    return client.story(url)
+
+
 def publish(client=None, dry=False):
     """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0."""
     if paused():
@@ -483,7 +815,7 @@ def publish(client=None, dry=False):
                 client = Client()
             try:
                 post.update(status="published", published=now().isoformat(timespec="seconds"),
-                            media_id=client.story(media_url(post["id"], post["story"])))
+                            media_id=_send_story(client, post))
             except Exception as e:  # noqa: BLE001
                 if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
                     post["tries"] = post.get("tries", 0) + 1

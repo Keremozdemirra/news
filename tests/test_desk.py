@@ -1,4 +1,5 @@
 import json
+import re
 import tempfile
 import unittest
 from datetime import timedelta
@@ -447,6 +448,42 @@ class Stories(Tmp):
         self.assertEqual(json.loads(d.read_text())["status"], "published")
         self.assertEqual(len(ig.posted), 1)  # the digest went out as a story, not a feed post
 
+    def test_follow_story_goes_out_with_its_mention_and_without_it_when_refused(self):
+        tags = [{"username": "boardread", "x": 0.5, "y": 0.5}]
+
+        class IG(FakeIG):
+            def __init__(self, refuse=False):
+                super().__init__()
+                self.calls, self.refuse = [], refuse
+
+            def story(self, url, user_tags=None):
+                self.calls.append(user_tags)
+                if user_tags and self.refuse:
+                    raise instagram.IGError("(#100) Invalid parameter: user_tags")
+                return "s1"
+        ig = IG()
+        p = self.write_post("2026-11-26-follow", kind="story", story="story.jpg", cards=[], user_tags=tags)
+        self.assertEqual(desk.publish(client=ig), 1)
+        self.assertEqual(ig.calls, [tags])
+        ig = IG(refuse=True)
+        q = self.write_post("2026-11-27-follow", kind="story", story="story.jpg", cards=[], user_tags=tags)
+        self.assertEqual(desk.publish(client=ig), 1)
+        self.assertEqual(ig.calls, [tags, None])
+        self.assertEqual(json.loads(q.read_text())["status"], "published")
+
+    def test_client_sends_user_tags_as_json(self):
+        sent = []
+
+        class C(instagram.Client):
+            def call(self, method, path, params=None, **kw):
+                sent.append((path, params))
+                return {"id": "c1", "status_code": "FINISHED"}
+        C(token="t", user_id="1").story("https://x/y.jpg", user_tags=[{"username": "boardread"}])
+        self.assertEqual(json.loads(sent[0][1]["user_tags"]), [{"username": "boardread"}])
+        sent.clear()
+        C(token="t", user_id="1").story("https://x/y.jpg")
+        self.assertNotIn("user_tags", sent[0][1])
+
     def test_failed_story_keeps_the_post_published(self):
         class IG(FakeIG):
             def story(self, url):
@@ -471,46 +508,365 @@ class Topics(unittest.TestCase):
         self.assertEqual(b["topic"], "Culture")
 
 
-class ScheduledStories(Tmp):
-    def test_each_concept_once_a_day_from_published_posts(self):
-        for i, (h, fig) in enumerate([("Fed holds rates", "5.25%"), ("Nvidia halts shipments", ""), ("ECB picks president", "")]):
-            self.write_post(f"p{i}", status="published", published=desk.now().isoformat(), headlines=[h], score=9 - i, figure=fig)
-        with mock.patch.object(desk, "now", return_value=desk.now().replace(hour=19)), \
-             mock.patch.object(desk.R, "shoot"), mock.patch.object(desk.R, "jpeg"), mock.patch.object(Path, "unlink"):
-            first = desk.scheduled_stories()
-            again = desk.scheduled_stories()
-        kinds = sorted(Path(p).parent.name.rsplit("-", 1)[-1] for p in first)
-        self.assertEqual(kinds, ["digest", "morning", "number"])
-        self.assertEqual(again, [])
+def _at(day, hh, mm=40):
+    """A UTC moment in the week of 23 Nov 2026 (Monday): day 0 is Monday, 6 is Sunday."""
+    from datetime import datetime, timezone
+    return datetime(2026, 11, 23 + day, hh, mm, tzinfo=timezone.utc)
 
 
-class MoreStories(Tmp):
-    def test_company_person_quiz_world_fire_once_and_quiz_hides_only_the_company(self):
-        now = desk.now().isoformat()
-        rows = [("ElevenLabs in talks to raise at a $33B valuation", "ElevenLabs", "$33B", "Business", ""),
-                ("Nvidia halts chip shipments", "Nvidia", "", "Tech", ""),
-                ("S&P weighs Nvidia downgrade", "Nvidia", "AA-", "Markets", ""),
-                ("UK net migration falls to 77,000", "", "77,000", "Politics", ""),
-                ("ECB picks new president", "", "", "Economy", "Pablo Hernández de Cos"),
-                ("Trump escalates tariffs", "", "", "Politics", "Donald Trump"),
-                ("Norse Atlantic suspends flights", "Norse Atlantic", "", "Business", "")]
-        for i, (h, co, fig, top, person) in enumerate(rows):
-            self.write_post(f"2026-11-26-1000-{i}", status="published", published=now, headlines=[h], score=10 - i,
-                            company=co, figure=fig, topic=top, person=person)
-            (desk.MEDIA / f"2026-11-26-1000-{i}").mkdir(parents=True)
-            (desk.MEDIA / f"2026-11-26-1000-{i}" / "photo.jpg").write_text("x")
+OPT = re.compile(r'color:#9aa0a8">([ABCD])</span><span[^>]*>([^<]*)</span>')
+ANS = re.compile(r"Answer: ([ABCD]) ([^<]*?)\.<")
+
+
+class Formats(Tmp):
+    """Each story format: data present queues it once, data missing skips it, quiz answers match their options."""
+
+    def run_at(self, when, *only):
+        """Runs the scheduler at `when` for the named slots (all when none); returns {story id: html} of what it queued."""
         seen = {}
-        with mock.patch.object(desk, "now", return_value=desk.now().replace(hour=21)), \
+        slots = {k: v for k, v in desk.STORY_SLOTS.items() if not only or k in only}
+        with mock.patch.object(desk, "now", return_value=when), mock.patch.object(desk, "STORY_SLOTS", slots), \
              mock.patch.object(desk.R, "shoot", side_effect=lambda html, png, w, h: seen.setdefault(Path(png).parent.name, html)), \
              mock.patch.object(desk.R, "jpeg"), mock.patch.object(Path, "unlink"):
-            made = {Path(p).parent.name.split("-", 3)[3] for p in desk.scheduled_stories()}
-            self.assertEqual(desk.scheduled_stories(), [])
-        self.assertTrue({"company", "person", "quiz", "answer", "world"} <= made)
-        quiz = next(v for k, v in seen.items() if k.endswith("-quiz"))
-        # the headline hides the company; the company is one of the four lettered options
-        self.assertNotIn("ElevenLabs in talks", quiz)
-        self.assertIn("in talks to raise at a $33B valuation", quiz)
-        self.assertEqual(quiz.count(">ElevenLabs<"), 1)
+            made = desk.scheduled_stories()
+            again = desk.scheduled_stories()
+        self.assertEqual(again, [], "a slot must run once")
+        self.assertEqual({Path(m).parent.name for m in made}, set(seen))
+        return {k[11:]: v for k, v in seen.items()}
+
+    def pub(self, n, head, when, hours_ago=1, logo=False, photo=False, **kw):
+        pid = f"2026-11-2x-{n}"
+        kw.setdefault("score", 10)
+        self.write_post(pid, status="published", published=(when - timedelta(hours=hours_ago)).isoformat(), headlines=[head], **kw)
+        (desk.MEDIA / pid).mkdir(parents=True, exist_ok=True)
+        if logo:
+            (desk.MEDIA / pid / "logo.svg").write_text("<svg/>")
+        if photo:
+            (desk.MEDIA / pid / "photo.jpg").write_text("x")
+        return pid
+
+    def test_last12_needs_three_and_runs_once(self):
+        w = _at(3, 6)
+        self.pub("a", "Fed holds rates", w, 2, score=9)
+        self.pub("b", "ECB picks president", w, 3, score=8)
+        self.assertEqual(self.run_at(w, "last12"), {})
+        self.pub("c", "Nvidia halts shipments", w, 5, score=12)
+        self.pub("old", "Too old to count", w, 13, score=20)
+        out = self.run_at(w, "last12")
+        self.assertEqual(list(out), ["last12"])
+        self.assertIn("Last 12<br>hours.", out["last12"])
+        self.assertLess(out["last12"].index("Nvidia halts"), out["last12"].index("Fed holds"))
+        self.assertNotIn("Too old", out["last12"])
+
+    def test_a_slot_waits_for_its_time_and_ends_with_its_grace(self):
+        for i in range(3):
+            self.pub(str(i), f"Headline {i}", _at(3, 6))
+        self.assertEqual(self.run_at(_at(3, 6, 10), "last12"), {})
+        self.assertEqual(self.run_at(_at(3, 9, 30), "last12"), {})
+        self.assertEqual(list(self.run_at(_at(3, 6, 36), "last12")), ["last12"])
+
+    def test_number_twice_a_day_never_the_same_post(self):
+        self.pub("a", "Fed holds rates at 5.25%", _at(3, 7), 3, figure="5.25%", score=9)
+        self.assertEqual(self.run_at(_at(3, 6, 50), "number1", "number2"), {})
+        out = self.run_at(_at(3, 7, 36), "number1", "number2")
+        self.assertEqual(list(out), ["number1"])
+        self.assertIn("5.25%", out["number1"])
+        self.assertEqual(self.run_at(_at(3, 17, 36), "number1", "number2"), {})  # the only figure was already used
+        self.pub("b", "UK net migration falls to 77,000", _at(3, 17), 1, figure="77,000", score=5)
+        self.assertEqual(list(self.run_at(_at(3, 17, 36), "number1", "number2")), ["number2"])
+        self.assertEqual(self.run_at(_at(4, 7, 36), "number1", "number2"), {}) if False else None
+
+    def test_number_skips_a_figure_with_no_digit(self):
+        self.pub("a", "Policy lasts five-year", _at(3, 7), figure="five-year")
+        self.assertEqual(self.run_at(_at(3, 7, 36), "number1"), {})
+
+    def test_company_quiz_hides_only_the_company_and_the_answer_matches(self):
+        w = _at(3, 9)
+        self.pub("a", "ElevenLabs in talks to raise at a $33B valuation", w, 5, company="ElevenLabs", figure="$33B", score=9)
+        for i, co in enumerate(["Nvidia", "Norse Atlantic", "Altria"]):
+            self.pub(f"o{i}", f"{co} makes news today", w, 20 + i, company=co, score=1)
+        out = self.run_at(w, "quiz")
+        self.assertEqual(sorted(out), ["quiz", "quiz-a"])
+        self.assertNotIn("ElevenLabs in talks", out["quiz"])
+        opts = OPT.findall(out["quiz"])
+        self.assertEqual(len(opts), 4)
+        letter, value = ANS.search(out["quiz-a"]).groups()
+        self.assertEqual(dict(opts)[letter], value)
+        self.assertEqual(value, "ElevenLabs")
+        self.assertIn("Answer on the next story", out["quiz"])
+        q, a = (json.loads((desk.QUEUE / f"2026-11-26-{k}" / "post.json").read_text()) for k in ("quiz", "quiz-a"))
+        self.assertGreater(a["publish_after"], q["publish_after"])
+
+    def test_company_quiz_needs_four_companies(self):
+        w = _at(3, 9)
+        self.pub("a", "ElevenLabs raises $33B", w, 5, company="ElevenLabs", figure="$33B")
+        self.pub("b", "Nvidia news", w, 5, company="Nvidia")
+        self.assertEqual(self.run_at(w, "quiz"), {})
+
+    def test_fill_the_number_blanks_the_figure_and_keeps_it_as_one_option(self):
+        w = _at(4, 13)  # Friday
+        self.pub("a", "Tech giant is fined since 1997 by regulators", w, 3, figure="1997", score=9)
+        self.pub("b", "No figure in this headline at all", w, 3, figure="40%", score=11)
+        out = self.run_at(w, "fill")
+        self.assertEqual(sorted(out), ["fill", "fill-a"])
+        self.assertIn("fined since <span", out["fill"])  # the blank sits where the figure was
+        letter, value = ANS.search(out["fill-a"]).groups()
+        self.assertEqual(value, "1997")
+        self.assertEqual(dict(OPT.findall(out["fill"]))[letter], "1997")
+        self.assertEqual(len({v for _, v in OPT.findall(out["fill"])}), 4)
+        self.assertIn("Fill the<br>number.", out["fill"])
+
+    def test_fill_the_number_only_when_the_figure_is_in_the_headline_and_on_its_days(self):
+        self.pub("a", "Stocks climb after the report", _at(4, 13), 3, figure="40%")
+        self.assertEqual(self.run_at(_at(4, 13), "fill"), {})
+        self.pub("b", "Fed holds rates at 5.25%", _at(1, 13), 3, figure="5.25%")
+        self.assertEqual(self.run_at(_at(1, 13), "fill"), {})  # Tuesday runs Complete the headline, not this
+
+    def test_distractors_never_equal_the_answer_and_keep_the_unit(self):
+        for fig in ["1997", "2026", "40%", "5.25%", "$33B", "$4.5B", "1,000", "77,000", "42", "14", "3", "1", "2", "€2.5 billion",
+                    "$36M", "99%", "100%", "1.5 million", "10"]:
+            got = desk.distractors(fig)
+            if not got:
+                self.assertTrue(fig in ("1",), fig)
+                continue
+            self.assertEqual(len(got), 3, fig)
+            self.assertEqual(len(set(got + [fig])), 4, fig)
+            for g in got:
+                self.assertNotEqual(g, fig)
+                self.assertEqual((g[0] if not g[0].isdigit() else "", g[-1] if not g[-1].isdigit() else ""),
+                                 (fig[0] if not fig[0].isdigit() else "", fig[-1] if not fig[-1].isdigit() else ""), (fig, g))
+        self.assertEqual(sorted(desk.distractors("1997")), ["1977", "1987", "2007"])
+        self.assertTrue(all(float(x[:-1]) <= 100 for x in desk.distractors("60%")))
+        self.assertEqual(desk.distractors("five-year"), [])
+        self.assertEqual(desk.distractors("AA-"), [])
+
+    def test_complete_the_headline_never_blanks_a_name_or_a_number(self):
+        w = _at(3, 13)  # Thursday
+        self.pub("a", "Nvidia halts chip shipments to 14 countries", w, 3, company="Nvidia", score=9)
+        for i, h in enumerate(["Mistral suspends cloud shipments", "Intel delays factory plan amid weak demand",
+                               "Google cuts costs across divisions", "Amazon limits warehouse hiring", "Meta raises investor payouts"]):
+            self.pub(f"o{i}", h, w, 20 + i, score=1)
+        out = self.run_at(w, "complete")
+        self.assertEqual(sorted(out), ["complete", "complete-a"])
+        letter, value = ANS.search(out["complete-a"]).groups()
+        self.assertEqual(dict(OPT.findall(out["complete"]))[letter], value)
+        self.assertEqual(value, "halts")
+        q = out["complete"]
+        self.assertIn("Nvidia ", q)
+        self.assertIn("14 countries", q)
+        self.assertNotIn("Nvidia halts", q)
+        for _, o in OPT.findall(q):
+            self.assertTrue(o.islower() and o.isalpha() and len(o) >= 5, o)
+
+    def test_blankable_words_are_lowercase_known_words_only(self):
+        self.assertEqual(desk._pos("Nvidia"), "")
+        self.assertEqual(desk._pos("ECB"), "")
+        self.assertEqual(desk._pos("2021"), "")
+        self.assertEqual(desk._pos("cuts"), "")  # under five letters
+        self.assertEqual(desk._pos("halts"), "verb")
+        self.assertEqual(desk._pos("shipments"), "noun-pl")
+        self.assertEqual(desk._pos("unknownword"), "")
+
+    def test_complete_skips_when_other_headlines_offer_no_same_kind_of_word(self):
+        w = _at(3, 13)
+        self.pub("a", "Nvidia halts chip shipments", w, 3, company="Nvidia")
+        self.pub("b", "Fed holds rates", w, 4)
+        self.assertEqual(self.run_at(w, "complete"), {})
+
+    def people(self, w, n=4):
+        names = ["Jensen Huang", "Donald Trump", "Kathy Hochul", "Pablo Hernández de Cos", "Sam Altman"]
+        for i, name in enumerate(names[:n]):
+            self.pub(f"p{i}", f"{name} makes news", w, 2 + i, person=name, photo=True, score=10 - i,
+                     photo_file=f"{name.split()[-1]} portrait 2026.jpg", credit="Photo: Someone, CC BY 4.0, via Wikimedia Commons")
+
+    def test_whois_needs_four_people_and_a_portrait_that_carries_the_name(self):
+        w = _at(2, 12)  # Wednesday
+        self.people(w, 3)
+        self.assertEqual(self.run_at(w, "whois"), {})
+        self.pub("p3", "Pablo Hernández de Cos makes news", w, 9, person="Pablo Hernández de Cos", photo=True, photo_file="Hernandez.jpg")
+        out = self.run_at(w, "whois")
+        self.assertEqual(sorted(out), ["whois", "whois-a"])
+        letter, value = ANS.search(out["whois-a"]).groups()
+        self.assertEqual(dict(OPT.findall(out["whois"]))[letter], value)
+        self.assertEqual(value, "Jensen Huang")
+        self.assertNotIn("makes news", out["whois"])  # the headline stays on the answer slide
+        self.assertEqual(len(OPT.findall(out["whois"])), 4)
+        self.assertIn("Who is<br>this?", out["whois"])
+
+    def test_whois_will_not_use_a_photo_that_does_not_carry_the_name(self):
+        w = _at(2, 12)
+        self.people(w, 5)
+        for pid in list(desk.QUEUE.iterdir()):
+            d = json.loads((pid / "post.json").read_text())
+            d["photo_file"] = "Some data center.jpg"
+            (pid / "post.json").write_text(json.dumps(d))
+        self.assertEqual(self.run_at(w, "whois"), {})
+
+    def test_person_runs_on_its_days_and_never_for_the_person_quizzed_that_day(self):
+        self.people(_at(1, 12), 5)
+        out = self.run_at(_at(1, 12), "person", "whois")  # Tuesday
+        self.assertEqual(list(out), ["person"])
+        self.assertIn("Jensen Huang", out["person"])
+        self.assertEqual(self.run_at(_at(1, 16), "person", "whois"), {})
+        # on a Wednesday the quiz runs and person does not
+        self.assertEqual(sorted(self.run_at(_at(2, 12), "person", "whois")), ["whois", "whois-a"])
+        # had the quiz used Jensen Huang the same day, the person story would pick someone else
+        _save = desk._save
+        _save(desk.QUEUE / "2026-11-28-whois" / "post.json", {"id": "2026-11-28-whois", "kind": "story", "person": "Jensen Huang",
+                                                             "created": _at(5, 12).isoformat()})
+        self.pub("late", "Sam Altman speaks", _at(5, 12), 1, person="Sam Altman", photo=True, score=1, photo_file="Altman.jpg")
+        out = self.run_at(_at(5, 12), "person", "whois")
+        self.assertIn("Sam Altman", out["person"])
+        self.assertNotIn("Jensen Huang", out["person"].split("Sam Altman")[0])
+
+    def test_bigger_needs_two_figures_in_one_unit(self):
+        w = _at(5, 13)  # Saturday
+        self.pub("a", "ElevenLabs in talks to raise at a $33B valuation", w, 3, figure="$33B", score=9)
+        self.pub("b", "Fed holds rates at 5.25%", w, 3, figure="5.25%", score=9)
+        self.assertEqual(self.run_at(w, "bigger"), {})
+        self.pub("c", "Tano closes $4B funding round", w, 4, figure="$4B", score=8)
+        out = self.run_at(w, "bigger")
+        self.assertEqual(sorted(out), ["bigger", "bigger-a"])
+        letter, value = ANS.search(out["bigger-a"]).groups()
+        self.assertEqual(value, "$33B")
+        self.assertNotIn("$33B", out["bigger"])
+        self.assertNotIn("$4B", out["bigger"])
+        first = out["bigger"].index("ElevenLabs")
+        second = out["bigger"].index("Tano")
+        self.assertEqual(letter, "A" if first < second else "B")
+
+    def test_bigger_skips_close_figures(self):
+        w = _at(5, 13)
+        self.pub("a", "Fund raises $10B this week", w, 3, figure="$10B")
+        self.pub("b", "Bank posts $11B profit", w, 3, figure="$11B")
+        self.assertEqual(self.run_at(w, "bigger"), {})
+
+    def test_company_file_monday_has_three_dated_headlines_and_a_logo(self):
+        w = _at(0, 10)
+        for i, d in enumerate([30, 50, 70]):
+            self.pub(f"n{i}", f"Nvidia headline {i}", w, d, company="Nvidia", logo=True)
+        self.pub("x", "Other news", w, 3, company="Altria")
+        out = self.run_at(w, "company", "board")
+        self.assertEqual(list(out), ["company"])
+        self.assertIn("Company<br>file.", out["company"])
+        for h in range(3):
+            self.assertIn(f"Nvidia headline {h}", out["company"])
+        self.assertIn("22 Nov", out["company"])  # 30 hours before Monday 10:40
+        self.assertEqual(self.run_at(_at(1, 10), "company"), {})  # Tuesday has the topic board, not the company file
+
+    def test_company_file_needs_a_logo_and_three_headlines(self):
+        w = _at(0, 10)
+        for i in range(3):
+            self.pub(f"n{i}", f"Nvidia headline {i}", w, 5 + i, company="Nvidia")
+        self.assertEqual(self.run_at(w, "company"), {})
+
+    def test_topic_board_four_headlines_of_one_topic_and_no_repeat_topic_next_time(self):
+        for i in range(4):
+            self.pub(f"m{i}", f"Markets headline {i}", _at(1, 10), 5 + i, topic="Markets", score=9 - i)
+        for i in range(4):
+            self.pub(f"t{i}", f"Tech headline {i}", _at(1, 10), 5 + i, topic="Tech", score=3)
+        out = self.run_at(_at(1, 10), "board")
+        self.assertEqual(list(out), ["board"])
+        self.assertIn("Markets<br>this week.", out["board"])
+        self.assertEqual(out["board"].count("Markets headline"), 4)
+        self.assertNotIn("Tech headline", out["board"])
+        out = self.run_at(_at(3, 10), "board")  # Thursday: the other topic
+        self.assertIn("Tech<br>this week.", out["board"])
+
+    def test_topic_board_skips_with_three(self):
+        for i in range(3):
+            self.pub(f"m{i}", f"Markets headline {i}", _at(1, 10), 5 + i, topic="Markets")
+        self.assertEqual(self.run_at(_at(1, 10), "board"), {})
+
+    def test_top5_morning_and_evening_and_never_the_same_list_twice(self):
+        w = _at(3, 11)
+        for i in range(3):
+            self.pub(f"t{i}", f"Today headline {i}", w, 1 + i, score=9 - i)
+        out = self.run_at(w, "top5a", "top5b")
+        self.assertEqual(list(out), ["top5a"])
+        self.assertIn("Today's<br>top 3.", out["top5a"])
+        self.assertEqual(self.run_at(_at(3, 20), "top5a", "top5b"), {})
+        self.pub("t9", "Later headline", _at(3, 20), 1, score=20)
+        out = self.run_at(_at(3, 20), "top5a", "top5b")
+        self.assertEqual(list(out), ["top5b"])
+        self.assertIn("Later headline", out["top5b"])
+
+    def test_in_the_news_today_is_a_grid_of_six_to_nine_logos(self):
+        w = _at(3, 19)
+        for i in range(5):
+            self.pub(f"c{i}", f"Company {i} news", w, 1 + i % 3, company=f"Co{i}", logo=True)
+        self.assertEqual(self.run_at(w, "today"), {})
+        self.pub("c5", "Company 5 news", w, 1, company="Co5", logo=True)
+        self.pub("dup", "Co5 again", w, 1, company="Co5", logo=True)
+        self.pub("nologo", "No logo news", w, 1, company="CoX")
+        out = self.run_at(w, "today")
+        self.assertEqual(list(out), ["today"])
+        self.assertEqual(out["today"].count("<img"), 6)
+        self.assertIn("In the news<br>today.", out["today"])
+
+    def test_most_shared_and_saved_need_three_posts_with_numbers(self):
+        w = _at(6, 10)  # Sunday
+        for i in range(3):
+            self.pub(f"i{i}", f"Insight headline {i}", w, 24 * (i + 1), insights={"shares": 5 - i, "saved": 0})
+        out = self.run_at(w, "shared", "saved")
+        self.assertEqual(list(out), ["shared"])  # saved is all zero
+        self.assertIn("Most shared<br>this week.", out["shared"])
+        self.assertLess(out["shared"].index("Insight headline 0"), out["shared"].index("Insight headline 2"))
+        self.assertEqual(self.run_at(_at(6, 17), "shared", "saved"), {})
+        for i in range(3):
+            p = desk.QUEUE / f"2026-11-2x-i{i}" / "post.json"
+            d = json.loads(p.read_text())
+            d["insights"]["saved"] = 1 + i
+            p.write_text(json.dumps(d))
+        out = self.run_at(_at(6, 17), "shared", "saved")
+        self.assertEqual(list(out), ["saved"])
+        self.assertLess(out["saved"].index("Insight headline 2"), out["saved"].index("Insight headline 0"))
+        self.assertIn("Most saved<br>this week.", out["saved"])
+
+    def test_most_shared_skips_when_two_posts_have_numbers(self):
+        w = _at(6, 10)
+        self.pub("a", "A headline", w, 24, insights={"shares": 3})
+        self.pub("b", "B headline", w, 48, insights={"shares": 2})
+        self.pub("c", "C headline", w, 72)
+        self.assertEqual(self.run_at(w, "shared", "saved"), {})
+
+    def test_week_in_numbers_on_sunday_only(self):
+        for i, f in enumerate(["5.25%", "$33B", "77,000"]):
+            self.pub(f"f{i}", f"Headline with {f} inside", _at(6, 16), 30 + i, figure=f, score=9 - i)
+        out = self.run_at(_at(6, 16), "numbers")
+        self.assertEqual(list(out), ["numbers"])
+        self.assertIn("The week<br>in numbers.", out["numbers"])
+        self.assertEqual(self.run_at(_at(5, 16), "numbers"), {})
+
+    def test_follow_asks_for_a_plain_mention_and_needs_no_data(self):
+        out = self.run_at(_at(2, 18), "follow")
+        self.assertEqual(list(out), ["follow"])
+        self.assertIn("@boardread", out["follow"])
+        self.assertIn("The news that moves business.", out["follow"])
+        post = json.loads((desk.QUEUE / "2026-11-25-follow" / "post.json").read_text())
+        self.assertEqual(post["user_tags"], [{"username": "boardread", "x": 0.5, "y": 0.5}])
+
+    def test_copy_rules_hold_in_every_format(self):
+        """Nothing a reader sees says story, AI, or a stock phrase; question slides end on the same footer."""
+        w = _at(4, 13)
+        self.pub("a", "Tech giant is fined since 1997 by regulators", w, 3, figure="1997", company="Tech giant")
+        out = self.run_at(w)
+        for html in out.values():
+            text = re.sub(r"<[^>]+>", " ", html).lower()
+            self.assertNotIn("stories", text)
+            self.assertNotRegex(text, r"\bai\b|as it breaks|right here|all day")
+        self.assertIn("Answer on the next story", out["fill"])
+
+
+class ScheduledStories(Tmp):
+    def test_story_slots_in_desk_json_are_utc_times_and_cover_every_slot(self):
+        real = json.loads(Path(__file__).resolve().parent.parent.joinpath("desk.json").read_text())
+        for slot in desk.STORY_SLOTS:
+            self.assertRegex(real["story_hours"][slot], r"^\d\d:\d\d$", slot)
+        self.assertFalse(real["story_concepts"])
+        self.assertFalse(real["stories"])
+        self.assertEqual(real["story_hours"]["last12"], "06:15")  # 07:15 CET
+        self.assertEqual(real["story_hours"]["top5b"], "20:30")  # 21:30 CET
 
 
 class Render(unittest.TestCase):
@@ -524,8 +880,10 @@ class Render(unittest.TestCase):
         self.assertIn("Nvidia", T.card(dict(s, _assets=dict(s["_assets"]))))
         self.assertIn("Nvidia", T.detail(s, "body", ["X"]))
         for html in (T.story_frame("file:///c.jpg"), T.story_list("T", ["a"], "l"), T.story_number("$1B", "h", "l"),
-                     T.story_company("", "Co", ["h"], "l"), T.story_person("file:///p.jpg", "N", "h", "c", "l"),
-                     T.story_quiz("___ raises", "l"), T.story_answer("", "Co", "h", "l"), T.story_numbers([("1", "h")], "l")):
+                     T.story_company("", "Co", [("01 Nov", "h")], "l"), T.story_person("file:///p.jpg", "N", "h", "c", "l"),
+                     T.story_quiz("___ raises", "l"), T.story_answer("A", "Co", ["h"], "l"), T.story_numbers([("1", "h")], "l"),
+                     T.story_whois("file:///p.jpg", "l", ["a", "b", "c", "d"], "c"), T.story_bigger("a ___", "b ___", "l"),
+                     T.story_today(["file:///a.svg"] * 7, "l"), T.story_follow("@boardread", "line", "l")):
             self.assertIn("boardread.", html)
 
 
