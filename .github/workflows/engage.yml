@@ -1,0 +1,29 @@
+name: engage
+# Answers new comments on the last week's posts. Replies come from a no-tool model call and pass fixed checks.
+on:
+  schedule:
+    - cron: "40 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  engage:
+    if: vars.DESK_PAUSED != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tools
+        run: npm install -g --silent @anthropic-ai/claude-code@2.1.319
+      - name: Reply
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: python3 -m aidaily engage
+      - name: Commit
+        if: always()
+        run: scripts/commit.sh "desk: replies $(date -u +%F-%H%M)"

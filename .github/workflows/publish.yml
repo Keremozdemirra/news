@@ -1,0 +1,29 @@
+name: publish
+# Publishes queued carousels whose veto window has passed and whose issue is still open and unlabelled.
+on:
+  schedule:
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: vars.DESK_PAUSED != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Publish
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: python3 -m aidaily publish
+      - name: Commit
+        if: always()
+        run: scripts/commit.sh "desk: publish $(date -u +%F-%H%M)"

@@ -1,0 +1,16 @@
+{
+  "name": "loopbrief",
+  "handle": "@loopbrief",
+  "veto_hours": 2,
+  "min_cards": 3,
+  "max_cards": 6,
+  "max_posts_per_day": 2,
+  "repeat_window_days": 3,
+  "reply_daily_cap": 20,
+  "reply_window_days": 7,
+  "hashtags": ["#ai", "#artificialintelligence", "#ainews", "#technews", "#machinelearning"],
+  "send_line": "Send this to someone who follows AI.",
+  "ai_note": "Summaries are written with AI from the reports named above and checked against them.",
+  "media_branch": "main",
+  "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder|killed|shooting|terror|overdose|died|death of"
+}

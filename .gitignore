@@ -1,0 +1,9 @@
+__pycache__/
+*.db
+out/
+data/
+assets/
+*.key
+*.pem
+.env
+.DS_Store

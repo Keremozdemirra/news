@@ -1,0 +1,39 @@
+name: daily
+# Fetch, write copy with a no-tool model call, render, queue one carousel, open its veto issue.
+# Nothing here can post: the Instagram token is not in this job.
+on:
+  schedule:
+    - cron: "0 5 * * *"
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  daily:
+    if: vars.DESK_PAUSED != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tools
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          npm install -g --silent @anthropic-ai/claude-code@2.1.319
+      - name: Run the day
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: python3 -m aidaily daily
+      - name: Commit the queue
+        run: scripts/commit.sh "desk: queue $(date -u +%F-%H%M)"
+      - name: Open the veto issue
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          python3 -m aidaily notify
+          scripts/commit.sh "desk: veto issue"
