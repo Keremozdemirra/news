@@ -37,7 +37,8 @@ Fields:
   banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
   what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any. Plain
-  words: "more than £400m", never "£400m+"; no question; no quote marks around a single word
+  words: "more than £400m", never "£400m+"; no question; no quote marks around a single word. Name the
+  country when a senate, parliament, court, central bank or election is not American ("Argentina's Senate")
 - dek: one sentence, max 140 characters, the most useful extra fact (not a restatement of the headline)
 - company: the main company the story is about, as the company names itself ("" if none)
 - company_domain: that company's website domain if you are certain of it, like "redqueen.bio" ("" if unsure;
@@ -57,7 +58,8 @@ Fields:
   none, if it is a word like "a quarter", or if the source qualifies it with "more than", "up to", "about")
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
 - linkedin_post: 2 to 3 short sentences of the most useful facts from the source beyond the headline. Do not
-  open by repeating the headline: the reader has just read it. End with the line "Source: <outlet>"
+  open by repeating the headline: the reader has just read it. Each sentence complete and grammatical, never
+  a source phrase pasted into another sentence. End with the line "Source: <outlet>"
 - fits_category: false if the story does not match its slot, e.g. a profile or retrospective in a funding
   slot, an opinion piece in a breaking slot; true otherwise{extra_fields}
 
@@ -383,6 +385,9 @@ def apply(stories, reply_rows):
                                                  "topic")},
                      copy_status="ok")
             s["linkedin_post"] = drop_restated_lead(s["linkedin_post"], s["headline"])
+            # a dek that only says the headline again is no dek ("Congress passed the overhaul ... in its final vote")
+            if s.get("dek") and repeats(s["dek"], s["headline"]):
+                s["dek"] = ""
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what"):

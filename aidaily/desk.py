@@ -261,7 +261,11 @@ def keyword_line(headline, lead, s):
     opening = f"{headline}\n\n{lead}"[:KEY_WINDOW].lower()
     co = (s.get("company") or "").strip()
     tk = (s.get("_assets") or {}).get("ticker") if co else None
-    names = [n for n in dict.fromkeys([co, s.get("person") or ""] + list(s.get("orgs") or [])[:1]) if n]
+    # an organisation joins only when it is a company with its logo on the card: "EU · World", "Supreme Court ·
+    # Politics" and "Republican party" read as filler, not as names someone searches for
+    shown = set((s.get("_assets") or {}).get("logo_names") or [])
+    orgs = [o for o in list(s.get("orgs") or [])[:1] if o in shown]
+    names = [n for n in dict.fromkeys([co, s.get("person") or ""] + orgs) if n]
     room = KEY_WINDOW - len(headline) - 2 - len(" · ") - len(topic)  # the line follows the headline and a blank line
     chosen = []
     for n in (n for n in names if n.lower() not in opening or (tk and n == co)):

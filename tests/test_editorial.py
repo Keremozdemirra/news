@@ -145,6 +145,13 @@ class Copy(unittest.TestCase):
         self.assertEqual(s["headline"], "Trump demands probe after GDP data revision")
         self.assertEqual(s["dek"], "The revision lifted growth.")
 
+    def test_a_dek_that_restates_the_headline_is_dropped(self):
+        s = {"title": "Argentina's Congress approves central bank overhaul", "summary": "", "source": "BA Times"}
+        rows = [{"id": 0, "headline": "Argentina's Congress gives final approval to central bank overhaul",
+                 "dek": "Congress approves the central bank overhaul in Argentina.", "x_post": "", "linkedin_post": "", "figure": ""}]
+        copy.apply([s], rows)
+        self.assertEqual(s["dek"], "")
+
     def test_person_not_named_in_our_text_is_not_pictured(self):
         s = {"title": "Argentina's Congress approves central bank overhaul backed by Milei", "summary": "", "source": "BA Times"}
         rows = [{"id": 0, "headline": "Argentina's Congress approves central bank overhaul", "dek": "", "x_post": "",
@@ -233,6 +240,15 @@ class Newsrooms(unittest.TestCase):
         self.assertEqual(desk.reported_by(names), "TechCrunch; Engadget; Financial Times; The Decoder and 2 more")
         one = {"source": "CNBC Top News", "newsrooms": ["CNBC"]}
         self.assertEqual(T._sourceline(one), "Source: CNBC")
+
+
+class Caption(unittest.TestCase):
+    def test_keyword_line_names_companies_and_people_not_institutions(self):
+        s = {"topic": "World", "person": "", "company": "", "orgs": ["EU"], "_assets": {"logo_names": []}}
+        self.assertEqual(desk.keyword_line("Italy's PM rebukes Ukraine over ship attacks", "She spoke.", s), "")
+        s = {"topic": "Business", "person": "", "company": "", "orgs": ["Imperial Brands"],
+             "_assets": {"logo_names": ["Imperial Brands"]}}
+        self.assertEqual(desk.keyword_line("Tobacco group explores a takeover", "A bid.", s), "Imperial Brands · Business")
 
 
 class Typography(unittest.TestCase):
