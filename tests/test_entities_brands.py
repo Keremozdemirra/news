@@ -42,5 +42,12 @@ class PhotoFilters(unittest.TestCase):
         self.assertTrue(entities.PEOPLE.search("Antelope Air Defense System in CCK Air Force Base.jpg"))
 
 
+    def test_museum_textile_is_not_anthropic(self):
+        self.assertTrue(entities.ART.search("Fragment of an Egyptian Textile, depicting the anthropic figure of Anthousa.jpg"))
+
+    def test_fan_in_branded_shirt_is_not_the_company(self):
+        self.assertTrue(entities.CROWD.search("Biggest Rockstar Games fan ever - Flickr.jpg"))
+
+
 if __name__ == "__main__":
     unittest.main()

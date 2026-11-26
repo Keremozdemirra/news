@@ -75,7 +75,9 @@ def assets(story, fetch=True):
                 logos.append(f.as_uri())
                 logo_names.append(n)
         # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
-        subjects = [(story.get("person", ""), True), (co, False), (story.get("image_query", ""), False)]
+        # a generic scene ("AI data center") put a stranger's wall on a story; no photo beats a wrong one,
+        # so only the named person or the company's own photos are used
+        subjects = [(story.get("person", ""), True), (co, False)]
         ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
         if file_:
             USED.add(file_)

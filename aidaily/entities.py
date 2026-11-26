@@ -194,6 +194,12 @@ PLACES = re.compile(r"\b(afghanistan|albania|algeria|argentina|armenia|australia
                     r"madrid|rome|milan|tokyo|beijing|shanghai|hong kong|shenzhen|seoul|taipei|moscow|kyiv|istanbul|"
                     r"tehran|riyadh|doha|cairo|mumbai|delhi|sydney|toronto|vancouver|chicago|texas|california|"
                     r"florida|middle east|africa|asia|europe|latin america|south america)\b", re.I)
+# museum objects and artworks are never a company's news photo
+ART = re.compile(r"\b(museum|painting|textile|fragment|sculpture|statue|artwork|exhibit|exhibition|mosaic|fresco|"
+                 r"manuscript|engraving|century|bce|ce|antique|ancient|relic|tapestry)\b", re.I)
+# fans, visitors and passers-by are people the story is not about
+CROWD = re.compile(r"\b(fan|fans|crowd|cosplay|cosplayer|visitors?|audience|attendees?|man|woman|men|women|girl|boy|"
+                   r"people|person|kids?|child|children|queue|line outside|selfie)\b", re.I)
 FACE = re.compile(r"cropped|crop\b|portrait|official|headshot", re.I)
 PEOPLE_ART = re.compile(r"guilty|convicted|impeach|sign|poster|banner|placard|mural|cartoon|caricature|meme|graffiti|"
                         r"effigy|mask|costume|parody|protest|rally|march|vote|ballot|campaign|sticker|flag", re.I)
@@ -275,12 +281,14 @@ def candidates(subject, person=False):
         q = urllib.parse.quote(f"{subject} filetype:bitmap")
         got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search"
                    f"&srnamespace=6&srlimit=50&srsearch={q}")["query"]["search"]
-        want = _words(subject) - {"photo", "image", "picture", "building", "the"}
+        # the whole name as a phrase: word overlap let "Anthropic" match a museum textile with an "anthropic
+        # figure" and "Rockstar Games" match a fan in a branded shirt
+        phrase = re.compile(r"(?<![a-z0-9])" + re.escape(subject.strip()) + r"(?![a-z0-9])", re.I)
         for m in got:
             name = m["title"][5:]
-            have = _words(name)
             # full-text search matches descriptions too; the title is the only part that says what is shown
-            if want and len(want & have) * 2 >= len(want) and not PEOPLE.search(name) and not NATURE.search(name):
+            if (subject.strip() and phrase.search(name) and not PEOPLE.search(name) and not NATURE.search(name)
+                    and not ART.search(name) and not CROWD.search(name)):
                 files.append(name)
     seen, out = set(), []
     for f in files:

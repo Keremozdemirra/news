@@ -122,7 +122,7 @@
   "platforms": {
     "threads": false,
     "facebook": true,
-    "bluesky": false,
+    "bluesky": true,
     "telegram": true
   },
   "growth": {

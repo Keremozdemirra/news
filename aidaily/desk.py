@@ -252,7 +252,8 @@ def audit(post):
     if pf and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
         other = E.foreign_brand(pf, head_ + " " + (owners[0] if owners else ""), own=owners[0] if owners else "")
         problems.append(f"photo file names {other}, which the story does not name")
-    if pf and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf)):
+    if pf and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
+               or (not post.get("person") and E.CROWD.search(pf))):
         problems.append(f"photo {pf!r} is not a news photo of the subject")
     if post.get("person") and post["person"].split()[-1].lower() not in (head_ + " " + post.get("body", "")).lower():
         problems.append(f"photo of {post['person']}, who the text does not name")
