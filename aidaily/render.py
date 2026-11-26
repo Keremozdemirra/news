@@ -39,9 +39,11 @@ def jpeg(png, quality=92):
 def shoot(html_text, png, w, h):
     with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
         f.write(html_text)
-    subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--window-size={w},{h}",
-                    "--virtual-time-budget=6000", f"--screenshot={png}", f"file://{f.name}"],
-                   check=True, capture_output=True, timeout=60)
+    # a profile of its own per call: several renders can run at once (the site's share cards) without fighting over one
+    with tempfile.TemporaryDirectory() as profile:
+        subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--hide-scrollbars", f"--user-data-dir={profile}", f"--window-size={w},{h}",
+                        "--virtual-time-budget=6000", f"--screenshot={png}", f"file://{f.name}"],
+                       check=True, capture_output=True, timeout=60)
     Path(f.name).unlink()
 
 

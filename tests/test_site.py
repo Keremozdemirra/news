@@ -24,7 +24,8 @@ class SiteMeta(Tmp):
             (desk.MEDIA / pid / "thumb.jpg").write_text("x")
         (desk.MEDIA / "2026-11-26-1300-1" / "photo.jpg").write_text("x")
         # a stand-in for ffmpeg: the real cut is checked by hand, here only that its result is wired in
-        with mock.patch.object(site, "og_image", side_effect=lambda src, dst: dst.write_bytes(b"jpg") or True):
+        stub = lambda *a: a[-1].write_bytes(b"jpg") or True  # noqa: E731
+        with mock.patch.object(site, "og_image", side_effect=stub), mock.patch.object(site, "share_card", side_effect=stub):
             return site.build(self.root / "_site")
 
     def test_every_page_carries_preview_tags(self):
@@ -52,9 +53,10 @@ class SiteMeta(Tmp):
         self.assertIn(f'href="{site.BASE}/standards/"', h)  # the corrections policy, which links the contact page
         self.assertNotIn("<b>here", h)  # field text is escaped, never markup
         self.assertIn("&lt;b&gt;here", h)
-        # a story with only a thumb has no photo: its preview is the shared image, and the page builds
+        # a story with only a thumb has no photo, no picture on the site, and still its own share card
         h2 = (out / "s" / "2026-11-21-1300-1" / "index.html").read_text()
-        self.assertIn(site.BASE + "/og-default.png", h2)
+        self.assertIn(site.BASE + "/og/2026-11-21-1300-1.jpg", h2)
+        self.assertFalse((out / "img" / "2026-11-21-1300-1-t.jpg").exists())
 
     def test_sitemaps_parse_and_news_sitemap_keeps_48_hours(self):
         out = self.build()

@@ -78,4 +78,8 @@ def source_mix(p):
             seen.add(o.lower())
             rows.append((o, u, bool(AGGREGATOR_URL.search(host(u))) or is_aggregator(o)))
     real = [(o, u) for o, u, agg in rows if not agg]
-    return real or [(o, u) for o, u, _ in rows]
+    # the coverage meter counts the outlets the post names; a link to an outlet it does not name would make the list
+    # longer than the count beside it, so only those are listed (all of them when none matches by name)
+    named = {n.lower() for n in newsrooms(p)}
+    agreed = [(o, u) for o, u in real if o.lower() in named]
+    return agreed or real or [(o, u) for o, u, _ in rows]
