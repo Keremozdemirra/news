@@ -15,6 +15,7 @@ import json
 import math
 import os
 import re
+import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -217,6 +218,10 @@ def queue(day_dir, batch=None, render=True):
             R.jpeg(png)
             png.unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
+            # the web pages show the clean photo, not the card with its text burnt in
+            src = s.get("_assets", {}).get("photo", "")
+            if src.startswith("file://"):
+                R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "publish_after": slot.isoformat(timespec="seconds"), "status": "queued",
                 "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s),

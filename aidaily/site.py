@@ -54,60 +54,55 @@ FACES = (f"@font-face{{font-family:'Libre Franklin';font-weight:100 900;font-dis
                    for f, n in MAIN_FONTS.items()))
 
 CSS = FACES + """
-:root{--paper:#fcfcfb;--ink:#16171a;--soft:#5b5f66;--rule:#dcdde0;--accent:#c2371c;--mark:#f0f0ee;
+:root{--paper:#fcfcfb;--ink:#16171a;--soft:#5b5f66;--faint:#8b9098;--rule:#dcdde0;--mark:#f0f0ee;
 --serif:"Fraunces",Georgia,serif;--sans:"Libre Franklin",-apple-system,"Segoe UI",Helvetica,sans-serif;
 --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
-@media(prefers-color-scheme:dark){:root{--paper:#111214;--ink:#e9eaec;--soft:#9aa0a8;--rule:#292b30;--accent:#f5694b;--mark:#1c1d20}}
+@media(prefers-color-scheme:dark){:root{--paper:#111214;--ink:#e9eaec;--soft:#9aa0a8;--faint:#6b7078;--rule:#25272b;--mark:#191a1d}}
 *{box-sizing:border-box}html{background:var(--paper)}body{margin:0;background:var(--paper);color:var(--ink);
-font:400 17px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+font:400 17px/1.6 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 a{color:inherit;text-decoration:none}img{display:block;max-width:100%}
-.wrap{max-width:1240px;margin:0 auto;padding:0 40px}
-.bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+.mono{font:500 11px/1.5 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--soft)}
+.bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--paper) 90%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--rule)}
 .bar .wrap{display:flex;align-items:center;justify-content:space-between;height:64px;gap:24px}
-.home{font-family:var(--serif);font-size:1.05rem;font-variation-settings:"SOFT" 0,"WONK" 0,"opsz" 24;white-space:nowrap;flex-shrink:0}
+.home{font-family:var(--serif);font-size:1.05rem;font-variation-settings:"SOFT" 0,"WONK" 0,"opsz" 24;white-space:nowrap}
 .nav{display:flex;gap:26px;font:500 11.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
-.nav a:hover,.nav a.on{color:var(--ink)}.nav a.on{box-shadow:0 2px 0 var(--accent);padding-bottom:6px}
-.mast{padding:72px 0 28px;border-bottom:1px solid var(--rule)}
-.eyebrow,.meta,.chips a,.stats{font:600 11.5px/1.4 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
-.mast h1{font:800 clamp(64px,10vw,148px)/.88 var(--sans);letter-spacing:-.055em;margin:18px 0 18px}
-.mast h1 i{font-style:normal;color:var(--accent)}
-.mast p{font:400 22px/1.35 var(--sans);color:var(--soft);margin:0;max-width:620px}
-.row{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;margin-top:34px}
-.stats b{color:var(--ink);font-weight:700}.stats span+span:before{content:"·";margin:0 12px}
-.follow{display:flex;gap:10px;flex-wrap:wrap}
-.follow a{font:600 12px/1 var(--sans);letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--rule);border-radius:999px;padding:9px 14px}
-.follow a:hover{border-color:var(--ink)}.follow .n{color:var(--soft);margin-left:6px}
-.chips{display:flex;gap:8px;flex-wrap:wrap;padding:22px 0;border-bottom:1px solid var(--rule)}
-.chips a{border:1px solid var(--rule);border-radius:999px;padding:8px 13px}.chips a.on,.chips a:hover{color:var(--ink);border-color:var(--ink)}
-.lead{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:56px;padding:48px 0;border-bottom:1px solid var(--rule);align-items:center}
-.lead img,.card img{width:100%;aspect-ratio:4/5;object-fit:cover;background:var(--mark);border-radius:4px}
-.lead h2{font:800 clamp(32px,3.8vw,50px)/1.04 var(--sans);letter-spacing:-.035em;margin:16px 0 20px}
-.lead p{font-size:19px;color:var(--soft);margin:0 0 22px}
-.topic{color:var(--accent)}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:48px 36px;padding:48px 0}
-.card h3{font:800 22px/1.15 var(--sans);letter-spacing:-.025em;margin:16px 0 10px}
-.card:hover h3,.lead:hover h2{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
-.empty{padding:120px 0;text-align:center;color:var(--soft);font:800 32px/1.2 var(--sans);letter-spacing:-.03em}
-.story{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:64px;padding:48px 0 24px}
-.story h1{font:800 clamp(34px,4.2vw,54px)/1.04 var(--sans);letter-spacing:-.04em;margin:14px 0 26px}
-.story .body p{font-size:20px;line-height:1.55;margin:0 0 18px}
-.back{display:inline-block;margin-top:34px;font:600 11.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
-.src{margin-top:34px;border-top:1px solid var(--rule);padding-top:20px}
-.src ul{list-style:none;padding:0;margin:12px 0 0}.src li{padding:10px 0;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between}
-.src li a:after{content:" ↗";color:var(--soft)}
-.credit{margin-top:10px;font-size:13px;color:var(--soft)}
-.cta{margin-top:34px;padding:22px 24px;background:var(--mark);border-radius:6px;font-size:16px}
-.cta a{border-bottom:1px solid var(--accent)}
-.top{list-style:none;counter-reset:n;padding:24px 0 0;margin:0}
-.top li{counter-increment:n;display:grid;grid-template-columns:90px 120px minmax(0,1fr);gap:28px;align-items:center;padding:24px 0;border-bottom:1px solid var(--rule)}
-.top li:before{content:counter(n,decimal-leading-zero);font:800 50px/1 var(--sans);letter-spacing:-.05em;color:var(--accent)}
-.top img{width:120px;aspect-ratio:4/5;object-fit:cover;border-radius:3px}
-.top h3{font:800 24px/1.15 var(--sans);letter-spacing:-.03em;margin:0 0 8px}
-.weeks a{display:inline-block;margin:0 10px 10px 0;border-bottom:1px solid var(--rule)}
-footer{border-top:1px solid var(--rule);margin-top:40px;padding:28px 0 48px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;font:600 11.5px/1.6 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--soft)}
-footer a:hover{color:var(--ink)}footer nav{display:flex;gap:20px}
-@media(max-width:980px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lead,.story{grid-template-columns:1fr;gap:28px}.nav a.x{display:none}}
-@media(max-width:620px){.wrap{padding:0 20px}.grid{grid-template-columns:1fr}.nav{gap:16px}.top li{grid-template-columns:56px minmax(0,1fr)}.top img{display:none}.top li:before{font-size:38px}}
+.nav a:hover,.nav a.on{color:var(--ink)}.nav a.on{box-shadow:0 1px 0 var(--ink);padding-bottom:6px}
+.head{padding:88px 0 0}
+.title{font:800 clamp(56px,7.4vw,104px)/.9 var(--sans);letter-spacing:-.052em;margin:0}
+.head .mono{margin-top:22px}
+.tabs{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px 28px;margin-top:56px;padding:16px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
+.tabs nav{display:flex;gap:24px;flex-wrap:wrap}.tabs a:hover,.tabs a.on{color:var(--ink)}.tabs a.on{box-shadow:0 1px 0 var(--ink)}
+.lead{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px;padding:48px 0 56px;border-bottom:1px solid var(--rule);align-items:end}
+.lead figure,.story figure{margin:0;background:var(--mark);overflow:hidden}
+.lead img{width:100%;aspect-ratio:3/2;object-fit:cover;transition:transform 1.2s cubic-bezier(.16,1,.3,1)}
+.lead:hover img,.row:hover .thumb img{transform:scale(1.025)}
+.lead h2{font:800 clamp(30px,3.3vw,46px)/1.04 var(--sans);letter-spacing:-.035em;margin:14px 0 18px;text-wrap:balance}
+.lead p{font-size:18px;line-height:1.55;color:var(--soft);margin:0 0 22px}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:56px minmax(0,1fr) 170px 176px;gap:28px;align-items:center;padding:30px 0;border-bottom:1px solid var(--rule)}
+.row .num{align-self:start;padding-top:6px}
+.row h3{font:800 24px/1.14 var(--sans);letter-spacing:-.025em;margin:0 0 8px;text-wrap:balance}
+.row p{margin:0;font-size:15.5px;line-height:1.5;color:var(--soft);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.row .side{text-align:right;line-height:1.9}
+.thumb{display:block;overflow:hidden;background:var(--mark)}.thumb img{width:100%;aspect-ratio:3/2;object-fit:cover;transition:transform 1.2s cubic-bezier(.16,1,.3,1)}
+.row.text{grid-template-columns:56px minmax(0,1fr) 170px 176px}.row.text .thumb{visibility:hidden}
+.row:hover h3,.lead:hover h2{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:5px}
+.empty{padding:120px 0;color:var(--soft);font:800 34px/1.15 var(--sans);letter-spacing:-.03em}
+.story{max-width:860px;padding:40px 0 24px}
+.story h1{font:800 clamp(36px,4.6vw,60px)/1.02 var(--sans);letter-spacing:-.042em;margin:18px 0 22px;text-wrap:balance}
+.story .dek{font-size:21px;line-height:1.5;color:var(--soft);margin:0 0 36px}
+.story figure{margin:0 0 10px}.story figure img{width:100%;aspect-ratio:3/2;object-fit:cover}
+.credit{margin-bottom:36px}
+.story .body p{font-size:19px;line-height:1.65;margin:0 0 20px}
+.srcs{margin-top:44px;border-top:1px solid var(--ink)}
+.srcs a{display:flex;justify-content:space-between;align-items:center;padding:18px 0;border-bottom:1px solid var(--rule);font-weight:600}
+.srcs a span{color:var(--soft)}.srcs a:hover span{color:var(--ink)}
+.more{margin-top:72px}
+footer{border-top:1px solid var(--rule);margin-top:72px;padding:28px 0 56px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
+footer a:hover{color:var(--ink)}footer nav{display:flex;gap:22px}
+@media(max-width:980px){.lead{grid-template-columns:1fr;gap:26px}.row,.row.text{grid-template-columns:40px minmax(0,1fr) 140px}.row .side{display:none}.nav a.x{display:none}}
+@media(max-width:620px){.wrap{padding:0 20px}.head{padding-top:56px}.row,.row.text{grid-template-columns:minmax(0,1fr) 112px;gap:16px}.row .num{display:none}.row h3{font-size:19px}.row p{display:none}.row.text{grid-template-columns:1fr}.row.text .thumb{display:none}.nav{gap:16px}}
 """
 
 
@@ -122,23 +117,6 @@ def stats():
             "sources": len({x for p in pub for x in p.get("sources") or []})}
 
 
-def strip():
-    """Where to follow and the numbers: only accounts that exist, only figures the desk measured."""
-    st = stats()
-    links = "".join(f'<a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}'
-                    + (f'<span class="n">{st["followers"][a["name"]]:,}</span>' if st["followers"].get(a["name"]) else "")
-                    + "</a>" for a in desk.CONFIG.get("accounts", []) if a.get("url"))
-    total = sum(v for v in st["followers"].values() if isinstance(v, int))
-    nums = []
-    if st["stories"]:
-        nums.append(f"<span><b>{st['stories']:,}</b> stories</span>")
-    if st["sources"]:
-        nums.append(f"<span><b>{st['sources']}</b> newsrooms cited</span>")
-    if total:
-        nums.append(f"<span><b>{total:,}</b> followers</span>")
-    return f'<div class="row"><div class="stats">{"".join(nums)}</div><div class="follow">{links}</div></div>'
-
-
 SECTIONS = [("/products/", "Products"), ("/projects/", "Projects"), ("/games/", "Games"),
             ("/discoveries/", "Discoveries"), (f"{BASE}/", "News"), ("/about/", "About"), ("/contact/", "Contact")]
 TOPIC_ORDER = ["Business", "Markets", "Economy", "Politics", "World", "Tech", "AI", "Culture"]
@@ -148,13 +126,42 @@ def topic(p):
     return p.get("topic") or (p.get("categories") or ["News"])[0].title()
 
 
-def page(title, body, desc="", mast=False):
+def clock(iso):
+    return datetime.fromisoformat(iso).strftime("%-d %b · %H:%M")
+
+
+def counts():
+    """The figures under the title: only what the desk measured, only accounts that exist."""
+    st = stats()
+    parts = ["The news that moves business"]
+    if st["stories"]:
+        parts.append(f"{st['stories']:,} {'story' if st['stories'] == 1 else 'stories'}")
+    if st["sources"]:
+        parts.append(f"{st['sources']} newsrooms cited")
+    total = sum(v for v in st["followers"].values() if isinstance(v, int))
+    if total:
+        parts.append(f"{total:,} followers")
+    return " · ".join(parts)
+
+
+def follow():
+    st = stats()["followers"]
+    return "".join(f'<a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}'
+                   + (f" {st[a['name']]:,}" if st.get(a["name"]) else "") + " ↗</a>"
+                   for a in desk.CONFIG.get("accounts", []) if a.get("url"))
+
+
+def tabs(active=""):
+    items = [(f"{BASE}/", "All", "")] + [(f"{BASE}/t/{t.lower()}/", t, t.lower()) for t in TOPIC_ORDER] \
+        + [(f"{BASE}/week/", "Top 10", "week")]
+    links = "".join(f'<a href="{h}"{" class=\"on\"" if active == k else ""}>{n}</a>' for h, n, k in items)
+    return f'<div class="tabs mono"><nav>{links}</nav><nav>{follow()}</nav></div>'
+
+
+def page(title, body, desc=""):
     """Every page: the main site's bar (its name back home, its sections), then the desk."""
     nav = "".join(f'<a href="{h}"{" class=\"on\"" if n == "News" else (" class=\"x\"" if n not in ("About", "Contact") else "")}>{n}</a>'
                   for h, n in SECTIONS)
-    top = (f'<section class="mast"><div class="eyebrow">News desk · keremozdemir.de</div>'
-           f'<h1>board<br>read<i>.</i></h1><p>The news that moves business: markets, politics, tech and AI, '
-           f'one story at a time, every one with its sources.</p>{strip()}</section>') if mast else ""
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; font-src 'self'; style-src 'unsafe-inline'; form-action https:; base-uri 'none'">
@@ -166,59 +173,64 @@ def page(title, body, desc="", mast=False):
 <style>{CSS}</style></head><body>
 <div class="bar"><div class="wrap"><a class="home" href="/">Kerem Özdemir</a>
 <nav class="nav" aria-label="Sections">{nav}</nav></div></div>
-<main class="wrap">{top}{body}
-<footer><span>boardread. · a news desk by Kerem Özdemir · written by AI from the reports each story links</span>
-<nav><a href="/">Home</a><a href="{BASE}/week/">Top 10</a><a href="{BASE}/feed.xml">RSS</a><a href="/impressum/">Impressum</a><a href="/privacy/">Privacy</a></nav></footer>
+<main class="wrap">{body}
+<footer class="mono"><span>boardread. · a news desk by Kerem Özdemir · written by AI from the reports each story links</span>
+<nav><a href="/">Home</a><a href="{BASE}/feed.xml">RSS</a><a href="/impressum/">Impressum</a><a href="/privacy/">Privacy</a></nav></footer>
 </main></body></html>"""
 
 
-def chips(active=None):
-    items = [("", "All")] + [(t.lower(), t) for t in TOPIC_ORDER]
-    return '<div class="chips">' + "".join(
-        f'<a href="{BASE}/{(slug + "/") if slug else ""}"{" class=\"on\"" if (active or "") == slug else ""}>{name}</a>'
-        if not slug else f'<a href="{BASE}/t/{slug}/"{" class=\"on\"" if active == slug else ""}>{name}</a>'
-        for slug, name in items) + f'<a href="{BASE}/week/">Top 10</a></div>'
+def head(title, sub, active=""):
+    return f'<header class="head"><h1 class="title">{title}</h1><div class="mono">{E(sub)}</div></header>{tabs(active)}'
 
 
-def card(p):
-    return (f'<a class="card" href="{BASE}/s/{p["id"]}/"><img src="{BASE}/img/{p["id"]}.jpg" alt="" loading="lazy">'
-            f'<h3>{E(p["headlines"][0])}</h3><div class="meta"><span class="topic">{E(topic(p))}</span> · {when(p["published"])}</div></a>')
+def img(p):
+    return f"{BASE}/img/{p['id']}.jpg" if p.get("_photo") else ""
 
 
 def lead(p):
-    return (f'<a class="lead" href="{BASE}/s/{p["id"]}/"><img src="{BASE}/img/{p["id"]}.jpg" alt="">'
-            f'<div><div class="meta"><span class="topic">{E(topic(p))}</span> · {when(p["published"])}</div>'
+    return (f'<a class="lead" href="{BASE}/s/{p["id"]}/"><figure><img src="{img(p)}" alt=""></figure>'
+            f'<div><div class="mono">{E(topic(p))} · {clock(p["published"])}</div>'
             f'<h2>{E(p["headlines"][0])}</h2><p>{E(p.get("dek", ""))}</p>'
-            f'<div class="meta">Reported by {E("; ".join(p.get("sources") or []))}</div></div></a>')
+            f'<div class="mono">Reported by {E("; ".join(p.get("sources") or []))}</div></div></a>')
+
+
+def row(p, n):
+    pic = f'<span class="thumb"><img src="{img(p)}" alt="" loading="lazy"></span>' if p.get("_photo") else '<span class="thumb"></span>'
+    return (f'<li><a class="row{"" if p.get("_photo") else " text"}" href="{BASE}/s/{p["id"]}/"><span class="num mono">{n:02d}</span>'
+            f'<div><h3>{E(p["headlines"][0])}</h3><p>{E(p.get("dek", ""))}</p></div>'
+            f'<div class="side mono">{E(topic(p))}<br>{clock(p["published"])}</div>{pic}</a></li>')
 
 
 def listing(rows):
     if not rows:
         return '<div class="empty">The first stories are on their way.</div>'
-    return lead(rows[0]) + f'<div class="grid">{"".join(card(p) for p in rows[1:120])}</div>'
+    first = next((p for p in rows[:3] if p.get("_photo")), None)
+    rest = [p for p in rows if p is not first][:120]
+    return (lead(first) if first else "") + '<ol class="rows">' + "".join(row(p, i) for i, p in enumerate(rest, 2 if first else 1)) + "</ol>"
 
 
-def story(p):
-    srcs = "".join(f'<li><a href="{E(u)}" rel="nofollow noopener">{E(u.split("/")[2].removeprefix("www."))}</a></li>'
+def story(p, more=()):
+    srcs = "".join(f'<a href="{E(u)}" rel="nofollow noopener">{E(u.split("/")[2].removeprefix("www."))}<span>↗</span></a>'
                    for u in p.get("source_urls") or p.get("urls", []))
-    paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or p.get("dek") or "").split("\n") if x.strip())
-    ig = f' · <a href="{E(p["permalink"])}">Instagram post ↗</a>' if p.get("permalink") else ""
-    credit = f'<div class="credit">{E(p["credit"])}</div>' if p.get("credit") else ""
-    return page(f'{p["headlines"][0]} · boardread.', f"""<a class="back" href="{BASE}/">← All stories</a>
-<article class="story"><div><img src="{BASE}/img/{p['id']}.jpg" alt="">{credit}</div><div>
-<div class="meta"><span class="topic">{E(topic(p))}</span> · {when(p['published'])}{ig}</div>
-<h1>{E(p['headlines'][0])}</h1><div class="body">{paras}</div>
-<div class="src"><div class="meta">Reported by {E('; '.join(p.get('sources') or []))}</div><ul>{srcs}</ul></div>
-<div class="cta">The ten stories readers shared most this week: <a href="{BASE}/week/">Top 10</a></div>
-</div></article>""", p.get("dek", ""))
+    if p.get("permalink"):
+        srcs += f'<a href="{E(p["permalink"])}">The post on Instagram<span>↗</span></a>'
+    paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
+    fig = (f'<figure><img src="{img(p)}" alt=""></figure><div class="credit mono">{E(p.get("credit", ""))}</div>'
+           if p.get("_photo") else "")
+    others = ('<section class="more"><div class="tabs mono"><nav><span>More stories</span></nav></div><ol class="rows">'
+              + "".join(row(o, i) for i, o in enumerate(more, 1)) + "</ol></section>") if more else ""
+    return page(f'{p["headlines"][0]} · boardread.', f"""<article class="story">
+<div class="mono"><a href="{BASE}/">boardread.</a> · {E(topic(p))} · {clock(p['published'])} UTC</div>
+<h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>{fig}
+<div class="body">{paras}</div>
+<div class="srcs"><div class="mono" style="padding:16px 0">Reported by {E('; '.join(p.get('sources') or []))}</div>{srcs}</div>
+</article>{others}""", p.get("dek", ""))
 
 
 def week_page(week, rows):
-    items = "".join(f'<li><img src="{BASE}/img/{p["id"]}.jpg" alt=""><a href="{BASE}/s/{p["id"]}/"><h3>{E(p["headlines"][0])}</h3>'
-                    f'<div class="meta"><span class="topic">{E(topic(p))}</span> · {E("; ".join(p.get("sources") or []))}</div></a></li>'
-                    for p in rows)
-    return (f'<a class="back" href="{BASE}/">← All stories</a><section class="mast"><div class="eyebrow">Week {week[-2:]} · {week[:4]}</div>'
-            f'<h1>Top 10<i>.</i></h1><p>Most shared this week.</p></section><ol class="top">{items}</ol>')
+    body = ('<ol class="rows">' + "".join(row(p, i) for i, p in enumerate(rows, 1)) + "</ol>") if rows \
+        else '<div class="empty">The week has just begun.</div>'
+    return head("Top 10.", f"Week {week[-2:]} · {week[:4]} · most shared", "week") + body
 
 
 def rss(title, link, items):
@@ -237,21 +249,26 @@ def build(out=desk.HERE / "_site"):
     rows = published()
     shown = []
     for p in rows:
-        thumb = desk.MEDIA / p["id"] / "thumb.jpg"
-        if thumb.exists():
-            shutil.copy(thumb, out / "img" / f"{p['id']}.jpg")
-            shown.append(p)
+        photo, thumb = desk.MEDIA / p["id"] / "photo.jpg", desk.MEDIA / p["id"] / "thumb.jpg"
+        if not (photo.exists() or thumb.exists()):
+            continue  # its media were pruned before it was ever built; nothing to show
+        if photo.exists():
+            shutil.copy(photo, out / "img" / f"{p['id']}.jpg")
+            p["_photo"] = True
+        shown.append(p)
     desc = "Business, markets, politics, tech and AI: every story that matters, with its sources."
-    (out / "index.html").write_text(page("boardread. · The news that moves business", chips() + listing(shown), desc, mast=True))
+    (out / "index.html").write_text(page("boardread. · The news that moves business",
+                                         head("boardread.", counts()) + listing(shown), desc))
     for t in TOPIC_ORDER:
         d = out / "t" / t.lower()
         d.mkdir(parents=True)
-        (d / "index.html").write_text(page(f"{t} · boardread.", chips(t.lower()) + listing([p for p in shown if topic(p) == t]),
-                                           desc, mast=True))
-    for p in shown:
+        (d / "index.html").write_text(page(f"{t} · boardread.", head(f"{t}.", counts(), t.lower())
+                                           + listing([p for p in shown if topic(p) == t]), desc))
+    for i, p in enumerate(shown):
         d = out / "s" / p["id"]
         d.mkdir(parents=True)
-        (d / "index.html").write_text(story(p))
+        more = [o for o in shown if o is not p][:4]
+        (d / "index.html").write_text(story(p, more))
     weeks = {}
     for p in shown:
         weeks.setdefault(week_of(p["published"]), []).append(p)
@@ -269,7 +286,7 @@ def build(out=desk.HERE / "_site"):
     this_top = sorted(weeks.get(this_week, []), key=shared, reverse=True)[:10]
     past = "".join(f'<a href="{BASE}/week/{w}/">Week {w[-2:]} · {w[:4]}</a>' for w in sorted(weeks, reverse=True) if w != this_week)
     (out / "week" / "index.html").write_text(page("Top 10 · boardread.", week_page(this_week, this_top)
-        + (f'<div class="src"><div class="meta">Earlier weeks</div><p class="weeks">{past}</p></div>' if past else "")))
+        + (f'<div class="tabs mono" style="margin-top:48px"><nav>{past}</nav></div>' if past else "")))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(datetime.fromisoformat(p["published"])), p.get("dek", ""))
         for p in shown[:50]]))
