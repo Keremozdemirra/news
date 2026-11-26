@@ -292,7 +292,8 @@ class Clients(Env):
 
     def test_telegram_breaking_post_notifies_at_the_breaking_score(self):
         self.assertIs(self.tg_sent(score=desk.CONFIG["breaking_score"])["disable_notification"], False)
-        self.assertIs(self.tg_sent(score=13.3, cards=["card.jpg"])["disable_notification"], False)
+        self.assertIs(self.tg_sent(score=desk.CONFIG["breaking_score"] + 0.5, cards=["card.jpg"])["disable_notification"], False)
+        self.assertIs(self.tg_sent(score=desk.CONFIG["breaking_score"] - 0.5)["disable_notification"], True)
 
     def test_telegram_digest_is_one_silent_text_without_previews(self):
         fake = Fake({"sendMessage": {"ok": True, "result": {"message_id": 41}}})
@@ -410,7 +411,8 @@ class CrossPost(Env):
 class FacebookGate(CrossPost):
     def test_shipped_bar_and_daily_max_are_set(self):
         shipped = json.loads((Path(desk.__file__).parent.parent / "desk.json").read_text())
-        self.assertGreater(shipped["facebook_min_score"], shipped["breaking_score"] - 2)
+        # Facebook takes the top few stories a day; a Telegram ping is rarer still
+        self.assertLessEqual(shipped["facebook_min_score"], shipped["breaking_score"])
         self.assertEqual(shipped["facebook_daily_max"], 4)
 
     def test_below_the_bar_is_skipped_recorded_and_never_retried(self):
