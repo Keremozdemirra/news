@@ -11,9 +11,9 @@ nothing else. Three layouts, picked by what the story has:
 """
 import html
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
-from . import entities
+from . import entities, scenes
 
 FONTS = "https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap"
 BRAND = {"name": "boardread.", "handle": "@boardread"}
@@ -53,6 +53,42 @@ def in_headline(name, headline):
 
 # Commons files already on recent posts; the desk fills it before a render so no photo repeats for weeks
 USED = set()
+LAST = {}  # file -> when a post last used it, for the scene photos' least-recently-used rotation
+
+
+def pick_photo(story, head_, co, fetch=True, sport=False):
+    """(path, credit, Commons file, kind, alt) of the photo a story carries; kind is person, company, name or scene.
+
+    Every story gets a picture, from the nearest to the story outward: the named person, the company's own photos
+    (its aircraft, its headquarters), another proper name the headline carries (a place, an organisation), and last
+    a hand-vetted scene for the topic. A search that guessed at a topic once put a stranger's wall on a story, so the
+    scenes are a fixed list and the rest only use files whose own title names the subject."""
+    allow = head_ + " " + (co or "")
+    title = story.get("headline") or story.get("title") or ""
+    ph, credit, file_, kind, alt = None, "", "", "", ""
+    # a club name finds a city, a street or a bridge ("Sunderland"); sport looks for the named ground instead
+    for tag, text, is_person in [("person", story.get("person", ""), True),
+                                 ("company", story.get("image_query", "") if sport else co, False)]:
+        ph, credit, file_ = entities.fresh_photo([(text, is_person)], USED, fetch=fetch, allow=allow, teams=sport)
+        if file_:
+            kind = tag
+            break
+    if not file_ and fetch and not sport:
+        for name in entities.headline_names(title, skip=[story.get("person", ""), co]):
+            if entities.is_human(name):
+                continue
+            ph, credit, file_ = entities.fresh_photo([(name, False)], USED, fetch=fetch, allow=allow)
+            if file_:
+                kind = "name"
+                break
+    if not file_ and fetch:
+        text = title + " " + story.get("summary", "")
+        ph, credit, file_, alt = scenes.photo(text, story.get("topic", ""), USED, LAST, fetch=fetch, sport=sport)
+        kind = "scene" if file_ else ""
+    if file_:
+        USED.add(file_)
+        LAST[file_] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return ph, credit, file_, kind, alt
 
 
 def assets(story, fetch=True):
@@ -76,24 +112,12 @@ def assets(story, fetch=True):
             if f:
                 logos.append(f.as_uri())
                 logo_names.append(n)
-        # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
-        # a generic scene ("AI data center") put a stranger's wall on a story; no photo beats a wrong one,
-        # so only the named person or the company's own photos are used
-        # a club name finds a city, a street or a bridge ("Sunderland"); sport looks for the named ground instead
-        subjects = [(story.get("person", ""), True), ((story.get("image_query", "") if sport else co), False)]
-        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""), teams=sport)
-        kind = "photo" if ph else ""
-        if not ph and sport and fetch:
-            # every sport article carries a picture: the sport's vetted scene when neither the athlete nor the ground has one
-            ph, credit, file_, _ = entities.sport_scene(head_ + " " + story.get("title", "") + " " + story.get("summary", ""))
-            kind = "scene" if ph else ""
-        elif file_:
-            USED.add(file_)
+        ph, credit, file_, kind, alt = pick_photo(story, head_, co, fetch, sport)
         # a ticker names a listed company, so it follows the logo rule: the story's own company, named in the headline
         tk = entities.ticker(co, fetch=fetch) if co and co in names else None
         story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "", "ticker": tk,
                             "logos": logos, "logo_names": logo_names, "photo": ph.as_uri() if ph else "",
-                            "credit": credit, "file": file_, "kind": kind}
+                            "credit": credit, "file": file_, "kind": kind, "alt": alt}
     return story["_assets"]
 
 

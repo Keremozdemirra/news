@@ -19,7 +19,12 @@ from .feeds import CTX, UA as UA_STRING
 
 CACHE = Path(__file__).resolve().parent.parent / "assets" / "cache"
 UA = {"User-Agent": UA_STRING}
-OK_LICENCES = re.compile(r"^(CC BY(-SA)? [\d.]+|CC0|Public domain|OGL|Open Government Licence)", re.I)
+# No ShareAlike: a card with the headline set over a photo is an adaptation, and BY-SA would bind the card to the
+# photo's licence, which Instagram's terms do not allow. CC BY, CC0 and public domain only.
+OK_LICENCES = re.compile(r"^(CC BY [\d.]+|CC0|Public domain|OGL|Open Government Licence)", re.I)
+# a made-up picture is not a photo, whatever the file is called: the title, description or a category says so
+AI_MADE = re.compile(r"ai[- ]generated|generated (by|with|using) (an? )?(ai|artificial)|midjourney|dall[-· ]?e|stable diffusion|"
+                     r"\bflux\b|\bimagen\b|firefly|\bai art\b|ai-art|artificial intelligence art|text-to-image", re.I)
 AGENCIES = re.compile(r"getty|shutterstock|reuters|associated press|\bap photo|afp|alamy|bloomberg|epa\b|imago", re.I)
 
 
@@ -86,6 +91,9 @@ def photo_ok(info):
     exif = " ".join(str(m.get("value", "")) for m in (info.get("metadata") or []) if m.get("name") in ("Copyright", "Artist"))
     credit_line = re.sub(r"<[^>]+>", "", meta.get("Credit", {}).get("value", ""))
     if not OK_LICENCES.match(lic) or AGENCIES.search(" ".join((artist, exif, credit_line))):
+        return False, ""
+    said = " ".join(re.sub(r"<[^>]+>", " ", meta.get(k, {}).get("value", "")) for k in ("ImageDescription", "ObjectName", "Categories"))
+    if AI_MADE.search(said):
         return False, ""
     return True, f"Photo: {artist or 'Wikimedia Commons'}, {lic}, via Wikimedia Commons"
 
@@ -325,7 +333,7 @@ def photo(person, fetch=True):
 NOT_PHOTO = re.compile(r"logo|icon|wordmark|map|flag|diagram|chart|screenshot|interface|extension|extention|seal|"
                        r"coat of arms|signature|poster|banner|"
                        # a made-up picture is not a news photo: "AI generated image of Loab" reached a Character.AI story
-                       r"ai.generated|midjourney|dall.e|stable diffusion|render|rendering|concept art|mockup", re.I)
+                       r"ai.generated|midjourney|dall.e|stable diffusion|\bflux\b|\bimagen\b|firefly|ai art|render|rendering|concept art|mockup", re.I)
 # a photo of a topic must not put a person on a story they are not in: a search for "press conference"
 # once returned the President of the United States for a story about state attorneys general
 PEOPLE = re.compile(r"\b(president|minister|senator|governor|secretary|ceo|chairman|mayor|king|queen|prince|pope|"
@@ -366,6 +374,36 @@ GROUP = re.compile(r"\b(with|and|meets|meeting|delegation|visit|group|team|famil
                    r"nadella|pichai|amodei|hassabis)\b|[A-Z][a-z]+-[A-Z][a-z]+", re.I)
 WORD_ = re.compile(r"[a-z][a-z0-9]+")
 
+# Company names that are also a river, a fruit, a bird, a planet or a shape. A Commons search for the bare name
+# finds the other thing ("Amazon" found a parrot, Amazona aestiva), so a file for one of these must show the
+# company's side in its own title.
+AMBIGUOUS = frozenset({"amazon", "apple", "shell", "oracle", "jaguar", "puma", "mercury", "corona", "delta", "target",
+                       "square", "block", "meta", "alphabet", "visa", "uber", "orange", "gap", "ford", "lotus", "snap",
+                       "nest", "mars"})
+CORP_WORDS = re.compile(r"\b(headquarters|hq|offices?|stores?|storefront|buildings?|towers?|campus|warehouses?|"
+                        r"fulfil+ments?|distribution|signage|sign|trucks?|vans?|aircraft|airliners?|planes?|jets?|"
+                        r"data ?cent(?:er|re)s?|factory|showroom|dealership|inc|corp|corporation|ag|plc|ltd|gmbh|llc)\b", re.I)
+# the word after a title-case company name that turns it back into a river, a fruit, a place or an animal
+WRONG_SENSE = frozenset({"river", "rainforest", "basin", "forest", "jungle", "parrot", "parrots", "tree", "trees",
+                         "orchard", "pie", "fruit", "blossom", "blossoms", "juice", "cider", "seed", "seeds", "beach",
+                         "island", "islands", "lake", "bay", "valley", "desert", "bird", "birds", "cat", "cats", "virus",
+                         "del", "heights", "rapids", "falls", "delta", "peninsula", "bridge"})
+
+
+def company_context(name, subject):
+    """True when a Commons file name `name` can be a photo of the company `subject`, not of what else the word means.
+
+    Words that are only a company some of the time need proof in the title: a corporate word (headquarters, store,
+    warehouse, Inc, aircraft ...), or the name in title case leading the title and not followed by a river, fruit
+    or other word that gives the other sense."""
+    sub = (subject or "").strip()
+    if sub.lower() not in AMBIGUOUS:
+        return True
+    if CORP_WORDS.search(name):
+        return True
+    m = re.match(re.escape(sub) + r"(?![A-Za-z0-9])[\W_]*([A-Za-z]*)", name)
+    return bool(m) and m.group(1).lower() not in WRONG_SENSE
+
 
 def _words(text):
     return {w for w in WORD_.findall((text or "").lower()) if len(w) > 2}
@@ -381,6 +419,65 @@ BRANDS = re.compile(r"\b(amd|radeon|ati|intel|nvidia|geforce|qualcomm|snapdragon
                     r"netflix|disney|spotify|tiktok|bytedance|alibaba|tencent|baidu|walmart|costco|target|nike|adidas|"
                     r"coca-cola|pepsi|mcdonald's|starbucks|shell|bp|exxon|chevron|aramco|jpmorgan|goldman|"
                     r"morgan stanley|citi|hsbc|barclays|ubs|deutsche bank|visa|mastercard|paypal)\b", re.I)
+
+
+# capitalised words that open or sit inside a headline without naming anything
+NOT_NAMES = {
+    "the", "this", "that", "with", "from", "after", "global", "new", "says", "report", "reports", "monday", "tuesday",
+    "wednesday", "thursday", "friday", "saturday", "sunday", "january", "february", "march", "april", "june", "july",
+    "august", "september", "october", "november", "december", "german", "american", "african", "asian", "indian",
+    "mexican", "european", "korean", "arab", "south", "north", "east", "west", "first", "second", "latest", "what",
+    "why", "how", "who", "will", "here", "more", "most", "over", "under", "into", "amid", "still", "just"}
+PROPER = re.compile(r"^(?:[A-Z][A-Za-z0-9'’]*|\d+[A-Za-z][A-Za-z0-9]*)$")
+
+
+def headline_names(headline, skip=()):
+    """Proper names a headline carries, in order: runs of capitalised words ("Hugging Face") and single names
+    of four letters or more ("Ibiza", "1Password"). The word that opens the sentence only counts inside a longer
+    run or with a digit or inner capital, since "Global stocks rally" names nothing. Names in `skip` (the person
+    and company already tried) and nationality adjectives are left out."""
+    skipped = {x.lower() for x in skip if x}
+    runs, cur = [], []
+
+    def flush():
+        if cur:
+            runs.append(list(cur))
+            cur.clear()
+    for i, raw in enumerate(re.findall(r"\S+", headline or "")):
+        w = re.sub(r"['’]s$", "", raw.strip("'\"‘’“”.,:;!?()[]"))
+        ok = (bool(PROPER.match(w)) and w.lower() not in NOT_NAMES and not re.search(r"(?:ese|ish|ian|ean)$", w.lower())
+              and "-" not in w)
+        if ok:
+            cur.append((i, w))
+        else:
+            flush()
+        if raw[-1:] in ",;:" or raw.endswith(("'s", "’s")):
+            flush()
+    flush()
+    out = []
+    for run in runs:
+        words = [w for _, w in run]
+        name = " ".join(words)
+        if len(words) == 1:
+            w = words[0]
+            sentence_start = run[0][0] == 0
+            marked = bool(re.search(r"\d", w)) or bool(re.search(r"[a-z][A-Z]", w))
+            if len(w) < 4 or (sentence_start and not marked):
+                continue
+        if name.lower() in skipped or any(name.lower() in x or x in name.lower() for x in skipped) or name in out:
+            continue
+        out.append(name)
+    return out
+
+
+def is_human(name):
+    """True when Wikidata's top hit for `name` is a person; a lookup that fails counts as one, which skips the name."""
+    try:
+        _, claims = _entity(name)
+        return any(c.get("mainsnak", {}).get("datavalue", {}).get("value", {}).get("id") == "Q5"
+                   for c in claims.get("P31", []))
+    except Exception:  # noqa: BLE001
+        return True
 
 
 def foreign_brand(text, allow, own=""):
@@ -428,6 +525,37 @@ def foreign_team(text, allow):
     return ""
 
 
+# Words that make a capitalised run in a file title an organisation or a place: "Virginia Tech", "Fisherman's Wharf",
+# "New York Stock Exchange". A photo of one of them on a story that does not name it is somebody else's news.
+ORG_CUE = {"university", "college", "institute", "school", "hospital", "stadium", "museum", "cathedral", "church",
+           "wharf", "merch", "tech", "unc", "mit", "exchange", "campus", "academy", "airport", "pier"}
+
+
+def foreign_names(title, allow):
+    """The first organisation or place named in a file title that `allow` (headline, company, person) does not name, or ''.
+
+    A run of capitalised words that holds one of the ORG_CUE words is taken as a name; it passes when any other
+    word of the run appears in `allow` ("Heathrow Airport" on a Heathrow story), and a run of cue words alone never does."""
+    allowed = _words(allow)
+    run = []
+
+    def verdict():
+        words = [w for w in run if w.lower() not in ORG_CUE]
+        if any(w.lower() in ORG_CUE for w in run) and not any(w.lower() in allowed for w in words if len(w) > 2):
+            return " ".join(run)
+        return ""
+    for raw in re.findall(r"[A-Za-z0-9'’]+|[^\sA-Za-z0-9]", re.sub(r"\.(jpe?g|png)$", "", title or "", flags=re.I)):
+        w = re.sub(r"['’]s$", "", raw)
+        if re.match(r"^[A-Z][A-Za-z0-9]*$", w) or w.lower() in ORG_CUE and w.isupper():
+            run.append(w)
+            continue
+        found = verdict()
+        if found:
+            return found
+        run = []
+    return verdict()
+
+
 def candidates(subject, person=False):
     """Commons JPEG names that may show the subject: a person's Wikidata image and category, or a search
     whose hits must name the subject in their own title and must not be photos of people or events."""
@@ -468,7 +596,7 @@ def candidates(subject, person=False):
             name = m["title"][5:]
             # full-text search matches descriptions too; the title is the only part that says what is shown
             if (subject.strip() and phrase.search(name) and not PEOPLE.search(name) and not NATURE.search(name)
-                    and not ART.search(name) and not CROWD.search(name)):
+                    and not ART.search(name) and not CROWD.search(name) and company_context(name, subject)):
                 files.append(name)
     seen, out = set(), []
     for f in files:
@@ -506,9 +634,8 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False):
             # the title says what is shown; a description is often a caption about something else, so it
             # is checked for brands only, and only when the file is not a photo of the story's own subject
             desc_brands = " ".join(BRANDS.findall(desc))
-            if foreign_brand(f, allow + " " + text, own=text) or (
+            if foreign_brand(f, allow + " " + text, own=text) or (not is_person and foreign_names(f, allow + " " + text)) or (
                     not is_person and foreign_brand(desc_brands, allow + " " + text, own=f)):
-                continue
                 continue
             if teams:
                 cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "").replace("|", " ")
@@ -527,28 +654,3 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False):
                 p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
             return p, credit, f
     return None, "", ""
-
-
-SCENES = json.loads((Path(__file__).resolve().parent / "sport_scenes.json").read_text())
-
-
-def sport_scene(text):
-    """(path, credit, file, sport) of a vetted Commons scene of the sport the text is about, or Nones. Every file in
-    sport_scenes.json was looked at: no person, no team, no sponsor to speak of. It stands in for a photo of the
-    subject only when the subject has none, and the article says nothing about it beyond the credit line."""
-    for key, rx in SCENES["match"].items():
-        if re.search(rx, text or "", re.I):
-            f = SCENES["files"][key]
-            try:
-                p = CACHE / f"scene-{_slug(f)[:80]}.jpg"
-                info = _commons_info(f, width=1600)
-                ok, credit = photo_ok(info)
-                if not ok:
-                    return None, "", "", ""
-                if not p.exists():
-                    CACHE.mkdir(parents=True, exist_ok=True)
-                    p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
-                return p, credit, f, key
-            except Exception:  # noqa: BLE001  no scene beats a broken one
-                return None, "", "", ""
-    return None, "", "", ""

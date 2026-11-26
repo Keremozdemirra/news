@@ -109,6 +109,7 @@ def finish(args):
     """Check the session's copy against the sources, render the pack and the review page. Posts nothing."""
     from . import desk, render, review
     render.T.USED |= desk.used_photos()
+    render.T.LAST.update(desk.photo_log())
     out = Path(args.out) / (args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     digest = json.loads((out / "digest.json").read_text())
     chosen = json.loads((out / "chosen.json").read_text())

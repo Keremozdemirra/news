@@ -412,6 +412,21 @@ def audit(post):
     if tk and not (post.get("company") and R.T.in_headline(post["company"], head_.lower())):
         problems.append(f"ticker {tk.get('symbol')} for {post.get('company')!r}, which the headline does not name")
     E, pf = R.T.entities, post.get("photo_file", "")
+    if pf and post.get("photo_kind") != "scene" and not post.get("person"):
+        other = E.foreign_names(pf, head_ + " " + (post.get("company") or ""))
+        if other:
+            problems.append(f"photo file names {other}, which the story does not name")
+    if "BY-SA" in post.get("credit", ""):
+        problems.append("ShareAlike photo: a card with text over it would bind the card to that licence")
+    if pf and E.AI_MADE.search(pf):
+        problems.append(f"photo {pf!r} is AI-made")
+    # no post without a picture: the card, the site article and every crosspost carry it
+    if not pf:
+        problems.append("no photo")
+    # a photo of the company's own name must show the company, not the bird, fruit or river that shares the word
+    if pf and post.get("company") and not post.get("person") and post.get("photo_kind", "company") in ("company", "") \
+            and not E.company_context(pf, post["company"]):
+        problems.append(f"photo {pf!r} may show another sense of {post['company']!r}")
     owners = [n for n in [post.get("company")] + list(post.get("logo_names") or []) if n]
     scene = post.get("photo_kind") == "scene"  # a vetted stand-in for the sport, shown as such; it names no subject
     if pf and not scene and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
@@ -995,9 +1010,18 @@ def scheduled_stories():
     return made
 
 
-def used_photos(days=45):
+def photo_log(days=45):
+    """Commons file -> when a post last used it, for posts of the last `days` days."""
     cut = now() - timedelta(days=days)
-    return {p["photo_file"] for p, _ in posts() if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut}
+    log = {}
+    for p, _ in posts():
+        if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut:
+            log[p["photo_file"]] = max(log.get(p["photo_file"], ""), p["created"])
+    return log
+
+
+def used_photos(days=45):
+    return set(photo_log(days))
 
 
 def site_min_score():
@@ -1125,6 +1149,7 @@ def queue(day_dir, batch=None, render=True):
                 "source_cta": cta,
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
+                "photo_kind": m.get("photo_kind", ""), "photo_alt": m.get("photo_alt", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
                 "ticker": s.get("_assets", {}).get("ticker"),
                 "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "so_what": so_what(s), "sources": outlets(m, s),

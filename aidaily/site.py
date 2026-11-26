@@ -521,7 +521,10 @@ def share_card(p, photo, dest):
 
 
 def photo_alt(p):
-    """Alt text from the Commons file name, without the camera numbers, dates and "(cropped)" tags that mean nothing read aloud."""
+    """Alt text from the Commons file name, without the camera numbers, dates and "(cropped)" tags that mean nothing read aloud.
+    A scene carries its own: its file name names a place the story may not be about."""
+    if p.get("photo_alt"):
+        return p["photo_alt"]
     t = Path(p.get("photo_file") or "").stem.replace("_", " ")
     t = re.sub(r"\([^)]*\)", " ", t)
     t = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{5,}\b|\b\d{8}\b", " ", t)
@@ -531,7 +534,10 @@ def photo_alt(p):
 def credit_line(p):
     """The photo credit as licensed. A stand-in scene says so: it is not a photo of this event."""
     c = (p.get("credit") or "").strip()
-    return f"Archive photo of the sport, not from this event. {c}" if c and p.get("photo_kind") == "scene" else c
+    if not c or p.get("photo_kind") != "scene":
+        return c
+    what = "of the sport" if p.get("topic") == "Sport" else ""
+    return f"Archive photo {what}, not from this event. {c}".replace(" ,", ",")
 
 
 def resized(photo, dest, width):

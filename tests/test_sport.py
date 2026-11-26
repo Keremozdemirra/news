@@ -116,17 +116,12 @@ class Photos(unittest.TestCase):
         self.assertEqual(E.foreign_team("Max Verstappen Red Bull Racing 2024.jpg", "Russell laughs off Verstappen Mercedes"), "Red Bull")
 
     def test_every_sport_has_a_scene_and_a_keyword_route(self):
-        from aidaily import entities as E
-        self.assertEqual(set(E.SCENES["match"]), set(E.SCENES["files"]))
+        from aidaily import scenes
+        data = scenes.load()
         for text, want in (("Sinner ruled out of Australian Open", "tennis"), ("Russell laughs off Verstappen Las Vegas Grand Prix", "f1"),
                            ("Steelers owner backs McCarthy as quarterback leaves NFL team", "nfl"), ("Sunderland draw in the Europa League", "football")):
-            with mock.patch.object(E, "_commons_info", side_effect=lambda f, width=None: {"f": f}), \
-                 mock.patch.object(E, "photo_ok", return_value=(False, "")):
-                # the lookup stops at the licence gate; the route is read from the call it made
-                called = []
-                with mock.patch.object(E, "_commons_info", side_effect=lambda f, width=None: called.append(f) or {}):
-                    E.sport_scene(text)
-                self.assertEqual(called, [E.SCENES["files"][want]], text)
+            first = scenes.entries(text, "Sport", data, sport=True)[0]
+            self.assertEqual(first, next(r["files"] for r in data["sport"] if r["id"] == want), text)
 
     def test_audit_lets_a_scene_stand_and_holds_a_foreign_team_file(self):
         post = {"headlines": ["Steelers owner backs McCarthy"], "topic": "Sport", "tier": "web", "status": "web", "body": "The Steelers owner spoke.", "dek": "",
