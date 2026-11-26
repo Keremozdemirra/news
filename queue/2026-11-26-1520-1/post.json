@@ -4,7 +4,7 @@
  "n": 1,
  "created": "2026-11-26T15:10:35+00:00",
  "publish_after": "2026-11-26T15:10:35+00:00",
- "status": "queued",
+ "status": "published",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -52,5 +52,8 @@
  "credit": "Photo: Anders Eidesvik, CC BY 4.0, via Wikimedia Commons",
  "story": "",
  "company": "Denny's",
- "person": "Jensen Huang"
+ "person": "Jensen Huang",
+ "published": "2026-11-26T15:12:15+00:00",
+ "media_id": "18415841371092626",
+ "permalink": "https://www.instagram.com/p/DgNZe1kkq0s/"
 }
