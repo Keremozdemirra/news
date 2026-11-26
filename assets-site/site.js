@@ -19,6 +19,15 @@
   if (cur && cur.closest("ul")) { var ul = cur.closest("ul"); ul.scrollLeft = Math.max(0, cur.getBoundingClientRect().left - ul.getBoundingClientRect().left + ul.scrollLeft ); }
 
 
+  // the menu is a details element: Escape and a click elsewhere close it, and Escape hands focus back to the button
+  var menu = document.querySelector("details.menu");
+  if (menu) {
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && menu.open) { menu.open = false; menu.querySelector("summary").focus(); }
+    });
+    document.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
+  }
+
   // new since your last visit: two timestamps. A "visit" is a page load more than 30 minutes after the previous one.
   var KEY = "br:visit", GAP = 30 * 60 * 1000, prev = null;
   try {
@@ -170,7 +179,7 @@
     var q = input.value.trim();
     if (!index) return;
     var terms = norm(q).split(/\s+/).filter(Boolean);
-    if (!terms.length) { render([], ""); return; }
+    if (!terms.length) { render([], ""); if (history.replaceState && location.search) history.replaceState(null, "", location.pathname); return; }
     var hits = index.map(function (it) { return { it: it, s: score(it, terms) }; })
       .filter(function (x) { return x.s > 0; })
       .sort(function (a, b) { return b.s - a.s || (a.it.date < b.it.date ? 1 : -1); })
