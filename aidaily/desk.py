@@ -1395,6 +1395,9 @@ def web_social(factories=None):
     A platform in cooldown is left alone. The per-platform markers in cross_post keep every post from going
     out twice. Returns 1 when a post was offered to the platforms, else 0."""
     names = [n for n in WEB_PLATFORMS if CONFIG.get("platforms", {}).get(n)]
+    leading = lead_active()
+    if leading:  # a platform that just took a lead post waits out its own spacing
+        names = [n for n in names if _lead_slot(n) <= now()]
     if not names:
         return 0
     web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST and social_allowed(p)]
@@ -1416,8 +1419,127 @@ def web_social(factories=None):
     if not ready:
         return 0
     post, path = min(ready, key=lambda r: (-(r[0].get("score") or 0), r[0].get("published", "")))
-    cross_post(post, path, factories, names=WEB_PLATFORMS)
+    cross_post(post, path, factories, names=names if leading else WEB_PLATFORMS)
     return 1
+
+
+# While Instagram cannot post (an action block or no connection), the due, audit-clean queued posts go to the other
+# platforms anyway, one slot at a time. Instagram's own spacing, cap and ramp are untouched, and the per-platform
+# markers cross_post keeps mean a post that went out here is never sent again when Instagram resumes.
+LEAD_SPACING = {"threads": 40, "bluesky": 30, "telegram": 30, "facebook": 90}  # minutes, when desk.json has no lead_spacing_minutes
+LEAD_ORDER = ("threads", "bluesky", "telegram", "facebook")
+LEAD_PLAN_DEPTH = 3
+
+
+def ig_blocked(client=None):
+    """Instagram cannot post right now: cooling down after a block, or its secrets are not set (a client handed in counts as connected)."""
+    return bool(cooldown_until()) or (client is None and not configured())
+
+
+def lead_active(client=None):
+    return bool(CONFIG.get("lead_when_ig_blocked", True)) and ig_blocked(client)
+
+
+def lead_spacing(name):
+    return timedelta(minutes=CONFIG.get("lead_spacing_minutes", {}).get(name, LEAD_SPACING[name]))
+
+
+def _last_sent(name):
+    """The newest send, or send attempt, to this platform on any post, mirrored or led."""
+    stamps = [_stamp(((p.get("platforms") or {}).get(name) or {}).get(k) or "") for p, _ in posts() for k in ("at", "attempted")]
+    return max((s for s in stamps if s), default=None)
+
+
+def _lead_slot(name):
+    """When the platform may take its next lead post."""
+    last = _last_sent(name)
+    return max(now(), last + lead_spacing(name)) if last else now()
+
+
+def _lead_candidates():
+    """Queued feed posts that are due, fresh, above the social floor, audit-clean, not vetoed and allowed on social:
+    best first (highest score, then the newer story)."""
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    rows = []
+    for post, path in posts():
+        if (post.get("status") != "queued" or post.get("kind") in NO_CROSSPOST or not social_allowed(post)
+                or datetime.fromisoformat(post["publish_after"]) > now() or datetime.fromisoformat(post["created"]) <= cut
+                or (post.get("score") or 0) < CONFIG["social_min_score"] or audit(post)):
+            continue
+        try:
+            if post.get("issue") and github.enabled() and github.vetoed(post["issue"], post.get("n", 1)):
+                continue
+        except RuntimeError:
+            continue  # an unreadable issue is not a veto, but nothing is sent on a guess
+        rows.append((post, path))
+    return sorted(rows, key=lambda r: (-(r[0].get("score") or 0), -datetime.fromisoformat(r[0]["created"]).timestamp()))
+
+
+def _lead_eligible(post, name):
+    from . import insights
+    if not CONFIG.get("platforms", {}).get(name) or _slot_done(post, name) or platform_cooldown(name):
+        return False
+    if name == "facebook" and (post.get("score") or 0) < CONFIG["facebook_min_score"]:
+        return False
+    # the learned quiet hours are about Threads and Bluesky; a breaking story is never held
+    if (name in WEB_PLATFORMS and now().hour in set(insights.learned_value("quiet_hours", []))
+            and (post.get("score") or 0) < CONFIG["breaking_score"]):
+        return False
+    return True
+
+
+def lead_plan():
+    """{platform: [(post, path, when)]}: the next posts each platform takes, one per spacing step."""
+    cands = _lead_candidates()
+    plan = {}
+    for name in LEAD_ORDER:
+        room = LEAD_PLAN_DEPTH
+        if name == "facebook":
+            room = min(room, CONFIG["facebook_daily_max"] - platform_sent_last_24h("facebook"))
+        picks = [(p, path) for p, path in cands if _lead_eligible(p, name)][:max(room, 0)]
+        at = _lead_slot(name)
+        plan[name] = [(p, path, at + i * lead_spacing(name)) for i, (p, path) in enumerate(picks)]
+    return plan
+
+
+def lead_social(factories=None, dry=False):
+    """At most one post per platform per run, into the platform's next free slot. Returns how many sends were offered."""
+    from . import platforms
+    sent = 0
+    for name, rows in lead_plan().items():
+        if not rows:
+            if dry:
+                print(f"  {name}: nothing due")
+            continue
+        post, path, at = rows[0]
+        if dry:
+            for i, (p, _, when) in enumerate(rows):
+                print(f"  {name}: {'now' if when <= now() else f'{when:%H:%M} UTC'}  {p['id']}  score {p.get('score')}  {p['headlines'][0][:70]}")
+            continue
+        if at > now():
+            continue
+        cross_post(post, path, factories, names=[name])
+        slot = (post.get("platforms") or {}).get(name) or {}
+        sent += 1
+        if slot.get("id") and not post.get("lead_published"):
+            # the story page the post links to is built from this stamp; the post itself stays queued for Instagram
+            post["lead_published"] = now().isoformat(timespec="seconds")
+            _save(path, post)
+    return sent
+
+
+def lead_report():
+    """What `publish --dry` prints: Instagram's state, then the plan per platform."""
+    if not CONFIG.get("lead_when_ig_blocked", True):
+        print("lead_when_ig_blocked is off: the other platforms only mirror Instagram")
+        return
+    until = cooldown_until()
+    if not ig_blocked():
+        print("Instagram can post: the other platforms mirror it, no lead plan")
+        return
+    print(f"Instagram {'cooling down until ' + format(until, '%Y-%m-%d %H:%M') + ' UTC' if until else 'is not connected'}: "
+          f"due posts go to the other platforms, one per platform per run")
+    lead_social(dry=True)
 
 
 def _mark_live(post, path, m):
@@ -1528,7 +1650,14 @@ def publish(client=None, dry=False):
     """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0.
     Then one web-tier post goes to Bluesky and Threads. The evening digest follows, so it also goes out when nothing was due or Instagram is cooling down."""
     sent = _publish(client, dry)
+    if dry and not paused():
+        lead_report()
     if not dry and not paused():
+        if lead_active(client):
+            try:
+                lead_social()
+            except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
+                print(f"lead posts crashed: {str(e)[:200]}")
         try:
             web_social()
         except Exception as e:  # noqa: BLE001  a web-tier problem never reaches the Instagram flow

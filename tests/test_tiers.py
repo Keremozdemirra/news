@@ -160,7 +160,7 @@ class WebNeverGoesToInstagram(Tmp):
 class Social(Tmp):
     def setUp(self):
         super().setUp()
-        extra = [mock.patch.dict(os.environ, SECRETS), mock.patch.dict(desk.CONFIG, {"platforms": {n: True for n in platforms.NAMES}})]
+        extra = [mock.patch.dict(os.environ, SECRETS), mock.patch.dict(desk.CONFIG, {"platforms": {n: True for n in platforms.NAMES}, "lead_when_ig_blocked": False})]
         for p in extra:
             p.start()
             self.addCleanup(p.stop)

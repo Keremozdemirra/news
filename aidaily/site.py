@@ -77,6 +77,9 @@ def published():
     """Posts live on the site: published on Instagram or published to the web tier. Nothing on a page may say
     which one it was, except the Instagram link a post carries only when it has a permalink."""
     rows = [p for p, _ in desk.posts() if p.get("status") in ("published", "web") and p.get("published") and p.get("kind") != "story"]
+    # a queued post sent to the other platforms while Instagram was blocked already links to its page
+    rows += [dict(p, published=p["lead_published"]) for p, _ in desk.posts()
+             if p.get("status") == "queued" and p.get("lead_published") and p.get("kind") != "story"]
     return sorted(rows, key=lambda p: p["published"], reverse=True)
 
 
