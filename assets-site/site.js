@@ -39,7 +39,7 @@
       if (!seen[a.getAttribute("href")]) { seen[a.getAttribute("href")] = 1; count++; }
     });
     var since = document.getElementById("since");
-    if (since && count) { since.textContent = count + (count === 1 ? " story" : " stories") + " since your last visit."; since.hidden = false; }
+    if (since && count) { since.textContent = count + (count === 1 ? " article" : " articles") + " since your last visit."; since.hidden = false; }
   }
 
   // keyboard: j and k step through the stories on the page (on a story, to the older and newer one), o opens, / searches, ? helps
@@ -48,7 +48,7 @@
   function showKeys(on) {
     if (!panel) {
       panel = document.createElement("div"); panel.className = "keys"; panel.hidden = true; panel.setAttribute("role", "dialog"); panel.setAttribute("aria-label", "Keyboard shortcuts");
-      panel.innerHTML = "<div><h2>Keyboard shortcuts</h2><dl><dt><kbd>j</kbd></dt><dd>Next story</dd><dt><kbd>k</kbd></dt><dd>Previous story</dd><dt><kbd>o</kbd></dt><dd>Open the story</dd><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>?</kbd></dt><dd>This panel</dd></dl><button type=\"button\">Close</button></div>";
+      panel.innerHTML = "<div><h2>Keyboard shortcuts</h2><dl><dt><kbd>j</kbd></dt><dd>Next article</dd><dt><kbd>k</kbd></dt><dd>Previous article</dd><dt><kbd>o</kbd></dt><dd>Open the article</dd><dt><kbd>/</kbd></dt><dd>Search</dd><dt><kbd>?</kbd></dt><dd>This panel</dd></dl><button type=\"button\">Close</button></div>";
       panel.addEventListener("click", function (e) { if (e.target === panel || e.target.tagName === "BUTTON") showKeys(false); });
       document.body.appendChild(panel);
     }
@@ -149,8 +149,8 @@
       p.className = "dek"; p.textContent = it.dek;
       box.appendChild(m); box.appendChild(h); box.appendChild(p); a.appendChild(box); li.appendChild(a); out.appendChild(li);
     });
-    status.textContent = !q ? index.length + " stories. Type to search." :
-      list.length ? list.length + (list.length === 1 ? " story" : " stories") + " for “" + q + "”" : "No story matches “" + q + "”. Try a company, a topic or a shorter word.";
+    status.textContent = !q ? index.length + " articles. Type to search." :
+      list.length ? list.length + (list.length === 1 ? " article" : " articles") + " for “" + q + "”" : "No article matches “" + q + "”. Try a company, a topic or a shorter word.";
   }
   function run() {
     var q = input.value.trim();

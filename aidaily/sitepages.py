@@ -1,7 +1,7 @@
-"""The pages built on top of the story pages: the 60-second brief, the quiz, company pages, feeds per topic and per
-company, and how the desk works with live counts. site.build() calls build() once the stories are written.
+"""The pages built on top of the article pages: the 60-second brief, the quiz, company pages, feeds per topic and per
+company, and how the desk works with live counts. site.build() calls build() once the articles are written.
 
-The quiz questions come from desk.pick_*, the same selection the Instagram quiz stories use, so a question that cannot
+The quiz questions come from desk.pick_*, the same selection the Instagram quiz articles use, so a question that cannot
 be asked honestly (too few companies, no money figures to compare) is simply not on the page."""
 import json
 import shutil
@@ -16,7 +16,7 @@ E = S.E
 
 
 def brief_rows(shown, day):
-    """The brief of a day: the top stories by score in the 24 hours up to the day's last story."""
+    """The brief of a day: the top articles by score in the 24 hours up to the day's last article."""
     ps = [p for p in shown if S.day_of(p["published"]) == day]
     if not ps:
         return []
@@ -29,13 +29,13 @@ def brief_page(shown, day):
     rows = brief_rows(shown, day)
     items = "".join(f'<li><a href="{S.href(p)}"><span class="h-m">{E(p["headlines"][0])}</span>'
                     f'{S.meta(E(S.topic(p)), S.t_tag(p), S.cover(p))}</a></li>' for p in rows)
-    return (S.pagehead("The brief", f"{S.day_label(day)}. The day's top {len(rows)} stories, one line each, about a minute.")
+    return (S.pagehead("The brief", f"{S.day_label(day)}. The day's top {len(rows)} articles, one line each, about a minute.")
             + f'<div class="brief"><ol>{items}</ol><p class="end">That\'s the brief.</p>'
               f'<p class="after"><a href="{S.BASE}/quiz/">Play today\'s quiz</a><a href="{S.BASE}/latest/">Everything else, newest first</a></p></div>')
 
 
 def quiz_questions(shown):
-    """Up to four questions for the day of the newest story; a type with no data is skipped."""
+    """Up to four questions for the day of the newest article; a type with no data is skipped."""
     if not shown:
         return []
     top, day = S.dt(shown[0]["published"]), S.day_of(shown[0]["published"])
@@ -68,15 +68,15 @@ def _question(i, q):
     return (f'<section class="q" data-answer="{q["answer"]}" aria-labelledby="q{i}"><h2 id="q{i}" class="lab">{i}. {E(q["title"])}</h2>'
             f'{photo}<p class="prompt">{prompt}</p><ol class="opts">{opts}</ol>'
             f'<details class="ans"><summary>Show the answer</summary><p class="right">{ans}</p>'
-            f'<p class="meta">The story and where it was reported:</p><ul class="from">{links}</ul></details></section>')
+            f'<p class="meta">The article and where it was reported:</p><ul class="from">{links}</ul></details></section>')
 
 
 def quiz_page(shown):
     qs = quiz_questions(shown)
     if not qs:
-        return S.pagehead("Quiz", "Today's questions.") + '<div class="empty">There is no quiz yet. It needs a few more stories with figures and names.</div>'
+        return S.pagehead("Quiz", "Today's questions.") + '<div class="empty">There is no quiz yet. It needs a few more articles with figures and names.</div>'
     day = S.day_label(S.day_of(shown[0]["published"]))
-    return (S.pagehead("Today's quiz", f"{day}. {len(qs)} question{'' if len(qs) == 1 else 's'}, each from a story on this site.")
+    return (S.pagehead("Today's quiz", f"{day}. {len(qs)} question{'' if len(qs) == 1 else 's'}, each from an article on this site.")
             + f'<div class="quiz" data-quiz>{"".join(_question(i, q) for i, q in enumerate(qs, 1))}'
               f'<p class="tally" aria-live="polite"></p></div>')
 
@@ -88,19 +88,19 @@ def how_page(shown):
 <h2>The numbers now</h2>
 <dl>
 <dt>Feeds scanned</dt><dd>{c['feeds']} feeds, fetched every 30 minutes</dd>
-<dt>Newsrooms on the site</dt><dd>{c['newsrooms']} different newsrooms across {c['stories']} stories</dd>
-<dt>Stories with three or more newsrooms</dt><dd>{c['three_plus']} of {c['stories']} ({share}%)</dd>
-<dt>Companies with a page</dt><dd>{len(S.companies(shown))}, each with at least two stories</dd>
-<dt>Stories with a credited photo</dt><dd>{c['photos']}</dd>
+<dt>Newsrooms on the site</dt><dd>{c['newsrooms']} different newsrooms across {c['stories']} articles</dd>
+<dt>Articles with three or more newsrooms</dt><dd>{c['three_plus']} of {c['stories']} ({share}%)</dd>
+<dt>Companies with a page</dt><dd>{len(S.companies(shown))}, each with at least two articles</dd>
+<dt>Articles with a credited photo</dt><dd>{c['photos']}</dd>
 </dl>
 <h2>From feed to page</h2>
 <ol class="steps">
-<li><div><b>Scan.</b> The desk fetches the feeds of newsrooms and research labs and groups coverage of the same event into one story.</div></li>
-<li><div><b>Score.</b> A story is scored on how many newsrooms carry it and how recent it is. Only stories above a fixed bar go on.</div></li>
+<li><div><b>Scan.</b> The desk fetches the feeds of newsrooms and research labs and groups coverage of the same event into one article.</div></li>
+<li><div><b>Score.</b> An article is scored on how many newsrooms carry it and how recent it is. Only articles above a fixed bar go on.</div></li>
 <li><div><b>Write.</b> An AI model writes a short report from the source text. It has no other input and no tools.</div></li>
 <li><div><b>Check.</b> Fixed code compares the text with the source before anything is public.</div></li>
 </ol>
-<h2>Checks every published story passes</h2>
+<h2>Checks every published article passes</h2>
 <ul>
 <li>Every number in the text appears in the source text.</li>
 <li>Each sentence is compared with the source text. A sentence whose words are mostly missing from it is rejected.</li>
@@ -108,13 +108,13 @@ def how_page(shown):
 <li>A fixed audit of topic, photo, hashtags and stock phrases.</li>
 </ul>
 <h2>What the coverage bar means</h2>
-<p>The bar counts the different newsrooms whose reporting a story draws on. Aggregators and social accounts are not counted. A longer bar means more independent desks reported it. It says nothing about whether the story is right.</p>
+<p>The bar counts the different newsrooms whose reporting an article draws on. Aggregators and social accounts are not counted. A longer bar means more independent desks reported it. It says nothing about whether the article is right.</p>
 <p>See also the <a href="{S.BASE}/standards/">standards and corrections policy</a> and the <a href="{S.BASE}/about/">about page</a>.</p>
 </div>"""
 
 
 def company_logo(out, slug, posts):
-    """Copy the first licensed logo a company's stories carry to img/co-<slug>.<ext>; its site path, or ''."""
+    """Copy the first licensed logo a company's articles carry to img/co-<slug>.<ext>; its site path, or ''."""
     for p in posts:
         for name in ("logo.svg", "logo.png", "logo.jpg"):
             f = desk.MEDIA / p["id"] / name
@@ -129,7 +129,7 @@ def company_page(name, slug, rows, logo):
     items = "".join(f'<li><time datetime="{S.iso(p["published"])}">{S.day_label(S.day_of(p["published"]))}</time>'
                     f'<a href="{S.href(p)}"><span class="h-m">{E(p["headlines"][0])}</span><span class="dek">{E(p.get("dek", ""))}</span>'
                     f'{S.meta(E(S.topic(p)), S.cover(p))}</a></li>' for p in rows)
-    head = S.pagehead(name, f"{len(rows)} {'story' if len(rows) == 1 else 'stories'} since {S.day_label(S.day_of(rows[-1]['published']))}, newest first.")
+    head = S.pagehead(name, f"{len(rows)} {'article' if len(rows) == 1 else 'articles'} since {S.day_label(S.day_of(rows[-1]['published']))}, newest first.")
     if logo:
         head = head.replace('<div class="pagehead">', f'<div class="pagehead"><img class="cologo" src="{logo}" alt="" height="56">', 1)
     return (head + f'<div class="prose wide"><ol class="timeline">{items}</ol>'
@@ -153,22 +153,22 @@ def build(out, shown, sm, cos):
         earlier = ('<div class="prose"><h2>Earlier briefs</h2><ul class="past">'
                    + "".join(f'<li><a href="{S.BASE}/brief/{d}/">{S.day_label(d)}</a></li>' for d in days[1:30]) + "</ul></div>") if days[1:] else ""
         S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, days[0]) + earlier,
-              "The day's top stories in about a minute, one line each.", "/brief/", active="brief"))
+              "The day's top articles in about a minute, one line each.", "/brief/", active="brief"))
         for d in days:
             S.put(out, f"/brief/{d}/", S.page(f"The brief, {S.day_label(d)} · boardread.", brief_page(shown, d),
-                                              f"The top stories of {S.day_label(d)}, one line each.", f"/brief/{d}/", active="brief"))
+                                              f"The top articles of {S.day_label(d)}, one line each.", f"/brief/{d}/", active="brief"))
             sm.append((f"{S.SITE}/brief/{d}/", S.iso(brief_rows(shown, d)[0]["published"])))
     else:
         S.put(out, "/brief/", S.page("The brief · boardread.", S.pagehead("The brief") + '<div class="empty">The first brief is on its way.</div>',
-                                     "The day's top stories in about a minute.", "/brief/", active="brief"))
-    S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's stories, each answer linked to its sources.", "/quiz/"))
-    S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown), "How the desk turns feeds into stories, with live counts.", "/how-it-works/"))
+                                     "The day's top articles in about a minute.", "/brief/", active="brief"))
+    S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/"))
+    S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown), "How the desk turns feeds into articles, with live counts.", "/how-it-works/"))
     for path in ("/brief/", "/quiz/", "/how-it-works/"):
         sm.append((S.SITE + path, latest))
     (out / "img").mkdir(exist_ok=True)
     for slug, (name, rows) in cos.items():
         S.put(out, f"/c/{slug}/", S.page(f"{name} · boardread.", company_page(name, slug, rows, company_logo(out, slug, rows)),
-                                         f"Every Boardread story about {name}, newest first.", f"/c/{slug}/",
+                                         f"Every Boardread article about {name}, newest first.", f"/c/{slug}/",
                                          feed=(f"boardread. {name}", f"/c/{slug}/feed.xml")))
         feed_for(out, rows, f"/c/{slug}/", f"boardread. {name}", f"{S.SITE}/c/{slug}/")
         sm.append((f"{S.SITE}/c/{slug}/", S.iso(rows[0]["published"])))

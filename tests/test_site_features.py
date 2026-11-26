@@ -82,12 +82,12 @@ class Features(Tmp):
 
     def test_how_made_panel_and_how_it_works_page_carry_live_counts(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
-        for s in ("How this story was made", "Checks passed", "Financial Times"):
+        for s in ("How this article was made", "Checks passed", "Financial Times"):
             self.assertIn(s, h)
         self.assertEqual(site.desk_counts(self.rows())["stories"], 12)
         page = self.read("how-it-works/index.html")
         self.assertIn("Feeds scanned", page)
-        self.assertIn("12 stories", page)
+        self.assertIn("12 articles", page)
 
     def test_source_mix_links_each_outlet_to_its_article(self):
         h = self.read("s/2026-11-26-0900-1/index.html")

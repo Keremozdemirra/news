@@ -8,15 +8,15 @@ Where it is served comes from desk.json "site_url". A bare origin (https://board
 an origin with a path (https://keremozdemir.de/news) puts everything under that path. One value, no other switch.
 
   /                      front page: lead, latest, most important, one block per topic, this week, follow
-  /latest/               every story, newest first, paged        /latest/page/<n>/
+  /latest/               every article, newest first, paged        /latest/page/<n>/
   /t/<topic>/            one topic, paged
-  /s/<id>/               one story: photo, report, sources, share, related, previous and next
+  /s/<id>/               one article: photo, report, sources, share, related, previous and next
   /week/                 the last seven days, ranked            /week/<YYYY-Www>/  one finished ISO week
   /archive/              one page per day                       /archive/<YYYY-MM-DD>/
   /search/               client-side search over /search.json
   /about/ /standards/ /contact/ /404.html   (Impressum and Privacy are keremozdemir.de's, same operator)
   /feed.xml /weekly.xml /sitemap.xml /news-sitemap.xml /robots.txt
-  /og/<id>.jpg           the 1200x630 link-preview image of a story, cut from its photo at build time
+  /og/<id>.jpg           the 1200x630 link-preview image of a article, cut from its photo at build time
 """
 import hashlib
 import html
@@ -42,7 +42,7 @@ NAME = "Boardread"
 TAGLINE = "The news that moves business"
 ASSETS = Path(__file__).resolve().parent.parent / "assets-site"
 OG_W, OG_H = 1200, 630
-PER = 20  # stories on one listing page
+PER = 20  # articles on one listing page
 # Order of the section bar and of the blocks on the front page.
 TOPICS = {
     "Markets": "Equities, rates, currencies and commodities, and what moved them.",
@@ -200,7 +200,7 @@ def nav_bar(active):
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
          noindex=False, rel=None, main_class="", feed=None):
     """Every page. path is relative to the site root and becomes the canonical and og:url; image is the
-    site-relative link-preview image (the shared default when a story has no photo). rel: {"prev": path, "next": path}."""
+    site-relative link-preview image (the shared default when a article has no photo). rel: {"prev": path, "next": path}."""
     url = SITE + path
     img = ORIGIN + (image or DEFAULT_OG)
     og_dims = f'<meta property="og:image:width" content="{OG_W}"><meta property="og:image:height" content="{OG_H}">\n' \
@@ -249,7 +249,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <main id="main" class="wrap {main_class}">{body}</main>
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">
-<div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every story with its sources linked.</p></div>
+<div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every article with its sources linked.</p></div>
 <div><h2>Sections</h2><ul>{foot_topics}</ul></div>
 <div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/brief/">The brief</a></li><li><a href="{BASE}/quiz/">Quiz</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
@@ -279,7 +279,7 @@ COVER_TICKS = 6  # the bar fills up to this many newsrooms; more than that is st
 
 
 def coverage(p):
-    """Distinct newsrooms behind a story, aggregators not counted."""
+    """Distinct newsrooms behind a article, aggregators not counted."""
     return len(outlets.newsrooms(p))
 
 
@@ -343,7 +343,7 @@ def sec_head(label, link=None, more="", level=2):
 
 
 def topic_block(t, rows, used=()):
-    """One topic: a featured story and up to three more. A story already shown higher on the page is passed over."""
+    """One topic: a featured article and up to three more. A article already shown higher on the page is passed over."""
     fresh = [p for p in rows[:12] if p not in used] or rows[:12]
     feat = max(fresh, key=lambda p: (bool(p.get("_hires")), p.get("score", 0)))
     if isinstance(used, list):
@@ -362,7 +362,7 @@ def follow_block():
                     + "</a></li>" for a in accounts())
     letter = f'<a class="nl" href="{E(nl)}">Get the weekly Top 10 by email</a>' if nl else ""
     return (f'<section class="follow" aria-labelledby="fh"><h2 id="fh">Follow Boardread</h2>'
-            f'<p>The same stories on the channels you already use, each with its sources.</p><ul>{links}</ul>{letter}</section>')
+            f'<p>The same news on the channels you already use, each with its sources.</p><ul>{links}</ul>{letter}</section>')
 
 
 def listing_row(p):
@@ -380,7 +380,7 @@ def pager(path, n, total):
 
 def listing(rows, path, n, total, aside=""):
     if not rows:
-        return '<div class="empty">The first stories are on their way.</div>'
+        return '<div class="empty">The first articles are on their way.</div>'
     first = rows[0] if n == 1 and rows[0].get("_hires") else None
     lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True)}<span class="kick">{E(topic(first))}</span>'
             f'<h2 class="h-xl">{E(first["headlines"][0])}</h2><p class="dek">{E(first.get("dek", ""))}</p>'
@@ -405,7 +405,7 @@ def share_links(p):
 
 
 def og_image(photo, dest):
-    """A 1200x630 JPEG cut from the story's photo, for link previews (Facebook, Telegram, Threads, X).
+    """A 1200x630 JPEG cut from the article's photo, for link previews (Facebook, Telegram, Threads, X).
 
     The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop, biased to the top
     third because the subject of a portrait photo sits there. ffmpeg is on the Actions image and on the desk's Mac."""
@@ -414,12 +414,12 @@ def og_image(photo, dest):
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "3", str(dest)],
                        check=True, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
-        return False  # the story still builds; its preview falls back to the shared image
+        return False  # the article still builds; its preview falls back to the shared image
     return True
 
 
 def card_html(p, photo=None):
-    """The share card as a page: topic, headline, coverage meter and the address, the story photo on the right when it has one.
+    """The share card as a page: topic, headline, coverage meter and the address, the article photo on the right when it has one.
     Same type and monochrome as the site; the fonts are read from the files, as this page is rendered from disk."""
     head, n = p["headlines"][0], coverage(p)
     size = 70 if len(head) <= 60 else 60 if len(head) <= 95 else 50 if len(head) <= 130 else 42
@@ -440,7 +440,7 @@ h1{{font-weight:800;font-size:{size}px;line-height:1.06;letter-spacing:-.035em;m
 
 
 def share_card(p, photo, dest):
-    """The story's 1200x630 link-preview image, drawn by headless Chrome (the card the desk's own templates use).
+    """The article's 1200x630 link-preview image, drawn by headless Chrome (the card the desk's own templates use).
     False when Chrome or ffmpeg is missing; the caller then falls back to the cropped photo."""
     from . import render
     dest = Path(dest)
@@ -487,7 +487,7 @@ def related(p, rows, n=4):
 
 
 def co_of(p):
-    """The company a story is about: the tagged company, else the first logo name the headline carries."""
+    """The company a article is about: the tagged company, else the first logo name the headline carries."""
     return ((p.get("company") or "").strip() or next((n for n in p.get("logo_names") or [] if n), "")).strip()
 
 
@@ -496,7 +496,7 @@ def co_slug(name):
 
 
 def companies(rows, minimum=2):
-    """{slug: (name, [stories newest first])} for companies with at least `minimum` stories. rows is newest first."""
+    """{slug: (name, [stories newest first])} for companies with at least `minimum` articles. rows is newest first."""
     by_slug, names = {}, {}
     for p in rows:
         n = co_of(p)
@@ -536,16 +536,16 @@ def number_box(p):
 
 
 def how_made(p, counts):
-    """The per-story panel: what the desk read and which fixed checks the text passed. Every published story has
+    """The per-story panel: what the desk read and which fixed checks the text passed. Every published article has
     passed them (copy.verify and desk.audit run before a post is queued and again before it is published)."""
     rooms = outlets.newsrooms(p)
     fig = (p.get("figure") or "").strip()
     checks = ["Numbers: every number in the text appears in the source text."
               + (f" The figure {fig} is in the headline." if number_box(p) else ""),
               "Names: each sentence is compared with the source text; a sentence whose words are mostly missing from it is rejected.",
-              "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this story has no photo."),
+              "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this article has no photo."),
               "Audit: topic, photo, hashtag and stock-phrase checks passed."]
-    return (f'<details class="made"><summary>How this story was made</summary><div class="made-body">'
+    return (f'<details class="made"><summary>How this article was made</summary><div class="made-body">'
             f'<p>An AI model wrote it from the text of {len(rooms)} newsroom{"" if len(rooms) == 1 else "s"} and had no other input. '
             f'Fixed code checked it before it went up.</p>'
             f'<dl><dt>Feeds scanned</dt><dd>{counts["feeds"]} feeds, every 30 minutes</dd>'
@@ -555,7 +555,7 @@ def how_made(p, counts):
 
 
 def story(p, rows, cos=None, counts=None):
-    """One story page. rows is every shown story, newest first; cos is companies(rows)."""
+    """One article page. rows is every shown article, newest first; cos is companies(rows)."""
     cos = companies(rows) if cos is None else cos
     counts = counts or desk_counts(rows)
     mix = outlets.source_mix(p)
@@ -568,14 +568,14 @@ def story(p, rows, cos=None, counts=None):
     fig = (f'<figure><span class="pic"><img src="{BASE}/img/{p["id"]}.jpg" width="960" height="640" alt="{E(alt)}" fetchpriority="high"></span>'
            f'<figcaption class="meta">{E(p.get("credit", ""))}</figcaption></figure>') if p.get("_hires") else ""
     rel = related(p, rows)
-    more = (f'<section class="related" aria-labelledby="rel">{sec_head("Related stories", level=2).replace("<h2", "<h2 id=\"rel\"", 1)}<div class="related-grid">'
+    more = (f'<section class="related" aria-labelledby="rel">{sec_head("Related news", level=2).replace("<h2", "<h2 id=\"rel\"", 1)}<div class="related-grid">'
             + "".join(f'<article><a class="story-link" href="{href(o)}">{pic(o, thumb=True)}<span class="kick">{E(topic(o))}</span>'
                       f'<h3 class="h-m">{E(o["headlines"][0])}</h3>{meta(t_tag(o))}</a></article>' for o in rel) + "</div></section>") if rel else ""
     i = rows.index(p)
     newer, older = (rows[i - 1] if i > 0 else None), (rows[i + 1] if i + 1 < len(rows) else None)
     nav = "".join(f'<a href="{href(o)}" rel="{r}"><span class="kick">{k}</span><span class="h-s">{E(o["headlines"][0])}</span></a>'
                   for o, r, k in ((older, "prev", "&larr; Older"), (newer, "next", "Newer &rarr;")) if o)
-    prevnext = f'<nav class="prevnext{"" if older and newer else " one"}" aria-label="More stories">{nav}</nav>' if nav else ""
+    prevnext = f'<nav class="prevnext{"" if older and newer else " one"}" aria-label="More news">{nav}</nav>' if nav else ""
     image = f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None
     name = co_of(p)
     company = ""
@@ -590,7 +590,7 @@ def story(p, rows, cos=None, counts=None):
 {number_box(p)}{how_made(p, counts)}
 <p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p>
 </div>
-<aside class="rail" aria-label="About this story"><section><h2>Reported by</h2><ul class="src">{srcs}</ul></section>
+<aside class="rail" aria-label="About this article"><section><h2>Reported by</h2><ul class="src">{srcs}</ul></section>
 <section><h2>Share</h2>{share_links(p)}</section></aside>
 {more}{prevnext}</article>"""
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
@@ -662,32 +662,32 @@ def about_page():
 <h2>How the desk works</h2>
 <ol class="steps">
 <li><div><b>It reads the news.</b> Every 30 minutes the desk fetches more than 80 feeds from newsrooms and research labs.</div></li>
-<li><div><b>It ranks.</b> Coverage of the same event is grouped into one story and scored. Only stories above a fixed importance bar, and under a day old, are taken further.</div></li>
+<li><div><b>It ranks.</b> Coverage of the same event is grouped into one article and scored. Only articles above a fixed importance bar, and under a day old, are taken further.</div></li>
 <li><div><b>It writes.</b> An AI model writes a short report from the text of the sources. It has no other input and no tools.</div></li>
-<li><div><b>It checks.</b> Fixed code checks the text before anything is public: every number must appear in the source, sentences that read as commentary are rejected, and stories about deaths, violence and abuse are skipped.</div></li>
-<li><div><b>It publishes with the sources.</b> Each story names the newsrooms it draws on and links to them. Photos are licensed images with their credit shown.</div></li>
+<li><div><b>It checks.</b> Fixed code checks the text before anything is public: every number must appear in the source, sentences that read as commentary are rejected, and articles about deaths, violence and abuse are skipped.</div></li>
+<li><div><b>It publishes with the sources.</b> Each article names the newsrooms it draws on and links to them. Photos are licensed images with their credit shown.</div></li>
 </ol>
 <h2>Limits</h2>
-<p>Boardread does no original reporting. It summarises what named newsrooms have reported, and says which ones. Read the linked source for the full story. Opinion and speculation are not published.</p>
+<p>Boardread does no original reporting. It summarises what named newsrooms have reported, and says which ones. Read the linked source for the full report. Opinion and speculation are not published.</p>
 <h2>Follow</h2>
-<p>The same stories go out on <a href="{BASE}/feed.xml">RSS</a>{"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}.</p>
+<p>The same news goes out on <a href="{BASE}/feed.xml">RSS</a>{"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}.</p>
 <p>See the <a href="{BASE}/standards/">editorial standards and corrections policy</a>, the <a href="{BASE}/contact/">contact page</a> and the <a href="{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
 
 def standards_page():
-    return pagehead("Editorial standards and corrections", "What a Boardread story promises, and what happens when it is wrong.") + f"""<div class="prose">
+    return pagehead("Editorial standards and corrections", "What a Boardread article promises, and what happens when it is wrong.") + f"""<div class="prose">
 <h2>Standards</h2>
 <ul>
-<li><b>Sources are named and linked.</b> Every story lists the newsrooms it draws on, each with a link to the original.</li>
-<li><b>AI writes, code checks.</b> Stories are written by an AI model from the source text. Numbers must appear in the source; commentary is rejected before publishing. The disclosure "Written by AI from the sources listed" appears on every story.</li>
+<li><b>Sources are named and linked.</b> Every article lists the newsrooms it draws on, each with a link to the original.</li>
+<li><b>AI writes, code checks.</b> Articles are written by an AI model from the source text. Numbers must appear in the source; commentary is rejected before publishing. The disclosure "Written by AI from the sources listed" appears on every article.</li>
 <li><b>No original reporting.</b> Boardread summarises named reporting. It does not use anonymous sources of its own.</li>
 <li><b>Photos are credited.</b> Images are licensed, and the credit line sits under the picture. A photo illustrates the topic and may not show the event.</li>
-<li><b>Times are UTC.</b> Each story shows when it was published.</li>
-<li><b>Topics we skip.</b> Stories centred on deaths, violence, abuse and similar subjects are not published by the desk.</li>
+<li><b>Times are UTC.</b> Each article shows when it was published.</li>
+<li><b>Topics we skip.</b> Articles centred on deaths, violence, abuse and similar subjects are not published by the desk.</li>
 </ul>
 <h2>Corrections</h2>
-<p>If a story misstates a fact, a name or a number, tell us with the link to the story and the correct information. The first thing checked is the source: if the source says something different from the story, the story is wrong and is corrected or withdrawn. If the source itself was corrected, the story follows it.</p>
+<p>If a article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
 <ul>{contact_lines()}</ul>
 <h2>Who is responsible</h2>
 <p>The operator named in the <a href="{LEGAL['impressum']}">Impressum</a> is responsible for the site, including the output of its automated desk.</p>
@@ -696,26 +696,26 @@ def standards_page():
 
 def contact_page():
     return pagehead("Contact", "Corrections, tips and questions.") + f"""<div class="prose">
-<p>Include the link to the story you are writing about. Corrections are read first.</p>
+<p>Include the link to the article you are writing about. Corrections are read first.</p>
 <ul>{contact_lines()}</ul>
 <p>The operator's details are in the <a href="{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
 
 def search_page():
-    return pagehead("Search", "Every Boardread story: headline, summary, topic and company.") + f"""<div class="searchwrap">
+    return pagehead("Search", "Every Boardread article: headline, summary, topic and company.") + f"""<div class="searchwrap">
 <form class="sbox" role="search" action="{BASE}/search/" method="get" data-index="{BASE}/search.json">
-<input type="search" name="q" id="q" placeholder="Search stories" aria-label="Search stories" autocomplete="off" autofocus>
+<input type="search" name="q" id="q" placeholder="Search the news" aria-label="Search the news" autocomplete="off" autofocus>
 <button type="submit">Search</button></form>
 <p class="meta" id="sstatus" role="status" aria-live="polite"></p>
 <ol class="hits" id="hits"></ol>
-<noscript><p class="empty">Search needs JavaScript. Browse the <a href="{BASE}/latest/">latest stories</a> or the <a href="{BASE}/archive/">archive</a> instead.</p></noscript>
+<noscript><p class="empty">Search needs JavaScript. Browse the <a href="{BASE}/latest/">latest articles</a> or the <a href="{BASE}/archive/">archive</a> instead.</p></noscript>
 </div>"""
 
 
 def not_found():
-    return pagehead("Page not found", "The story may have moved or never existed.") + f"""<div class="prose">
-<p>Try the <a href="{BASE}/">front page</a>, the <a href="{BASE}/latest/">latest stories</a> or the <a href="{BASE}/search/">search</a>.</p></div>"""
+    return pagehead("Page not found", "The article may have moved or never existed.") + f"""<div class="prose">
+<p>Try the <a href="{BASE}/">front page</a>, the <a href="{BASE}/latest/">latest articles</a> or the <a href="{BASE}/search/">search</a>.</p></div>"""
 
 
 # ---------------------------------------------------------------- build
@@ -727,7 +727,7 @@ def put(out, path, html_):
 
 
 def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, feed=None):
-    """A listing at path, one page per PER stories: path, path/page/2/, ..."""
+    """A listing at path, one page per PER articles: path, path/page/2/, ..."""
     total = max(1, -(-len(rows) // PER))
     for n in range(1, total + 1):
         here = path if n == 1 else f"{path}page/{n}/"
@@ -744,7 +744,7 @@ def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, fe
 
 
 def window(rows, hours=24):
-    """Stories within `hours` of the newest one: what "today" means on a site that may be a few hours stale."""
+    """Articles within `hours` of the newest one: what "today" means on a site that may be a few hours stale."""
     if not rows:
         return []
     top = dt(rows[0]["published"])
@@ -756,7 +756,7 @@ def by_score(rows):
 
 
 def most_covered(rows, n=5):
-    """[(name, slug, stories)] companies ranked by stories in the 7 days up to the newest story, ties by newsrooms behind them."""
+    """[(name, slug, articles)] companies ranked by articles in the 7 days up to the newest article, ties by newsrooms behind them."""
     if not rows:
         return []
     top = dt(rows[0]["published"])
@@ -775,7 +775,7 @@ def covered_list(rows, cos, n=5):
     out = []
     for i, (name, slug, k) in enumerate(most_covered(rows, n), 1):
         link = f"{BASE}/c/{slug}/" if slug in cos else f"{BASE}/search/?q={urllib.parse.quote(name)}"
-        noun = "story" if k == 1 else "stories"
+        noun = "article" if k == 1 else "articles"
         out.append(f'<li><span class="n" aria-hidden="true">{i}</span><a href="{link}"><span class="h-s">{E(name)}</span>'
                    f'{meta(f"{k} {noun} this week")}</a></li>')
     return f'<ol class="rank">{"".join(out)}</ol>' if out else ""
@@ -804,7 +804,7 @@ def home(shown, cos=None):
              f'{stream(shown, 10)}</section>'
              f'<div class="lead-col">{lead_block(lead)}{pair_block(pairs)}</div>'
              f'<section class="important" aria-labelledby="ih">{sec_head("Most important today").replace("<h2", "<h2 id=\"ih\"", 1)}{ranked(ranked_today, 5)}'
-             f'<p class="col-foot"><a href="{BASE}/week/">The week\'s top stories</a></p>'
+             f'<p class="col-foot"><a href="{BASE}/week/">The week\'s top articles</a></p>'
              f'{most_covered_block(shown, cos)}</section></div>')
     duo = (f'<div class="duo"><section aria-labelledby="wh">{sec_head("This week", f"{BASE}/week/", "Top 10").replace("<h2", "<h2 id=\"wh\"", 1)}'
            f'{ranked(week, 5)}</section>{follow_block()}</div>')
@@ -833,7 +833,7 @@ def build(out=desk.HERE / "_site"):
             p["_hires"] = p["_thumb"] = True
         # no photo: the story is a text row. media/<id>/thumb.jpg is a crop of the Instagram card with the headline
         # set into it, so it is never used as a picture on the site (it showed "Global stocks" in a tile)
-        shown.append(p)  # a story without any picture still has a page: text is the story
+        shown.append(p)  # a article without any picture still has a page: text is the story
     # every story gets a card: the photo-less ones carry the same headline and meter, so a shared link is never the generic image
     def card(p):
         photo = desk.MEDIA / p["id"] / "photo.jpg"
@@ -845,17 +845,17 @@ def build(out=desk.HERE / "_site"):
             if ok:
                 p["_og"] = True
     sm = []
-    desc = "Markets, economy, politics, world, tech and AI: every story with its sources."
+    desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
     if shown:
         site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/", "inLanguage": "en",
                    "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"}}
         put(out, "/", page(f"boardread. · {TAGLINE}", home(shown, companies(shown)), desc, "/", ld=site_ld, active="", front=True))
     else:
-        put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first stories are on their way.</div>', desc, "/", front=True))
+        put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first articles are on their way.</div>', desc, "/", front=True))
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", shown, "Latest", desc, pagehead("Latest", "Every story, newest first. Times are UTC."), "latest", aside(shown), sm)
+    paged(out, "/latest/", shown, "Latest", desc, pagehead("Latest", "Every article, newest first. Times are UTC."), "latest", aside(shown), sm)
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
         paged(out, f"/t/{t.lower()}/", rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
@@ -868,17 +868,17 @@ def build(out=desk.HERE / "_site"):
     for p in shown:
         days.setdefault(day_of(p["published"]), []).append(p)
     put(out, "/archive/", page("Archive · boardread.", pagehead("Archive", "Every day of Boardread, newest first.") + '<div class="prose days">'
-        + "".join(f'<a href="{BASE}/archive/{d}/">{day_label(d)}<span>{len(ps)} {"story" if len(ps) == 1 else "stories"}</span></a>' for d, ps in days.items())
+        + "".join(f'<a href="{BASE}/archive/{d}/">{day_label(d)}<span>{len(ps)} {"article" if len(ps) == 1 else "articles"}</span></a>' for d, ps in days.items())
         + "</div>", "Every day of Boardread.", "/archive/"))
     sm.append((SITE + "/archive/", iso(shown[0]["published"]) if shown else None))
     for d, ps in days.items():
-        paged(out, f"/archive/{d}/", ps, day_label(d), f"Boardread stories of {day_label(d)}.", pagehead(day_label(d), f"{len(ps)} stories, newest first."), "", "", sm)
+        paged(out, f"/archive/{d}/", ps, day_label(d), f"Boardread articles of {day_label(d)}.", pagehead(day_label(d), f"{len(ps)} articles, newest first."), "", "", sm)
     # weeks: one page per ISO week (the newsletter's issues), and /week/ for the last seven days
     weeks = {}
     for p in shown:
         weeks.setdefault(week_of(p["published"]), []).append(p)
     this_week = datetime.now(timezone.utc).strftime("%G-W%V")
-    wdesc = "The ten most shared stories of the week, each with its sources."
+    wdesc = "The ten most shared articles of the week, each with its sources."
 
     def top_list(rows, heading, sub, active):
         body = pagehead(heading, sub) + (f'<div class="prose" style="max-width:50rem">{ranked(rows, 10)}</div>' if rows
@@ -896,14 +896,14 @@ def build(out=desk.HERE / "_site"):
     last7 = [p for p in shown if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or shown[:10]
     past = "".join(f'<li><a href="{BASE}/week/{w}/">Week {w[-2:]}, {w[:4]}</a></li>' for w in sorted(weeks, reverse=True) if w != this_week)
     mc = covered_list(shown, companies(shown), 10)
-    put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten most shared stories of the last seven days", "week")
-        + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many stories named them in the last seven days.</p>{mc}</div>' if mc else "")
+    put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten most shared articles of the last seven days", "week")
+        + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many articles named them in the last seven days.</p>{mc}</div>' if mc else "")
         + (f'<div class="prose"><h2>Past weeks</h2><ul>{past}</ul></div>' if past else ""), wdesc, "/week/", active="week"))
     sm.append((SITE + "/week/", iso(shown[0]["published"]) if shown else None))
-    put(out, "/search/", page("Search · boardread.", search_page(), "Search every Boardread story.", "/search/", active="search"))
+    put(out, "/search/", page("Search · boardread.", search_page(), "Search every Boardread article.", "/search/", active="search"))
     (out / "search.json").write_text(search_index(shown))
     for key, title, fn, d in (("about", "About", about_page, "What Boardread is and how the desk works."),
-                              ("standards", "Editorial standards and corrections", standards_page, "What a Boardread story promises and how corrections work."),
+                              ("standards", "Editorial standards and corrections", standards_page, "What a Boardread article promises and how corrections work."),
                               ("contact", "Contact", contact_page, "Corrections, tips and questions.")):
         put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
         sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
@@ -922,13 +922,13 @@ def build(out=desk.HERE / "_site"):
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
     (out / ".nojekyll").write_text("")
-    print(f"site: {len(shown)} stories, {len(weeks)} weeks -> {out}")
+    print(f"site: {len(shown)} articles, {len(weeks)} weeks -> {out}")
     return out
 
 
 def redirects(out, old_base="/news"):
     """Stubs for the old home of the site (keremozdemir.de/news/...), to be served from the main site's repository
-    after the cut-over: every story, topic and week page, plus the front page, sends the reader to the new address
+    after the cut-over: every article, topic and week page, plus the front page, sends the reader to the new address
     with a meta refresh, a canonical link and a script. Feeds cannot be redirected this way and are not stubbed."""
     out = Path(out)
     paths = ["/", "/latest/", "/week/", "/search/", "/about/", "/archive/"] + [f"/t/{t.lower()}/" for t in TOPIC_ORDER]
