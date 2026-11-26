@@ -1,0 +1,43 @@
+{
+ "id": "2026-11-26-1446-7",
+ "batch": "2026-11-26-1446",
+ "n": 7,
+ "created": "2026-11-26T14:46:56+00:00",
+ "publish_after": "2026-11-26T18:46:41+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Nvidia halts chip shipments to four Southeast Asian countries\n\nNvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries. It follows a new U.S. rule that would require licenses for companies in those countries to buy advanced A.I. chips.\n\nReported by The New York Times; FT; The Decoder. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #tech #nvidia",
+ "urls": [
+  "https://www.nytimes.com/2026/11/26/business/nvidia-southeast-asia-sales.html"
+ ],
+ "links": [
+  "https://the-decoder.com/nvidia-halts-server-shipments-to-malaysia-singapore-thailand-and-indonesia-after-tighter-us-export-controls/",
+  "https://www.ft.com/content/7838a715-07d4-4605-aa60-21f5af2b2370?syn-25a6b1a6=1",
+  "https://www.nytimes.com/2026/11/26/business/nvidia-southeast-asia-sales.html"
+ ],
+ "headlines": [
+  "Nvidia halts chip shipments to four Southeast Asian countries"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Tech",
+ "photo_file": "Graphics Processing Unit.JPG",
+ "score": 10.227,
+ "dek": "The halt follows a new U.S. rule requiring licenses for companies in those countries to buy advanced A.I. chips.",
+ "body": "Nvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries. It follows a new U.S. rule that would require licenses for companies in those countries to buy advanced A.I. chips.",
+ "sources": [
+  "The New York Times",
+  "FT",
+  "The Decoder"
+ ],
+ "source_urls": [
+  "https://www.nytimes.com/2026/11/26/business/nvidia-southeast-asia-sales.html",
+  "https://the-decoder.com/nvidia-halts-server-shipments-to-malaysia-singapore-thailand-and-indonesia-after-tighter-us-export-controls/",
+  "https://www.ft.com/content/7838a715-07d4-4605-aa60-21f5af2b2370?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: Raimond Spekking, CC BY-SA 4.0, via Wikimedia Commons"
+}

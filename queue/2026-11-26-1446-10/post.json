@@ -1,0 +1,43 @@
+{
+ "id": "2026-11-26-1446-10",
+ "batch": "2026-11-26-1446",
+ "n": 10,
+ "created": "2026-11-26T14:47:02+00:00",
+ "publish_after": "2026-11-26T19:46:41+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "U.K. net migration falls to lowest level since 1997, excluding pandemic\n\nNet migration to the U.K. has fallen to its lowest level since 1997, excluding the pandemic. The drop was largely driven by fewer people arriving from outside the European Union. It reflects government action to restrict immigration after a public backlash.\n\nReported by The New York Times; FT; The Guardian. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #worldnews",
+ "urls": [
+  "https://www.nytimes.com/2026/11/26/world/europe/uk-net-migration-data.html"
+ ],
+ "links": [
+  "https://www.ft.com/content/3f5ea9f4-064c-4547-9cf2-1140516c8002?syn-25a6b1a6=1",
+  "https://www.nytimes.com/2026/11/26/world/europe/uk-net-migration-data.html",
+  "https://www.theguardian.com/uk-news/2026/nov/26/net-migration-to-uk-falls-to-lowest-level-since-1997-excluding-pandemic"
+ ],
+ "headlines": [
+  "U.K. net migration falls to lowest level since 1997, excluding pandemic"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "World",
+ "photo_file": "Zurich International Airport e-Passport control gates.jpg",
+ "score": 9.499,
+ "dek": "The drop was largely driven by fewer arrivals from outside the European Union, reflecting government action to restrict immigration.",
+ "body": "Net migration to the U.K. has fallen to its lowest level since 1997, excluding the pandemic. The drop was largely driven by fewer people arriving from outside the European Union. It reflects government action to restrict immigration after a public backlash.",
+ "sources": [
+  "The New York Times",
+  "FT",
+  "The Guardian"
+ ],
+ "source_urls": [
+  "https://www.nytimes.com/2026/11/26/world/europe/uk-net-migration-data.html",
+  "https://www.ft.com/content/3f5ea9f4-064c-4547-9cf2-1140516c8002?syn-25a6b1a6=1",
+  "https://www.theguardian.com/uk-news/2026/nov/26/net-migration-to-uk-falls-to-lowest-level-since-1997-excluding-pandemic"
+ ],
+ "credit": "Photo: Leonhard Lenz, CC0, via Wikimedia Commons"
+}

@@ -1,0 +1,40 @@
+{
+ "id": "2026-11-26-1446-2",
+ "batch": "2026-11-26-1446",
+ "n": 2,
+ "created": "2026-11-26T14:46:45+00:00",
+ "publish_after": "2026-11-26T17:06:41+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "OpenAI corrects GPT-6.2 billing mistake; Astra limits hit 40% faster\n\nOpenAI says it corrected a billing mistake from the launch of its GPT-6.2 Astra and Sol models. The error had incorrectly discounted usage. Astra users will now hit their usage limits up to 40% faster.\n\nReported by TechRadar; Techmeme. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #ai #openai",
+ "urls": [
+  "https://www.techmeme.com/261126/p16#a261126p16"
+ ],
+ "links": [
+  "https://twitter.com/thsottiaux/status/2125784147889393806",
+  "https://www.techmeme.com/261126/p16#a261126p16"
+ ],
+ "headlines": [
+  "OpenAI corrects GPT-6.2 billing mistake; Astra limits hit 40% faster"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "AI",
+ "photo_file": "Virginia Tech - data center.jpg",
+ "score": 12.785,
+ "dek": "The error had incorrectly discounted usage at the launch of the GPT-6.2 Astra and Sol models.",
+ "body": "OpenAI says it corrected a billing mistake from the launch of its GPT-6.2 Astra and Sol models. The error had incorrectly discounted usage. Astra users will now hit their usage limits up to 40% faster.",
+ "sources": [
+  "TechRadar",
+  "Techmeme"
+ ],
+ "source_urls": [
+  "https://www.techmeme.com/261126/p16#a261126p16",
+  "https://twitter.com/thsottiaux/status/2125784147889393806"
+ ],
+ "credit": "Photo: Ana Las Heras, CC BY-SA 4.0, via Wikimedia Commons"
+}

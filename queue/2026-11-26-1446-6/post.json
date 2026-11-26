@@ -1,0 +1,43 @@
+{
+ "id": "2026-11-26-1446-6",
+ "batch": "2026-11-26-1446",
+ "n": 6,
+ "created": "2026-11-26T14:46:54+00:00",
+ "publish_after": "2026-11-26T18:26:41+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Norse Atlantic suspends all flights as it faces potential collapse\n\nNorse Atlantic has suspended all flights as it faces potential collapse. The carrier is looking for urgent funding. It will file for bankruptcy without a financial lifeline.\n\nReported by BBC; CNBC; The Guardian. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #norseatlantic",
+ "urls": [
+  "https://www.bbc.co.uk/news/articles/c9kgmd0ldy0lo?at_medium=RSS&at_campaign=rss"
+ ],
+ "links": [
+  "https://www.bbc.co.uk/news/articles/c9kgmd0ldy0lo?at_medium=RSS&at_campaign=rss",
+  "https://www.cnbc.com/2026/11/26/norse-airline-finance-business.html",
+  "https://www.theguardian.com/business/2026/nov/26/norse-atlantic-airways-suspends-all-flights-urgent-funding-plea"
+ ],
+ "headlines": [
+  "Norse Atlantic suspends all flights as it faces potential collapse"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "Business",
+ "photo_file": "Passenger aircraft interception emergency training (2).jpg",
+ "score": 10.397,
+ "dek": "The carrier is seeking urgent funding and will file for bankruptcy without a financial lifeline.",
+ "body": "Norse Atlantic has suspended all flights as it faces potential collapse. The carrier is looking for urgent funding. It will file for bankruptcy without a financial lifeline.",
+ "sources": [
+  "BBC",
+  "CNBC",
+  "The Guardian"
+ ],
+ "source_urls": [
+  "https://www.bbc.co.uk/news/articles/c9kgmd0ldy0lo?at_medium=RSS&at_campaign=rss",
+  "https://www.cnbc.com/2026/11/26/norse-airline-finance-business.html",
+  "https://www.theguardian.com/business/2026/nov/26/norse-atlantic-airways-suspends-all-flights-urgent-funding-plea"
+ ],
+ "credit": "Photo: Bundesheer, CC BY-SA 2.0, via Wikimedia Commons"
+}

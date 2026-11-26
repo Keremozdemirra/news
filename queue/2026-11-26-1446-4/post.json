@@ -1,0 +1,51 @@
+{
+ "id": "2026-11-26-1446-4",
+ "batch": "2026-11-26-1446",
+ "n": 4,
+ "created": "2026-11-26T14:46:50+00:00",
+ "publish_after": "2026-11-26T17:46:41+00:00",
+ "status": "queued",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Trump signals he is ready to escalate tariffs on Asian trading partners\n\nPresident Trump sent a message to trading partners across Asia that he is ready to escalate tariffs. Many of those partners depend on trade and investment from both the United States and China. The latest tariffs revive the focus on pressuring China.\n\nReported by The New York Times; Axios; BBC; CNBC. Written by AI.\n\nWant the sources? Comment SOURCE and we'll send them to your DMs.\nFollow for the news that moves business.\n\n#news #business #economy",
+ "urls": [
+  "https://www.nytimes.com/2026/11/26/business/trump-tariffs-asia.html"
+ ],
+ "links": [
+  "https://www.axios.com/2026/11/25/trump-tariffs-china",
+  "https://www.bbc.co.uk/news/articles/c893r9ke5p97o?at_medium=RSS&at_campaign=rss",
+  "https://www.cnbc.com/2026/11/25/us-tariffs-trump-section-301.html",
+  "https://www.npr.org/2026/11/26/nx-s1-6054103/trump-administration-proposes-new-tariffs-on-goods-from-major-u-s-trading-partners",
+  "https://www.nytimes.com/2026/11/25/business/trump-tariffs-trade.html",
+  "https://www.nytimes.com/2026/11/26/business/trump-tariffs-asia.html",
+  "https://www.theguardian.com/us-news/2026/nov/25/trump-new-china-tariffs-europe",
+  "https://www.wsj.com/logistics-report/china-and-other-countries-face-higher-u-s-tariffs-over-industrial-subsidies-399e2747?mod=pls_whats_news_us_business_f"
+ ],
+ "headlines": [
+  "Trump signals he is ready to escalate tariffs on Asian trading partners"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "Economy",
+ "photo_file": "Official Presidential Portrait of President Donald J. Trump (2025) (3x4).jpg",
+ "score": 12.017,
+ "dek": "Many of the Asian partners depend on trade and investment from both the United States and China.",
+ "body": "President Trump sent a message to trading partners across Asia that he is ready to escalate tariffs. Many of those partners depend on trade and investment from both the United States and China. The latest tariffs revive the focus on pressuring China.",
+ "sources": [
+  "The New York Times",
+  "Axios",
+  "BBC",
+  "CNBC"
+ ],
+ "source_urls": [
+  "https://www.nytimes.com/2026/11/26/business/trump-tariffs-asia.html",
+  "https://www.axios.com/2026/11/25/trump-tariffs-china",
+  "https://www.bbc.co.uk/news/articles/c893r9ke5p97o?at_medium=RSS&at_campaign=rss",
+  "https://www.cnbc.com/2026/11/25/us-tariffs-trump-section-301.html",
+  "https://www.npr.org/2026/11/26/nx-s1-6054103/trump-administration-proposes-new-tariffs-on-goods-from-major-u-s-trading-partners"
+ ],
+ "credit": "Photo: Daniel Torok, Public domain, via Wikimedia Commons"
+}
