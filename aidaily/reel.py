@@ -79,7 +79,7 @@ def due():
 def caption(posts):
     """The headlines as a numbered list, then where the sources are. The AI note stays, as on every post."""
     lines = [f"{i}. {p['headlines'][0]}" for i, p in enumerate(posts, 1)]
-    return "\n".join(lines + ["", f"Sources for each story: {desk.CONFIG['site_url'].split('://')[-1]}", "",
+    return "\n".join(lines + ["", f"Sources for each story: {desk.brand_domain()}", "",
                               desk.CONFIG["ai_note"]])
 
 
@@ -92,7 +92,7 @@ def frames(posts, out_dir, now=None):
         card = desk.MEDIA / p["id"] / "card.jpg"
         uri = card.resolve().as_uri() if card.exists() else ""
         pages.append((f"{i:02d}-card", T.reel_card(i, len(posts), p["headlines"][0], p.get("topic", ""), uri)))
-    pages.append(("99-end", T.reel_end(desk.CONFIG["site_url"].split("://")[-1])))
+    pages.append(("99-end", T.reel_end(desk.brand_domain())))
     paths = []
     for name, html in pages:
         png = out / f"{name}.png"

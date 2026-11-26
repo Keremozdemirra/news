@@ -1,5 +1,5 @@
 name: site
-# Rebuilds keremozdemir.de/news when what the pages are made from changed. Publish runs finish hundreds of times
+# Rebuilds the news site (the address is desk.json site_url) when what the pages are made from changed. Publish runs finish hundreds of times
 # a day; the live site carries a fingerprint of its inputs (built-from.txt), and a run whose fingerprint matches
 # stops there. Static files only.
 on:

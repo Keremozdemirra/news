@@ -1,8 +1,27 @@
+The four faces this site is set in, and the licence they arrive under.
+Each is under the SIL Open Font License, Version 1.1. The copyright line of each is below; the licence
+text itself, identical for all four, follows once at the end. Fraunces, Instrument Sans and IBM Plex Mono are the same
+files keremozdemir.de serves, unmodified. Wordmark.woff2 is Libre Franklin at weight 800, cut down to the
+ten letters of the wordmark "boardread.".
+
+---- fraunces (Fraunces-var.woff2)
+Copyright 2018 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces)
+
+---- instrumentsans (InstrumentSans-var.woff2)
+Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
+
+---- ibmplexmono (PlexMono-400.woff2, PlexMono-500.woff2)
+Copyright © 2017 IBM Corp. with Reserved Font Name "Plex"
+
+---- librefranklin (Wordmark.woff2)
 Copyright 2020 The Libre Franklin Project Authors (https://github.com/googlefonts/Libre-Franklin)
+
+================================================================
+
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
-https://openfontlicense.org
+http://scripts.sil.org/OFL
 
 
 -----------------------------------------------------------

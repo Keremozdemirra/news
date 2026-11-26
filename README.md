@@ -10,7 +10,7 @@ An Instagram account for the business, markets, politics, tech and AI news a con
 | every 5 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | every 5 min | `engage` | DM the sources to anyone who comments SOURCE; answer other new comments, at most 20 a day |
 | Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
-| after each run | `site` | rebuild keremozdemir.de/news from the published posts |
+| after each run | `site` | rebuild the news site from the published posts |
 
 GitHub may start a scheduled run up to half an hour late.
 
@@ -51,7 +51,7 @@ GitHub may start a scheduled run up to half an hour late.
 | `IG_USER_ID` | secret, the account's Instagram user id | publish, engage, weekly |
 | `DESK_PAUSED` | variable, optional | all |
 
-Instagram fetches each JPEG from its raw URL on the `media` branch, which is why the repository is public. A reader who comments SOURCE gets one DM with the story's page; that needs the `instagram_business_manage_messages` permission. The repository is named `news` because GitHub serves it under the owner's Pages domain, keremozdemir.de/news.
+Instagram fetches each JPEG from its raw URL on the `media` branch, which is why the repository is public. A reader who comments SOURCE gets one DM with the story's page; that needs the `instagram_business_manage_messages` permission. The repository is named `news` because GitHub serves it under the owner's Pages domain, keremozdemir.de/news, until the site moves to boardread.news (next section).
 
 ## Files
 
@@ -64,7 +64,7 @@ Instagram fetches each JPEG from its raw URL on the `media` branch, which is why
 | `aidaily/instagram.py` | the Instagram API calls (graph.facebook.com with a unified-login system-user token, v27.0) |
 | `aidaily/github.py` | the veto issues |
 | `desk.json` | caps, window, hashtags, skipped topics |
-| `aidaily/site.py` | the pages at keremozdemir.de/news: latest stories, one page per story, weekly issues, RSS |
+| `aidaily/site.py`, `assets-site/` | the news site (front page, stories, topics, week, archive, search, static pages, RSS, sitemaps); one address setting, `site_url` |
 | `scripts/media.sh` | the `media` branch: one commit of the JPEGs Instagram fetches and the thumbnails the pages show, pruned by age |
 | `queue/`, `state/` | every post, reply and weekly number, committed by the workflows |
 
@@ -75,3 +75,22 @@ python3 -m aidaily daily            # needs a logged-in claude CLI; queues local
 python3 -m aidaily publish --dry    # shows what would go out
 ./check.sh                          # tests, prose, secrets
 ```
+
+## Moving the site to boardread.news
+
+Two settings in `desk.json` and nothing else decide where the site lives and what the posts print:
+
+| Setting | Now | At the cut-over | What it drives |
+|---|---|---|---|
+| `site_url` | `https://keremozdemir.de/news` | `https://boardread.news` | every page's links and canonical URLs, the base path (`/news` or none), feeds, sitemaps, og images, the story link in platform posts, DMs and replies (`desk.story_url`) |
+| `brand_domain` | `boardread.news` | unchanged | the domain printed on card footers, detail slides, the reel end frame and the reel caption |
+
+Steps, in this order:
+
+1. Porkbun DNS for boardread.news: four `A` records on the apex (185.199.108.153, 185.199.109.153, 185.199.110.153, 185.199.111.153), optionally the four `AAAA` records (2606:50c0:8000::153, 8001::153, 8002::153, 8003::153), and `CNAME www` to `keremozdemir.github.io`. Check against GitHub's Pages custom-domain docs before entering them.
+2. Wait until `dig boardread.news` answers from public resolvers.
+3. One commit: `site_url` to `https://boardread.news`, add a file named `CNAME` containing `boardread.news` to `assets-site/` (the build copies it to the site root), push. The `site` workflow rebuilds at the root. Then in the repository's Pages settings set the custom domain and tick Enforce HTTPS once the certificate is issued.
+4. Old links: with a custom domain on the project, GitHub redirects the old project address. If keremozdemir.de/news/... does not redirect, run `python3 -m aidaily redirects <dir>` after step 3 and publish the `<dir>/news/...` stubs from the keremozdemir.de repository. Feeds cannot be stubbed; subscribers need the new feed URL.
+5. Update by hand: the profile links on every platform (`brand/PROFILE.md` lists them), the Bluesky starter pack and the Telegram channel description.
+
+`DESK_SITE_URL=http://localhost:8000 python3 -m aidaily site` builds the same pages for a local address without touching `desk.json`.

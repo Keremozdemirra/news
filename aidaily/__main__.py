@@ -159,6 +159,8 @@ def main(argv=None):
     sub.add_parser("insights", help="weekly numbers and category weights")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
     sub.add_parser("site", help="build the news pages into _site/")
+    rd = sub.add_parser("redirects", help="write meta-refresh stubs for the old address (keremozdemir.de/news/...) into DIR")
+    rd.add_argument("dir")
     sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
     cp = sub.add_parser("crosspost", help="send posts already live on Instagram to the switched-on platforms")
     cp.add_argument("ids", nargs="+", help="post ids, e.g. 2026-11-26-1446-2")
@@ -232,6 +234,10 @@ def main(argv=None):
     if args.cmd == "site":
         from . import site
         site.build()
+        return 0
+    if args.cmd == "redirects":
+        from . import site
+        site.redirects(args.dir)
         return 0
     if args.cmd in ("daily", "notify", "publish", "engage", "insights", "token"):
         from . import desk

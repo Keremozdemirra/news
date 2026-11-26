@@ -38,11 +38,6 @@
   "site_url": "https://keremozdemir.de/news",
   "brand_domain": "boardread.news",
   "contact_email": "",
-  "operator": {
-    "name": "",
-    "address": "",
-    "email": ""
-  },
   "source_keyword": "SOURCE",
   "source_line": "Want the sources? Comment SOURCE and we'll send them to your DMs.",
   "source_dm": "Sources for \"{headline}\": {url}",

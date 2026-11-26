@@ -309,7 +309,7 @@ class Reel(Tmp):
         self.posts(3)
         text = reel.caption(reel.top_posts())
         self.assertEqual(text.splitlines()[:3], ["1. Story 2 happens", "2. Story 1 happens", "3. Story 0 happens"])
-        self.assertIn("Sources for each story: keremozdemir.de/news", text)
+        self.assertIn("Sources for each story: boardread.news", text)
 
     def test_reel_is_not_cross_posted(self):
         self.assertIn("reel", desk.NO_CROSSPOST)

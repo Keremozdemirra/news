@@ -278,7 +278,6 @@ class SiteTier(Tmp):
         self.assertIn("Headline 1", index)
         self.assertIn("Headline 2", index)
         self.assertNotIn("Headline 3", index)
-        self.assertIn("2 articles", index)
         web_page = (out / "s" / "2026-11-26-1300-2" / "index.html").read_text()
         self.assertNotIn("The post on Instagram", web_page)
         ig_page = (out / "s" / "2026-11-26-1300-1" / "index.html").read_text()

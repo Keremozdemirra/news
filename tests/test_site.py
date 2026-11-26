@@ -1,5 +1,6 @@
 import json
 import re
+import unittest
 import xml.etree.ElementTree as ET
 from datetime import timedelta
 from unittest import mock
@@ -48,11 +49,12 @@ class SiteMeta(Tmp):
         self.assertTrue(ld["publisher"]["logo"]["url"].startswith("https://"))
         self.assertTrue(ld["datePublished"].endswith("Z"))
         self.assertIn("Written by AI from the sources listed", h)
-        self.assertIn('href="/contact/"', h)
-        self.assertNotIn("<b>", h)  # field text is escaped, never markup
+        self.assertIn(f'href="{site.BASE}/standards/"', h)  # the corrections policy, which links the contact page
+        self.assertNotIn("<b>here", h)  # field text is escaped, never markup
+        self.assertIn("&lt;b&gt;here", h)
         # a story with only a thumb has no photo: its preview is the shared image, and the page builds
         h2 = (out / "s" / "2026-11-21-1300-1" / "index.html").read_text()
-        self.assertIn("/news/og-default.png", h2)
+        self.assertIn(site.BASE + "/og-default.png", h2)
 
     def test_sitemaps_parse_and_news_sitemap_keeps_48_hours(self):
         out = self.build()
@@ -81,3 +83,84 @@ class SiteMeta(Tmp):
         c = site.clip("word " * 40, 110)
         self.assertLessEqual(len(c), 110)
         self.assertTrue(c.endswith("…"))
+
+
+class SitePages(SiteMeta):
+    def test_every_page_the_navigation_promises_exists(self):
+        out = self.build()
+        for f in ("latest/index.html", "archive/index.html", f"archive/{desk.now():%Y-%m-%d}/index.html", "search/index.html",
+                  "about/index.html", "standards/index.html", "contact/index.html",
+                  "404.html", "robots.txt", "search.json", "assets/site.css", "assets/site.js", "t/ai/index.html", "week/index.html"):
+            self.assertTrue((out / f).exists(), f)
+
+    def test_search_index_has_the_fields_the_script_reads(self):
+        out = self.build()
+        rows = json.loads((out / "search.json").read_text())
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(set(rows[0]), {"headline", "dek", "topic", "date", "url", "company", "sources"})
+        self.assertTrue(rows[0]["url"].endswith("/s/2026-11-26-1300-1/"))
+
+    def test_story_page_has_sources_share_links_related_and_neighbours(self):
+        out = self.build()
+        h = (out / "s" / "2026-11-26-1300-1" / "index.html").read_text()
+        self.assertIn('href="https://www.cnbc.com/x"', h)
+        for host in ("x.com/intent/post", "bsky.app/intent/compose", "linkedin.com/sharing/share-offsite", "wa.me/?text="):
+            self.assertIn(host, h)
+        self.assertIn("data-copy=", h)
+        self.assertIn("Related stories", h)
+        self.assertIn('rel="prev"', h)  # the older story
+        self.assertNotIn("Newer", h)  # nothing is newer than the newest
+
+    def test_footer_sends_impressum_and_privacy_to_the_main_site(self):
+        h = (self.build() / "index.html").read_text()
+        self.assertIn('href="https://keremozdemir.de/impressum/"', h)
+        self.assertIn('href="https://keremozdemir.de/privacy/"', h)
+
+    def test_newsletter_slot_stays_hidden_until_a_url_exists(self):
+        self.assertNotIn("Newsletter", (self.build() / "index.html").read_text())
+
+    def test_no_script_tag_with_inline_code(self):
+        h = (self.build() / "index.html").read_text()
+        self.assertNotIn("<script>", h)
+
+
+class SiteAddress(unittest.TestCase):
+    def test_site_url_alone_moves_the_whole_site_to_the_domain_root(self):
+        import os
+        import subprocess
+        import sys
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as d:
+            env = dict(os.environ, DESK_SITE_URL="https://boardread.news")
+            code = "from aidaily import site; print(repr(site.BASE), site.SITE); site.build(%r)" % d
+            r = subprocess.run([sys.executable, "-c", code], cwd=Path(__file__).resolve().parent.parent, env=env, capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("'' https://boardread.news", r.stdout)
+            h = (Path(d) / "index.html").read_text()
+            self.assertIn('href="https://boardread.news/"', h)
+            self.assertNotIn('href="/news/', h)
+            self.assertIn('href="/latest/"', h)
+
+    def test_brand_domain_is_its_own_setting_and_defaults_to_the_site(self):
+        with mock.patch.dict(desk.CONFIG, {"brand_domain": "boardread.news"}):
+            self.assertEqual(desk.brand_domain(), "boardread.news")
+        with mock.patch.dict(desk.CONFIG, {"brand_domain": ""}):
+            self.assertEqual(desk.brand_domain(), desk.CONFIG["site_url"].split("://")[-1])
+
+
+class SiteNewsletter(SiteMeta):
+    def test_newsletter_link_appears_when_desk_json_has_a_url(self):
+        with mock.patch.dict(desk.CONFIG, {"newsletter_url": "https://news.example/sub"}):
+            self.assertIn("https://news.example/sub", (self.build() / "index.html").read_text())
+
+
+class SiteRedirects(SiteMeta):
+    def test_old_address_gets_a_stub_per_story_pointing_at_the_new_one(self):
+        self.build()
+        out = self.root / "old"
+        site.redirects(out)
+        h = (out / "news" / "s" / "2026-11-26-1300-1" / "index.html").read_text()
+        self.assertIn(f'url={site.SITE}/s/2026-11-26-1300-1/', h)
+        self.assertIn('rel="canonical"', h)
+        self.assertTrue((out / "news" / "index.html").exists())
