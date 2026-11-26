@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-26-2016-1",
+ "batch": "2026-11-26-2016",
+ "n": 1,
+ "created": "2026-11-26T20:16:53+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "1Password reports a data breach and says user vaults are safe\n\n1Password says it was hacked in a recent data breach. The company assures customers that their vaults, logins and other sensitive information were not compromised.\n\nReported by Engadget; TechCrunch. Written by AI.\n\nSend this to whoever on your team covers 1Password.\n\n#tech #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.engadget.com/2329013/1password-hacked-but-users-vaults-are-safe/"
+ ],
+ "links": [
+  "https://techcrunch.com/2026/11/25/1password-said-hackers-broke-into-its-internal-systems-but-customer-passwords-are-safe/",
+  "https://www.engadget.com/2329013/1password-hacked-but-users-vaults-are-safe/"
+ ],
+ "headlines": [
+  "1Password reports a data breach and says user vaults are safe"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Tech",
+ "photo_file": "",
+ "score": 8.425,
+ "figure": "",
+ "company": "1Password",
+ "person": "",
+ "logo_names": [
+  "1Password"
+ ],
+ "dek": "The company says customers' logins and other sensitive information were not compromised in the recent breach.",
+ "body": "1Password says it was hacked in a recent data breach. The company assures customers that their vaults, logins and other sensitive information were not compromised.",
+ "so_what": "",
+ "sources": [
+  "Engadget",
+  "TechCrunch"
+ ],
+ "source_urls": [
+  "https://www.engadget.com/2329013/1password-hacked-but-users-vaults-are-safe/",
+  "https://techcrunch.com/2026/11/25/1password-said-hackers-broke-into-its-internal-systems-but-customer-passwords-are-safe/"
+ ],
+ "credit": "",
+ "status": "web",
+ "published": "2026-11-26T20:16:53+00:00",
+ "story": ""
+}
