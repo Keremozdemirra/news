@@ -448,6 +448,20 @@ class FrontBuilt(Features):
                 self.assertNotIn('class="mstrip"', h, path)
                 self.assertIn(f'href="{site.BASE}/t/markets/">Markets</a>', h, path)  # the plain link stays in the sections row
 
+    def test_the_first_sections_go_under_the_lead_to_level_the_columns_and_no_article_appears_twice(self):
+        import re
+        # every article has its own pictured subject, so the rail's two pictured articles make it much taller than the lead
+        rows = [fake(f"Zorblax{i:02d} announces a plan for the day", ("Economy", "Tech", "Business", "World", "AI", "Politics")[i % 6], 3, 9, id=f"s{i}",
+                     photo_file=f"Zorblax{i:02d} portrait.jpg", photo_kind="person", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
+        h = views.front(rows, {}, None)
+        self.assertIn('<div class="sects inlead">', h)
+        self.assertLess(h.index('class="lead"'), h.index('<div class="sects inlead">'))
+        left = re.search(r'<div class="sects inlead">(.*?)</div><div class="sects', h, re.S)
+        self.assertTrue(left)
+        ids = re.findall(r'<article class="(?:slead|srow)"><a href="[^"]*/s/([^/]+)/"', h)
+        self.assertEqual(len(ids), len(set(ids)))  # the same article never sits in two blocks
+        self.assertEqual(h.count('<div class="front">'), 1)
+
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)

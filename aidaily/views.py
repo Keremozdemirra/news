@@ -185,21 +185,48 @@ def front(shown, cos, m, sport=()):
                 f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
     latest = ('<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2>' + latest_list(latest_rows)
               + f'<p class="sportmore"><a href="{S.BASE}/latest/">All latest</a></p></section>') if latest_rows else ""
-    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + "</div>"
+    seconds_html = [second(p) for p in seconds]
+    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(seconds_html) + latest + "</div>"
 
-    blocks = ""
+    blocks = []  # (html, estimated height at the left column's width) per section, in section order
     for t in S.NEWS_ORDER:
         rows = section_rows([p for p in shown if S.topic(p) == t and p["id"] not in used], newest)
         if not rows:
             continue  # a section without articles leaves no head and no hole
         used.update(p["id"] for p in rows)
         top, rest = rows[0], rows[1:]
-        photo = img(top, "3/2") + photo_cap(top) if ph(top) else ""
-        blocks += (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
-                   f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
-                   + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
-    return (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else "")
+        shows = ph(top)
+        photo = img(top, "3/2") + photo_cap(top) if shows else ""
+        html = (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
+                f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
+                + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
+        blocks.append((html, _block_height(top, rest, shows)))
+    # Desktop: the left column ends where the lead, Top 5 and the markets box end, the rail much lower. The first sections go
+    # under the lead, two to a row, as many as bring the two columns level; the rest run full width below.
+    left_h = 1124 + (380 if fig else 0)  # measured at 1280 px: lead 370, Top 5 300, markets box 370, gaps
+    rail_h = 30 + sum(560 if "<img" in h else 265 for h in seconds_html) + (70 + 80 * len(latest_rows) if latest_rows else 0)
+    take, best = 0, abs(rail_h - left_h)
+    for k in range(2, len(blocks) + 1, 2):
+        h = left_h + 48 + sum(max(blocks[i][1], blocks[i + 1][1] if i + 1 < len(blocks) else 0) + 48 for i in range(0, k, 2)) - 48
+        if abs(rail_h - h) < best:
+            take, best = k, abs(rail_h - h)
+    take = min(take, len(blocks))
+    inlead = f'<div class="sects inlead">{"".join(b[0] for b in blocks[:take])}</div>' if take else ""
+    left_over = len(blocks) - take
+    cols = " c3" if left_over in (5, 6, 9) else ""  # 5 run 3 and 2, never 4 and 1 under a wide gap
+    below = f'<div class="sects{cols}">{"".join(b[0] for b in blocks[take:])}</div>' if blocks[take:] else ""
+    return (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}{inlead}</div>' + below
             + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph) + puzzles_block("inrow"))
+
+
+def _lines(text, per_line):
+    return max(1, -(-len(text) // per_line))
+
+
+def _block_height(top, rest, shows):
+    """Rough height in px of a section block in a half-width column of the left side, used only to decide how many go under the lead."""
+    h = 60 + 36 + 29 * _lines(top["headlines"][0], 30) + 24 + (260 if shows else 0)
+    return h + sum(24 + 24 * _lines(p["headlines"][0], 34) + 22 for p in rest)
 
 
 def sport_block(rows, ph, n=4):

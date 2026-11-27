@@ -72,7 +72,9 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 /* ---- front page: lead (8 columns) and rail (4) ---- */
 .front{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:0 var(--gut);margin-top:var(--s4)}
 .lead{grid-column:span 8;padding-right:var(--gut);border-right:1px solid var(--rule);min-width:0}
-.toprail{grid-column:span 4;min-width:0}
+.toprail{grid-column:span 4;grid-row:1/span 2;min-width:0}
+.lead{grid-row:1}
+.sects.inlead{grid-column:span 8;grid-row:2;grid-template-columns:repeat(2,minmax(0,1fr));margin-top:var(--s5);padding:0 var(--gut) 0 0;border-right:1px solid var(--rule);align-content:start}
 .lh{font:600 var(--t-lead)/1.12 var(--serif);letter-spacing:0;text-wrap:balance;margin:var(--s1) 0 var(--s2)}
 .lh a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .lead .dk{font:400 var(--t-dek)/1.45 var(--serif);color:var(--soft);margin:0 0 var(--s1)}
@@ -95,6 +97,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .latest a:hover span{text-decoration:underline;text-underline-offset:3px}
 .sects{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:var(--s5) var(--gut);margin-top:var(--s6)}
 .sect{min-width:0}
+@media(min-width:1001px){.sects.c3{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .slead{padding-bottom:var(--s2);border-bottom:1px solid var(--rule)}
 .slead h3{font:600 var(--t-slead)/1.22 var(--serif);margin:0 0 var(--s1)}
 .slead img{width:100%;aspect-ratio:3/2;object-fit:cover;margin-bottom:var(--s1)}
@@ -108,6 +111,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .srow h3{font:600 var(--t-row)/1.3 var(--serif);margin:0 0 4px}
 @media(max-width:1000px){
   .front{display:block}.lead{padding-right:0;border-right:0;margin-bottom:var(--s4)}
+  .sects.inlead{padding:0;border-right:0;margin-top:var(--s5);grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
 }
 
 /* ---- markets block, rows and cards ---- */
@@ -349,7 +353,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .puzzles.inlead{display:none}.puzzles.inrow{margin-top:var(--s6)}.puzzles.inrow ul{display:flex;flex-wrap:wrap;gap:0 var(--s4)}.puzzles.inrow li{border-bottom:0}
 @media(max-width:900px){
   .top5{margin-top:var(--s3)}.top5 li.ds{display:block}.top5 li.pm{display:none}
-  .front .lead .rates,.toprail .second,.puzzles.inrow{display:none}
+  .front .lead .rates,.toprail .second,.toprail>.sh:first-child,.puzzles.inrow{display:none}
   .puzzles.inlead{display:block;margin-top:var(--s3)}
 }
 
