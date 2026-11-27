@@ -187,6 +187,38 @@ class Gate(unittest.TestCase):
         site.quarantine([bad(1), good(1), good(2)])  # under six articles, one bad: only that one is held
 
 
+class Context(unittest.TestCase):
+    def box(self, headline, dek=""):
+        m = data(True)
+        m["series"]["henryhub"] = [["2026-11-24", 3.3], ["2026-11-25", 3.4]]
+        return markets.context_for({"headlines": [headline], "dek": dek}, m)
+
+    def test_every_rule_resolves_to_a_daily_or_weekly_series(self):
+        for pattern, keys in markets.CONTEXT_RULES:
+            for k in keys:
+                self.assertIn(k, markets.SERIES)
+                self.assertNotEqual(markets.SERIES[k][3], "wb", k)  # a monthly average is not today's price
+                self.assertNotIn(k, markets.METALS)
+
+    def test_rules_match_the_headline_or_the_dek(self):
+        self.assertIn("USD/JPY", self.box("Yen slides as the BOJ holds"))
+        self.assertIn("USD/JPY", self.box("Tokyo inflation hits a high", "Japan's core prices rose."))
+        self.assertIn("GBP/USD", self.box("Sterling falls after the Bank of England vote"))
+        self.assertIn("USD/CNY", self.box("China's exports slow", ""))
+        self.assertIn("Natural gas", self.box("Natural gas jumps on cold forecasts"))
+        self.assertIn("US gasoline", self.box("Pump prices ease as gasoline stocks build"))
+
+    def test_a_country_alone_is_not_enough(self):
+        self.assertEqual(self.box("Japan's Senate narrowly rejects censure motion"), "")
+        self.assertEqual(self.box("UK Department for Work and Pensions takes systems offline"), "")
+        self.assertEqual(self.box("Gold hits a record"), "")  # no metal cell, ever
+
+    def test_two_cells_at_most(self):
+        html = self.box("ECB holds rates as oil jumps and the yen slides")
+        self.assertLessEqual(html.count('class="rt"'), 2)
+        self.assertIn("Source: ECB statistics.", html)
+
+
 class Related(unittest.TestCase):
     def test_related_needs_something_in_common_and_skips_the_neighbours(self):
         a = fake("a", "Rosebank oil field approved by UK ministers", "Politics", hours=1)

@@ -107,6 +107,8 @@ METALS = ("gold", "silver", "platinum", "copper", "aluminium", "nickel", "zinc",
 # here as the World Bank's monthly average ($4,105 for October) while spot traded near $3,600 (2026-11-27); next to
 # daily prices a monthly average reads as today's price whatever its label, so the metals stay on /numbers/
 STRIP = IMPORTANCE[:8]
+SRC_OF = {"ecb": "Source: ECB statistics.", "calc": "Calculated from ECB reference rates.", "eia": "Source: U.S. Energy Information Administration.",
+          "ust": "Source: U.S. Department of the Treasury.", "wb": "Source: World Bank."}
 SOURCE_NAME = {"ecb": "ECB reference rate", "calc": CALC, "eia": "EIA", "ust": "US Treasury par yield", "wb": "World Bank Pink Sheet, monthly average"}
 HISTORY = 100  # observations kept per series
 
@@ -675,12 +677,24 @@ def curve_svg(m, w=560, h=240, fs=12, wrap=False):
 
 EURO = re.compile(r"\b(ECB|European Central Bank|euro ?zone|euro area|Lagarde)\b", re.I)
 US = re.compile(r"\b(Federal Reserve|the Fed|Fed rate|Fed chair|Treasury yields?|Treasuries|Powell|FOMC)\b", re.I)
-OIL = re.compile(r"\b(oil|crude|Brent|OPEC|petrol|gasoline|fuel prices?)\b", re.I)
+OIL = re.compile(r"\b(oil|crude|Brent|OPEC|fuel prices?)\b", re.I)
+
+
+ECON = r"(inflation|rates?|GDP|central bank|currency|economy|economic|exports?|imports?|trade|yields?|bonds?|stocks|shares|growth|recession|tariffs?|prices|budget)"
+JAPAN = re.compile(rf"\b(yen|BOJ|Bank of Japan|Nikkei|Ueda)\b|\bJapan(ese|'s)?\b.*\b{ECON}\b|\b{ECON}\b.*\bJapan(ese)?\b", re.I)
+STERLING = re.compile(rf"\b(sterling|pound|Bank of England|BoE|gilts?)\b|\b(UK|Britain|British)('s)?\b.*\b{ECON}\b|\b{ECON}\b.*\b(UK|Britain|British)\b", re.I)
+CHINA = re.compile(rf"\b(yuan|renminbi|PBOC|People's Bank of China)\b|\bChina(se)?('s)?\b.*\b{ECON}\b|\b{ECON}\b.*\bChina(se)?\b", re.I)
+GAS = re.compile(r"\b(natural gas|LNG|Henry Hub)\b", re.I)
+PUMP = re.compile(r"\b(gasoline|petrol|pump prices?)\b", re.I)
+# (pattern, series keys): the daily and weekly series only, so a monthly metal average is never read as today's price; two cells at most
+CONTEXT_RULES = ((JAPAN, ("usdjpy",)), (STERLING, ("gbpusd",)), (CHINA, ("usdcny",)), (GAS, ("henryhub",)), (PUMP, ("gasoline",)))
+CELLS_MAX = 2
 
 
 def context_for(p, m, base=""):
     """The official-data box of an article, only when its headline or summary names a region or commodity we hold a series for:
-    the euro area (ECB deposit rate, EUR/USD), the United States (Treasury yields) or oil. Else ''."""
+    the euro area (ECB deposit rate, EUR/USD), the United States (Treasury yields), oil, Japan, sterling, China, gas or petrol.
+    At most two cells. Else ''."""
     if not m or not m.get("series"):
         return ""
     text = f'{p["headlines"][0]} {p.get("dek", "")}'
@@ -692,21 +706,25 @@ def context_for(p, m, base=""):
             return False
         label, v, d, ch, pct, pts = s
         unit = SERIES[key][1]
-        cells.append((label, fmt(key, v) + (f" {unit}" if unit not in ("", "%") else ""), f"{SOURCE_NAME[SERIES[key][3]]}, {dmy(d)}."))
+        cells.append((label, fmt(key, v) + (f" {unit}" if unit not in ("", "%") else ""), f"{SOURCE_NAME[SERIES[key][3]]}, {dmy(d)}.", SRC_OF[SERIES[key][3]]))
         return True
     if EURO.search(text):
         if m.get("dfr"):
             d = m["dfr"]
-            cells.append(("Euro-area deposit facility rate", f"{d['value']:.2f}%", f"Since {dmy(d['since'])}."))
-            src.append(SRC_ECB)
-        if add("eurusd"):
-            src.append(SRC_ECB)
-    if US.search(text) and add("ust10") and add("ust2"):
-        src.append(SRC_UST)
-    if OIL.search(text) and add("brent") and add("wti"):
-        src.append(SRC_EIA)
+            cells.append(("Euro-area deposit facility rate", f"{d['value']:.2f}%", f"Since {dmy(d['since'])}.", SRC_ECB))
+        add("eurusd")
+    if US.search(text) and stat(m, "ust10") and stat(m, "ust2"):
+        add("ust10"), add("ust2")
+    if OIL.search(text) and stat(m, "brent") and stat(m, "wti"):
+        add("brent"), add("wti")
+    for pattern, keys in CONTEXT_RULES:
+        if pattern.search(text):
+            for k in keys:
+                add(k)
+    cells = cells[:CELLS_MAX]
+    src = [c[3] for c in cells]
     if not cells:
         return ""
-    body = "".join(f'<div class="rt"><span class="rl">{E(a)}</span><b>{E(b)}</b><small class="rd">{E(c)}</small></div>' for a, b, c in cells)
+    body = "".join(f'<div class="rt"><span class="rl">{E(a)}</span><b>{E(b)}</b><small class="rd">{E(c)}</small></div>' for a, b, c, _ in cells)
     return (f'<section class="cxb" aria-labelledby="cxh"><h2 id="cxh">Official data, for context</h2>{body}'
             f'<p class="attr">{E(" ".join(dict.fromkeys(src)))} Reference data for information only; it is not part of the article.</p></section>')
