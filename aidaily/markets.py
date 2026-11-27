@@ -79,6 +79,8 @@ SERIES = {
     "usdjpy": ("USD/JPY", "", 2, "calc", "How many Japanese yen one US dollar buys.", ""),
     "gbpusd": ("GBP/USD", "", 4, "calc", "How many US dollars one pound sterling buys.", ""),
     "usdcny": ("USD/CNY", "", 4, "calc", "How many Chinese yuan one US dollar buys.", ""),
+    "eurgbp": ("EUR/GBP", "", 4, "ecb", "How many pounds sterling one euro buys, the ECB's daily reference rate.", ""),
+    "eurtry": ("EUR/TRY", "", 4, "ecb", "How many Turkish lira one euro buys, the ECB's daily reference rate.", ""),
     "brent": ("Brent", "$/bbl", 2, "eia", "The spot price of Brent crude, the benchmark for oil sold outside the United States.", "RBRTE"),
     "wti": ("WTI", "$/bbl", 2, "eia", "The spot price of West Texas Intermediate, the main US oil benchmark.", "RWTC"),
     "gasoline": ("US gasoline", "$/gal", 3, "eia", "The average US retail price of regular gasoline, weekly.", "EMM_EPMR_PTE_NUS_DPG"),
@@ -142,7 +144,7 @@ def pink():
 
 
 def parse_ecb_hist(xml_text):
-    """{key: [(date, value), ...] oldest first} for the four currency series, from the ECB's daily reference-rate history."""
+    """{key: [(date, value), ...] oldest first} for the currency series, from the ECB's daily reference-rate history."""
     days, day = {}, None
     for el in ET.fromstring(xml_text).iter():
         if el.tag.endswith("Cube"):
@@ -151,9 +153,12 @@ def parse_ecb_hist(xml_text):
                 days[day] = {}
             elif el.get("currency") and day:
                 days[day][el.get("currency")] = float(el.get("rate"))
-    out = {"eurusd": [], "usdjpy": [], "gbpusd": [], "usdcny": []}
+    out = {"eurusd": [], "usdjpy": [], "gbpusd": [], "usdcny": [], "eurgbp": [], "eurtry": []}
     for d in sorted(days):
         r = days[d]
+        for key, cur in (("eurgbp", "GBP"), ("eurtry", "TRY")):  # direct ECB rates, as published: no cross needed
+            if cur in r:
+                out[key].append((d, r[cur]))
         if all(k in r for k in ("USD", "JPY", "GBP", "CNY")):
             out["eurusd"].append((d, r["USD"]))
             out["usdjpy"].append((d, r["JPY"] / r["USD"]))
@@ -161,7 +166,7 @@ def parse_ecb_hist(xml_text):
             out["usdcny"].append((d, r["CNY"] / r["USD"]))
     if not out["eurusd"]:
         raise ValueError("ECB file lacks the currencies shown")
-    return out
+    return {k: v for k, v in out.items() if v}
 
 
 def parse_treasury(xml_text):

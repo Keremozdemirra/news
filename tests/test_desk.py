@@ -1012,28 +1012,58 @@ class Formats(Tmp):
         return {"series": {"eurusd": pts(1.15, -0.0005), "usdjpy": pts(150, 0.1), "ust10": pts(4.5, 0.005), "ust2": pts(4.2, 0.001),
                            "brent": pts(70, move), "wti": pts(66, 0.2)}}
 
-    def test_rates_story_shows_each_print_with_its_date_and_source(self):
+    def _close(self, ecb_last="2026-11-23"):
+        """ECB rates up to `ecb_last`, Treasury the same day, EIA two prints older: the lags of a real Monday."""
+        def pts(last, *vals):
+            from datetime import date as D
+            end = D.fromisoformat(last)
+            return [[(end - timedelta(days=len(vals) - 1 - i)).isoformat(), v] for i, v in enumerate(vals)]
+        return {"series": {"eurusd": pts(ecb_last, 1.0975, 1.0991), "eurgbp": pts(ecb_last, 0.8376, 0.8376),
+                           "eurtry": pts(ecb_last, 47.1022, 47.2510), "ust2": pts(ecb_last, 4.61, 4.58),
+                           "ust10": pts(ecb_last, 4.85, 4.88), "brent": pts("2026-11-20", 91.2, 91.8), "wti": pts("2026-11-20", 82.24, 81.9),
+                           "gold": pts("2026-10-01", 4019.0, 4105.0)}}
+
+    def test_markets_close_shows_moves_lagging_dates_and_one_source_line(self):
         from aidaily import markets
-        with mock.patch.object(markets, "load", return_value=self._markets()):
-            out = self.run_at(_at(0, 16, 40), "rates")
-        h = out["rates"]
-        for text in ("EUR/USD", "US 10-year", "Brent", "24 Nov 2026", "Source: ECB, U.S. Treasury, U.S. Energy Information Administration."):
+        with mock.patch.object(markets, "load", return_value=self._close()):
+            h = self.run_at(_at(0, 22, 10), "markets")["markets"]
+        for text in ("Markets close.", "EUR/USD", "EUR/GBP", "EUR/TRY", "47.2510", "US 2-year", "US 10-year", "Brent", "WTI",
+                     "▲ 0.0016", "▼ 0.03", "unchanged", "▲ 0.60 (0.7%)", "20 Nov", "Source: ECB, U.S. Treasury, U.S. EIA."):
             self.assertIn(text, h)
-        self.assertNotIn("S&amp;P", h)  # no index levels: licensed data
-        with mock.patch.object(markets, "load", return_value={"series": {}}):
-            self.assertEqual(self.run_at(_at(2, 16, 40), "rates"), {})
+        self.assertEqual(h.count("23 Nov"), 1)  # the date label only: today's prints carry no date of their own
+        for licensed in ("Gold", "S&amp;P", "Bitcoin", "DAX", "calculated"):  # monthly averages, indices, crypto, crosses: none
+            self.assertNotIn(licensed, h)
+
+    def test_markets_close_waits_for_the_ecb_fix_and_skips_weekends(self):
+        from aidaily import markets
+        with mock.patch.object(markets, "load", return_value=self._close(ecb_last="2026-11-20")):
+            self.assertEqual(self.run_at(_at(0, 22, 10), "markets"), {})  # Friday's fix on a Monday: not a close
+        with mock.patch.object(markets, "load", return_value=self._close(ecb_last="2026-11-28")):
+            self.assertEqual(self.run_at(_at(5, 22, 10), "markets"), {})
+        thin = self._close()
+        for k in ("eurgbp", "eurtry", "brent"):
+            del thin["series"][k]
+        with mock.patch.object(markets, "load", return_value=thin):
+            self.assertEqual(self.run_at(_at(1, 22, 10), "markets"), {})  # fewer than five prints: no story
+
+    def test_no_day_carries_more_than_eight_stories(self):
+        per_day = [sum(2 if s in desk.QUIZ_SLOTS else 1 for s, (days, _) in desk.STORY_SLOTS.items()
+                       if wd in days and s not in desk.FEATURE_SLOTS and s not in desk.QUIZ_SLOTS)
+                   + any(wd in desk.STORY_SLOTS[s][0] for s in desk.FEATURE_SLOTS)
+                   + 2 * any(wd in desk.STORY_SLOTS[s][0] for s in desk.QUIZ_SLOTS) for wd in range(7)]
+        self.assertTrue(all(n <= 8 for n in per_day), per_day)
 
     def test_chart_story_picks_the_biggest_mover_and_skips_a_flat_quarter(self):
         from aidaily import markets
         with mock.patch.object(markets, "load", return_value=self._markets()):
-            out = self.run_at(_at(3, 15, 10), "chart")
+            out = self.run_at(_at(6, 15, 10), "chart")
         self.assertIn("Brent", out["chart"])
         self.assertIn("Up ", out["chart"])
         self.assertIn("<polyline", out["chart"])
         flat = self._markets(move=0.0)
         flat["series"] = {k: [[d, 1.0] for d, _ in v] for k, v in flat["series"].items()}
         with mock.patch.object(markets, "load", return_value=flat):
-            self.assertEqual(self.run_at(_at(5, 15, 10), "chart"), {})
+            self.assertEqual(self.run_at(_at(6, 15, 20), "chart"), {})
 
     def test_breaking_label_only_at_the_breaking_score(self):
         from aidaily import templates as T
@@ -1376,11 +1406,11 @@ class Formats(Tmp):
         self.assertEqual(self.run_at(_at(5, 11), "numbers"), {})
 
     def test_follow_asks_for_a_plain_mention_and_needs_no_data(self):
-        out = self.run_at(_at(1, 18), "follow")  # Tuesday
+        out = self.run_at(_at(5, 18), "follow")  # Saturday
         self.assertEqual(list(out), ["follow"])
         self.assertIn("@boardread", out["follow"])
         self.assertIn("The news that moves business.", out["follow"])
-        post = json.loads((desk.QUEUE / "2026-11-24-follow" / "post.json").read_text())
+        post = json.loads((desk.QUEUE / "2026-11-28-follow" / "post.json").read_text())
         self.assertEqual(post["user_tags"], [{"username": "boardread", "x": 0.5, "y": 0.5}])
 
     def test_one_quiz_and_one_feature_a_day_the_first_slot_with_data_wins(self):

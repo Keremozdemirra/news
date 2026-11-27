@@ -1131,33 +1131,43 @@ def _s_numbers(day, label):
 
 # Data stories from the official series the site already shows (aidaily/markets.py: ECB, US Treasury, EIA). No index
 # level or share price appears: those are licensed data. Each value carries its own date and its publisher.
-RATE_KEYS = ("eurusd", "usdjpy", "ust10", "ust2", "brent", "wti")
+# Markets close: ECB euro reference rates (direct, so nothing is a calculated cross), US Treasury par yields and EIA
+# spot prices, all free to republish with the publisher named (market-data-sources.md, 2026-11-27). Crypto, metals as
+# daily prices and stock indices stay out: their licences or their monthly averages do not fit a daily close.
+MARKET_KEYS = ("eurusd", "eurgbp", "eurtry", "ust2", "ust10", "brent", "wti")
 CHART_KEYS = ("brent", "wti", "ust10", "ust2", "eurusd", "usdjpy", "henryhub")
 
 
-def _market_source(keys):
+def _market_source(keys, short=False):
     from . import markets
-    names = {"ecb": "ECB", "calc": "ECB", "ust": "U.S. Treasury", "eia": "U.S. Energy Information Administration"}
+    eia = "U.S. EIA" if short else "U.S. Energy Information Administration"
+    names = {"ecb": "ECB", "calc": "ECB", "ust": "U.S. Treasury", "eia": eia}
     pubs = list(dict.fromkeys(names[markets.SERIES[k][3]] for k in keys))
     return "Source: " + ", ".join(pubs) + "." + (" USD/JPY calculated from ECB reference rates." if "usdjpy" in keys else "")
 
 
-def _s_rates(day, label):
+def _s_markets(day, label):
+    """The day's close, once the ECB has fixed today: each print with its move against the one before, and its own
+    date whenever that is not today (EIA spot prices lag by days, a Treasury print can trail by one)."""
     from . import markets
     m = markets.load(live=False)
+    today = now().date()
+    fix = markets.stat(m, "eurusd")
+    if not fix or fix[2] != today.isoformat():  # no ECB fix today (weekend, TARGET holiday, not in yet): no close to show
+        return []
     rows, keys = [], []
-    for k in RATE_KEYS:
+    for k in MARKET_KEYS:
         st = markets.stat(m, k)
-        if not st or (now().date() - date.fromisoformat(st[2])).days > 10:  # a stale series is left out, never shown as today's
+        if not st or st[3] is None or (today - date.fromisoformat(st[2])).days > 10:  # stale or single: never shown as today's
             continue
         name, v, d, ch, pct, _ = st
         nd = markets.SERIES[k][2]
         move = "unchanged" if not ch else f"{markets.sign_arrow(ch)} {abs(ch):.{nd}f}" + ("" if markets.SERIES[k][1] == "%" or pct is None else f" ({abs(pct):.{2 if abs(pct) < 0.1 else 1}f}%)")
-        rows.append((name, markets.fmt(k, v), move, markets.dmy(d)))
+        rows.append((name, markets.fmt(k, v), move, "" if d == today.isoformat() else date.fromisoformat(d).strftime("%-d %b")))
         keys.append(k)
-    if len(rows) < 4:
+    if len(rows) < 5:
         return []
-    return [_queue_story(f"{day}-rates", R.T.story_rates(rows, label, _market_source(keys)), "Rates and oil")]
+    return [_queue_story(f"{day}-markets", R.T.story_markets(rows, label, _market_source(keys, short=True)), "Markets close")]
 
 
 def _s_chart(day, label, span=66):
@@ -1195,8 +1205,8 @@ def _s_follow(day, label):
 MON_WED_FRI, TUE_THU, ALL, MON_SAT, SUN = (0, 2, 4), (1, 3), range(7), range(6), (6,)
 # slot -> (weekdays, builder). Times are in desk.json story_hours, UTC. Instagram counts stories toward its 100-a-day
 # publishing limit and a reader will not sit through twenty, so a weekday carries at most eight: last 12 hours, one
-# number, one quiz (two stories), one feature, in the news today, today's top five, and the follow story on two days.
-# Sunday swaps the quiz and the feature for the three weekly formats.
+# number, one quiz (two stories), one feature, in the news today, today's top five, and the markets close (Saturday:
+# the follow story). Sunday swaps the quiz and the feature for the three weekly formats and the chart.
 STORY_SLOTS = {
     "last12": (ALL, lambda d, s, l: _s_last12(d, l)),
     "number": (ALL, lambda d, s, l: _number(d, s, l)),
@@ -1213,12 +1223,12 @@ STORY_SLOTS = {
     "numbers": (SUN, lambda d, s, l: _s_numbers(d, l)),
     "shared": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     "saved": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
-    # data stories: rates on Monday and Wednesday, the chart on Thursday and Saturday, the days without the follow story,
-    # so no weekday passes eight stories
-    "rates": ((0, 2), lambda d, s, l: _s_rates(d, l)),
-    "chart": ((3, 5), lambda d, s, l: _s_chart(d, l)),
+    # data stories: the markets close every weekday (the ECB fixes Monday to Friday), the chart on Sunday; with the
+    # close taking the eighth weekday place, the follow story moves to Saturday
+    "markets": (range(5), lambda d, s, l: _s_markets(d, l)),
+    "chart": (SUN, lambda d, s, l: _s_chart(d, l)),
     "today": (ALL, lambda d, s, l: _s_today(d, l)),
-    "follow": ((1, 4), lambda d, s, l: _s_follow(d, l)),
+    "follow": ((5,), lambda d, s, l: _s_follow(d, l)),
     "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),
 }
 QUIZ_SLOTS = ("bigger", "whois", "quiz", "fill")

@@ -792,17 +792,17 @@ def story_today(logo_uris, label):
     return _frame(body, "Today", label, CTA_ARTICLES)
 
 
-def story_rates(rows, label, source):
-    """Rates and oil: official prints the desk already shows on the site, each with its own date. A row is
-    (name, value, change, date); change is the move against the previous print, set with an arrow, never colour."""
-    items = "".join(f'<div style="display:grid;grid-template-columns:1fr auto;align-items:baseline;margin-top:{30 if i else 0}px">'
-                    f'<div><div style="font-size:52px;font-weight:800;letter-spacing:-0.025em">{e(n)}</div>'
-                    f'<div style="margin-top:6px;font-size:34px;font-weight:600;color:{MUTE}">{e(d)}</div></div>'
-                    f'<div style="text-align:right"><div style="font-size:76px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
-                    f'<div style="margin-top:8px;font-size:38px;font-weight:700;color:{DIM}">{e(c)}</div></div></div>'
+def story_markets(rows, label, source):
+    """Markets close: official prints only, one row each. A row is (name, value, move, date); the move is against the
+    previous print, set with an arrow, never colour; the date is shown only when the print is not today's."""
+    items = "".join(f'<div style="display:grid;grid-template-columns:1fr auto;column-gap:32px;align-items:center;margin-top:{24 if i else 0}px">'
+                    f'<div><div style="font-size:50px;font-weight:800;letter-spacing:-0.025em;line-height:1.05">{e(n)}</div>'
+                    + (f'<div style="margin-top:4px;font-size:34px;font-weight:600;color:{MUTE}">{e(d)}</div>' if d else "")
+                    + f'</div><div style="text-align:right;white-space:nowrap"><div style="font-size:62px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
+                    f'<div style="margin-top:4px;font-size:34px;font-weight:700;color:{DIM}">{e(c)}</div></div></div>'
                     for i, (n, v, c, d) in enumerate(rows))
-    body = (f'{_story_head("Rates and oil.", 104)}<div style="flex:1;min-height:40px"></div>{items}'
-            f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
+    body = (f'{_story_head("Markets close.", 104)}<div style="flex:1;min-height:40px"></div>{items}'
+            f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE};white-space:nowrap">{e(source)}</div>')
     return _frame(body, "Markets", label, "Every rate: link in bio")
 
 

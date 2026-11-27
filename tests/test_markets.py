@@ -33,6 +33,15 @@ def data(with_eia=False):
 
 
 class Markets(unittest.TestCase):
+    def test_euro_rates_for_sterling_and_lira_come_straight_from_the_ecb(self):
+        xml = ECB.replace("<Cube currency='CNY' rate='7.7000'/></Cube>\n<Cube time='2026-11-25'>",
+                          "<Cube currency='CNY' rate='7.7000'/><Cube currency='TRY' rate='47.2510'/></Cube>\n<Cube time='2026-11-25'>")
+        s = markets.parse_ecb_hist(xml)
+        self.assertEqual(s["eurgbp"], [("2026-11-25", 0.88), ("2026-11-26", 0.88)])
+        self.assertEqual(s["eurtry"], [("2026-11-26", 47.251)])  # a day without TRY drops only that rate
+        self.assertEqual(markets.SERIES["eurtry"][3], "ecb")
+        self.assertNotIn("eurtry", markets.parse_ecb_hist(ECB))
+
     def test_crosses_are_computed_from_the_ecb_rates_and_changes_use_the_previous_day(self):
         r = {x["k"]: x for x in markets.rows(data(), markets.RAIL)}
         self.assertEqual(r["EUR/USD"]["v"], "1.1000")
