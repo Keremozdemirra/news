@@ -213,3 +213,14 @@ class TickerflipWords(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TickerflipKeyboard(unittest.TestCase):
+    """Kerem, 27 Nov: Enter is not to sit at the bottom left. It is the rightmost key of the bottom row."""
+    def test_enter_is_the_last_key_of_the_bottom_row(self):
+        src = (ROOT / "games" / "tickerflip" / "js" / "tickerflip.js").read_text()
+        start = src.index("function buildKeyboard()")
+        body = src[start:src.index("\nfunction ", start + 10)]
+        back, letters, enter = body.index('mkKey("Backspace"'), body.index("for (const ch of letters)"), body.index('mkKey("Enter"')
+        self.assertLess(back, letters)
+        self.assertLess(letters, enter)

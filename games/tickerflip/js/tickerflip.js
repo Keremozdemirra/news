@@ -60,9 +60,10 @@ function buildKeyboard() {
   const kb = $("kb"); kb.innerHTML = ""; keyEls = {};
   KEYS.forEach((letters, i) => {
     const row = document.createElement("div"); row.className = "krow";
-    if (i === 2) row.appendChild(mkKey("Enter", "Enter", "wide"));
-    for (const ch of letters) { const k = mkKey(ch, ch); keyEls[ch] = k; row.appendChild(k); }
+    // Enter is the last key of the bottom row, where a phone keyboard has it; delete sits at the left end
     if (i === 2) row.appendChild(mkKey("Backspace", "⌫", "wide", "Delete"));
+    for (const ch of letters) { const k = mkKey(ch, ch); keyEls[ch] = k; row.appendChild(k); }
+    if (i === 2) row.appendChild(mkKey("Enter", "Enter", "wide"));
     kb.appendChild(row);
   });
 }
