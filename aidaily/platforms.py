@@ -102,16 +102,12 @@ def _with_ticker(post, text, limit, measure=len):
     return longer if measure(longer) <= limit else text
 
 
-def _ai(post):
-    return desk.CONFIG["ai_note"] if desk.CONFIG["ai_note"] in (post.get("caption") or "") else ""
-
-
 def story_page(post, channel=None):
     return desk.story_url(post["id"], channel)
 
 
 def _tail(post, link):
-    return " ".join(x for x in (_ai(post), f"Sources: {link}") if x)
+    return f"Sources: {link}"
 
 
 def _head(post):
@@ -145,10 +141,10 @@ def why_it_matters(post, count=3):
 
 
 def threads_text(post):
-    """Headline, a short why-it-matters, then the AI note. No link: Threads shows links poorly in the main post,
+    """Headline, a short why-it-matters, no disclosure line. No link: Threads shows links poorly in the main post,
     so the story page goes in a reply. 500 characters, emoji counted by UTF-8 bytes; the topic goes in
     topic_tag, not as a hashtag in the text."""
-    head, tail = _head(post), _ai(post)
+    head, tail = _head(post), ""
     sentences = why_it_matters(post) or _sentences(post.get("dek"))[:1]
     while sentences:  # whole sentences give way before any word is cut
         text = "\n\n".join(x for x in (head, " ".join(sentences), tail) if x)
@@ -327,7 +323,7 @@ class Threads(Client):
     def post(self, post):
         uid = self.env["THREADS_USER_ID"]
         # text first, one image only: the card. No is_made_with_ai label: it marks the media as AI-made, and the
-        # photos are real; the text says "Written by AI."
+        # photos are real.
         params = {"media_type": "IMAGE", "image_url": _images(post)[0], "text": threads_text(post)}
         if threads_tag(post):
             params["topic_tag"] = threads_tag(post)

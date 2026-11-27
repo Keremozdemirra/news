@@ -77,10 +77,9 @@ def due():
 
 
 def caption(posts):
-    """The headlines as a numbered list, then where the sources are. The AI note stays, as on every post."""
+    """The headlines as a numbered list, then where the sources are."""
     lines = [f"{i}. {p['headlines'][0]}" for i, p in enumerate(posts, 1)]
-    return "\n".join(lines + ["", f"Sources for each story: {desk.brand_domain()}", "",
-                              desk.CONFIG["ai_note"]])
+    return "\n".join(lines + ["", f"Sources for each story: {desk.brand_domain()}"])
 
 
 def frames(posts, out_dir, now=None):

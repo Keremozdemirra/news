@@ -91,7 +91,7 @@ class Caption(unittest.TestCase):
         self.assertTrue(text.startswith("Anthropic releases coding agent\n\nAnthropic released an agent."))
         self.assertIn("Reported by Outlet 1; CNBC.", text)
         self.assertNotIn("Source: Outlet 1\n", text)
-        self.assertIn("Written by AI", text)
+        self.assertNotRegex(text, r"(?i)written by ai|ai[- ]generated")
         self.assertIn("#anthropic", text)
         self.assertLessEqual(text.count("#"), 5)
 
