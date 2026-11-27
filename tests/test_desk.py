@@ -801,9 +801,9 @@ def _at(day, hh, mm=40):
     return datetime(2026, 11, 23 + day, hh, mm, tzinfo=timezone.utc)
 
 
-OPT = re.compile(r'color:#9aa0a8">([ABCD])</span><span[^>]*>([^<]*)</span>')
+OPT = re.compile(r'data-opt="([ABCD])"(?:(?!data-opt).)*?<span data-t[^>]*>([^<]*)</span>', re.S)
 ANS_LETTER = re.compile(r"Answer ([ABCD])<")
-LIT = re.compile(r'background:#f2f2f0;color:#111214"><div[^>]*><span[^>]*>([ABCD])</span><span[^>]*>([^<]*)</span>')
+LIT = re.compile(r'data-opt="([ABCD])" data-on(?:(?!data-opt).)*?<span data-t[^>]*>([^<]*)</span>', re.S)
 
 
 def answer_of(html):
@@ -893,7 +893,7 @@ class Formats(Tmp):
         letter, value = answer_of(out["quiz-a"])
         self.assertEqual(dict(opts)[letter], value)
         self.assertEqual(value, "ElevenLabs")
-        self.assertIn("Answer on the next story", out["quiz"])
+        self.assertIn("Answer in the next story", out["quiz"])
         q, a = (json.loads((desk.QUEUE / f"2026-11-24-{k}" / "post.json").read_text()) for k in ("quiz", "quiz-a"))
         self.assertGreater(a["publish_after"], q["publish_after"])
         self.assertEqual(a["after"], q["id"])
@@ -925,6 +925,20 @@ class Formats(Tmp):
         self.assertEqual(peers.peers("Alphabet").count("Google"), 0)
         self.assertNotIn("Instagram", peers.peers("Meta"))
         self.assertFalse(peers.groups_of("Australian Open"))
+
+    def test_a_photo_leads_one_story_a_day_and_never_a_share_alike_one(self):
+        w = _at(1, 6, 20)
+        self.pub("a", "Nvidia halts chip shipments", w, 2, score=12, photo=True, credit="Photo: A, CC BY 4.0, via Wikimedia Commons")
+        self.pub("b", "Fed holds rates", w, 3, score=9, photo=True, credit="Photo: B, CC BY-SA 4.0, via Wikimedia Commons")
+        self.pub("c", "ECB picks president", w, 4, score=8)
+        out = self.run_at(w, "last12")
+        self.assertIn("data-bleed", out["last12"])  # the lead's photo, full width
+        self.assertIn("CC BY 4.0", out["last12"])
+        self.assertEqual(json.loads((desk.QUEUE / "2026-11-24-last12" / "post.json").read_text())["photo_of"], "2026-11-2x-a")
+        out = self.run_at(_at(1, 19, 40), "top5")
+        self.assertNotIn("data-bleed", out["top5"])  # the same photo does not lead a second story that day
+        with mock.patch.object(desk, "now", return_value=w):
+            self.assertEqual(desk._photo(json.loads((desk.QUEUE / "2026-11-2x-b" / "post.json").read_text())), ("", ""))
 
     def test_sport_reaches_no_story_format(self):
         w = _at(1, 19)  # Tuesday evening: last12, board, top5 and the quiz pools all see these posts
@@ -1060,11 +1074,11 @@ class Formats(Tmp):
         out = self.run_at(w, "bigger")
         self.assertEqual(sorted(out), ["bigger", "bigger-a"])
         q = out["bigger"]
-        for text in ("ElevenLabs valuation", "Mistral valuation"):
+        for text in ("ElevenLabs", "Mistral"):
             self.assertIn(text, q)
         for hidden in ("$33B", "$12B", "ElevenLabs in talks", "5.25"):
             self.assertNotIn(hidden, q)
-        self.assertEqual(q.count("<img"), 1)  # only ElevenLabs has a logo
+        self.assertEqual(q.count("<img"), 0)  # the names are the type; a logo beside the same name said it twice
         letter, value = answer_of(out["bigger-a"])
         self.assertEqual(value, "ElevenLabs valuation")
         self.assertEqual(letter, "A" if q.index("ElevenLabs") < q.index("Mistral") else "B")
@@ -1076,8 +1090,8 @@ class Formats(Tmp):
         self.pub("a", "Anthropic closes $4B funding round", w, 3, figure="$4B", company="Anthropic")
         self.pub("b", "Mistral raises $1B", w, 3, figure="$1B", company="Mistral")
         out = self.run_at(w, "bigger")
-        self.assertIn("Anthropic funding round", out["bigger"])
-        self.assertIn("Mistral funding round", out["bigger"])
+        for co in ("Anthropic", "Mistral"):  # the name, then the kind under it
+            self.assertRegex(out["bigger"], rf">{co}</span></div><div[^>]*>funding round<")
         self.assertNotIn("$4B", out["bigger"])
 
     def test_bigger_never_mixes_kinds_or_currencies_or_percentages(self):
@@ -1273,7 +1287,7 @@ class Formats(Tmp):
             text = re.sub(r"<[^>]+>", " ", html).lower()
             self.assertNotIn("stories", text)
             self.assertNotRegex(text, r"\bai\b|as it breaks|right here|all day")
-        self.assertIn("Answer on the next story", out["fill"])
+        self.assertIn("Answer in the next story", out["fill"])
 
 
 class ScheduledStories(Tmp):

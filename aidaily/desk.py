@@ -610,6 +610,34 @@ def _logo(p):
     return _media(p, "logo.svg", "logo.png", "logo.jpg")
 
 
+def _photos_today():
+    """Posts whose photo a story already carried today: one photo leads at most one story a day."""
+    day = now().strftime("%Y-%m-%d")
+    return {q.get("photo_of") for q, _ in posts() if q.get("kind") == "story" and q.get("created", "")[:10] == day} - {None}
+
+
+def _photo(p, fresh=False):
+    """(uri, credit) of the post's licensed photo, or ("", ""): a photo goes on a story only with its credit.
+    fresh: not when another story showed that photo today."""
+    if fresh and p and p["id"] in _photos_today():
+        return ("", "")
+    uri = _media(p, "photo.jpg") if p else ""
+    credit = (p or {}).get("credit", "")
+    # a share-alike licence would reach the whole story image; cards refuse CC BY-SA and so do stories
+    return (uri, credit) if uri and credit and not re.search(r"\bBY-SA\b", credit, re.I) else ("", "")
+
+
+def _lead(rows):
+    """story_list keywords for a list whose first post has a photo nobody showed today."""
+    uri, credit = _photo(rows[0], fresh=True) if rows else ("", "")
+    return {"lead_photo": uri, "lead_credit": credit}
+
+
+def _photo_of(rows, used):
+    """The photo_of mark for a story whose lead photo came from rows[0]."""
+    return {"photo_of": rows[0]["id"]} if used.get("lead_photo") else {}
+
+
 def _head(p):
     return p["headlines"][0]
 
@@ -648,8 +676,9 @@ def _s_last12(day, label):
     top = sorted(_published(12), key=lambda p: -_score(p))[:3]
     if len(top) < 3:
         return []
-    return [_queue_story(f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label), "Last 12 hours",
-                         refs=[p["id"] for p in top])]
+    lead = _lead(top)
+    return [_queue_story(f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label, kicker="Last 12 hours", **lead), "Last 12 hours",
+                         refs=[p["id"] for p in top], **_photo_of(top, lead))]
 
 
 # Words that make a bare quantity mean something on their own, when one follows the number in the headline.
@@ -693,7 +722,9 @@ def _number(day, slot, label):
     if not nums:
         return []
     p, (fig, unit) = max(nums, key=lambda x: _score(x[0]))
-    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit, _qualifier(p)), "Number", refs=[p["id"]])]
+    ph = _photo(p, fresh=True)
+    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit, _qualifier(p), *ph), "Number", refs=[p["id"]],
+                         **({"photo_of": p["id"]} if ph[0] else {}))]
 
 
 def pick_company(day, recent, week):
@@ -835,12 +866,12 @@ def _s_bigger(day, label):
                       "Which is bigger", refs=[first["id"], second["id"]])
 
 
-def _people(pool, has_photo=lambda p: _media(p, "photo.jpg")):
+def _people(pool, has_photo=lambda p: _photo(p)[0]):
     """Posts about a person we hold a licensed portrait of; the portrait's file name must carry the name."""
     return [p for p in pool if p.get("person") and has_photo(p) and _name_in(p["person"], p.get("photo_file", ""))]
 
 
-def pick_whois(day, week, recent, has_photo=lambda p: _media(p, "photo.jpg")):
+def pick_whois(day, week, recent, has_photo=lambda p: _photo(p, fresh=True)[0]):
     """Who is this?: the portrait without its name, four names from our own recent posts."""
     week, recent = list(filter(social_allowed, week)), list(filter(social_allowed, recent))
     named = sorted({p["person"] for p in week if p.get("person")})
@@ -867,18 +898,18 @@ def _s_whois(day, label):
     p, photo = q["posts"][0], _media(q["posts"][0], "photo.jpg")
     return _quiz_pair(day, "whois", R.T.story_whois(photo, label, q["options"], q["credit"]),
                       R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["person"], photo_uri=photo,
-                                       credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"])
+                                       credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"], photo_of=p["id"])
 
 
 def _s_person(day, label):
     cut_day = [p for p in _published(24) if p.get("published", "")[:10] == day]
     quizzed = {q.get("person") for q in _story_posts("whois", 1)}
-    people = [p for p in cut_day if p.get("person") and _media(p, "photo.jpg") and p["person"] not in quizzed]
+    people = [p for p in cut_day if p.get("person") and _photo(p, fresh=True)[0] and p["person"] not in quizzed]
     if not people:
         return []
     p = max(people, key=_score)
     return [_queue_story(f"{day}-person", R.T.story_person(_media(p, "photo.jpg"), p["person"], _head(p), p.get("credit", ""), label),
-                         f"In the news: {p['person']}", refs=[p["id"]])]
+                         f"In the news: {p['person']}", refs=[p["id"]], photo_of=p["id"])]
 
 
 def _s_company(day, label):
@@ -893,8 +924,9 @@ def _s_company(day, label):
         return []
     _, _, name, items = max(rows)
     last = sorted(items, key=lambda q: q["published"], reverse=True)[:3]
-    return [_queue_story(f"{day}-company", R.T.story_company(_logo(last[0]), name, [(_date(q), _head(q)) for q in last], label),
-                         f"Company file: {name}", refs=[q["id"] for q in last], company=name)]
+    shot = next((q for q in last if _photo(q, fresh=True)[0]), None)
+    return [_queue_story(f"{day}-company", R.T.story_company(_logo(last[0]), name, [(_date(q), _head(q)) for q in last], label, *_photo(shot)),
+                         f"Company file: {name}", refs=[q["id"] for q in last], company=name, **({"photo_of": shot["id"]} if shot else {}))]
 
 
 def _s_board(day, label):
@@ -909,16 +941,18 @@ def _s_board(day, label):
         return []
     topic = max(rows)[2]
     top = sorted(by[topic], key=lambda p: -_score(p))[:4]
-    return [_queue_story(f"{day}-board", R.T.story_list(f"{topic}<br>this week.", [_head(p) for p in top], label),
-                         f"{topic} this week", refs=[p["id"] for p in top], topic=topic)]
+    lead = _lead(top)
+    return [_queue_story(f"{day}-board", R.T.story_list(f"{topic}<br>this week.", [_head(p) for p in top], label, kicker=topic, **lead),
+                         f"{topic} this week", refs=[p["id"] for p in top], topic=topic, **_photo_of(top, lead))]
 
 
 def _s_top5(day, slot, label):
     top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p))[:5]
     if len(top) < 3:
         return []
-    return [_queue_story(f"{day}-{slot}", R.T.story_list(f"Today's<br>top {len(top)}.", [_head(p) for p in top], label),
-                         f"Today's top {len(top)}", refs=[p["id"] for p in top])]
+    lead = _lead(top)
+    return [_queue_story(f"{day}-{slot}", R.T.story_list(f"Today's<br>top {len(top)}.", [_head(p) for p in top], label, kicker=f"Top {len(top)}", **lead),
+                         f"Today's top {len(top)}", refs=[p["id"] for p in top], **_photo_of(top, lead))]
 
 
 def _s_today(day, label):
@@ -941,8 +975,9 @@ def _s_ranked(day, slot, label):
     if len(rows) < 3:
         return []
     title = f"Most {'shared' if metric == 'shares' else 'saved'}<br>this week."
-    return [_queue_story(f"{day}-{slot}", R.T.story_list(title, [_head(p) for p in rows[:3]], label),
-                         f"Most {metric if metric == 'saved' else 'shared'} this week", refs=[p["id"] for p in rows[:3]])]
+    lead = _lead(rows[:3])
+    return [_queue_story(f"{day}-{slot}", R.T.story_list(title, [_head(p) for p in rows[:3]], label, kicker=f"Most {'shared' if metric == 'shares' else 'saved'}", **lead),
+                         f"Most {metric if metric == 'saved' else 'shared'} this week", refs=[p["id"] for p in rows[:3]], **_photo_of(rows[:3], lead))]
 
 
 def _s_numbers(day, label):
