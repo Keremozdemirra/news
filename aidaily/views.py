@@ -161,7 +161,8 @@ def rail(shown):
 def panel(inner):
     """The news of the front page is one scrolling panel inside the page: the page stays a few screens long, the footer is one short scroll away.
     The panel is a region the keyboard can reach and scroll; without the script it is only CSS."""
-    return f'<div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">{inner}</div>'
+    # the rules sit on a box around the panel, with air inside it, so a story scrolled to the edge never touches the line
+    return f'<div class="panelbox"><div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">{inner}</div></div>'
 
 
 # ---------------------------------------------------------------- names

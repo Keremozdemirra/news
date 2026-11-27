@@ -365,8 +365,8 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .pcap{display:block;font:500 12.5px/1.4 var(--f);color:var(--soft);margin:6px 0 var(--s1)}
 
 /* ---- the front page's news is one panel that scrolls inside the page, so the footer is a short scroll away ---- */
-.newspanel{overflow-y:auto;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;margin-top:var(--s2);padding:0 var(--s2) var(--s4);
-  border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);scrollbar-width:thin;scrollbar-color:var(--soft) transparent;scroll-padding-top:56px}
+.newspanel{overflow-y:auto;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;padding:0 var(--s2) var(--s4);
+  scrollbar-width:thin;scrollbar-color:var(--soft) transparent;scroll-padding-top:56px}
 .newspanel::-webkit-scrollbar{width:8px}.newspanel::-webkit-scrollbar-thumb{background:var(--soft)}
 .newspanel:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
 .newspanel{position:relative}
@@ -395,7 +395,9 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .row:hover,.leadrow .story-link:hover,.row:focus-visible,.leadrow .story-link:focus-visible{text-decoration:none}
 .row:hover .h-l,.row:focus-visible .h-l,.leadrow .story-link:hover .h-xl,.leadrow .story-link:focus-visible .h-xl{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
 /* the panel's bottom rule already closes the news; a second rule under it read as a double line */
-.puzzles.inrow{margin-top:var(--s4)}
+.puzzles.inrow{margin-top:var(--s5)}
 .puzzles.inrow .sh{border-top:0;padding-top:0}
 /* the rail ends with "All latest" on desktop, so the panel does not repeat it there */
 @media(min-width:1001px){.newspanel .topstories>.earlier{display:none}}
+/* the panel's rules live on this box; the gap inside keeps scrolled stories off the lines */
+.panelbox{margin-top:var(--s2);padding:var(--s2) 0;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink)}
