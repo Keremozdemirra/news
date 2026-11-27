@@ -20,7 +20,7 @@ BRAND = {"name": "boardread.", "handle": "@boardread"}
 WHITE, BLACK, GREY, GREY_DARK, LINE = "#fcfcfb", "#111111", "#6f6f6f", "#a3a3a3", "#e4e4e2"
 LABEL = {"funding": "Funding", "launch": "Launch", "research": "Research", "policy": "Policy",
          "statement": "Statement", "markets": "Markets", "business": "Business", "news": "News"}
-FIGURE = re.compile(r"(?:[$€£]\s?\d[\d,.]*\s?(?:[BMK]\b|billion|million|trillion|bn)?|\b\d[\d,.]*\s?(?:%|percent))", re.I)
+FIGURE = re.compile(r"(?:(?<![A-Za-z])(?:[A-Z]{1,2})?[$€£]\s?\d[\d,.]*\s?(?:[BMK]\b|billion|million|trillion|bn)?|\b\d[\d,.]*\s?(?:%|percent))", re.I)
 
 
 def e(s):
@@ -50,6 +50,15 @@ def key_figure(text):
     f = re.sub(r"\s?billion", "B", f, flags=re.I)
     f = re.sub(r"\s?million", "M", f, flags=re.I)
     return re.sub(r"\s?percent", "%", f, flags=re.I)
+
+
+def short_figure(fig):
+    """"C$8.5 billion" -> "C$8.5B", "40 percent" -> "40%": the unit words shortened, every other character kept
+    (key_figure would read "$8.5 billion" out of it and drop the C)."""
+    f = re.sub(r"\s?billion\b", "B", fig or "", flags=re.I)
+    f = re.sub(r"\s?million\b", "M", f, flags=re.I)
+    f = re.sub(r"\s?trillion\b", "T", f, flags=re.I)
+    return re.sub(r"\s?percent\b", "%", f, flags=re.I).strip()
 
 
 def day(story):
@@ -241,9 +250,12 @@ def card(story, brand=BRAND):
 <h1 style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{t(title)}</h1>
 {_foot(story, brand, dark=True)}</div></div></body></html>"""
     if kind == "figure":
-        fig = story.get("figure") or _headline_figure(story)
+        # one way to set a big figure: "C$8.5 billion" from the copy step reads "C$8.5B", like every other card
+        fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
+        # "Backed by" says an investor put money in: only on a funding round, never on a buyout or a loan
+        funding = re.search(r"\b(raises?|raised|funding|round|valuation|valued)\b", title, re.I)
         backer = (f'<div style="margin-top:26px;display:flex;align-items:center;gap:14px;font-size:26px;color:{GREY}"><span>Backed by</span>'
-                  f'{_logo_block(a["backer"], story.get("backer", ""), 30)}</div>') if story.get("backer") else ""
+                  f'{_logo_block(a["backer"], story.get("backer", ""), 30)}</div>') if story.get("backer") and funding else ""
         return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>

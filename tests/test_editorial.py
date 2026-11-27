@@ -291,6 +291,28 @@ class Photos(unittest.TestCase):
             self.assertEqual(T.assets(s)["logo_names"], [])
 
 
+class FigureCard(unittest.TestCase):
+    def story(self, **kw):
+        s = {"headline": "Alberta raises projected surplus to C$8.5 billion", "title": "x", "figure": "C$8.5 billion",
+             "company": "", "backer": "", "source": "Bloomberg", "newsrooms": ["Bloomberg"],
+             "_assets": {"photo": "", "logo": "", "backer": "", "logos": [], "logo_names": [], "credit": "", "file": ""}}
+        s.update(kw)
+        return s
+
+    def test_figure_is_set_short(self):
+        self.assertIn(">C$8.5B<", T.card(self.story()))
+        # the headline fallback keeps the currency's letters too
+        self.assertEqual(T.key_figure("Alberta raises surplus to C$8.5 billion"), "C$8.5B")
+        self.assertEqual(T.key_figure("Startup raises $36M"), "$36M")
+
+    def test_backed_by_only_on_a_funding_round(self):
+        buyout = self.story(headline="Banks line up €550 million of debt for KKR's Logoplaste buyout", figure="€550M",
+                            backer="KKR")
+        self.assertNotIn("Backed by", T.card(buyout))
+        round_ = self.story(headline="Mistral raises €550M in a funding round", figure="€550M", backer="Nvidia")
+        self.assertIn("Backed by", T.card(round_))
+
+
 class Newsrooms(unittest.TestCase):
     def test_card_count_matches_the_list(self):
         # the card said "Reported by 8 newsrooms" over a slide listing four, one of them an aggregator
