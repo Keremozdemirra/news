@@ -1,0 +1,62 @@
+{
+ "id": "2026-11-27-1447-1",
+ "batch": "2026-11-27-1447",
+ "n": 1,
+ "created": "2026-11-27T14:47:19+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Norse Atlantic files for bankruptcy in Europe\n\nThe Norwegian low-cost airline, founded only a few years ago, had struggled to turn a profit before fuel prices spiked. Norse Atlantic said it failed to secure funding. Soaring fuel costs, driven by the war in Iran, strained its operations. The company filed on Friday.\n\nReported by DW; CNBC.\n\nSend this to whoever on your team covers Norse Atlantic.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.dw.com/en/airline-norse-atlantic-files-for-bankruptcy-succumbing-to-aviation-fuel-costs/a-80076728?maca=en-rss-en-bus-2091-rdf"
+ ],
+ "links": [
+  "https://www.cnbc.com/2026/11/27/norse-atlantic-bankruptcy-fuel-costs.html",
+  "https://www.dw.com/en/airline-norse-atlantic-files-for-bankruptcy-succumbing-to-aviation-fuel-costs/a-80076728?maca=en-rss-en-bus-2091-rdf",
+  "https://www.dw.com/en/airline-norse-atlantic-files-for-bankruptcy-succumbing-to-aviation-fuel-costs/a-80076728?maca=en-rss-en-world-4025-rdf"
+ ],
+ "headlines": [
+  "Norse Atlantic files for bankruptcy in Europe"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "El Alto International Airport main hall.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A bright airport terminal hall with a steel roof",
+ "score": 9.099,
+ "figure": "",
+ "company": "Norse Atlantic",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Boeing 787 Norse Atlantic",
+ "orgs": [
+  "Norse Atlantic"
+ ],
+ "venue": "",
+ "logo_names": [
+  "Norse Atlantic"
+ ],
+ "dek": "The Norwegian low-cost airline, founded only a few years ago, had struggled to turn a profit before fuel prices spiked.",
+ "body": "Norse Atlantic said it failed to secure funding. Soaring fuel costs, driven by the war in Iran, strained its operations. The company filed on Friday.",
+ "so_what": "",
+ "sources": [
+  "DW",
+  "CNBC"
+ ],
+ "source_urls": [
+  "https://www.dw.com/en/airline-norse-atlantic-files-for-bankruptcy-succumbing-to-aviation-fuel-costs/a-80076728?maca=en-rss-en-bus-2091-rdf",
+  "https://www.cnbc.com/2026/11/27/norse-atlantic-bankruptcy-fuel-costs.html",
+  "https://www.dw.com/en/airline-norse-atlantic-files-for-bankruptcy-succumbing-to-aviation-fuel-costs/a-80076728?maca=en-rss-en-world-4025-rdf"
+ ],
+ "credit": "Photo: EEJCC, CC0, via Wikimedia Commons",
+ "credit_file": "El Alto International Airport main hall.jpg",
+ "status": "web",
+ "published": "2026-11-27T14:47:19+00:00",
+ "story": ""
+}
