@@ -49,17 +49,19 @@ a { color: inherit; }
 .frame { flex: 1 1 0; min-height: 0; display: grid; align-content: center; justify-items: center; gap: 14px; padding: 8px 0; }
 .board { --t: min(62px, calc((var(--W) - 2 * var(--pad) - (var(--L) - 1) * var(--gap)) / var(--L)), calc((var(--vh, 100dvh) - 52px - 44px - 30px - 3 * var(--kh) - 44px - var(--sab) - 5 * var(--gap) - 16px) / 6)); display: grid; gap: var(--gap); }
 .row { display: grid; grid-template-columns: repeat(var(--L), var(--t)); gap: var(--gap); }
-.tile { position: relative; width: var(--t); height: var(--t); display: grid; place-items: center; border: 1.5px solid var(--rule); font: 800 calc(var(--t) * 0.5) / 1 var(--f); text-transform: uppercase; user-select: none; will-change: transform; }
-.tile[data-has="1"] { border-color: var(--ink); }
-.tile[data-s="correct"], .tile[data-s="revealed"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.tile[data-s="present"] { border: 2px solid var(--ink); border-bottom-width: calc(var(--t) * 0.12); }
-.tile[data-s="absent"] { background: var(--wash); border-color: var(--wash); color: var(--faint); }
-.tile .leaf { position: absolute; inset: 0; display: grid; place-items: center; will-change: transform; backface-visibility: hidden; }
-/* the seam of a split-flap card: a hairline of paper across a filled card, of rule across an open one */
-.tile::after { content: ""; position: absolute; left: -1px; right: -1px; top: calc(50% - 0.5px); height: 1px; background: var(--paper); opacity: 0.55; pointer-events: none; }
-.tile[data-s="empty"]::after, .tile[data-s="typed"]::after { background: var(--rule); opacity: 1; }
+.tile { position: relative; width: var(--t); height: var(--t); font: 800 calc(var(--t) * 0.5) / 1 var(--f); text-transform: uppercase; user-select: none; will-change: transform; }
+/* a card and its halves: the state is drawn on the leaf, so a falling half keeps the look of the letter it carries */
+.leaf { position: absolute; inset: 0; display: grid; place-items: center; background: var(--paper); border: 1.5px solid var(--rule); backface-visibility: hidden; }
+.leaf.top { clip-path: inset(0 0 50% 0); will-change: transform; }
+.leaf.bot { clip-path: inset(50% 0 0 0); will-change: transform; }
+.leaf[data-s="typed"] { border-color: var(--ink); }
+.leaf[data-s="correct"], .leaf[data-s="revealed"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.leaf[data-s="present"] { border: 2px solid var(--ink); border-bottom-width: calc(var(--t) * 0.12); }
+.leaf[data-s="absent"] { background: var(--wash); border-color: var(--wash); color: var(--faint); }
+/* the seam: a hairline across the card, over everything */
+.tile::after { content: ""; position: absolute; z-index: 2; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--paper); opacity: 0.6; pointer-events: none; }
+.tile[data-s="empty"]::after { background: var(--rule); opacity: 1; }
 .tile[data-s="typed"]::after { opacity: 0; }
-.tile .mark { display: none; }
 .row.shake { animation: shake 240ms linear; }
 @keyframes shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 .row.ripple .tile { animation: hop 220ms var(--ease) calc(var(--i) * 55ms); }

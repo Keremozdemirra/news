@@ -1,4 +1,6 @@
 import * as snd from "./sound.js";
+import * as T from "./tower.js";
+import { spring } from "./spring.js";
 
 // Topfloor. Seven prompts on a clock; the rarer the answer, the more floors it is worth. The page is type on paper:
 // a floor number, a five-band scale, the question and a list of what was answered. One thing moves per answer: the
@@ -55,64 +57,59 @@ function rareLine(p) {
 let toastT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200); }
 
-// ---- the building: a hundred floors drawn as rules and numbers, and a car that stays put while the building
-// slides past it. A rare answer is a long ride, a common one a single floor.
-const FLOORS = [];
+// ---- the building. It is drawn once (js/tower.js) and only ever moved: the car keeps its place in the window and
+// the tower slides past it on a spring. A second copy with lit windows shows through a mask that ends at the car, so
+// the floors light as they are passed without a pixel being repainted. The floor counter rolls with the same value.
+const CAR_AT = () => (matchMedia("(min-width: 900px)").matches ? 0.56 : 0.7);      // where the car rides in the window, from the top
+let K = 1, ride = null, labels = [];
 function buildTower() {
-  const strip = $("strip"); strip.textContent = "";
-  const roof = mk("div", "roof"); roof.append(mk("span", "cap", "Roof")); strip.appendChild(roof);
-  for (let f = MAXF; f >= 0; f--) {
-    const b = BANDS.findIndex(([, a]) => a === f);
-    const row = mk("div", "fl" + (f % 10 === 0 ? " t10" : f % 5 === 0 ? " t5" : "") + (b >= 0 ? " bs" : ""));
-    const wins = mk("span", "wins"); for (let k = 0; k < 5; k++) wins.appendChild(mk("i"));
-    row.append(mk("span", "no num", f % 5 === 0 ? String(f) : ""), mk("i", "tick"), wins, mk("span", "lab"));
-    if (b >= 0) row.append(mk("span", "bn", BANDS[b][0]));
-    strip.appendChild(row); FLOORS[f] = row;
+  $("strip").innerHTML = T.build(false);
+  $("strip-lit").innerHTML = T.build(true);
+  const odo = $("floor"); odo.textContent = "";
+  for (let c = 0; c < 3; c++) { const col = mk("span", "col"), reel = mk("span", "reel"); for (let d = 0; d <= 10; d++) reel.appendChild(mk("span", "", String(d % 10))); col.appendChild(reel); odo.appendChild(col); }
+  ride = spring(0, paint);
+}
+const tyOf = (f) => $("tower").clientHeight * CAR_AT() - (T.yTop(f) + T.U) * K;        // strip offset that puts floor f under the car
+const floorAt = (ty) => 100 - (($("tower").clientHeight * CAR_AT() - ty) / K - T.U - T.TOP) / T.U;
+let shownInt = -1;
+function paint(ty) {
+  const y = ty.toFixed(2), h = $("tower").clientHeight * CAR_AT();
+  $("strip").style.transform = `translate3d(0, ${y}px, 0)`;
+  $("strip-lit").style.transform = `translate3d(0, ${(ty - h).toFixed(2)}px, 0)`;
+  odometer(Math.max(0, Math.min(MAXF, floorAt(ty))));
+}
+// a mechanical counter: the ones reel turns with the lift, each higher reel turns while the one below it passes nine
+function odometer(v) {
+  const cols = $("floor").children, ones = v % 10, tensRaw = Math.floor(v / 10) % 10, tens = tensRaw + Math.max(0, ones - 9), hund = Math.floor(v / 100) + (tensRaw === 9 ? Math.max(0, ones - 9) : 0);
+  [hund, tens, ones].forEach((d, i) => { cols[i].firstChild.style.transform = `translate3d(0, ${(-d * 100 / 11).toFixed(3)}%, 0)`; });
+  cols[0].classList.toggle("off", v < 99.5); cols[1].classList.toggle("off", v < 9.5);
+  const n = Math.round(v);
+  if (n !== shownInt) { if (shownInt >= 0 && ride && Math.abs(v - floor) > 0.5) snd.pass(n); shownInt = n; }
+}
+// the answers stand beside the floor the lift had reached with them
+function labelFloors(fresh) {
+  const svg = $("strip").firstChild;
+  labels.forEach((l) => l.remove()); labels = [];
+  const at = new Map(); let sum = 0;
+  answers.forEach((a) => { if (!a || a.tier < 0) return; sum += a.pts; const f = Math.min(MAXF, Math.round(sum / 7)); at.set(f, at.has(f) ? `${at.get(f)}, ${a.label}` : a.label); });
+  for (const [f, text] of at) {
+    const hw = T.BANDS.find(([a, b]) => f >= a && f <= b)[2], y = T.yTop(f) + T.U;
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "ans");
+    g.innerHTML = `<path d="M${T.AXIS + hw} ${y}H${T.AXIS + hw + 14}" stroke-width="1"/><text x="${T.AXIS + hw + 19}" y="${y + 4.5}"></text>`;
+    g.lastChild.textContent = text.length > 22 ? text.slice(0, 21) + "…" : text;
+    svg.appendChild(g); labels.push(g);
+    if (fresh === f && !REDUCED) g.animate([{ opacity: 0, transform: "translateX(-6px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: EASE });
   }
-  const street = mk("div", "street"); street.append(mk("span", "cap", "Street")); strip.appendChild(street);
 }
-// the answers stand on the floor the lift had reached with them
-function labelFloors() {
-  for (const r of FLOORS) { r.lastLab = ""; r.querySelector(".lab").textContent = ""; r.classList.remove("has"); }
-  let sum = 0;
-  answers.forEach((a) => {
-    if (!a || a.tier < 0) return;
-    sum += a.pts;
-    const r = FLOORS[Math.min(MAXF, Math.round(sum / 7))], lab = r.querySelector(".lab");
-    lab.textContent = lab.textContent ? `${lab.textContent}, ${a.label}` : a.label; r.classList.add("has");
-  });
-}
-let countRaf = 0, rideAnim = null;
-const yOf = (f) => { const t = $("tower"), fh = FLOORS[0].offsetHeight; return Math.round(t.clientHeight * CAR_AT - (MAXF - f + 1) * fh - FLOORS[MAXF].offsetTop); };
-const CAR_AT = 0.72;      // where the car rides in the window, from the top
 function setFloor(f, animate, top) {
-  const from = floor; floor = f;
-  $("band").textContent = BANDS[bandOf(f)][0];
-  const strip = $("strip"), y1 = yOf(f), car = $("car");
-  cancelAnimationFrame(countRaf); rideAnim?.cancel();
-  // the floors passed light up, each as the car goes by it
-  const ride = !animate || REDUCED || from === f ? 0 : Math.round(Math.min(700, 400 + Math.abs(f - from) * 12));
-  FLOORS.forEach((r, i) => { r.style.setProperty("--d", ride && i >= from && i < f ? `${Math.round(ride * 0.75 * (i - from) / (f - from))}ms` : "0ms"); r.classList.toggle("below", i < f); });
-  if (!animate || REDUCED || from === f) { strip.style.transform = `translate3d(0, ${y1}px, 0)`; $("floor").textContent = f; labelFloors(); return; }
-  // the ride: longer for more floors, always inside 400 to 700 ms, braking into the landing
-  const ms = ride, y0 = yOf(from);
-  rideAnim = strip.animate([{ transform: `translate3d(0, ${y0}px, 0)` }, { transform: `translate3d(0, ${y1}px, 0)` }], { duration: ms, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
-  strip.style.transform = `translate3d(0, ${y1}px, 0)`;
-  const t0 = performance.now(), el = $("floor");
-  const step = (now) => {
-    const u = Math.min(1, (now - t0) / ms), v = Math.round(from + (f - from) * (1 - Math.pow(1 - u, 4)));
-    if (el.textContent !== String(v)) { el.textContent = v; if (v !== f) snd.pass(v); }
-    if (u < 1) countRaf = requestAnimationFrame(step);
-  };
-  countRaf = requestAnimationFrame(step);
-  rideAnim.onfinish = () => {
-    // the landing: the car settles on its floor and the answer is set down there
-    labelFloors();
-    car.animate([{ transform: "translateY(-4px)" }, { transform: "translateY(1px)", offset: 0.6 }, { transform: "none" }], { duration: 180, easing: EASE });
-    FLOORS[f].querySelector(".lab").animate([{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: EASE });
-    // an answer as rare as they come: the whole building takes the jolt
-    if (top) $("tower").animate([{ transform: "translateY(0)" }, { transform: "translateY(5px)", offset: 0.35 }, { transform: "translateY(-2px)", offset: 0.7 }, { transform: "none" }], { duration: 260, easing: EASE });
-  };
+  floor = f;
+  $("band").textContent = BANDS[bandOf(f)][0]; $("floor-sr").textContent = f;
+  if (!animate || REDUCED) { ride.set(tyOf(f)); labelFloors(); return; }
+  ride.to(tyOf(f), () => {
+    labelFloors(f);
+    // an answer as rare as they come: the building takes a second, smaller swing
+    if (top) ride.kick(-150 * K);
+  });
 }
 function screen(name) {
   app.dataset.phase = name;
@@ -354,7 +351,12 @@ async function share() {
 function fit() {
   const vv = window.visualViewport;
   app.style.setProperty("--vh", (vv ? vv.height : innerHeight) + "px");
-  if (data) setFloor(floor, false);
+  if (!data || !ride) return;
+  // the drawing is scaled by its width: one floor is --fh pixels high
+  K = parseFloat(getComputedStyle($("tower")).getPropertyValue("--fh")) / T.U;
+  for (const el of [$("strip"), $("strip-lit")]) { el.style.width = T.VIEW[2] * K + "px"; el.style.height = T.HEIGHT * K + "px"; }
+  $("lit").style.top = $("tower").clientHeight * CAR_AT() + "px";
+  setFloor(floor, false);
 }
 async function boot() {
   try {

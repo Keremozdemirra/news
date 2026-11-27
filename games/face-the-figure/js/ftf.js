@@ -76,7 +76,7 @@ function shares(r) {
 function bars(wa, wb, ms) {
   [[pa, wa], [pb, wb]].forEach(([card, w]) => {
     const el = card.querySelector(".bar i"), to = `scaleX(${w.toFixed(4)})`;
-    if (ms && !RM && el.animate) el.animate([{ transform: el.style.transform || "scaleX(0)" }, { transform: to }], { duration: ms, easing: EASE });
+    if (ms && !RM && el.animate) el.animate([{ transform: getComputedStyle(el).transform }, { transform: to }], { duration: ms, easing: "cubic-bezier(0.22, 1.18, 0.36, 1)" });      // runs out, passes its mark a little, comes back; starts from wherever the bar is
     el.style.transform = to;
   });
 }

@@ -38,10 +38,12 @@
     <section class="game" id="game" aria-label="Today’s building">
       <div class="tower" id="tower" aria-hidden="true">
         <div class="strip" id="strip"></div>
-        <i class="cable"></i><i class="car" id="car"></i>
+        <div class="lit" id="lit"><div class="strip" id="strip-lit"></div></div>
+        <i class="cable"></i>
+        <svg class="car" id="car" viewBox="0 0 16 18"><rect x="0.75" y="0.75" width="14.5" height="16.5" fill="currentColor" stroke="none"/><path class="seam" d="M8 4V17"/></svg>
       </div>
       <div class="readout">
-        <p class="floor"><span class="cap">Floor</span><b class="num" id="floor">0</b></p>
+        <p class="floor"><span class="cap">Floor</span><b class="odo num" id="floor" aria-hidden="true"></b><span class="sr" id="floor-sr" role="status">0</span></p>
         <p class="band"><span class="cap">So far</span><strong id="band">Lobby</strong></p>
       </div>
 
