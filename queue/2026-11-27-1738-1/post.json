@@ -72,5 +72,13 @@
  "video_shape_tried": "card",
  "published": "2026-11-27T18:01:11+00:00",
  "media_id": "18111560807225743",
- "permalink": "https://www.instagram.com/p/DgQRnQzDuTE/"
+ "permalink": "https://www.instagram.com/p/DgQRnQzDuTE/",
+ "platforms": {
+  "telegram": {
+   "id": "35",
+   "url": "https://t.me/boardread/35",
+   "at": "2026-11-27T18:20:16+00:00",
+   "format": "photo"
+  }
+ }
 }
