@@ -232,6 +232,13 @@ class Copy(unittest.TestCase):
                                 ["The figure equals $6 billion, and the war keeps oil prices elevated."], "Alberta raises surplus")
         self.assertEqual(out, "The projection covers the current fiscal year.")
 
+    def test_attribution_the_dek_already_gives_goes(self):
+        out = copy.drop_repeats("Banks back KKR's acquisition of packaging company Logoplaste. The information comes from "
+                                "people familiar with the situation.",
+                                ["The loans are worth $603.5 million, according to people familiar with the situation."],
+                                "Banks line up €550 million of debt for KKR's Logoplaste buyout")
+        self.assertEqual(out, "Banks back KKR's acquisition of packaging company Logoplaste.")
+
     def test_a_spelled_out_quantity_is_never_the_number(self):
         s = {"title": "Number of Neets in UK falls below a million", "summary": "", "source": "The Guardian"}
         copy.apply([s], [{"id": 0, "headline": "UK Neet number falls below a million", "dek": "", "x_post": "",

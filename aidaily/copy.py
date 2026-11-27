@@ -395,7 +395,10 @@ def drop_repeats(post, deks, headline):
         # a short sentence ("It equals $6 billion.") repeats the dek when its words and numbers are all there
         short = len(_stems(x)) < 3 and _stems(x) <= _stems(d, short=True) and _numbers(x) <= _numbers(d)
         return short or repeats(x, d) or repeats(d, x, share=0.8)
-    kept = [x for x in sents if not any(d and said(x, d) for d in deks)]
+    # and a sentence whose words the headline and dek already hold between them ("The information comes from people
+    # familiar with the situation." under a dek that says so)
+    both = " ".join([headline] + [d for d in deks if d])
+    kept = [x for x in sents if not any(d and said(x, d) for d in deks) and not (deks and repeats(x, both, share=0.6))]
     if len(kept) == 1 and repeats(kept[0], headline, share=0.6):
         kept = []
     body = " ".join(kept)
