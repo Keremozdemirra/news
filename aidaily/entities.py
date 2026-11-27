@@ -715,7 +715,8 @@ GRAPHIC = re.compile(r"\b(maps?|diagrams?|infographics?|charts?|graphs?|logos?|i
 
 
 # A company's photo that is really a photo of a person: "Stella di Musinsa Beauty Festa Pop-Up Store 2025" is a K-pop
-# singer at a Musinsa event, and ran on Musinsa's quarterly profit (2026-11-27). Commons says so three ways: the
+# singer at a Musinsa event, and ran on Musinsa's quarterly profit (2026-11-27); fresh_photo keeps such a photo as
+# its last resort for the subject and never uses it on bad news. Commons says who is shown three ways: the
 # personality-rights template, a category that is a person ("Stella (South Korean pop singer)", "Female vocalists
 # from South Korea"), and a "depicts" statement naming a human.
 PERSONALITY = re.compile(r"personality rights", re.I)
@@ -723,6 +724,13 @@ PERSON_CAT = re.compile(r"\([^)|]*\b(?:singer|actor|actress|rapper|musician|poli
                         r"businesswoman|footballer|player|model|presenter|journalist|idol|entertainer|born \d{4})\b[^)|]*\)"
                         r"|\b(?:vocalists|singers|actors|actresses|rappers|musicians|politicians|businesspeople|models|"
                         r"portraits? of|people of|men of|women of)\b", re.I)
+
+
+# news that is bad for the company: a face at its event must not stand beside it
+NEGATIVE = re.compile(r"\b(layoffs?|lay off|job cuts?|cuts? (?:\d|jobs|staff)|loss(?:es)?|lawsuits?|sues?|sued|scandal\w*|"
+                      r"probe\w*|investigat\w+|fraud|crim\w+|arrest\w*|charged|accidents?|crash\w*|recalls?|fined|fines?|"
+                      r"penalt\w+|bankrupt\w*|collapse\w*|hack\w*|breach\w*|outage|plunge\w*|slump\w*|tumbl\w+|"
+                      r"misconduct|abuse|harass\w*|deaths?|injur\w+|strikes?|boycott\w*|ban(?:s|ned)?)\b", re.I)
 
 
 def _depicted_humans(filename):
@@ -774,6 +782,7 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
         role = subject[2] if len(subject) > 2 else None
         if not text:
             continue
+        deferred = None
         try:
             # the premises rule is for a company's photos; a place named in the headline (strict) and a sport ground
             # (teams) have their own checks
@@ -806,9 +815,6 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
             cats = raw_cats.replace("|", " ")
             if GRAPHIC.search(cats):
                 continue
-            # a photo of a company, a place or a thing that is in truth of a person the story never names
-            if not is_person and shows_person(f, raw_cats, allow + " " + text):
-                continue
             # a file found by name alone may show a namesake: its description or categories must carry the role
             if is_person and role is not None and f in SEARCHED:
                 if not _role_words(role) & _role_words(desc + " " + cats):
@@ -824,8 +830,21 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
             # a small or thin image looks broken across a full card
             if not ok or (info.get("width") or 0) < 900 or (info.get("height") or 0) < 600:
                 continue
-            p = CACHE / f"img-{_slug(f)[:80]}.jpg"
-            if not p.exists():
-                p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
-            return p, credit, f
+            # a person the headline does not name, in a photo of a company or a place: kept back as a last resort for
+            # this subject, used only when it was taken at the subject's own event (its name is in the title) and the
+            # news is not bad news, where a bystander's face would tie them to it (Kerem, 2026-11-27)
+            if not is_person and shows_person(f, raw_cats, allow + " " + text):
+                if deferred is None and phrase_in(text, f) and not NEGATIVE.search(allow):
+                    deferred = (info, credit, f)
+                continue
+            return _fetched(info, credit, f)
+        if deferred:
+            return _fetched(*deferred)
     return None, "", ""
+
+
+def _fetched(info, credit, f):
+    p = CACHE / f"img-{_slug(f)[:80]}.jpg"
+    if not p.exists():
+        p.write_bytes(_get(info.get("thumburl") or info["url"], raw=True))
+    return p, credit, f

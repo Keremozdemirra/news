@@ -163,11 +163,28 @@ class PersonInCompanyPhoto(unittest.TestCase):
         # premises with nobody in them pass
         self.assertEqual(entities.shows_person("Musinsa store Hongdae.jpg", "Shops in Seoul", "Musinsa profit", depicted=[]), "")
 
-    def test_fresh_photo_passes_over_it(self):
-        info = {"extmetadata": {"Categories": {"value": self.CATS}, "LicenseShortName": {"value": "CC BY 3.0"}},
-                "width": 1600, "height": 2000, "url": "u"}
-        with mock.patch.object(entities, "candidates", return_value=["Stella di Musinsa Beauty Festa Pop-Up Store 2025.jpg"]), \
-             mock.patch.object(entities, "_commons_info", return_value=info), \
-             mock.patch.object(entities, "_depicted_humans", return_value=["Stella"]), \
-             mock.patch.object(entities, "_get", side_effect=AssertionError("must not download")):
-            self.assertEqual(entities.fresh_photo([("Musinsa", False)], set(), allow="Musinsa profit Musinsa"), (None, "", ""))
+    STELLA = "Stella di Musinsa Beauty Festa Pop-Up Store 2025.jpg"
+
+    def pick(self, files, allow):
+        def info(f, width=None):
+            cats = self.CATS if f == self.STELLA else "Shops in Seoul"
+            return {"extmetadata": {"Categories": {"value": cats}, "LicenseShortName": {"value": "CC BY 3.0"}},
+                    "width": 1600, "height": 2000, "url": "u"}
+        with mock.patch.object(entities, "candidates", return_value=files), \
+             mock.patch.object(entities, "_commons_info", side_effect=info), \
+             mock.patch.object(entities, "_depicted_humans", side_effect=lambda f: ["Stella"] if f == self.STELLA else []), \
+             mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC BY 3.0")), \
+             mock.patch.object(entities, "_fetched", side_effect=lambda info, credit, f: ("path", credit, f)):
+            return entities.fresh_photo([("Musinsa", False)], set(), allow=allow)[2]
+
+    def test_a_person_at_the_companys_own_event_is_the_last_resort_on_good_news(self):
+        # Kerem, 2026-11-27: the most related picture may stand when nothing else relates
+        self.assertEqual(self.pick([self.STELLA], "Musinsa operating profit jumps 67% Musinsa"), self.STELLA)
+
+    def test_a_photo_without_the_person_wins_when_there_is_one(self):
+        self.assertEqual(self.pick([self.STELLA, "Musinsa store Seongsu.jpg"], "Musinsa profit jumps Musinsa"),
+                         "Musinsa store Seongsu.jpg")
+
+    def test_never_beside_bad_news(self):
+        self.assertEqual(self.pick([self.STELLA], "Musinsa cuts 200 jobs after a loss Musinsa"), "")
+        self.assertEqual(self.pick([self.STELLA], "Musinsa sued over counterfeit sales Musinsa"), "")
