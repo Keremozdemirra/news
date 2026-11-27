@@ -1024,26 +1024,35 @@ class Formats(Tmp):
             end = D.fromisoformat(last)
             return [[(end - timedelta(days=len(vals) - 1 - i)).isoformat(), v] for i, v in enumerate(vals)]
         return {"series": {"eurusd": pts(ecb_last, 1.0975, 1.0991), "eurgbp": pts(ecb_last, 0.8376, 0.8376),
-                           "eurtry": pts(ecb_last, 47.1022, 47.2510), "ust2": pts(ecb_last, 4.61, 4.58),
+                           "eurtry": pts(ecb_last, 47.1022, 47.2510), "usdjpy": pts(ecb_last, 159.07, 159.32),
+                           "gbpusd": pts(ecb_last, 1.3104, 1.3098), "henryhub": pts("2026-11-20", 3.28, 3.30), "ust2": pts(ecb_last, 4.61, 4.58),
                            "ust10": pts(ecb_last, 4.85, 4.88), "brent": pts("2026-11-20", 91.2, 91.8), "wti": pts("2026-11-20", 82.24, 81.9),
                            "gold": pts("2026-10-01", 4019.0, 4105.0)}}
 
-    def test_markets_close_shows_moves_lagging_dates_and_one_source_line(self):
-        from aidaily import markets
-        with mock.patch.object(markets, "load", return_value=self._close()):
-            h = self.run_at(_at(0, 22, 10), "markets")["markets"]
-        for text in ("Markets close.", "EUR/USD", "EUR/GBP", "EUR/TRY", "47.2510", "US 2-year", "US 10-year", "Brent", "WTI",
-                     "▲ 0.0016", "▼ 0.03", "unchanged", "▲ 0.60 (0.7%)", "20 Nov", "Source: ECB, U.S. Treasury, U.S. EIA."):
-            self.assertIn(text, h)
-        from aidaily import templates as T
-        moves = re.findall(r'data-move style="[^"]*color:(#[0-9a-f]+)">([^<]*)<', h)
-        self.assertEqual(len(moves), 7)
+    def test_markets_close_is_two_frames_with_moves_lagging_dates_and_sources(self):
+        from aidaily import markets, templates as T
+        m = self._close()
+        m["dfr"] = {"value": 2.5, "since": "2026-09-16"}
+        with mock.patch.object(markets, "load", return_value=m):
+            out = self.run_at(_at(0, 22, 10), "markets")
+        self.assertEqual(sorted(out), ["markets", "markets-b"])
+        fx, rates = out["markets"], out["markets-b"]
+        for text in ("Currencies.", "EUR/USD", "USD/JPY", "GBP/USD", "EUR/GBP", "EUR/TRY", "47.2510", "▲ 0.0016", "unchanged",
+                     "Source: ECB. USD/JPY, GBP/USD calculated from ECB reference rates.", "Rates and energy next"):
+            self.assertIn(text, fx)
+        for text in ("Rates and energy.", "ECB deposit rate", "2.50%", "unchanged since 16 Sep", "US 2-year", "US 10-year", "Brent",
+                     "WTI", "Natural gas", "▼ 0.03", "▲ 0.60 (0.7%)", "20 Nov", "Source: ECB, U.S. Treasury, U.S. EIA.", "link in bio"):
+            self.assertIn(text, rates)
+        self.assertEqual(fx.count("23 Nov") + rates.count("23 Nov"), 2)  # the date labels only: today's prints carry none
+        for licensed in ("Gold", "S&amp;P", "Bitcoin", "DAX"):  # monthly averages, indices, crypto: none
+            self.assertNotIn(licensed, fx + rates)
+        moves = re.findall(r'data-move style="[^"]*color:(#[0-9a-f]+)">([^<]*)<', fx + rates)
+        self.assertEqual(len(moves), 11)
         for color, text in moves:  # green up, red down, grey unchanged: arrow and number in one coloured span
             self.assertEqual(color, T.UP if text.startswith("▲") else T.DOWN if text.startswith("▼") else T.FLAT, text)
         self.assertEqual({c for c, _ in moves}, {T.UP, T.DOWN, T.FLAT})
-        self.assertEqual(h.count("23 Nov"), 1)  # the date label only: today's prints carry no date of their own
-        for licensed in ("Gold", "S&amp;P", "Bitcoin", "DAX", "calculated"):  # monthly averages, indices, crypto, crosses: none
-            self.assertNotIn(licensed, h)
+        second = json.loads((desk.QUEUE / "2026-11-23-markets-b" / "post.json").read_text())
+        self.assertEqual(second["after"], "2026-11-23-markets")  # never shown without the first frame
 
     def test_markets_close_waits_for_the_ecb_fix_and_skips_weekends(self):
         from aidaily import markets
@@ -1052,17 +1061,18 @@ class Formats(Tmp):
         with mock.patch.object(markets, "load", return_value=self._close(ecb_last="2026-11-28")):
             self.assertEqual(self.run_at(_at(5, 22, 10), "markets"), {})
         thin = self._close()
-        for k in ("eurgbp", "eurtry", "brent"):
+        for k in ("eurgbp", "eurtry", "usdjpy"):
             del thin["series"][k]
         with mock.patch.object(markets, "load", return_value=thin):
-            self.assertEqual(self.run_at(_at(1, 22, 10), "markets"), {})  # fewer than five prints: no story
+            self.assertEqual(self.run_at(_at(1, 22, 10), "markets"), {})  # three currencies: no close
 
-    def test_no_day_carries_more_than_eight_stories(self):
-        per_day = [sum(2 if s in desk.QUIZ_SLOTS else 1 for s, (days, _) in desk.STORY_SLOTS.items()
+    def test_no_day_carries_more_than_nine_stories(self):
+        size = {s: 2 for s in (*desk.QUIZ_SLOTS, "markets")}
+        per_day = [sum(size.get(s, 1) for s, (days, _) in desk.STORY_SLOTS.items()
                        if wd in days and s not in desk.FEATURE_SLOTS and s not in desk.QUIZ_SLOTS)
                    + any(wd in desk.STORY_SLOTS[s][0] for s in desk.FEATURE_SLOTS)
                    + 2 * any(wd in desk.STORY_SLOTS[s][0] for s in desk.QUIZ_SLOTS) for wd in range(7)]
-        self.assertTrue(all(n <= 8 for n in per_day), per_day)
+        self.assertTrue(all(n <= 9 for n in per_day), per_day)
 
     def test_chart_story_picks_the_biggest_mover_and_skips_a_flat_quarter(self):
         from aidaily import markets

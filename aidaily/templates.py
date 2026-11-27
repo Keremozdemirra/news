@@ -802,7 +802,7 @@ def _move_color(move):
     return UP if m.startswith(("▲", "Up")) else DOWN if m.startswith(("▼", "Down")) else FLAT
 
 
-def story_markets(rows, label, source):
+def story_markets(title, rows, label, source, more=False):
     """Markets close: official prints only, one row each. A row is (name, value, move, date); the move is against the
     previous print, set with an arrow, never colour; the date is shown only when the print is not today's."""
     items = "".join(f'<div style="display:grid;grid-template-columns:1fr auto;column-gap:32px;align-items:center;margin-top:{24 if i else 0}px">'
@@ -811,9 +811,9 @@ def story_markets(rows, label, source):
                     + f'</div><div style="text-align:right;white-space:nowrap"><div style="font-size:62px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
                     f'<div data-move style="margin-top:4px;font-size:34px;font-weight:700;color:{_move_color(c)}">{e(c)}</div></div></div>'
                     for i, (n, v, c, d) in enumerate(rows))
-    body = (f'{_story_head("Markets close.", 104)}<div style="flex:1;min-height:40px"></div>{items}'
-            f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE};white-space:nowrap">{e(source)}</div>')
-    return _frame(body, "Markets", label, "Every rate: link in bio")
+    body = (f'{_story_head(e(title), 104)}<div style="flex:1;min-height:40px"></div>{items}'
+            f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
+    return _frame(body, "Markets close", label, "Rates and energy next" if more else "Every rate: link in bio")
 
 
 def _chart_svg(pts, w=936, h=560):

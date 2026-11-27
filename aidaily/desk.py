@@ -1168,43 +1168,69 @@ def _s_numbers(day, label):
 
 # Data stories from the official series the site already shows (aidaily/markets.py: ECB, US Treasury, EIA). No index
 # level or share price appears: those are licensed data. Each value carries its own date and its publisher.
-# Markets close: ECB euro reference rates (direct, so nothing is a calculated cross), US Treasury par yields and EIA
-# spot prices, all free to republish with the publisher named (market-data-sources.md, 2026-11-27). Crypto, metals as
-# daily prices and stock indices stay out: their licences or their monthly averages do not fit a daily close.
-MARKET_KEYS = ("eurusd", "eurgbp", "eurtry", "ust2", "ust10", "brent", "wti")
+# Markets close: ECB euro reference rates, US Treasury par yields and EIA spot prices, all free to republish with the
+# publisher named (market-data-sources.md, 2026-11-27). Crosses computed from ECB rates are named as calculated, as
+# the ECB asks. Crypto, metals as daily prices and stock indices stay out: their licences or their monthly averages
+# do not fit a daily close. Two frames, currencies then rates and energy: eleven rows do not fit one frame at full size.
+FX_KEYS = ("eurusd", "usdjpy", "gbpusd", "eurgbp", "eurtry")
+RATES_ENERGY_KEYS = ("ust2", "ust10", "brent", "wti", "henryhub")
 CHART_KEYS = ("brent", "wti", "ust10", "ust2", "eurusd", "usdjpy", "henryhub")
+CALC_NOTE = {"usdjpy": "USD/JPY", "gbpusd": "GBP/USD", "usdcny": "USD/CNY"}
 
 
 def _market_source(keys, short=False):
     from . import markets
     eia = "U.S. EIA" if short else "U.S. Energy Information Administration"
-    names = {"ecb": "ECB", "calc": "ECB", "ust": "U.S. Treasury", "eia": eia}
-    pubs = list(dict.fromkeys(names[markets.SERIES[k][3]] for k in keys))
-    return "Source: " + ", ".join(pubs) + "." + (" USD/JPY calculated from ECB reference rates." if "usdjpy" in keys else "")
+    names = {"ecb": "ECB", "calc": "ECB", "ust": "U.S. Treasury", "eia": eia, "dfr": "ECB"}
+    pubs = list(dict.fromkeys(names[markets.SERIES[k][3] if k in markets.SERIES else k] for k in keys))
+    calc = [CALC_NOTE[k] for k in keys if k in CALC_NOTE]
+    note = f" {', '.join(calc)} calculated from ECB reference rates." if calc else ""
+    return "Source: " + ", ".join(pubs) + "." + note
+
+
+def _market_rows(m, keys, today):
+    """(name, value, move, date) per fresh series: the move against the previous print, the date only when the print
+    is not today's (EIA spot prices lag by days, a Treasury print can trail by one). A stale series is left out."""
+    from . import markets
+    rows, used = [], []
+    for k in keys:
+        st = markets.stat(m, k)
+        if not st or st[3] is None or (today - date.fromisoformat(st[2])).days > 10:
+            continue
+        name, v, d, ch, pct, _ = st
+        nd = markets.SERIES[k][2]
+        move = "unchanged" if not ch else f"{markets.sign_arrow(ch)} {abs(ch):.{nd}f}" + ("" if markets.SERIES[k][1] == "%" or pct is None else f" ({abs(pct):.{2 if abs(pct) < 0.1 else 1}f}%)")
+        rows.append((name, markets.fmt(k, v), move, "" if d == today.isoformat() else date.fromisoformat(d).strftime("%-d %b")))
+        used.append(k)
+    return rows, used
 
 
 def _s_markets(day, label):
-    """The day's close, once the ECB has fixed today: each print with its move against the one before, and its own
-    date whenever that is not today (EIA spot prices lag by days, a Treasury print can trail by one)."""
+    """The day's close in two frames once the ECB has fixed today: currencies, then rates and energy. The ECB deposit
+    rate leads the second frame as a standing row ("unchanged since 16 Sep"): it moves a few times a year, and the
+    yields under it read against it, so a row that appeared only on decision days would leave the frame without its
+    anchor and change its layout from one day to the next."""
     from . import markets
     m = markets.load(live=False)
     today = now().date()
     fix = markets.stat(m, "eurusd")
     if not fix or fix[2] != today.isoformat():  # no ECB fix today (weekend, TARGET holiday, not in yet): no close to show
         return []
-    rows, keys = [], []
-    for k in MARKET_KEYS:
-        st = markets.stat(m, k)
-        if not st or st[3] is None or (today - date.fromisoformat(st[2])).days > 10:  # stale or single: never shown as today's
-            continue
-        name, v, d, ch, pct, _ = st
-        nd = markets.SERIES[k][2]
-        move = "unchanged" if not ch else f"{markets.sign_arrow(ch)} {abs(ch):.{nd}f}" + ("" if markets.SERIES[k][1] == "%" or pct is None else f" ({abs(pct):.{2 if abs(pct) < 0.1 else 1}f}%)")
-        rows.append((name, markets.fmt(k, v), move, "" if d == today.isoformat() else date.fromisoformat(d).strftime("%-d %b")))
-        keys.append(k)
-    if len(rows) < 5:
+    fx, fx_keys = _market_rows(m, FX_KEYS, today)
+    re_rows, re_keys = _market_rows(m, RATES_ENERGY_KEYS, today)
+    dfr = (m or {}).get("dfr") or {}
+    if dfr.get("value") is not None and dfr.get("since"):
+        since = date.fromisoformat(dfr["since"])
+        move = "set today" if since == today else f"unchanged since {since.strftime('%-d %b' if since.year == today.year else '%-d %b %Y')}"
+        re_rows.insert(0, ("ECB deposit rate", f"{dfr['value']:.2f}%", move, ""))
+        re_keys.insert(0, "dfr")
+    if len(fx) < 4 or len(re_rows) < 4:
         return []
-    return [_queue_story(f"{day}-markets", R.T.story_markets(rows, label, _market_source(keys, short=True)), "Markets close")]
+    first = _queue_story(f"{day}-markets", R.T.story_markets("Currencies.", fx, label, _market_source(fx_keys, short=True), more=True),
+                         "Markets close: currencies")
+    second = _queue_story(f"{day}-markets-b", R.T.story_markets("Rates and energy.", re_rows, label, _market_source(re_keys, short=True)),
+                          "Markets close: rates and energy", delay=1, after=f"{day}-markets")
+    return [first, second]
 
 
 def _s_chart(day, label, span=66):
@@ -1241,9 +1267,10 @@ def _s_follow(day, label):
 
 MON_WED_FRI, TUE_THU, ALL, MON_SAT, SUN = (0, 2, 4), (1, 3), range(7), range(6), (6,)
 # slot -> (weekdays, builder). Times are in desk.json story_hours, UTC. Instagram counts stories toward its 100-a-day
-# publishing limit and a reader will not sit through twenty, so a weekday carries at most eight: last 12 hours, one
-# number, one quiz (two stories), one feature, in the news today, today's top five, and the markets close (Saturday:
-# the follow story). Sunday swaps the quiz and the feature for the three weekly formats and the chart.
+# publishing limit and a reader will not sit through twenty. A weekday carries nine: last 12 hours, one number, one
+# quiz (two stories), one feature, in the news today, today's top five, and the markets close (two frames, one set,
+# like the quiz). Saturday has the follow story in the close's place; Sunday swaps the quiz and the feature for the
+# three weekly formats and the chart.
 STORY_SLOTS = {
     "last12": (ALL, lambda d, s, l: _s_last12(d, l)),
     "number": (ALL, lambda d, s, l: _number(d, s, l)),
