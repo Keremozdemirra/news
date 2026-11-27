@@ -83,15 +83,12 @@
   "threads": {
    "id": "18016146542993430",
    "url": "https://www.threads.com/@boardread/post/DgQYbT3mxM4",
-   "at": "2026-11-27T19:01:47+00:00",
-   "format": "text",
-   "reply": {
-    "id": "17971938474199462"
-   }
+   "at": "2026-11-27T19:02:21+00:00",
+   "found_live": true
   },
   "facebook": {
    "check_error": "facebook GET posts: HTTP 400: {\"error\":{\"message\":\"Unsupported get request. Object with ID 'BURAYA_ID' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https:\\/\\/developers.facebook.com\\/docs\\/graph-api\",\"type",
-   "checked": "2026-11-27T19:01:53+00:00",
+   "checked": "2026-11-27T19:02:28+00:00",
    "checks": 2
   }
  }
