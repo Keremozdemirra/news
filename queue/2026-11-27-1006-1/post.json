@@ -33,8 +33,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "Both presidential and parliamentary votes are pushed back, delaying the promised return to civilian rule.",
- "body": "The new date for the votes is 2028.",
+ "dek": "The postponement delays the country's promised return to civilian rule, a year after the military coup.",
+ "body": "Guinea-Bissau's military leaders had promised a return to civilian rule within 12 months of the coup. The delay covers both presidential and parliamentary elections.",
  "so_what": "",
  "sources": [
   "Africanews",
@@ -48,5 +48,11 @@
  "credit_file": "Example voting booth.jpg",
  "status": "web",
  "published": "2026-11-27T10:06:52+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:52:02.400216+00:00",
+  "why": "report too thin (1 sentences, 8 words beyond the dek)",
+  "dek": "Both presidential and parliamentary votes are pushed back, delaying the promised return to civilian rule.",
+  "body": "The new date for the votes is 2028."
+ }
 }

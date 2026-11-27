@@ -46,7 +46,11 @@
  ],
  "credit": "Photo: NOIRLab/NSF/AURA/T. Slovinský, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "NOIRLab HQ Conference Room (6V6A0258-CC).jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T10:06:56+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (1 sentences, 4 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }
