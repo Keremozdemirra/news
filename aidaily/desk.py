@@ -659,6 +659,8 @@ def audit(post):
         for x in copy.sentences(post.get(field) or ""):
             if copy.META.search(x) or copy.OFFTOPIC.search(x):
                 problems.append(f"{field} sentence is about the source or another story: {x[:80]!r}")
+            if copy.CONVERSION_SENTENCE.search(x):
+                problems.append(f"{field} sentence is a currency conversion on its own: {x[:80]!r}")
     if copy.fix_legislature(head_) != head_:
         problems.append(f"headline calls a chamber the Senate: {copy.SENATE.search(head_).group(0)!r}")
     if (post.get("body") or "").strip() and copy.LEANS.search(copy.sentences(post["body"])[0]):

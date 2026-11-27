@@ -53,6 +53,8 @@ the reports from other newsrooms listed under it ("also reported").
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
 that sounds quotable. American English. No em or en dashes. No hype words. No "not X but Y" constructions.
+A currency conversion the source gives goes in parentheses right after the figure it converts, once, on its first
+mention: "405.8 billion won ($303 million)". Never a sentence of its own, never one you work out yourself.
 A percentage names its period as the source states it ("year on year", "on the month", "quarter on quarter",
 "in October"). When the headline, dek and report give percentages for different periods, each one names its own.
 
@@ -277,6 +279,51 @@ def trim_periods(story, c):
             lines.append(" ".join(kept))
     c["linkedin_post"] = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
     return out
+
+
+MONEY = r"(?:about |roughly |around |nearly |some )?[$€£¥][\d.,]+(?: ?(?:million|billion|trillion|m|bn|tn|k))?"
+# a conversion that is a sentence of its own: "That equals $303 million.", "It is worth about 40 euros."
+CONVERSION_SENTENCE = re.compile(r"^(?:That|This|It|The (?:sum|amount|figure|total|payout|deal|price))\s+(?:is|equals?|is equal to|is worth|"
+                                 r"comes to|works out to|converts to|translates to|is equivalent to|is roughly|is about)\s+" + MONEY, re.I)
+# ", or about $303 million" after another currency's figure: the same conversion, written outside parentheses
+INLINE_CONVERSION = re.compile(r"(?<=[a-z\d])(,)? (?:or|equal(?:s|ing)?|equivalent to|worth|about|roughly) (" + MONEY + r")(?(1),?)(?=[,.;]|\s|$)", re.I)
+PAREN_CONVERSION = re.compile(r"\((" + MONEY + r")\)", re.I)
+
+
+def fix_conversions(c):
+    """A conversion is a parenthesis after its figure and appears once. A sentence that is only a conversion is cut,
+    an inline one ("405.8 billion won, or $303 million") moves into parentheses, a repeat of one already given goes.
+    Returns the sentences cut."""
+    cut, seen = [], set()
+    for field in ("headline", "dek", "linkedin_post", "x_post"):
+        text = c.get(field)
+        if not isinstance(text, str) or not text:
+            continue
+        if field == "x_post":
+            seen = set()  # its own post: the first mention there is its own
+        lines = []
+        for line in text.split("\n"):
+            if line.startswith("Source:") or not line.strip():
+                lines.append(line)
+                continue
+            kept = []
+            for sent in sentences(line):
+                if CONVERSION_SENTENCE.search(sent):
+                    cut.append(sent)
+                    continue
+                sent = INLINE_CONVERSION.sub(lambda m: f" ({m.group(2)})", sent)
+
+                def once(m):
+                    key = re.sub(r"\W", "", m.group(1).lower())
+                    if key in seen:
+                        return ""
+                    seen.add(key)
+                    return m.group(0)
+                kept.append(re.sub(r" {2,}", " ", PAREN_CONVERSION.sub(once, sent)).replace(" .", ".").replace(" ,", ",").strip())
+            if kept:
+                lines.append(" ".join(kept))
+        c[field] = "\n".join(lines).strip()
+    return cut
 
 
 def verify(story, copy):
@@ -705,6 +752,7 @@ def apply(stories, reply_rows):
             rejected.append((s["title"], [f"repeats recent headline {same}"]))
             continue
         if c:
+            fix_conversions(c)
             strip_ungrounded(s, c)
             trim_periods(s, c)
             # hype the source used ("massive revision") is still hype in our voice: the intensifier goes, the fact stays

@@ -112,5 +112,35 @@ class Periods(unittest.TestCase):
         self.assertEqual(copy.apply([s], rows), [])
 
 
+class Conversions(unittest.TestCase):
+    def test_a_conversion_is_a_parenthesis_given_once(self):
+        c = {"headline": "Coupang posts 405.8 billion won revenue",
+             "dek": "Revenue rose to 405.8 billion won, or $303 million, in the quarter.",
+             "x_post": "", "linkedin_post": "Operating profit reached 19.6 billion won ($14.5 million). That equals $14.5 million. "
+                                          "Sales were 405.8 billion won ($303 million) again.\n\nSource: Yonhap"}
+        cut = copy.fix_conversions(c)
+        self.assertEqual(cut, ["That equals $14.5 million."])
+        self.assertEqual(c["dek"], "Revenue rose to 405.8 billion won ($303 million) in the quarter.")
+        self.assertEqual(c["linkedin_post"], "Operating profit reached 19.6 billion won ($14.5 million). "
+                                             "Sales were 405.8 billion won again.\n\nSource: Yonhap")
+
+    def test_apply_cuts_the_sentence_that_is_only_a_conversion(self):
+        s = story("Coupang revenue rises 34.2% to 405.8 billion won",
+                  "Revenue rose 34.2% to 405.8 billion won ($303 million) in the third quarter. Operating profit was "
+                  "19.6 billion won ($14.5 million).", source="Yonhap")
+        rows = [row(headline="Coupang revenue rises 34.2% to 405.8 billion won",
+                    dek="Operating profit was 19.6 billion won ($14.5 million).", x_post="x",
+                    linkedin_post="Revenue was 405.8 billion won ($303 million) in the third quarter. That equals $303 million.\n\n"
+                                  "Source: Yonhap")]
+        copy.apply([s], rows)
+        self.assertNotIn("That equals", s["linkedin_post"])
+
+    def test_audit_holds_a_post_with_a_conversion_sentence(self):
+        from aidaily import desk
+        post = {"headlines": ["Coupang posts record revenue"], "dek": "Revenue was 405.8 billion won.",
+                "body": "Sales rose in the quarter. That is about $303 million."}
+        self.assertTrue(any("currency conversion on its own" in p for p in desk.audit(post)))
+
+
 if __name__ == "__main__":
     unittest.main()
