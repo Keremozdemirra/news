@@ -131,9 +131,12 @@
     "markets": "22:00",
     "chart": "15:00",
     "today": "16:00",
+    "games": "09:30",
     "follow": "18:00",
     "top5": "19:30"
   },
+  "facebook_stories": true,
+  "facebook_story_daily_max": 6,
   "story_grace_hours": 3,
   "story_max_age_hours": 3,
   "breaking_score": 14,

@@ -654,6 +654,20 @@ class Facebook(Client):
         pid = self.call(f"{page}/feed", {"message": facebook_link_text(post), "link": story_page(post, "facebook")})["id"]
         return {"id": pid, "url": f"https://www.facebook.com/{pid}", "format": "link"}
 
+    def post_story(self, image_url):
+        """A photo story on the Page (docs read 2026-11-27: developers.facebook.com/docs/page-stories-api/). The photo
+        is uploaded unpublished with POST /{page-id}/photos (url, published=false), then POST /{page-id}/photo_stories
+        with photo_id makes it the story. Same Page token and pages_manage_posts as a feed post. A story takes no
+        caption, sticker or link through this API, and a photo already used in a published post cannot be reused."""
+        self.page_token()  # resolves FB_PAGE_ID to the Page the token manages
+        page = self.env["FB_PAGE_ID"]
+        photo = self.call(f"{page}/photos", {"url": image_url, "published": "false"})["id"]
+        got = self.call(f"{page}/photo_stories", {"photo_id": photo})
+        if not got.get("success") or not got.get("post_id"):
+            raise PlatformError(f"facebook: photo_stories did not confirm the story: {str(got)[:200]}")
+        pid = str(got["post_id"])
+        return {"id": pid, "url": f"https://www.facebook.com/{pid}", "photo_id": photo}
+
 
 # Bluesky
 # Docs read 2026-11-26: docs.bsky.app/docs/advanced-guides/posts and docs.bsky.app/docs/tutorials/creating-a-post

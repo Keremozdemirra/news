@@ -13,12 +13,18 @@ from aidaily import desk, instagram
 _growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG["growth"] if isinstance(desk.CONFIG["growth"][k], bool)})
 
 
+# Facebook Page stories have their own tests (test_fbstories.py): here the story scheduler is Instagram's alone
+_fb = mock.patch.dict(desk.CONFIG, {"facebook_stories": False})
+
+
 def setUpModule():
     _growth.start()
+    _fb.start()
 
 
 def tearDownModule():
     _growth.stop()
+    _fb.stop()
 
 
 WORDS = ["Anthropic releases coding agent", "Mistral raises funding round", "Nvidia halts chip shipments",
@@ -1196,7 +1202,7 @@ class Formats(Tmp):
     def test_no_day_carries_more_than_nine_stories(self):
         size = {s: 2 for s in (*desk.QUIZ_SLOTS, "markets")}
         per_day = [sum(size.get(s, 1) for s, (days, _) in desk.STORY_SLOTS.items()
-                       if wd in days and s not in desk.FEATURE_SLOTS and s not in desk.QUIZ_SLOTS)
+                       if wd in days and s not in desk.FEATURE_SLOTS + desk.QUIZ_SLOTS + desk.FB_ONLY_SLOTS)
                    + any(wd in desk.STORY_SLOTS[s][0] for s in desk.FEATURE_SLOTS)
                    + 2 * any(wd in desk.STORY_SLOTS[s][0] for s in desk.QUIZ_SLOTS) for wd in range(7)]
         self.assertTrue(all(n <= 9 for n in per_day), per_day)
@@ -1610,7 +1616,7 @@ class ScheduledStories(Tmp):
         """Quizzes count twice (question and answer) but run one a day; features run one a day. Instagram counts
         stories toward its 100-a-day limit, beside 12+ feed posts and the reel."""
         for day in range(7):
-            slots = [s for s, (days, _) in desk.STORY_SLOTS.items() if day in days]
+            slots = [s for s, (days, _) in desk.STORY_SLOTS.items() if day in days and s not in desk.FB_ONLY_SLOTS]
             n = sum(1 for s in slots if s not in desk.QUIZ_SLOTS + desk.FEATURE_SLOTS)
             n += 2 * any(s in desk.QUIZ_SLOTS for s in slots) + any(s in desk.FEATURE_SLOTS for s in slots)
             self.assertLessEqual(n, 8, day)

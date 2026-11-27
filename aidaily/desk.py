@@ -1527,6 +1527,25 @@ def _s_follow(day, label):
                          user_tags=[{"username": CONFIG["handle"].lstrip("@"), "x": 0.5, "y": 0.5}])]
 
 
+def _s_games(day, label):
+    """Today's three games and their numbers, once all three show today's puzzle on the site. Only the puzzle numbers
+    are read, never a word, figure or answer (games_post.numbers)."""
+    from . import games_post
+    try:
+        live = games_post.live_puzzles(games_post.today_utc())
+    except Exception as e:  # noqa: BLE001  the site unreachable: the slot tries again on the next run
+        print(f"games story: puzzles not readable: {str(e)[:120]}")
+        return []
+    if not live:
+        return []
+    nos = games_post.numbers(live)
+    rows = [(games_post.LINES[slug], f"No. {nos[slug]}") for slug in games_post.LINES if slug in nos]
+    if len(rows) < 2:
+        return []
+    link = brand_domain() + "/play"
+    return [_queue_story(f"{day}-games", R.T.story_games(rows, label, link), "Today's games", only="facebook")]
+
+
 MON_WED_FRI, TUE_THU, ALL, MON_SAT, SUN = (0, 2, 4), (1, 3), range(7), range(6), (6,)
 # slot -> (weekdays, builder). Times are in desk.json story_hours, UTC. Instagram counts stories toward its 100-a-day
 # publishing limit and a reader will not sit through twenty. A weekday carries nine: last 12 hours, one number, one
@@ -1554,10 +1573,13 @@ STORY_SLOTS = {
     "markets": (range(5), lambda d, s, l: _s_markets(d, l)),
     "chart": (SUN, lambda d, s, l: _s_chart(d, l)),
     "today": (ALL, lambda d, s, l: _s_today(d, l)),
+    "games": (ALL, lambda d, s, l: _s_games(d, l)),
     "follow": ((5,), lambda d, s, l: _s_follow(d, l)),
     "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),
 }
 QUIZ_SLOTS = ("bigger", "whois", "quiz", "fill")
+# stories for the Facebook Page alone: Instagram keeps its nine a day, the Page gets these on top
+FB_ONLY_SLOTS = ("games",)
 FEATURE_SLOTS = ("company", "board", "person")
 WEEKLY_SLOTS = ("shared", "saved", "numbers", "board")  # the ones whose date label reads "Week 48"
 
@@ -1578,7 +1600,11 @@ def scheduled_stories():
     Nothing is built while Instagram is cooling down or near the daily limit: a story queued then would only go
     out late, and the publish step drops stories that old. One quiz and one feature a day: the first slot above
     that has data takes it."""
-    if paused() or not CONFIG.get("story_concepts", True) or cooldown_until() or _over_story_quota(2):
+    if paused() or not CONFIG.get("story_concepts", True):
+        return []
+    # Facebook Page stories do not wait for Instagram: while Instagram cools down or nears its limit the stories are
+    # still built for the Page (fb_stories), and Instagram's own publish step lets them expire unsent
+    if (cooldown_until() or _over_story_quota(2)) and not fb_stories_on():
         return []
     t = now()
     day, made = t.strftime("%Y-%m-%d"), []
@@ -1588,7 +1614,7 @@ def scheduled_stories():
 
     for slot, (weekdays, build) in STORY_SLOTS.items():
         at = CONFIG["story_hours"].get(slot)
-        if not at or t.weekday() not in weekdays or today(slot):
+        if not at or t.weekday() not in weekdays or today(slot) or (slot in FB_ONLY_SLOTS and not fb_stories_on()):
             continue
         group = QUIZ_SLOTS if slot in QUIZ_SLOTS else FEATURE_SLOTS if slot in FEATURE_SLOTS else ()
         if any(today(other) for other in group):
@@ -2571,6 +2597,10 @@ def publish(client=None, dry=False):
         except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
             print(f"mirror posts crashed: {str(e)[:200]}")
         try:
+            fb_stories()
+        except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
+            print(f"facebook stories crashed: {str(e)[:200]}")
+        try:
             web_social()
         except Exception as e:  # noqa: BLE001  a web-tier problem never reaches the Instagram flow
             print(f"web posts crashed: {str(e)[:200]}")
@@ -2583,6 +2613,72 @@ def publish(client=None, dry=False):
         except Exception as e:  # noqa: BLE001
             print(f"evening digest crashed: {str(e)[:200]}")
     return sent
+
+
+def fb_stories_on():
+    return bool(CONFIG.get("facebook_stories")) and bool(CONFIG.get("platforms", {}).get("facebook")) \
+        and not platform_cooldown("facebook")
+
+
+def fb_stories_last_24h():
+    cut = now() - timedelta(hours=24)
+    return sum(1 for p, _ in posts() if (_stamp(((p.get("fb_story") or {}).get("at") or (p.get("fb_story") or {}).get("attempted") or "")) or cut) > cut)
+
+
+def fb_story_due():
+    """The story frame the Page takes next, or None. The same frames Instagram gets, on their own clock: due,
+    younger than story_max_age_hours, not sent, story_spacing_minutes after the Page's last story (the second frame
+    of a pair follows its first at once), at most facebook_story_daily_max a day. A quiz answer only follows a
+    question the Page itself showed today."""
+    if not fb_stories_on() or fb_stories_last_24h() >= CONFIG.get("facebook_story_daily_max", 6):
+        return None
+    cut = now() - timedelta(hours=CONFIG.get("story_max_age_hours", 3))
+    stamps = [_stamp((p.get("fb_story") or {}).get("at", "")) for p, _ in posts()]
+    last = max((x for x in stamps if x), default=None)
+    gap = timedelta(minutes=CONFIG.get("story_spacing_minutes", 0))
+    rows = sorted(((p, path) for p, path in posts() if p.get("kind") == "story" and not p.get("fb_story")
+                   and p.get("status") in ("queued", "published", "expired") and p.get("story")
+                   and datetime.fromisoformat(p["publish_after"]) <= now() and datetime.fromisoformat(p["created"]) > cut),
+                  key=lambda r: r[0]["publish_after"])
+    for post, path in rows:
+        if post.get("after"):
+            q = _load(QUEUE / post["after"] / "post.json", {})
+            if not (q.get("fb_story") or {}).get("id") or q["fb_story"]["at"][:10] != now().strftime("%Y-%m-%d"):
+                continue
+        elif last and now() - last < gap:
+            continue
+        return post, path
+    return None
+
+
+def fb_stories(factory=None):
+    """One story frame to the Facebook Page per run (fb_story_due). Marked before the call, like every send: a
+    story cannot be looked up afterwards, so one whose result is unknown is never sent again. Returns 1 or 0."""
+    due = fb_story_due()
+    if not due:
+        return 0
+    from . import platforms
+    post, path = due
+    try:
+        client = (factory or platforms.Facebook)()
+    except platforms.Missing:
+        return 0
+    post["fb_story"] = {"attempted": now().isoformat(timespec="seconds")}
+    _save(path, post)
+    try:
+        got = client.post_story(media_url(post["id"], post["story"]))
+        post["fb_story"] = {"id": got["id"], "url": got.get("url", ""), "at": now().isoformat(timespec="seconds")}
+        print(f"{post['id']}: facebook story posted {got.get('url', '')}")
+    except Exception as e:  # noqa: BLE001
+        text = str(e)
+        post["fb_story"]["error"] = text[:300]
+        if platforms.AUTH.search(text):
+            platform_pause("facebook", text, auth=True)
+        elif platforms.BLOCKED.search(text):
+            platform_pause("facebook", text)
+        print(f"{post['id']}: facebook story failed, not retried: {text[:200]}")
+    _save(path, post)
+    return 1 if (post["fb_story"] or {}).get("id") else 0
 
 
 def _publish(client, dry):
@@ -2633,6 +2729,8 @@ def _publish(client, dry):
                 checked.add(post["id"])
         due = rotated()
     for post, path in due:
+        if post.get("kind") == "story" and post.get("only") == "facebook":
+            continue  # fb_stories sends it; Instagram's publish step lets it expire
         if post.get("kind") == "story":
             state = _answer_state(post)
             if state == "wait":

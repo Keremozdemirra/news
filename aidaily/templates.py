@@ -930,6 +930,17 @@ def story_follow(handle, line, label):
     return _frame(body, "Follow", label, "Tap the name above to follow")
 
 
+def story_games(rows, label, link):
+    """Today's games: each game's name and puzzle number, then where to play. No hint of any answer."""
+    items = "".join(f'<div style="display:flex;justify-content:space-between;align-items:baseline;padding:34px 0;'
+                    f'border-top:2px solid {RULE}"><span style="font-size:76px;font-weight:800;letter-spacing:-0.03em">{e(n)}</span>'
+                    f'<span class="num" style="font-size:52px;color:{DIM}">{e(no)}</span></div>' for n, no in rows)
+    body = (_h("Today&rsquo;s<br>games.", 150, lh=0.92, track=-0.045)
+            + f'<div style="margin-top:72px">{items}</div>'
+            + _h(e(link), 56, color=DIM, top=56, weight=500, track=-0.01))
+    return _frame(body, "Play", label, "New puzzles every day")
+
+
 def feed_card(story, brand=BRAND, tag=None):
     return card(story, brand)
 
