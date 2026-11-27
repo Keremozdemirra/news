@@ -15,7 +15,7 @@ an origin with a path (https://keremozdemir.de/news) puts everything under that 
   /archive/              one page per day                       /archive/<YYYY-MM-DD>/
   /search/               client-side search over /search.json
   /play/                 the games hub; /play/<slug>/ one game, copied from games/<slug>/ (see aidaily/play.py)
-  /about/ /standards/ /contact/ /404.html   (Impressum and Privacy are keremozdemir.de's, same operator)
+  /about/ /standards/ /contact/ /impressum/ /privacy/ /404.html
   /feed.xml /weekly.xml /sitemap.xml /news-sitemap.xml /robots.txt
   /og/<id>.jpg           the 1200x630 link-preview image of a article, cut from its photo at build time
 """
@@ -68,9 +68,9 @@ def is_sport(p):
 def topic_path(t):
     """Where a section lives: Sport at /sport/, every other topic at /t/<topic>/."""
     return f"/{t.lower()}/" if t == SPORT else f"/t/{t.lower()}/"
-# Same operator as keremozdemir.de, whose Impressum and Privacy pages are the legal notice of this site too.
-# The Impressum is on this domain (§ 5 DDG, § 18 Abs. 2 MStV for journalistic content, 2026-11-27); privacy stays on keremozdemir.de
-LEGAL = {"impressum": "/impressum/", "privacy": "https://keremozdemir.de/privacy/"}
+# Same operator as keremozdemir.de, but both legal pages are this site's own: the Impressum (§ 5 DDG, § 18 Abs. 2 MStV for
+# journalistic content) and the privacy page, which describes what Boardread does, not what the personal site does (2026-11-27)
+LEGAL = {"impressum": "/impressum/", "privacy": "/privacy/"}
 OPERATOR = {"name": "Kerem Özdemir", "street": "Ricarda-Huch-Straße 1", "city": "80807 München", "country": "Germany",
             "email": "kozdemir3523@gmail.com"}
 CONTACT_ISSUES = "https://github.com/Keremozdemirra/news/issues"
@@ -443,7 +443,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <div class="foot-grid">
 <div><h2>Sections</h2><ul>{foot_sections}</ul></div>
 <div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li>{f'<li><a href="{BASE}/play/">Play</a></li>' if "play" in SHIPPED else ""}<li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
-<div><h2>Legal</h2><ul><li><a href="{BASE}{LEGAL['impressum']}">Impressum</a></li><li><a href="{LEGAL['privacy']}">Privacy</a></li></ul></div>
+<div><h2>Legal</h2><ul><li><a href="{BASE}{LEGAL['impressum']}">Impressum</a></li><li><a href="{BASE}{LEGAL['privacy']}">Privacy</a></li></ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC.{crypto_credit()} &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
@@ -1145,6 +1145,52 @@ def impressum_page():
 </div>"""
 
 
+def privacy_page():
+    o = OPERATOR
+    imp = f'<a href="{BASE}{LEGAL["impressum"]}">Impressum</a>'
+    return pagehead("Privacy", "What this site does with your data. Short version: almost nothing.") + f"""<div class="prose">
+<p>Last updated 27 November 2026.</p>
+<h2>Who is responsible</h2>
+<p>{E(o["name"])}, {E(o["street"])}, {E(o["city"])}, {E(o["country"])}. Email: <a href="mailto:{E(o["email"])}">{E(o["email"])}</a>. Write to that address about anything on this page. There is no data protection officer; a site of this size does not need one. (Art. 4 No. 7 and Art. 13 (1)(a) GDPR.) The full details are in the {imp}.</p>
+<h2>What this site does not do</h2>
+<p>No analytics. No advertising. No tracking pixel, no embeds, no social buttons that load anything (the share buttons are plain links and send nothing until you click one). The site sets no cookie, so there is no cookie banner. Fonts, photos and scripts all come from boardread.news itself, so opening a page does not send your address to Google or anyone else. Every request a page makes goes to boardread.news itself. I checked this by loading the front page, an article, the games, search and the numbers page and listing every request.</p>
+<h2>Hosting</h2>
+<p>Boardread is served by GitHub Pages, run by GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. GitHub documents that <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages" rel="noopener">when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes</a>. I never see those logs. The reason is having a website that stays up and is safe from abuse (Art. 6 (1)(f) GDPR). GitHub is in the United States and is certified under the EU-U.S. Data Privacy Framework (Art. 45 GDPR); see the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">GitHub Privacy Statement</a>. Subscribing to the RSS feeds is an ordinary request and is logged the same way.</p>
+<h2>What your browser remembers</h2>
+<p>Boardread writes a few small items to your browser's local storage. None of it is a cookie, none of it is ever sent anywhere, and I cannot read it. Clear your site data and it is gone.</p>
+<ul>
+<li><b>br:theme</b>: "light" or "dark", after you press the theme button.</li>
+<li><b>br:visit</b>: two timestamps, this visit and the one before, so the page can mark what is new since you last came.</li>
+<li><b>tickerflip:v1, topfloor:v1, ftf:v1</b>: your results and streak in each daily game.</li>
+<li><b>tickerflip:misses, topfloor:misses</b>: your last wrong guesses (up to 200), so the game can say which ones you got wrong before.</li>
+<li><b>tickerflip:sound, topfloor:sound, ftf:sound, tickerflip:hc</b>: sound on or off, and high-contrast colours in Tickerflip, after you set them.</li>
+</ul>
+<p>Sharing a game result copies text with your score and a link ending <b>?utm_source=share</b> to your clipboard. Links Boardread posts on social media can end in <b>utm_source=&lt;platform&gt;</b>. Nothing on this site reads those labels.</p>
+<h2>Contact</h2>
+<p>If you email me, I get your email address and what you write. It stays in my mailbox while the conversation lasts and as long afterwards as the law requires (Art. 6 (1)(b) and (f) GDPR). If you open an issue on the project's GitHub page, your GitHub name and text are public on GitHub, which handles them under its own privacy statement.</p>
+<h2>Social accounts and the SOURCE message</h2>
+<p>Boardread posts on Instagram, Threads, Facebook, Bluesky, Telegram and YouTube. Each platform is the controller of its own data about you, under its own privacy policy: Meta (Instagram, Threads, Facebook), Bluesky, Telegram and Google (YouTube). On Threads, Facebook, Bluesky, Telegram and YouTube Boardread only publishes and counts totals (likes, replies, views, subscribers). It does not read or store your comments, replies or names there.</p>
+<p>Instagram is different. Some posts say "Comment SOURCE and we'll DM the links". A program that runs every five minutes reads the comments under posts from the last seven days through Meta's API, which gives it each comment's text, its author's username and its ID.</p>
+<ul>
+<li><b>If your comment contains the word SOURCE:</b> the program sends you one direct message with the article's headline and link, and one short public reply saying the links went to your DMs. This answers your request (Art. 6 (1)(f) GDPR: my interest in answering readers, yours in getting what you asked for). It sends one message per comment.</li>
+<li><b>Any other comment</b> may get a short public reply. To write it, the comment text (up to 600 characters) and the post's caption are sent to Anthropic, PBC through its API, and a checked reply is posted (Art. 6 (1)(f) GDPR). The model has no tools and no memory of you. Spam, hostile and off-topic comments get no reply. At most 20 such replies are posted a day.</li>
+<li><b>What Boardread keeps:</b> the comment ID, so it never answers one comment twice. Not your username, not your text, not the message. IDs of the last 5,000 answered comments sit in a file in the project's public GitHub repository, and older versions of that file remain in the repository's history. A comment ID on its own does not name you, but Meta can match it to the comment. The comment and the DM themselves stay on Instagram until you or Meta delete them.</li>
+</ul>
+<p>You can object to this at any time (Art. 21 GDPR): delete your comment, or write to me, and I will not process it further.</p>
+<h2>Other parties</h2>
+<ul>
+<li><b>GitHub:</b> hosting, the project repository and the automation that builds the site (above).</li>
+<li><b>Meta:</b> the Instagram, Threads and Facebook APIs (above).</li>
+<li><b>Anthropic:</b> the comment text and caption described above, for non-SOURCE comments only. See its <a href="https://www.anthropic.com/legal/privacy" rel="noopener">privacy policy</a>.</li>
+<li><b>IndexNow and Google Search Console:</b> after a deploy, the list of new page addresses goes to IndexNow search engines, and Search Console shows me how Google crawls the site. Neither receives anything about visitors.</li>
+</ul>
+<p>Links in articles lead to the newsrooms' own sites, which have their own policies. Nothing is sold, and nothing here is used to profile you.</p>
+<h2>Your rights</h2>
+<p>You can ask what I hold about you (Art. 15 GDPR), have it corrected (Art. 16) or deleted (Art. 17), restrict what I do with it (Art. 18), receive it in a portable form (Art. 20) and object to it (Art. 21). Art. 19 obliges me to tell recipients about a correction or deletion. In practice I hold your emails and, if you used SOURCE, a comment ID. Nothing here is decided about you automatically (Art. 22).</p>
+<p>You can also complain to a supervisory authority (Art. 77 GDPR). For Munich that is the <a href="https://www.lda.bayern.de/" rel="noopener">Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)</a>. How the articles are written is described in the {imp} and on the <a href="{BASE}/standards/">standards page</a>.</p>
+</div>"""
+
+
 def contact_page():
     return pagehead("Contact", "Corrections, tips and questions.") + f"""<div class="prose">
 <p>Send the link to the article. Corrections are read first.</p>
@@ -1400,7 +1446,8 @@ def build(out=desk.HERE / "_site"):
     for key, title, fn, d in (("about", "About", about_page, "What Boardread is and how the desk works."),
                               ("standards", "Editorial standards and corrections", standards_page, "What a Boardread article promises and how corrections work."),
                               ("contact", "Contact", contact_page, "Corrections, tips and questions."),
-                              ("impressum", "Impressum", impressum_page, "Legal notice for boardread.news.")):
+                              ("impressum", "Impressum", impressum_page, "Legal notice for boardread.news."),
+                              ("privacy", "Privacy", privacy_page, "What Boardread collects, what your browser stores and what happens to a SOURCE comment.")):
         put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
         sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
     put(out, "/corrections/", page("Corrections · boardread.", corrections_page(CORRECTIONS), "Errors fixed and articles withdrawn.", "/corrections/"))
