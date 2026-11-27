@@ -351,6 +351,8 @@ async function share() {
 function fit() {
   const vv = window.visualViewport;
   app.style.setProperty("--vh", (vv ? vv.height : innerHeight) + "px");
+  // iOS does not resize the page for its keyboard: it scrolls the visual viewport. The app follows it down.
+  app.style.transform = vv && vv.offsetTop ? `translateY(${vv.offsetTop}px)` : "";
   if (!data || !ride) return;
   // the drawing is scaled by its width: one floor is --fh pixels high
   K = parseFloat(getComputedStyle($("tower")).getPropertyValue("--fh")) / T.U;
@@ -374,6 +376,7 @@ async function boot() {
   fit();
   addEventListener("resize", fit);
   window.visualViewport?.addEventListener("resize", fit);
+  window.visualViewport?.addEventListener("scroll", fit);
 
   const d = new Date(data.date + "T12:00:00Z");
   $("issue").textContent = `No. ${data.no} · ${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;

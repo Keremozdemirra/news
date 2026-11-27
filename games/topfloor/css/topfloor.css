@@ -22,6 +22,7 @@
 html, body { height: 100%; }
 body { background: var(--paper); color: var(--ink); font: 400 16px/1.4 var(--f); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 button { font: inherit; color: inherit; border-radius: 0; cursor: pointer; }
+button, a, input { touch-action: manipulation; }      /* no double-tap zoom, so no wait before a tap counts */
 a { color: inherit; }
 [hidden] { display: none !important; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -176,4 +177,20 @@ a { color: inherit; }
   .readout { grid-column: 2; grid-row: 2; border-top: 0; padding-top: 0; }
   .floor b { font-size: 80px; }
   .q { grid-column: 2; grid-row: 3; padding-top: 24px; }
+}
+
+/* the phone keyboard is up: the window is about 400 px high. Everything is set tighter so the question, the box,
+   its note and the next button are all above the keys, with the lift still in view. */
+@media (max-height: 520px) and (max-width: 899px) {
+  .tower { min-height: 48px; }
+  .readout { padding-top: 6px; padding-bottom: 6px; }
+  .floor b { font-size: 32px; }
+  .band strong { font-size: 18px; }
+  .q { padding-top: 10px; padding-bottom: 10px; }
+  .q-text { margin-top: 10px; font-size: 28px; }
+  .slot { margin-top: 12px; }
+  .slot input, .go { height: 48px; }
+  .go { width: 48px; }
+  .note { margin-top: 8px; font-size: 13px; }
+  .q .btn { margin-top: 12px; height: 48px; }
 }

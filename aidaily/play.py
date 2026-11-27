@@ -17,7 +17,7 @@ from . import site as S
 GAMES_DIR = Path(__file__).resolve().parent.parent / "games"
 # slug, title, one line, live
 GAMES = [
-    ("topfloor", "Topfloor", "Seven prompts. The rarer your answer, the higher you ride.", True),
+    ("topfloor", "Topfloor", "Seven questions. The rarer your answer, the higher the lift goes.", True),
     ("tickerflip", "Tickerflip", "One word from today's news. Six guesses.", True),
     ("face-the-figure", "Face the Figure", "Higher or lower? Each figure meets the next.", True),
 ]

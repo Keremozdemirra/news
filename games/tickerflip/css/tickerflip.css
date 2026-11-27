@@ -28,6 +28,7 @@
 html, body { height: 100%; }
 body { background: var(--paper); color: var(--ink); font: 400 16px/1.4 var(--f); -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
 button { font: inherit; color: inherit; border-radius: 0; cursor: pointer; }
+button, a, input { touch-action: manipulation; }      /* no double-tap zoom, so no wait before a tap counts */
 a { color: inherit; }
 [hidden] { display: none !important; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
