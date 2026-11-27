@@ -80,6 +80,13 @@
    },
    "format": "photo",
    "video_error": "threads video: threads container 18132538756699877: ERROR UNKNOWN"
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3ckofuu242p",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3ckofuu242p",
+   "at": "2026-11-27T16:00:30+00:00",
+   "video": true,
+   "format": "video"
   }
  },
  "lead_published": "2026-11-27T13:20:24+00:00",
