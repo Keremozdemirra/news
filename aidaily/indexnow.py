@@ -7,7 +7,7 @@ import re
 import urllib.request
 from pathlib import Path
 
-KEY = "9d3fc154baaa5ce444f3553488f3c208"
+KEY = "9d3fc154baaa5ce444f3553488f3c208"  # gitleaks:allow (public by protocol)
 ENDPOINT = "https://api.indexnow.org/indexnow"
 LOC = re.compile(r"<loc>([^<]+)</loc>")
 MAX = 10000
