@@ -24,9 +24,9 @@
   "sport"
  ],
  "topic": "Sport",
- "photo_file": "Hinchliffe Stadium (Paterson, NJ).jpg",
+ "photo_file": "Soccer goal low angle.jpg",
  "photo_kind": "scene",
- "photo_alt": "A football stadium seen from above",
+ "photo_alt": "A football goal net seen from below",
  "score": 8.619,
  "figure": "2029",
  "company": "Leeds United",
@@ -44,8 +44,9 @@
   "https://www.bbc.co.uk/sport/football/articles/cx62pnz1evv4o?at_medium=RSS&at_campaign=rss",
   "https://www.skysports.com/football/news/12040/13616913/dominic-calvert-lewis-leeds-striker-signs-new-deal-until-2029-with-premier-league-club"
  ],
- "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
+ "credit": "Photo: Jrcla2, Public domain, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-27T00:17:11+00:00",
- "story": ""
+ "story": "",
+ "credit_file": "Soccer goal low angle.jpg"
 }
