@@ -106,7 +106,7 @@ class Features(Tmp):
         h = self.read("brief/index.html")
         self.assertLessEqual(h.count('<article class="bn">'), 8)
         self.assertGreaterEqual(h.count('<article class="bn">'), 5)
-        self.assertIn("End of the brief.", h)  # the column ends, with the closing mark
+        self.assertIn("That’s the brief.", h)  # the column ends, with the closing mark
         self.assertIn("&ndash; 30 &ndash;", h)
         self.assertTrue((self.out / "brief" / "2026-11-26" / "index.html").exists())
         self.assertIn(f'href="{site.BASE}/brief/"', self.read("index.html"))
