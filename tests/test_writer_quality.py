@@ -555,3 +555,22 @@ class BySource(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompanyTag(unittest.TestCase):
+    def test_visa_applications_are_not_the_card_company(self):
+        s = story("Visa applications from India fall 20%", "Visa applications from India fell 20% this year.")
+        s.update({"headline": "Visa applications from India fall 20%", "company": "", "orgs": []})
+        copy.tag_company(s)
+        self.assertEqual(s["company"], "")
+
+    def test_a_court_or_a_central_bank_is_not_a_company(self):
+        for org in ("Supreme Court", "Federal Reserve", "European Central Bank", "Bank of England"):
+            s = story(f"{org} holds firm", f"The {org} held.")
+            s.update({"headline": f"{org} holds firm", "company": "", "orgs": [org]})
+            copy.tag_company(s)
+            self.assertEqual(s["company"], "", org)
+        s = story("Bank of America profit rises", "Bank of America said profit rose.")
+        s.update({"headline": "Bank of America profit rises", "company": "", "orgs": ["Bank of America"]})
+        copy.tag_company(s)
+        self.assertEqual(s["company"], "Bank of America")

@@ -990,7 +990,11 @@ def thin(s):
 
 
 # a name that is also an ordinary word or a surname is not read as a company without the model saying so
-AMBIGUOUS_BRANDS = {"target", "shell", "arm", "ford", "windows", "pixel", "ati", "citi"}
+AMBIGUOUS_BRANDS = {"target", "shell", "arm", "ford", "windows", "pixel", "ati", "citi", "visa"}
+# an institution of government is not a company: no logo, ticker or hashtag (the desk's own rule, "filler")
+GOVERNMENT = re.compile(r"\b(?:court|tribunal|federal reserve|the fed|central bank|reserve bank|ecb|bank of (?:england|japan|canada|korea|"
+                        r"france|italy|israel|mexico|china|russia|thailand|jamaica)|people['\u2019]s bank|congress|senate|parliament|"
+                        r"ministry|department|commission|treasury|government|police|army|navy|white house|kremlin|supreme)\b", re.I)
 # the product in a headline, and the company that makes it
 MAKER = {"iphone": "Apple", "ipad": "Apple", "macbook": "Apple", "radeon": "AMD", "geforce": "Nvidia", "snapdragon": "Qualcomm",
          "xbox": "Microsoft", "facebook": "Meta", "instagram": "Meta", "whatsapp": "Meta", "alexa": "Amazon", "kindle": "Amazon",
@@ -1021,7 +1025,7 @@ def tag_company(s):
     organisation the model listed from the source; it also leads the `orgs` list."""
     head_ = s.get("headline", "")
     low = head_.lower()
-    found = [(m.start(), m.group(0)) for o in s.get("orgs") or [] if isinstance(o, str) and len(o) > 2
+    found = [(m.start(), m.group(0)) for o in s.get("orgs") or [] if isinstance(o, str) and len(o) > 2 and not GOVERNMENT.search(o)
              for m in [re.search(rf"(?<![\w])({re.escape(o)})(?![\w])", head_)] if m]
     brand, at = headline_company(head_, source_text(s))
     if brand:
