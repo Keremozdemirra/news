@@ -39,7 +39,7 @@ class Tmp(unittest.TestCase):
     def post(self, pid="p1", **kw):
         p = {"id": pid, "created": desk.now().isoformat(), "status": "published", "cards": ["card.jpg"], "score": 12,
              "headlines": ["Lab ships a model"], "dek": "It is faster.", "body": "It is faster than the last one.",
-             "caption": "Lab ships a model\n\nWritten by AI.", "published": desk.now().isoformat(), "topic": "AI"}
+             "caption": "Lab ships a model", "published": desk.now().isoformat(), "topic": "AI"}
         p.update(kw)
         path = desk.QUEUE / pid / "post.json"
         path.parent.mkdir(parents=True, exist_ok=True)

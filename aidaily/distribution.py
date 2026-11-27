@@ -17,7 +17,7 @@ from . import desk
 FEED_RKEY = "boardread"
 FEED_NAME = "Boardread: business news"  # lexicon app.bsky.feed.generator: displayName max 24 graphemes
 FEED_DESC = ("Every Boardread story on Bluesky, newest first: markets, economy, policy, tech and AI, each with its "
-             "sources linked. Automated desk, written by AI from named newsrooms.")
+             "sources linked.")
 MAX_FEED = 100
 
 
@@ -83,7 +83,7 @@ def pin_text():
         "Markets, economy, policy, world, tech and AI, as it happens. Routine posts arrive silently; only breaking "
         "stories notify. One digest of the day's top stories every evening.",
         "",
-        f"Every post links its sources on {site.split('://')[-1]}. Written by an automated desk with AI; every number is "
+        f"Every post links its sources on {site.split('://')[-1]}. Every number is "
         "checked against the source text before anything is posted.",
         f"Corrections and standards: {site}/standards/",
         "",

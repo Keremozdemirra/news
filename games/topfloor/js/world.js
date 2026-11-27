@@ -304,7 +304,7 @@ export function createWorld(container) {
       const bw = s.w + 8;
       el("rect", { x: CX - bw / 2, y: yF(n) - 3, width: bw, height: 6, fill: "url(#tw-brass)" }, g);
       el("rect", { x: CX - bw / 2, y: yF(n) + 3, width: bw, height: 2, fill: "#000", "fill-opacity": 0.35 }, g);
-      const tx = el("text", { x: CX - s.w / 2 + 8, y: yF(n) - 7, style: "font:400 13px Limelight,serif;fill:var(--c-brass);letter-spacing:.04em" }, g);
+      const tx = el("text", { x: CX - s.w / 2 - 7, y: yF(n) + 4, "text-anchor": "end", style: "font:400 13px Limelight,serif;fill:#f2e9d3;letter-spacing:.04em" }, g);
       tx.textContent = String(n);
     }
     // setback shoulders: stepped brass chevrons

@@ -264,8 +264,6 @@ def sources_scene(t, t0, sources, dark=True):
         q = out5(p(t, t0 + 0.25 + i * 0.16, 0.6))
         rows += (f'<div class="a" style="left:{LEFT}px;top:{600 + i * 118}px;overflow:hidden;height:112px;width:{W - LEFT - RIGHT}px">'
                  f'<div style="font-size:84px;font-weight:800;letter-spacing:-0.035em;line-height:112px;transform:translateY({(1 - q) * 112:.1f}px);opacity:{q:.3f}">{e(s)}</div></div>')
-    rows += (f'<div class="a" style="left:{LEFT}px;top:{600 + max(len(sources), 1) * 118 + 50}px;font-size:36px;font-weight:500;color:{GREY};'
-             f'opacity:{inout(p(t, t0 + 1.2, 0.5)):.3f}">Written by AI from these reports.</div>')
     return rows
 
 

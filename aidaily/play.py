@@ -17,10 +17,10 @@ GAMES_DIR = Path(__file__).resolve().parent.parent / "games"
 # slug, title, one line, live
 GAMES = [
     ("topfloor", "Topfloor", "Seven business prompts, 25 seconds each. The rarer your answer, the higher the lift climbs.", True),
-    ("tickerflip", "Tickerflip", "", False),
-    ("face-the-figure", "Face the Figure", "", False),
+    ("tickerflip", "Tickerflip", "One word from today's stories on a split-flap departure board. Six guesses.", True),
+    ("face-the-figure", "Face the Figure", "Two real business figures on a balance. Is the sealed one higher or lower? Ten rounds.", True),
 ]
-SKIP = shutil.ignore_patterns(".cache", "__pycache__", "build_data.py", ".DS_Store")
+SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", ".DS_Store")
 
 
 def live():

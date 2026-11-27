@@ -29,10 +29,13 @@
     </button>
   </header>
 
+  <i class="cable" id="cable" aria-hidden="true"></i>
   <section class="dial" id="dial" aria-hidden="true">
-    <svg viewBox="0 0 240 240" class="dial-svg" id="dial-svg"></svg>
+    <img class="dial-l" src="assets/art/dial-base.webp" alt="">
+    <svg viewBox="0 0 240 240" class="dial-l dial-svg" id="dial-svg"></svg>
+    <img class="dial-l needle" id="needle" src="assets/art/dial-needle.webp" alt="">
+    <img class="dial-l" src="assets/art/dial-cap.webp" alt="">
     <div class="odo" id="odo">
-      <span class="odo-label">Floor</span>
       <div class="odo-wheels">
         <div class="wheel" data-w="h"><div class="strip" id="w-h"></div></div>
         <div class="wheel" data-w="t"><div class="strip" id="w-t"></div></div>
@@ -42,7 +45,8 @@
   </section>
 
   <section class="car" id="car" aria-hidden="true">
-    <svg viewBox="0 0 112 156" class="car-svg" id="car-svg"></svg>
+    <div class="car-art" id="car-art"></div>
+    <i class="alarm" id="alarm"></i>
   </section>
 
   <main class="card" id="card" data-screen="intro">
@@ -61,7 +65,7 @@
       <div class="cta-row">
         <button class="call wide" id="start" type="button"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span><span class="call-text">Call the lift</span></button>
       </div>
-      <p class="fine" id="intro-fine">Everyone gets the same building each UTC day.</p>
+      <p class="fine"><span id="intro-fine">Everyone gets the same building each UTC day.</span> <a href="/play/">More games</a> · <a href="/">Boardread</a></p>
     </section>
 
     <section class="screen" data-s="prompt" aria-labelledby="q-text" hidden>
@@ -105,6 +109,7 @@
         <p class="next-in">Next building in <b class="mono" id="countdown">00:00:00</b></p>
       </div>
       <p class="credit" id="credit"></p>
+      <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
     </section>
   </main>
 

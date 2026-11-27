@@ -62,7 +62,7 @@ class Feed(unittest.TestCase):
 class Pin(unittest.TestCase):
     def test_pin_text_says_what_it_is_and_links_the_rest(self):
         t = distribution.pin_text()
-        self.assertIn("automated desk", t)
+        self.assertNotRegex(t, r"(?i)written by|ai[- ]generated|automated desk")
         self.assertIn("/standards/", t)
         self.assertIn("#markets", t)
         self.assertIn("Bluesky https://", t)

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Tickerflip | Boardread</title>
+<meta name="description" content="A daily word game on a split-flap exchange board. One word from today's Boardread stories, six guesses.">
+<meta name="theme-color" content="#120c0a">
+<link rel="preload" href="assets/fonts/BarlowCondensed-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/BigShouldersDisplay-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/tickerflip.css">
+</head>
+<body>
+<div class="app" id="app" data-phase="loading">
+
+  <div class="hall" aria-hidden="true"></div>
+  
+  <header class="top">
+    <a class="brand" href="./" aria-label="Tickerflip, start page"><span class="brand-mark" aria-hidden="true"></span>Tickerflip</a>
+    <div class="tools">
+      <button class="icon-btn" id="help" type="button" aria-label="How to play">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2.9-1.2 1.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="currentColor"/></svg>
+      </button>
+      <button class="icon-btn" id="sound" type="button" aria-pressed="false" aria-label="Sound off">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path class="spk" d="M3.5 9.5h3.6L12 5.6v12.8l-4.9-3.9H3.5z" fill="currentColor"/>
+          <path class="wave" d="M15.4 9.2a4 4 0 0 1 0 5.6M17.9 6.7a7.5 7.5 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <path class="mute" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <aside class="side side-l" aria-hidden="true">
+      <div class="clock">
+        <svg viewBox="0 0 200 200" id="clock"></svg>
+        <p class="clock-cap">Exchange time<br><b class="mono" id="clock-txt">00:00:00</b> UTC</p>
+      </div>
+    </aside>
+
+    <section class="center" id="center">
+      <div class="frame" id="frame">
+        <div class="plate" id="plate">
+          <div class="plate-main"><span class="plate-k">Today’s word</span><b id="plate-len">7 letters</b></div>
+          <div class="plate-clue" id="clue"><i class="lamp" aria-hidden="true"></i><span id="clue-text">Clue after 3 misses</span></div>
+        </div>
+        <div class="board" id="board" role="grid" aria-label="Guess board"></div>
+        <div class="board ansrow" id="ans" hidden><span class="ans-k">The word</span></div>
+      </div>
+
+      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+
+      <div class="kb" id="kb" role="group" aria-label="Keyboard"></div>
+
+      <section class="end" id="end" hidden aria-labelledby="e-title">
+        <div class="e-head">
+          <p class="eyebrow" id="e-issue">Tickerflip</p>
+          <h2 class="e-title" id="e-title" tabindex="-1">Boarded</h2>
+          <p class="e-sub" id="e-sub"></p>
+        </div>
+        <div class="reveal" id="reveal">
+          <h3 class="h3">Where the word came from</h3>
+          <ul class="arts" id="arts"></ul>
+        </div>
+        <div class="share">
+          <pre class="share-text" id="share-text" aria-label="Share text"></pre>
+          <button class="btn wide" id="share" type="button"><span id="share-label">Share your board</span></button>
+          <p class="next-in">Next word in <b class="mono" id="countdown">00:00:00</b></p>
+        </div>
+        <div class="statsbox">
+          <h3 class="h3">Your record</h3>
+          <dl class="stats" id="stats"></dl>
+          <div class="dist" id="dist" role="img"></div>
+        </div>
+        <p class="credit" id="credit"></p>
+        <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
+      </section>
+    </section>
+
+    <aside class="side side-r" aria-hidden="true" id="legend-side"></aside>
+  </main>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <section class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="t-intro" hidden>
+    <div class="dep-head"><span class="dep-k">Departures</span><span class="dep-d" id="issue">No. 1</span></div>
+    <h1 class="sr" id="t-intro">Tickerflip</h1>
+    <div class="dep-title" id="title-row" aria-hidden="true"></div>
+    <p class="lede">One word from today’s Boardread stories. Six guesses on the departure board.</p>
+    <dl class="dep-rows">
+      <div><dt>Gate</dt><dd id="d-len">7 letters</dd></div>
+      <div><dt>Guesses</dt><dd>6</dd></div>
+      <div><dt>Source</dt><dd>Boardread</dd></div>
+      <div><dt>Next board</dt><dd class="mono" id="d-next">00:00:00</dd></div>
+    </dl>
+    <div id="legend-intro"></div>
+    <p class="how">The word is 4 to 7 letters: a company, a ticker or a key headline word. Everyone gets the same word each UTC day.</p>
+    <button class="btn wide" id="start" type="button">Open the board</button>
+    <p class="fine" id="intro-fine"></p>
+    <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
+  </section>
+  <p class="sr" id="live" role="status" aria-live="polite"></p>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<noscript><p style="padding:2rem;font:16px system-ui">Tickerflip needs JavaScript.</p></noscript>
+<script type="module" src="js/tickerflip.js"></script>
+</body>
+</html>

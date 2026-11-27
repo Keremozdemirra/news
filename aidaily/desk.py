@@ -322,7 +322,7 @@ def caption(m, s, cta=True):
     mid = [lead, ""]
     if growth("so_what") and s.get("so_what"):
         mid += [f"{CONFIG.get('so_what_label', 'What it means')}: {s['so_what']}", ""]
-    lines = head_lines + mid + [f"Reported by {reported_by(src)}. {CONFIG['ai_note']}", "",
+    lines = head_lines + mid + [f"Reported by {reported_by(src)}.", "",
                                 CONFIG["source_line"] if cta else "", send_line(m, s), "", " ".join(hashtags(m, s))]
     text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]

@@ -10,6 +10,9 @@ others current. Every value is shown with the date of its series, never the buil
   EIA_API_KEY is set (one try, 15 s; it times out from GitHub runners at times); otherwise, or when it fails, the keyless
   history pages under https://www.eia.gov/dnav/ carry the same published values.
   ECB deposit facility rate
+  World Bank Commodity Price Data (The Pink Sheet), CC BY 4.0: monthly average prices of gold, silver, platinum, copper, aluminium,
+  nickel, zinc, lead, tin and iron ore, always shown as "Oct 2026 avg". No keyless daily metals source with terms that allow
+  redistribution exists (LBMA/ICE, LME and CME data are licensed), so there is no daily metal price; decisions in brand/research/market-data.md.
 
 No equity prices and no index levels appear anywhere. A series with no data is not rendered at all, never "Pending". The euro-area fuel price of the Commission's Weekly Oil Bulletin is not included: its
 reuse notice was not confirmed.
@@ -24,6 +27,7 @@ import re
 import subprocess
 import urllib.request
 import xml.etree.ElementTree as ET
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
@@ -59,6 +63,9 @@ DNAV = {
     "EMM_EPMR_PTE_NUS_DPG": ("pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_NUS_DPG&f=W", "weekly"),
 }
 DNAV_BASE = "https://www.eia.gov/dnav/"
+WB_PAGE = "https://www.worldbank.org/en/research/commodity-markets"  # the xlsx link carries a hash that changes every month: read it from here
+WB_LINK = re.compile(r'https://thedocs\.worldbank\.org/[^"\s]*CMO-Historical-Data-Monthly\.xlsx')
+WB_MONTHS = 60
 CALC = "Calculated from ECB reference rates"
 SRC_ECB = "Source: ECB statistics."
 SRC_UST = "Source: U.S. Department of the Treasury."
@@ -76,12 +83,23 @@ SERIES = {
     "wti": ("WTI", "$/bbl", 2, "eia", "The spot price of West Texas Intermediate, the main US oil benchmark.", "RWTC"),
     "gasoline": ("US gasoline", "$/gal", 3, "eia", "The average US retail price of regular gasoline, weekly.", "EMM_EPMR_PTE_NUS_DPG"),
     "henryhub": ("Natural gas", "$/MMBtu", 2, "eia", "The Henry Hub spot price, the US benchmark for natural gas.", "RNGWHHD"),
+    "gold": ("Gold", "$/oz", 0, "wb", "The average price of gold for the month, per troy ounce; before June 2025 the London afternoon fixing.", "Gold"),
+    "silver": ("Silver", "$/oz", 2, "wb", "The average price of silver for the month, per troy ounce, 99.9% refined.", "Silver"),
+    "platinum": ("Platinum", "$/oz", 0, "wb", "The average price of platinum for the month, per troy ounce, 99.95% minimum purity.", "Platinum"),
+    "copper": ("Copper", "$/t", 0, "wb", "The average price of copper for the month, per tonne: LME grade A cathodes, the bellwether for industrial demand.", "Copper"),
+    "aluminium": ("Aluminium", "$/t", 0, "wb", "The average price of aluminium for the month, per tonne: LME high-grade primary ingots.", "Aluminum"),
+    "nickel": ("Nickel", "$/t", 0, "wb", "The average price of nickel for the month, per tonne, an input to stainless steel and batteries.", "Nickel"),
+    "zinc": ("Zinc", "$/t", 0, "wb", "The average price of zinc for the month, per tonne, mainly used to galvanise steel.", "Zinc"),
+    "lead": ("Lead", "$/t", 0, "wb", "The average price of lead for the month, per tonne, mainly used in batteries.", "Lead"),
+    "tin": ("Tin", "$/t", 0, "wb", "The average price of tin for the month, per tonne, used in solder and electronics.", "Tin"),
+    "ironore": ("Iron ore", "$/dmtu", 2, "wb", "The average spot price of iron ore for the month: 62% Fe fines delivered to China, the steel industry's benchmark.", "Iron ore, cfr spot"),
     "ust10": ("US 10-year", "%", 2, "ust", "The yield on US government debt due in ten years, a base for borrowing costs.", ""),
     "ust2": ("US 2-year", "%", 2, "ust", "The yield on two-year US government debt, sensitive to expected interest rates.", ""),
 }
 RAIL = ("eurusd", "usdjpy", "gbpusd", "brent", "wti", "gasoline", "ust10")
+METALS = ("gold", "silver", "platinum", "copper", "aluminium", "nickel", "zinc", "lead", "tin", "ironore")
 STRIP = ("eurusd", "usdjpy", "brent", "gasoline", "ust10")
-SOURCE_NAME = {"ecb": "ECB reference rate", "calc": CALC, "eia": "EIA", "ust": "US Treasury par yield"}
+SOURCE_NAME = {"ecb": "ECB reference rate", "calc": CALC, "eia": "EIA", "ust": "US Treasury par yield", "wb": "World Bank Pink Sheet, monthly average"}
 HISTORY = 100  # observations kept per series
 
 
@@ -102,6 +120,22 @@ def _get(url, timeout=20, retry_curl=True):
     out = subprocess.run(["curl", "-gfsS", "--compressed", "--max-time", str(timeout), "-A", UA["User-Agent"], url],
                          check=True, capture_output=True, timeout=timeout + 5).stdout
     return _text(out)
+
+
+def _get_bytes(url, timeout=60):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout, context=CTX) as r:  # noqa: S310 (fixed https endpoint)
+            return r.read()
+    except OSError as e:
+        print(f"markets: urllib failed for {url.split('?')[0]} ({e!r}); trying curl")
+    return subprocess.run(["curl", "-gfsS", "--max-time", str(timeout), "-A", UA["User-Agent"], url], check=True, capture_output=True, timeout=timeout + 5).stdout
+
+
+def pink():
+    link = WB_LINK.search(_get(WB_PAGE))
+    if not link:
+        raise ValueError("no Pink Sheet link on the World Bank page")
+    return parse_pink(_get_bytes(link.group(0)))
 
 
 def parse_ecb_hist(xml_text):
@@ -143,6 +177,51 @@ def parse_treasury(xml_text):
         if row.get("date") and "10YEAR" in row and "2YEAR" in row:
             rows.append(row)
     return sorted(rows, key=lambda r: r["date"])
+
+
+def _cell_text(si):
+    return "".join(t.text or "" for t in si.iter() if t.tag.endswith("}t"))
+
+
+def parse_pink(xlsx_bytes):
+    """{key: [("2026-10-01", value), ...] oldest first} for the metals, from the Pink Sheet's "Monthly Prices" sheet. The columns are found
+    by their header names, not their letters, and "…" cells (not published) are skipped."""
+    z = zipfile.ZipFile(io.BytesIO(xlsx_bytes))
+    sst = [_cell_text(si) for si in ET.fromstring(z.read("xl/sharedStrings.xml"))]
+    wb = ET.fromstring(z.read("xl/workbook.xml"))
+    rid = next(s.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id") for s in wb.iter()
+               if s.tag.endswith("}sheet") and s.get("name") == "Monthly Prices")
+    target = next(r.get("Target") for r in ET.fromstring(z.read("xl/_rels/workbook.xml.rels")) if r.get("Id") == rid)
+    rows = []
+    for r in ET.fromstring(z.read("xl/" + target.lstrip("/").removeprefix("xl/"))).iter():
+        if not r.tag.endswith("}row"):
+            continue
+        row = {}
+        for c in r:
+            v = next((x for x in c if x.tag.endswith("}v")), None)
+            if v is not None and v.text:
+                row[re.match("[A-Z]+", c.get("r")).group()] = sst[int(v.text)] if c.get("t") == "s" else v.text
+        rows.append(row)
+    names = {spec[5]: k for k, spec in SERIES.items() if spec[3] == "wb"}
+    cols = {}
+    for row in rows:
+        if sum(1 for v in row.values() if v in names) >= 3:
+            cols = {col: names[v] for col, v in row.items() if v in names}
+            break
+    out = {k: [] for k in names.values()}
+    for row in rows:
+        m = re.match(r"(\d{4})M(\d\d)$", row.get("A", ""))
+        if not m or not cols:
+            continue
+        for col, key in cols.items():
+            try:
+                out[key].append((f"{m.group(1)}-{m.group(2)}-01", float(row[col])))
+            except (KeyError, ValueError):
+                pass
+    out = {k: sorted(v)[-WB_MONTHS:] for k, v in out.items() if v}
+    if not out:
+        raise ValueError("Pink Sheet lacks the metals shown")
+    return out
 
 
 def parse_dfr(csv_text):
@@ -239,6 +318,7 @@ def fetch():
             raise ValueError("no Treasury rows")
         return rows
     jobs["ust"] = treasury
+    jobs["wb"] = pink
     for i, (route, freq, ids, days, n) in enumerate(EIA_GROUPS):
         def one(route=route, freq=freq, ids=ids, days=days, n=n):
             got = {}
@@ -272,6 +352,7 @@ def fetch():
     for key, spec in SERIES.items():
         if spec[5] and by_id.get(spec[5]):
             series[key] = by_id[spec[5]]
+    series.update(got.get("wb") or {})
     out["series"] = {k: [[d, x] for d, x in v[-HISTORY:]] for k, v in series.items()}
     if got.get("dfr"):
         out["dfr"] = got["dfr"]
@@ -303,13 +384,18 @@ def dmy(d):
     return date.fromisoformat(d).strftime("%-d %b %Y")
 
 
+def dlabel(key, d):
+    """The date of a series as shown: monthly averages read "Oct 2026 avg", never a day that is not theirs."""
+    return date.fromisoformat(d).strftime("%b %Y") + " avg" if SERIES[key][3] == "wb" else dmy(d)
+
+
 def sign_arrow(x):
     return "▲" if x > 0 else "▼" if x < 0 else "▬"
 
 
 def fmt(key, v):
     unit, nd = SERIES[key][1], SERIES[key][2]
-    return f"{v:.{nd}f}%" if unit == "%" else f"${v:.{nd}f}" if unit.startswith("$") else f"{v:.{nd}f}"
+    return f"{v:.{nd}f}%" if unit == "%" else f"${v:,.{nd}f}" if unit.startswith("$") else f"{v:.{nd}f}"
 
 
 def stat(m, key):
@@ -356,7 +442,7 @@ def rows(m, keys=RAIL):
         if s:
             label, v, d, ch, pct, pts = s
             unit = SERIES[k][1]
-            out.append(dict(key=k, k=label, v=fmt(k, v), unit=unit if unit not in ("", "%") else "", chg=change_html(k, ch, pct), date=dmy(d),
+            out.append(dict(key=k, k=label, v=fmt(k, v), unit=unit if unit not in ("", "%") else "", chg=change_html(k, ch, pct), date=dlabel(k, d),
                             src=SOURCE_NAME[SERIES[k][3]], pts=pts, what=SERIES[k][4], d=ch))
     return out
 
@@ -364,10 +450,13 @@ def rows(m, keys=RAIL):
 def attribution(m, keys=None):
     """One combined source line for the series shown."""
     have_series = (m or {}).get("series", {})
-    tags = {SERIES[k][3] for k in (keys or have_series) if k in SERIES and k in have_series}
-    names = [n for t, n in (("ecb", "ECB statistics"), ("ust", "U.S. Department of the Treasury"), ("eia", "U.S. Energy Information Administration"))
+    tags = {SERIES[k][3] for k in (keys or [x for x in have_series if x not in METALS]) if k in SERIES and k in have_series}
+    names = [n for t, n in (("ecb", "ECB statistics"), ("ust", "U.S. Department of the Treasury"), ("eia", "U.S. Energy Information Administration"),
+                    ("wb", "World Bank, Commodity Price Data (The Pink Sheet), CC BY 4.0"))
              if t in tags or (t == "ecb" and "calc" in tags)]
     line = ("Sources: " + "; ".join(names) + ". Series dates as shown; for information only.") if names else ""
+    if "wb" in tags:
+        line += " Metals: monthly averages as published; changes are against the previous month and calculated by Boardread."
     crosses = [SERIES[k][0] for k in ("usdjpy", "gbpusd", "usdcny") if k in have_series and (not keys or k in keys)]
     if crosses:
         line += f" {', '.join(crosses[:-1])}{' and ' if len(crosses) > 1 else ''}{crosses[-1]}: calculated from ECB reference rates."
@@ -402,11 +491,12 @@ def strip(m, base=""):
     return f'<div class="mstrip"><ul aria-label="Markets">{"".join(items)}</ul><a href="{base}/numbers/">All data</a></div>'
 
 
-def chart(pts, w=360, h=120, n=90):
+def chart(pts, w=360, h=120, n=90, monthly=False):
     """A card chart: the last n observations as one line with the first and last date, no fill."""
     pts = pts[-n:]
     if len(pts) < 2:
         return ""
+    D = (lambda d: date.fromisoformat(d).strftime("%b %Y")) if monthly else dmy  # noqa: E731
     vals = [v for _, v in pts]
     lo, hi = min(vals), max(vals)
     span = (hi - lo) or 1
@@ -414,27 +504,31 @@ def chart(pts, w=360, h=120, n=90):
     X = lambda i: left + (w - left - right) * i / (len(vals) - 1)  # noqa: E731
     Y = lambda v: top + (h - top - bot) * (1 - (v - lo) / span)  # noqa: E731
     path = " ".join(("M" if i == 0 else "L") + f"{X(i):.1f} {Y(v):.1f}" for i, v in enumerate(vals))
-    return (f'<svg class="chart" viewBox="0 0 {w} {h}" role="img" aria-label="Last {len(pts)} observations, from {dmy(pts[0][0])} to {dmy(pts[-1][0])}" '
+    return (f'<svg class="chart" viewBox="0 0 {w} {h}" role="img" aria-label="Last {len(pts)} observations, from {D(pts[0][0])} to {D(pts[-1][0])}" '
             f'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">'
             f'<path d="{path}"/><circle cx="{X(len(vals) - 1):.1f}" cy="{Y(vals[-1]):.1f}" r="3" fill="currentColor" stroke="none"/>'
-            f'<text x="{left}" y="{h - 5}" font-size="11" fill="currentColor" stroke="none" opacity=".75">{dmy(pts[0][0])}</text>'
-            f'<text x="{w - right}" y="{h - 5}" font-size="11" text-anchor="end" fill="currentColor" stroke="none" opacity=".75">{dmy(pts[-1][0])}</text></svg>')
+            f'<text x="{left}" y="{h - 5}" font-size="11" fill="currentColor" stroke="none" opacity=".75">{D(pts[0][0])}</text>'
+            f'<text x="{w - right}" y="{h - 5}" font-size="11" text-anchor="end" fill="currentColor" stroke="none" opacity=".75">{D(pts[-1][0])}</text></svg>')
 
 
-def cards(m):
+MARKET_CARDS = ("brent", "wti", "gasoline", "henryhub", "eurusd", "usdjpy", "gbpusd", "usdcny", "ust10", "ust2")
+
+
+def cards(m, keys=MARKET_CARDS):
     """The numbers page: one chart card per series with a one-line explanation, the series date and the source."""
     out = ""
-    for k in ("brent", "wti", "gasoline", "henryhub", "eurusd", "usdjpy", "gbpusd", "usdcny", "ust10", "ust2"):
+    for k in keys:
         s = stat(m, k)
         if not s:
             continue
         label, v, d, ch, pct, pts = s
-        last90 = [x for _, x in pts[-90:]]
+        monthly = SERIES[k][3] == "wb"
+        last90 = [x for _, x in pts[-(36 if monthly else 90):]]
         unit = SERIES[k][1]
         out += (f'<article class="mcard"><h2>{E(label)}</h2><p class="mv"><b>{E(fmt(k, v))}</b>{f"<small>{E(unit)}</small>" if unit not in ("", "%") else ""} {change_html(k, ch, pct)}</p>'
-                f'<div class="mch">{chart(pts)}</div><p class="what"><b>What it is.</b> {E(SERIES[k][4])}</p>'
-                f'<p class="meta">Last {len(last90)} observations: low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))}. Series date {dmy(d)}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
-    return f'<div class="mcards">{out}</div><p class="attr">{E(attribution(m))}</p>' if out else ""
+                f'<div class="mch">{chart(pts, n=36, monthly=True) if monthly else chart(pts)}</div><p class="what"><b>What it is.</b> {E(SERIES[k][4])}</p>'
+                f'<p class="meta">Last {len(last90)} {"monthly averages" if monthly else "observations"}: low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))}. {E(dlabel(k, d)) if monthly else "Series date " + dmy(d)}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
+    return f'<div class="mcards">{out}</div><p class="attr">{E(attribution(m, keys))}</p>' if out else ""
 
 
 def curve_svg(m, w=560, h=240, fs=12, wrap=False):

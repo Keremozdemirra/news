@@ -399,32 +399,50 @@ class FrontBuilt(Features):
 class Play(Features):
     """The /play/ hub and the games copied under it (aidaily/play.py)."""
 
-    def test_hub_lists_the_live_game_and_marks_the_unfinished_ones_coming_soon(self):
+    def test_hub_lists_all_three_live_games(self):
         h = self.read("play/index.html")
+        for slug in ("topfloor", "tickerflip", "face-the-figure"):
+            self.assertIn(f'href="{site.BASE}/play/{slug}/"', h)
+            self.assertTrue((self.out / "play" / slug / "index.html").exists(), slug)
+        self.assertNotIn("Coming soon", h)
+
+    def test_a_game_with_the_flag_off_shows_as_coming_soon_and_copies_nothing(self):
+        from aidaily import play
+        with mock.patch.object(play, "GAMES", [("topfloor", "Topfloor", "x", True), ("tickerflip", "Tickerflip", "", False)]):
+            h = play.hub_body()
         self.assertIn(f'href="{site.BASE}/play/topfloor/"', h)
-        self.assertEqual(h.count("Coming soon"), 2)
+        self.assertEqual(h.count("Coming soon"), 1)
         self.assertNotIn(f'href="{site.BASE}/play/tickerflip/"', h)
-        self.assertFalse((self.out / "play" / "tickerflip").exists())
 
     def test_topfloor_is_copied_whole_without_its_build_tools(self):
         d = self.out / "play" / "topfloor"
         for f in ("index.html", "css/topfloor.css", "js/topfloor.js", "js/world.js", "assets/data/today.json", "assets/fonts/Jost-latin.woff2"):
             self.assertTrue((d / f).exists(), f)
-        self.assertFalse((d / "build_data.py").exists())
         self.assertFalse((d / ".cache").exists())
-        html = (d / "index.html").read_text()
+
+    def test_every_game_ships_what_its_page_names_and_none_of_its_build_tools(self):
         import re
-        for ref in re.findall(r'(?:href|src)="([^"#:]+)"', html):  # every relative asset the page names ships
-            if not ref.endswith("/") and ref != "./":
-                self.assertTrue((d / ref).exists(), ref)
+        for slug in ("topfloor", "tickerflip", "face-the-figure"):
+            d = self.out / "play" / slug
+            self.assertEqual([str(f) for f in d.rglob("*.py")], [], slug)
+            self.assertFalse((d / "DESIGN.md").exists(), slug)
+            html = (d / "index.html").read_text()
+            for ref in re.findall(r'(?:href|src)="([^"#:]+)"', html):  # every relative asset the page names ships
+                if not ref.endswith("/") and ref != "./" and not ref.startswith("/"):
+                    self.assertTrue((d / ref).exists(), f"{slug}: {ref}")
+            css = "".join(f.read_text() for f in (d / "css").glob("*.css"))
+            for ref in re.findall(r'url\("\.\./([^"]+)"\)', css):          # and every file its stylesheet names
+                self.assertTrue((d / ref).exists(), f"{slug}: {ref}")
+            self.assertIn('href="/play/"', html, slug)                     # a way back to the hub and to Boardread
+            self.assertIn('href="/"', html, slug)
 
     def test_masthead_menu_footer_and_sitemap_name_play(self):
         h = self.read("index.html")
         self.assertEqual(h.count(f'href="{site.BASE}/play/"'), 2 + h.count('class="btn alt"'))  # menu and footer, plus the front-page button when shown
         sm = self.read("sitemap.xml")
         self.assertIn(f"{site.SITE}/play/</loc>", sm)
-        self.assertIn(f"{site.SITE}/play/topfloor/</loc>", sm)
-        self.assertNotIn("/play/tickerflip/", sm)
+        for slug in ("topfloor", "tickerflip", "face-the-figure"):
+            self.assertIn(f"{site.SITE}/play/{slug}/</loc>", sm)
 
     def test_the_old_quiz_keeps_its_address(self):
         self.assertTrue((self.out / "quiz" / "index.html").exists())
