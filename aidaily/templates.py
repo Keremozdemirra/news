@@ -939,9 +939,10 @@ def feed_close(groups, label, source):
 
 
 def story_follow(handle, line, label):
-    body = (_h(e(handle), 172, lh=0.9, track=-0.05)
-            + _h(e(line), 76, color=DIM, top=48, lh=1.05, track=-0.03))
-    return _frame(body, "Follow", label, "Tap the name above to follow")
+    # centred and set larger: anchored at the foot, the frame was more than half empty (post QA 2026-11-27)
+    body = ('<div style="flex:1"></div>' + _h(e(handle), 168, lh=0.9, track=-0.05)
+            + _h(e(line), 104, color=DIM, top=64, lh=1.02, track=-0.035))
+    return _frame(body, "Follow", label, "Tap the name above to follow", align="center")
 
 
 def story_games(rows, label, link):

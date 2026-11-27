@@ -69,6 +69,10 @@ class Stories(Tmp):
         self.assertEqual(desk.fb_stories(lambda: page), 0)
         self.assertEqual(page.sent, [])
 
+    def test_an_instagram_tag_frame_never_reaches_the_page(self):
+        self.story("2026-11-25-follow", 10, user_tags=[{"username": "boardread", "x": 0.5, "y": 0.5}])
+        self.assertIsNone(desk.fb_story_due())
+
     def test_it_does_not_wait_for_instagram(self):
         self.story("2026-11-25-last12", 30, status="expired", error="too old to go out")
         desk._save(desk.STATE / "cooldown.json", {"until": (self.t + timedelta(hours=5)).isoformat()})

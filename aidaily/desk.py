@@ -2763,7 +2763,9 @@ def fb_story_due():
     stamps = [_stamp((p.get("fb_story") or {}).get("at", "")) for p, _ in posts()]
     last = max((x for x in stamps if x), default=None)
     gap = timedelta(minutes=CONFIG.get("story_spacing_minutes", 0))
+    # a frame built around an Instagram tag ("Tap the name above to follow") means nothing on the Page
     rows = sorted(((p, path) for p, path in posts() if p.get("kind") == "story" and not p.get("fb_story")
+                   and not p.get("user_tags") and p.get("only") != "instagram"
                    and p.get("status") in ("queued", "published", "expired") and p.get("story")
                    and datetime.fromisoformat(p["publish_after"]) <= now() and datetime.fromisoformat(p["created"]) > cut),
                   key=lambda r: r[0]["publish_after"])
