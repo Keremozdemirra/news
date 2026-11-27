@@ -148,6 +148,17 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class Years(unittest.TestCase):
+    """27 Nov: Macy's (1858) against NPR (1970) was dealt. A century apart is no more a question than 2,850 times."""
+    def test_founding_years_far_apart_are_not_paired(self):
+        figs = [fig("Old", "founded", 1858, year=2000), fig("Mid", "founded", 1915, year=2000), fig("New", "founded", 1970, year=2000), fig("Twin", "founded", 1971, year=2000)]
+        got = {frozenset((p["a"]["subject"], p["b"]["subject"])) for p in ftf.build_pairs(figs)}
+        self.assertNotIn(frozenset(("Old", "New")), got)
+        self.assertNotIn(frozenset(("New", "Twin")), got)        # one year apart: a coin toss
+        self.assertIn(frozenset(("Mid", "New")), got)
+        self.assertIn(frozenset(("Old", "Mid")), got)
+
+
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class Ranks(unittest.TestCase):
     """Reported 27 Nov: the ladder was cut for ten links, the day had eight, and a perfect run read Chief cashier."""

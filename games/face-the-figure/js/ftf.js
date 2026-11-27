@@ -1,3 +1,4 @@
+import { comeBack, topArticle, said } from "./again.js";
 import { rankOf } from "./rank.js";
 import * as snd from "./sound.js";
 
@@ -97,6 +98,7 @@ function screen(name) {
   $("intro").hidden = name !== "intro"; $("end").hidden = name !== "end"; $("game").hidden = name === "end";
   panel.dataset.s = name;
   $("keys").hidden = name !== "play"; $("next").hidden = name !== "result";
+  if (name === "result" && !RM) $("next").animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 160, easing: EASE });
 }
 function pipsRender() {
   const ol = $("pips"); ol.textContent = "";
@@ -104,6 +106,7 @@ function pipsRender() {
   for (let i = 0; i < data.rounds.length && mode === "daily"; i++) {
     const r = results[i], li = mk("li", r ? (r.ok ? "ok" : "no") : i === idx && phase !== "intro" ? "now" : "");
     li.setAttribute("aria-label", `Link ${i + 1}${r ? (r.ok ? ", right" : ", wrong") : ""}`);
+    if (r && i === idx && phase === "result") li.classList.add("new");
     ol.appendChild(li);
   }
 }
@@ -319,6 +322,8 @@ function renderEnd(rec) {
     const d = mk("div"); d.append(mk("dd", "num", String(v)), mk("dt", "", k)); sd.appendChild(d);
   }
   $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nhttps://boardread.news/play/face-the-figure/?utm_source=share`;
+  comeBack({ streak: stats.streak || 1, label: "Day streak", played: new Set(Object.entries(stats.days || {}).filter(([, d]) => d.done !== false).map(([k]) => k)), today: data.date });
+  topArticle();
   $("credit").textContent = data.credit;
   clearInterval(cdT); cdT = setInterval(countdown, 1000); countdown();
   requestAnimationFrame(() => $("e-score").focus({ preventScroll: true }));
@@ -334,7 +339,7 @@ async function share() {
   try {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast("Copied.");
+    said("share-label", "Copied");
   } catch (e) {
     if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);

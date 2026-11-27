@@ -1,3 +1,4 @@
+import { comeBack, topArticle, said } from "./again.js";
 import { Tile, TURN } from "./flap.js";
 import * as snd from "./sound.js";
 
@@ -277,6 +278,8 @@ function renderEnd(win) {
     const num = document.createElement("span"); num.className = "d-n"; num.textContent = v;
     bar.appendChild(num); row.append(lab, bar); dist.appendChild(row);
   });
+  comeBack({ streak, label: "Win streak", played: new Set(Object.entries(store.days || {}).filter(([, d]) => d.s && d.s !== "play").map(([k]) => k)), today: data.date });
+  topArticle();
   $("share-text").textContent = shareText(win);
   const done = store.extras?.d === data.date ? store.extras.done : [], left = (daily.more || []).map((m, k) => k + 1).filter((k) => !done.includes(k));
   $("extra").hidden = !left.length; $("extra").dataset.k = left[0] || "";
@@ -302,7 +305,7 @@ async function share() {
   try {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast("Copied.");
+    said("share-label", "Copied");
   } catch (e) {
     if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);

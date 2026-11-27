@@ -47,6 +47,8 @@ a { color: inherit; }
 .pips { list-style: none; padding: 0; display: flex; gap: 5px; }
 .pips li { width: 14px; height: 14px; border: 1.5px solid var(--faint); }
 .pips li.now { border: 2px solid var(--ink); }
+.pips li.new { animation: pip 180ms var(--ease); }
+@keyframes pip { from { transform: scale(1.6); } }
 .pips li.ok { background: var(--ink); border-color: var(--ink); }
 .pips li.no { position: relative; border-color: var(--ink); }
 .pips li.no::after { content: "×"; position: absolute; inset: 0; display: grid; place-items: center; font: 800 12px/1 var(--f); }
@@ -155,6 +157,23 @@ a { color: inherit; }
 .stats dd { font: 800 30px/1 var(--f); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .stats { padding-top: 12px; }
 .credit { font: 400 12px/1.4 var(--f); color: var(--soft); }
+/* a reason to come back: the streak, the last seven days, the day's leading article */
+.again { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.streak { display: flex; align-items: baseline; gap: 10px; }
+.streak b { font: 800 44px/0.8 var(--f); letter-spacing: -0.04em; }
+.week { list-style: none; padding: 0; display: flex; gap: 6px; }
+.week li { display: grid; justify-items: center; gap: 6px; font: 600 10px/1 var(--f); color: var(--soft); }
+.week li::after { content: ""; width: 18px; height: 18px; border: 1.5px solid var(--faint); }
+.week li.on::after { background: var(--ink); border-color: var(--ink); }
+.week li.today { color: var(--ink); }
+.week li.today::after { border: 2px solid var(--ink); }
+.today-link { font: 400 17px/1.35 var(--serif); }
+.today-link a { text-underline-offset: 3px; }
+/* the result is set down a block at a time */
+.end > * { animation: rise 220ms var(--ease) backwards; }
+.end > :nth-child(2) { animation-delay: 40ms; } .end > :nth-child(3) { animation-delay: 80ms; } .end > :nth-child(4) { animation-delay: 120ms; }
+.end > :nth-child(n + 5) { animation-delay: 160ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--sab)); z-index: 20; padding: 12px 16px; background: var(--ink); color: var(--paper); font: 600 13px/1 var(--f); opacity: 0; transform: translate(-50%, 8px); transition: opacity 150ms var(--ease), transform 150ms var(--ease); pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 

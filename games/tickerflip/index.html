@@ -60,12 +60,17 @@
         <h2 class="e-title" id="e-title" tabindex="-1">Solved</h2>
         <p class="e-sub" id="e-sub"></p>
       </div>
+      <div class="again" id="again" hidden>
+        <p class="streak"><span class="cap" id="e-streak-l">Day streak</span><b class="num" id="e-streak">1</b></p>
+        <ol class="week" id="e-week" aria-label="The last seven days"></ol>
+      </div>
       <div class="card">
         <div class="card-top"><span class="cap">Your board</span><b class="e-score num" id="e-score">3/6</b></div>
         <div class="mini" id="mini" aria-hidden="true"></div>
         <pre class="share-text" id="share-text" aria-label="Share text"></pre>
         <button class="btn" id="share" type="button"><span id="share-label">Share</span></button>
       </div>
+      <p class="today-link" id="e-top" hidden></p>
       <p class="next-in"><span class="cap">Next word in</span> <b class="num" id="countdown">00:00:00</b></p>
       <button class="btn ghost" id="extra" type="button" hidden><span id="extra-label">Another word</span></button>
       <button class="textbtn" id="to-daily" type="button" hidden>Back to today’s word</button>

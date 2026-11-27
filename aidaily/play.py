@@ -6,6 +6,7 @@ A game with a build_data.py gets its puzzle from that script at site build: it w
 built copy, and when it fails (no network, upstream down) the committed copy of the last puzzle is served instead.
 The first puzzle published for a UTC day is kept by every later build of that day (same_day_same_puzzle).
 """
+import json
 import os
 import shutil
 import subprocess
@@ -106,3 +107,7 @@ def build(out, shown, sm):
     sm.append((S.SITE + "/play/", latest))
     for slug in copy_games(out):
         sm.append((f"{S.SITE}/play/{slug}/", latest))
+    # the end screens link to the article that leads the day: one small file, rewritten with every build
+    top = (S.by_score(S.window(shown)) or shown)[:1]
+    if top:
+        (out / "play" / "top.json").write_text(json.dumps({"h": top[0]["headlines"][0], "url": S.href(top[0])}, ensure_ascii=False))

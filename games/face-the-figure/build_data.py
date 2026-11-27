@@ -40,6 +40,7 @@ ROUNDS = 10
 MAX_AGE = 4          # a Wikidata figure must be this many years old or newer
 MIN_GAP = 0.05       # skip pairs closer than this (relative to the larger value)
 MIN_YEAR_GAP = 2     # founding years: skip pairs closer than this many years
+MAX_YEAR_GAP = 60    # ... and pairs further apart than this: 1858 against 1970 is not a question
 MAX_YEAR_APART = 2   # the two figures of a round come from years this close or closer
 MAX_PER_SUBJECT = 2
 MAX_PER_KIND = 4
@@ -335,7 +336,7 @@ def wikidata_pool(posts, today_year, report, today=None):
 def gap(a, b):
     """How far apart two values are, in the same sense the 5 percent rule uses."""
     if a["kind"] == "founded":
-        return abs(a["value"] - b["value"]) / 40.0, abs(a["value"] - b["value"]) >= MIN_YEAR_GAP
+        return abs(a["value"] - b["value"]) / 40.0, MIN_YEAR_GAP <= abs(a["value"] - b["value"]) <= MAX_YEAR_GAP
     hi, lo = max(a["value"], b["value"]), min(a["value"], b["value"])
     return math.log(hi / lo), (hi - lo) / hi >= MIN_GAP
 

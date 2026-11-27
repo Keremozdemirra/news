@@ -1,3 +1,4 @@
+import { comeBack, topArticle, said } from "./again.js";
 import * as snd from "./sound.js";
 import * as T from "./tower.js";
 import { spring } from "./spring.js";
@@ -315,6 +316,9 @@ function renderEnd(rec) {
   for (const [k, v] of [["Played", played], ["Streak", stats.streak || 1], ["Best", stats.best ?? F], ["Average", Math.round((stats.sum ?? F) / played)]]) {
     const d = mk("div"); d.append(mk("dd", "num", String(v)), mk("dt", "", k)); sd.appendChild(d);
   }
+  $("again").hidden = practice; $("e-top").hidden = true;
+  if (!practice) comeBack({ streak: stats.streak || 1, label: "Day streak", played: new Set(Object.entries(stats.days || {}).filter(([, d]) => d.done !== false).map(([k]) => k)), today: data.date });
+  topArticle();
   $("share-text").textContent = shareText(rec);
   $("credit").textContent = data.credit;
   let miss = [];
@@ -338,7 +342,7 @@ async function share() {
   try {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast("Copied.");
+    said("share-label", "Copied");
   } catch (e) {
     if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     $("share-text").classList.add("open");
