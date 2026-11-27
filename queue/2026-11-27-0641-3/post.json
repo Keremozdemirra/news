@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-0641-3",
+ "batch": "2026-11-27-0641",
+ "n": 3,
+ "created": "2026-11-27T06:41:52+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Philippine Vice President Sara Duterte says she will not resign\n\nShe is awaiting a verdict in her Senate impeachment trial.\n\nReported by Bloomberg.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/philippines-vp-duterte-will-not-resign-prepared-for-worst"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/philippines-vp-duterte-will-not-resign-prepared-for-worst"
+ ],
+ "headlines": [
+  "Philippine Vice President Sara Duterte says she will not resign"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "VPSD Official Photo (cropped).jpg",
+ "photo_kind": "person",
+ "photo_alt": "",
+ "score": 8.453,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Sara Duterte",
+ "logo_names": [],
+ "dek": "She is awaiting a verdict in her Senate impeachment trial.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/philippines-vp-duterte-will-not-resign-prepared-for-worst"
+ ],
+ "credit": "Photo: Office of the Vice President of the Philippines, Public domain, via Wikimedia Commons",
+ "credit_file": "VPSD Official Photo (cropped).jpg",
+ "status": "web",
+ "published": "2026-11-27T06:41:52+00:00",
+ "story": ""
+}
