@@ -682,6 +682,27 @@ def ticker_of(p):
     return p.get("ticker") if p.get("company") and p.get("company") == co_of(p) else None
 
 
+def infer_companies(rows):
+    """Give an article with no company tag the company its headline names, when that name is one the desk has tagged on another article
+    (an article on Nvidia's results with no tag left /c/nvidia/ two articles short). Names that are plain English words are left alone,
+    and only the headline counts. Returns how many articles were assigned."""
+    known = {}
+    for p in rows:
+        n = co_of(p)
+        if len(n) >= 4:
+            known.setdefault(n.lower(), n)
+    n_set = 0
+    for p in rows:
+        if co_of(p):
+            continue
+        hit = next((n for n in sorted(known.values(), key=len, reverse=True)
+                    if re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", p["headlines"][0]) and not views.english(n)), None)
+        if hit:
+            p["company"] = hit
+            n_set += 1
+    return n_set
+
+
 def co_slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
@@ -1053,6 +1074,7 @@ def build(out=desk.HERE / "_site"):
     sm = []
     # Business stays the core: the front page, Latest, the brief, the feeds and every view are made from `news`; sport has
     # its own block on the front page, its own section page and feed, and appears in the archive, search and sitemap.
+    infer_companies(shown)
     news = [p for p in shown if not is_sport(p)]
     sport = [p for p in shown if is_sport(p)]
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."

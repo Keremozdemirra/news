@@ -320,8 +320,8 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 
 /* ---- touch: a link that stands alone is at least 44 px to hit. The padding is cancelled by an equal negative margin, so the page does not move. ---- */
 @media(max-width:900px),(pointer:coarse){
-  .kick,.more,.sec .dm,.sh a,.sportmore a,.foot-base a,.byline a,.art-meta a,.mt a,.meta a,.attr a,.cap a{display:inline-block;padding:13px 0;margin:-13px 0}
-  .mh .word{display:inline-flex;align-items:center;min-height:44px}
+  .kick,.more,.sec .dm,.sh a,.sportmore a,.foot-base a,.byline a,.art-meta a,.mt a,.meta a,.attr a,.cap a,.pager a,.nm-row li a,.mx th a,.past a,.arch li a,.mlist h3 a{display:inline-block;padding:14px 0;margin:-14px 0}
+  .mh .word,.mh .word a{display:inline-flex;align-items:center;min-height:44px}
   .gl{list-style:none;margin:0;padding:0}.gl a{display:flex;align-items:center;min-height:44px}
   .kbd-hint{display:none}
 }

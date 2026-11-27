@@ -105,6 +105,24 @@ class Numbers(unittest.TestCase):
         self.assertIn("daily observations", markets.cards(m, ("brent",)))
 
 
+class Companies(unittest.TestCase):
+    def test_a_headline_naming_a_tagged_company_joins_its_page(self):
+        tagged = [fake("a", "Nvidia lifts its forecast", company="Nvidia"), fake("b", "Nvidia chips ship", company="Nvidia")]
+        loose = fake("c", "Nvidia halts shipments to China")
+        other = fake("d", "Shares rise on Tuesday")
+        self.assertEqual(site.infer_companies([*tagged, loose, other]), 1)
+        self.assertEqual(site.co_of(loose), "Nvidia")
+        self.assertEqual(site.co_of(other), "")
+        self.assertIn("nvidia", site.companies([*tagged, loose]))
+        self.assertEqual(len(site.companies([*tagged, loose])["nvidia"][1]), 3)
+
+    def test_a_plain_word_is_not_a_company(self):
+        tagged = [fake("a", "Block cuts jobs", company="Block"), fake("b", "Block shares fall", company="Block")]
+        loose = fake("c", "Road block ends")
+        site.infer_companies([*tagged, loose])
+        self.assertEqual(site.co_of(loose), "")
+
+
 class Related(unittest.TestCase):
     def test_related_needs_something_in_common_and_skips_the_neighbours(self):
         a = fake("a", "Rosebank oil field approved by UK ministers", "Politics", hours=1)
@@ -147,8 +165,12 @@ class Touch(unittest.TestCase):
         self.assertIn(".kbd-hint{display:none}", self.css)
 
     def test_standalone_links_get_a_44px_target_on_touch(self):
-        self.assertRegex(self.css, r"\.kick,\.more[^{]*\{display:inline-block;padding:13px 0;margin:-13px 0\}")
+        self.assertRegex(self.css, r"\.kick,\.more[^{]*\{display:inline-block;padding:14px 0;margin:-14px 0\}")
         self.assertIn("min-height:44px", self.css[self.css.index(".gl a"):][:80])
+
+    def test_lists_and_pagers_get_the_same_target(self):
+        for sel in (".pager a", ".mx th a", ".arch li a", ".mlist h3 a"):
+            self.assertIn(sel, self.css[self.css.index("pointer:coarse"):])
 
     def test_no_gradient_anywhere(self):
         self.assertNotIn("gradient", self.css)

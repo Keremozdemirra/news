@@ -435,7 +435,7 @@ def edition_list(rows, m):
         out += '<h2 class="sh">Names in the news</h2><ul>' + "".join(f'<li><b>{E(n)}</b>, {PLURAL(len(ps), "article")}, {k} newsroom pickups</li>' for n, ps, k in nm) + "</ul>"
     figs = figures(rows, 4)
     if figs:
-        out += '<h2 class="sh">The numbers</h2><ul>' + "".join(f'<li><b>{E(f)}</b> {E(p["headlines"][0])}</li>' for f, p in figs) + "</ul>"
+        out += '<h2 class="sh">The numbers</h2><ul>' + "".join(f'<li><b>{E(f)}</b> {E(figure_sentence(f, p) or p["headlines"][0])}</li>' for f, p in figs) + "</ul>"
     return f'<div class="mlist" aria-label="The edition as a list">{out}</div>' if out else ""
 
 
@@ -473,7 +473,7 @@ def edition_pages(rows, m, day):
         pages.append((sects[0], inner))
     nm = names(rows, 4)
     nn = "".join(f'<div><b>{k}</b><span>{E(n)}</span><small>{k} newsroom pickups in {PLURAL(len(ps), "article")}</small></div>' for n, ps, k in nm)
-    figs = "".join(f'<div><b>{E(f)}</b><small>{E(p["headlines"][0])}</small></div>' for f, p in figures(rows, 4))
+    figs = "".join(f'<div><b>{E(f)}</b><small>{E(figure_sentence(f, p) or p["headlines"][0])}</small></div>' for f, p in figures(rows, 4))
     rooms = {}
     for p in rows:
         for o in outlets.newsrooms(p):
