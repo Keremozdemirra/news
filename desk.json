@@ -24,6 +24,9 @@
   "max_per_run": 10,
   "spacing_minutes": 45,
   "ig_gap_minutes": 20,
+  "slot_jitter_minutes": 10,
+  "story_jitter_minutes": 15,
+  "story_spacing_minutes": 40,
   "daily_posts_start": 10,
   "daily_posts_step": 2,
   "daily_posts_max": 20,
@@ -144,7 +147,7 @@
   },
   "video": {
     "on": true,
-    "per_day": 2,
+    "per_day": 5,
     "format": "alternate",
     "trial": "",
     "seconds": 8,

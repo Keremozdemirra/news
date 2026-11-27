@@ -431,6 +431,73 @@ def video_shape():
     return "reel" if used["reel"] < used["card"] else "card"
 
 
+# Instagram mix (Kerem, 2026-11-27: "a video here, a photo there, natural"). Four feed formats: the photo carousel,
+# the video card (video as the first slide), the Reel, the data carousel. Never the same format twice in a row where
+# another is to hand; aim near MIX_TARGET over a day. Importance still decides which stories get Instagram's room.
+MIX_TARGET = {"photo": 0.4, "video": 0.4, "other": 0.2}
+
+
+def ig_format(p):
+    """What a feed post looks like on Instagram: photo, card, reel or data. ig_stills marks a post whose video goes to
+    the other platforms while Instagram gets the stills, for the mix."""
+    if p.get("kind") == "data":
+        return "data"
+    v = p.get("video")
+    if v and not p.get("ig_stills"):
+        return "reel" if v.get("shape") == "reel" else "card"
+    return "photo"
+
+
+def _bucket(fmt):
+    return "video" if fmt in ("card", "reel") else "photo" if fmt == "photo" else "other"
+
+
+def _ig_feed():
+    """Instagram feed posts queued or published, in the order they go out."""
+    rows = [p for p, _ in posts() if p.get("kind") != "story" and p.get("status") in ("queued", "published")
+            and p.get("tier") != "web" and p.get("publish_after")]
+    return sorted(rows, key=lambda p: p.get("published") or p["publish_after"])
+
+
+def video_share(hours=24):
+    """The share of video among Instagram feed posts published in the last `hours`, or None when there were none."""
+    cut = now() - timedelta(hours=hours)
+    fmts = [ig_format(p) for p in _ig_feed() if p.get("status") == "published" and (_stamp(p.get("published", "")) or cut) > cut]
+    return sum(_bucket(f) == "video" for f in fmts) / len(fmts) if fmts else None
+
+
+def plan_format(video_possible):
+    """The format the next Instagram feed post should take: photo, card or reel. After a video comes a photo, unless
+    the day is short of video (MIX_TARGET) and the other video shape is free; after a photo or a data carousel comes
+    a video when one can be made. The video shape alternates on Instagram: the last one shown decides."""
+    feed = _ig_feed()
+    prev = ig_format(feed[-1]) if feed else "photo"
+    shown = [ig_format(p) for p in feed if ig_format(p) in ("card", "reel")]
+    shape = "card" if (shown and shown[-1] == "reel") or not shown else "reel"
+    if video_cfg("format", "alternate") in ("card", "reel"):
+        shape = video_cfg("format")
+    if not video_possible:
+        return "photo"
+    if prev not in ("card", "reel"):
+        return shape
+    share = video_share()
+    if shape != prev and share is not None and share < MIX_TARGET["video"]:
+        return shape
+    return "photo"
+
+
+def jitter(key, spread):
+    """A fixed offset in minutes, -spread..spread, from a hash of key: the same post always gets the same offset, so a
+    rerun changes nothing, while posts stop landing on a grid."""
+    return zlib.crc32(key.encode()) % (2 * spread + 1) - spread
+
+
+def extra_minutes(key):
+    """0..slot_jitter_minutes on top of a floor (spacing_minutes): a wait never shorter than the floor."""
+    half = CONFIG.get("slot_jitter_minutes", 0) // 2
+    return jitter(key, half) + half
+
+
 def video_problems(post):
     """What holds a post's video. Licence: the photo under CC0, CC BY or public domain, with its credit (a video is an
     adaptation; share-alike, no-derivatives and non-commercial photos never move). Spec: the file passed Instagram's
@@ -469,7 +536,7 @@ def check_video(post):
     return bool(problems)
 
 
-def make_video(s, img, post_id, clip=None):
+def make_video(s, img, post_id, clip=None, shape=None):
     """Render the story's video card into the media folder. Returns the post's video record, or None (and why it
     was skipped is printed); a failed render never touches the still card."""
     from . import cardvideo as CV
@@ -477,7 +544,7 @@ def make_video(s, img, post_id, clip=None):
     if why:
         print(f"{post_id}: no video card: {why}")
         return None
-    shape = video_shape()
+    shape = shape or video_shape()
     seconds = float(video_cfg("seconds", CV.SECONDS))
     footage = None
     try:
@@ -1374,7 +1441,7 @@ def data_carousel():
     if len(fx) < 4 or len(re_rows) < 4 or not best:
         return []
     last = _last_slot()
-    when = max(t, last + timedelta(minutes=CONFIG["spacing_minutes"])) if last else t
+    when = max(t, last + timedelta(minutes=CONFIG["spacing_minutes"] + extra_minutes(pid))) if last else t
     if when > t + timedelta(hours=CONFIG["max_hours_ahead"]):
         return []
     _, k, pts, a, b, pct = best
@@ -1477,6 +1544,8 @@ def scheduled_stories():
         if any(today(other) for other in group):
             continue
         start = t.replace(hour=int(at[:2]), minute=int(at[3:]), second=0, microsecond=0)
+        # a different minute each day, so the stories do not keep one clock
+        start += timedelta(minutes=jitter(f"{day}-{slot}", CONFIG.get("story_jitter_minutes", 0)))
         if start <= t < start + timedelta(hours=CONFIG.get("story_grace_hours", 3)):
             made += build(day, slot, _story_label(slot, t))
     return made
@@ -1583,10 +1652,13 @@ def queue(day_dir, batch=None, render=True):
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
     made, n, ctas = [], 0, 0
     for m, s in ranked:
-        video = None
+        video, ig_stills = None, False
         web = m["url"] not in room_urls or not social_allowed(s)
         if not web:
-            when = max(earliest, slot + gap) if slot else earliest
+            # a fixed offset of up to slot_jitter_minutes either way, never closer than spacing_minutes to the last slot
+            when = (max(earliest, slot + gap) if slot else earliest) + timedelta(minutes=jitter(f"{batch}-{n + 1}", CONFIG.get("slot_jitter_minutes", 0)))
+            if slot:
+                when = max(when, slot + gap)
             if when > horizon:
                 # no slot left before the story would go stale on Instagram; it must still reach the site today
                 print(f"schedule full until {when:%H:%M} UTC; {m['headline'][:60]} goes to the web tier")
@@ -1625,10 +1697,18 @@ def queue(day_dir, batch=None, render=True):
             # Bluesky carry web posts). Without a clip, the moving photo is the A/B test: Instagram-tier posts only,
             # per_day a day (videos_last_24h reads the queue on disk, this run's earlier posts included).
             # While Instagram is blocked a video is rendered only when the lead path or a web post will carry it.
+            # On Instagram the mix decides (plan_format): a post whose turn is a photo still renders its footage for
+            # the other platforms, and Instagram gets the stills.
             if video_cfg("on") and (web or not cooldown_until() or video_elsewhere()):
                 clip = pick_footage(s, out.name, float(video_cfg("seconds", 8)))
-                if clip or (not web and videos_last_24h() < int(video_cfg("per_day", 0))):
-                    video = make_video(s, img, out.name, clip=clip)
+                if web:
+                    if clip:
+                        video = make_video(s, img, out.name, clip=clip)
+                else:
+                    fmt = plan_format(bool(clip) or videos_last_24h() < int(video_cfg("per_day", 0)))
+                    if fmt != "photo" or clip:
+                        video = make_video(s, img, out.name, clip=clip, shape=None if fmt == "photo" else fmt)
+                        ig_stills = bool(video) and fmt == "photo"
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
                 "cards": ["card.jpg", "detail.jpg"] + [f"{n}.jpg" for n, _ in extra_slides(m, s, web, ctas)],
@@ -1652,6 +1732,8 @@ def queue(day_dir, batch=None, render=True):
         ctas += bool(cta)
         if video:
             post["video"] = video
+            if ig_stills:
+                post["ig_stills"] = True
             check_video(post)
         if web:
             post.update(status="web", published=now().isoformat(timespec="seconds"), story="")
@@ -2200,6 +2282,38 @@ def ig_gap_wait():
     return (last + gap) if last and now() - last < gap else None
 
 
+def rotate(due):
+    """Due posts in the order to try them. Among the feed posts that are due, one in another format than the last
+    Instagram feed post goes first; the oldest keeps its place when it is breaking (importance wins) or when every
+    due post has the last format. Stories keep their places."""
+    feed = [i for i, (p, _) in enumerate(due) if p.get("kind") != "story"]
+    if len(feed) < 2:
+        return due
+    sent = [p for p in _ig_feed() if p.get("status") == "published"]
+    last = ig_format(sent[-1]) if sent else None
+    first = due[feed[0]][0]
+    if last is None or first.get("score", 0) >= CONFIG.get("breaking_score", 99) or ig_format(first) != last:
+        return due
+    pick = next((i for i in feed if ig_format(due[i][0]) != last), None)
+    if pick is None:
+        return due
+    out = list(due)
+    row = out.pop(pick)
+    out.insert(feed[0], row)
+    return out
+
+
+def story_spacing_wait(post):
+    """Stories spread through the day: story_spacing_minutes after the last story, or None when it may go. The second
+    frame of a pair (a quiz answer, the second markets frame) carries "after" and follows its first."""
+    if post.get("after"):
+        return None
+    gap = timedelta(minutes=CONFIG.get("story_spacing_minutes", 0))
+    stamps = [_stamp(p.get("published", "")) for p, _ in posts() if p.get("kind") == "story" and p.get("status") == "published"]
+    last = max((x for x in stamps if x), default=None)
+    return (last + gap) if last and now() - last < gap else None
+
+
 def last_published():
     stamps = [_stamp(p.get("published", "")) for p, _ in posts()
               if p.get("status") == "published" and p.get("kind") != "story"]
@@ -2343,7 +2457,10 @@ def _publish(client, dry):
         return sorted(((p, path) for p, path in posts() if p.get("status") == "queued" and social_allowed(p)
                        and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
 
-    due = due_posts()
+    def rotated():
+        return rotate(due_posts())
+
+    due = rotated()
     checked = set()
     if not dry and any(p.get("kind") != "story" for p, _ in due):
         # Before anything is posted, record what is already live. A publish that errored, or whose status
@@ -2365,7 +2482,7 @@ def _publish(client, dry):
                 _mark_live(post, path, found)
             else:
                 checked.add(post["id"])
-        due = due_posts()
+        due = rotated()
     for post, path in due:
         if post.get("kind") == "story":
             state = _answer_state(post)
@@ -2381,6 +2498,9 @@ def _publish(client, dry):
                 continue
             if ig_gap_wait():
                 print(f"{post['id']}: story waits for the Instagram gap, until {ig_gap_wait():%H:%M} UTC")
+                continue
+            if story_spacing_wait(post):
+                print(f"{post['id']}: story waits so stories spread through the day, until {story_spacing_wait(post):%H:%M} UTC")
                 continue
             if dry:
                 print(f"{post['id']}: would publish a story")
@@ -2436,8 +2556,11 @@ def _publish(client, dry):
             print(f"{post['id']}: waits for the Instagram gap, until {ig_gap_wait():%H:%M} UTC")
             return 0
         last = last_published()
-        if last and now() - last < timedelta(minutes=CONFIG.get("spacing_minutes", 0)):
-            print(f"{post['id']}: spacing, next post after {last + timedelta(minutes=CONFIG['spacing_minutes']):%H:%M} UTC")
+        # spacing_minutes is the floor; each post adds its own fixed 0..slot_jitter_minutes, so a backlog does not
+        # go out on an exact 45-minute beat
+        wait = timedelta(minutes=CONFIG.get("spacing_minutes", 0) + extra_minutes(post["id"]))
+        if last and now() - last < wait:
+            print(f"{post['id']}: spacing, next post after {last + wait:%H:%M} UTC")
             return 0
         tried = _stamp(post.get("attempted", ""))
         if tried and now() - tried < timedelta(minutes=ATTEMPT_SETTLE_MINUTES):
@@ -2461,7 +2584,7 @@ def _publish(client, dry):
             # the keyword is passed only when on, so a client written before alt text keeps working
             extra = {"alt_texts": alts} if alts else {}
             media = None
-            v = post.get("video")
+            v = None if post.get("ig_stills") else post.get("video")
             if v:
                 from .instagram import VideoRejected
                 try:
