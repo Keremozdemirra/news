@@ -195,5 +195,43 @@ class Attribution(unittest.TestCase):
         self.assertTrue(any("opens with a newsroom" in p for p in desk.audit(post)))
 
 
+class Glossary(unittest.TestCase):
+    def test_a_chamber_goes_by_its_own_name_everywhere(self):
+        for wrong, right in [("Japan's Senate", "Japan's upper house"), ("The Japanese Senate", "The Japanese upper house"),
+                             ("Britain's Congress", "Britain's Parliament"), ("Germany's Congress", "Germany's Bundestag"),
+                             ("South Korea's Congress", "South Korea's National Assembly"), ("Russia's Senate", "Russia's upper house")]:
+            self.assertEqual(copy.fix_legislature(wrong), right, wrong)
+
+    def test_a_chamber_the_country_has_is_left_alone(self):
+        for ok in ("Australia's Senate", "Canada's Senate", "France's Senate", "Italy's Senate", "Spain's Senate",
+                   "The Philippines' Senate", "Argentina's Senate", "India's Congress party", "India's Congress leader says",
+                   "Mexico's Congress", "the US Senate", "Japan's upper house", "Japan's Diet"):
+            self.assertEqual(copy.fix_legislature(ok), ok, ok)
+
+    def test_apply_fixes_the_dek_the_report_and_the_x_post_too(self):
+        s = story("Japan's upper house rejects censure motion against Education Minister Seki",
+                  "The Senate vote was narrow. Japan's Senate voted 120 to 118 on Friday.", source="NHK")
+        rows = [row(headline="Japan's Senate narrowly rejects censure motion against Education Minister Seki",
+                    dek="Japan's Senate voted 120 to 118 on Friday.", x_post="Japan's Senate rejects the motion.",
+                    linkedin_post="The motion was brought by opposition parties. Japan's Senate sat on Friday.\n\nSource: NHK")]
+        copy.apply([s], rows)
+        for f in ("headline", "dek", "x_post", "linkedin_post"):
+            self.assertNotIn("Senate", s[f], f)
+        self.assertIn("upper house", s["headline"])
+
+    def test_audit_holds_the_dek_body_and_caption_not_only_the_headline(self):
+        from aidaily import desk
+        base = {"headlines": ["Japan rejects censure motion"], "dek": "Japan's upper house voted on Friday.", "body": "", "caption": "x #news"}
+        self.assertFalse(any("another country's name" in p for p in desk.audit(base)))
+        for field in ("dek", "body", "caption"):
+            post = {**base, field: "Japan's Senate voted narrowly on Friday."}
+            self.assertTrue(any(f"{field} calls a chamber by another country's name" in p for p in desk.audit(post)), field)
+
+    def test_the_prompt_carries_the_glossary(self):
+        text = copy.prompt("id: 0")
+        self.assertIn("House of Councillors", text)
+        self.assertIn("Legislative Yuan", text)
+
+
 if __name__ == "__main__":
     unittest.main()

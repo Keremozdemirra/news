@@ -664,8 +664,9 @@ def audit(post):
                 problems.append(f"{field} sentence opens with a newsroom's name, which the sources list already gives: {x[:80]!r}")
             if copy.CONVERSION_SENTENCE.search(x):
                 problems.append(f"{field} sentence is a currency conversion on its own: {x[:80]!r}")
-    if copy.fix_legislature(head_) != head_:
-        problems.append(f"headline calls a chamber the Senate: {copy.SENATE.search(head_).group(0)!r}")
+    for label, text in (("headline", head_), ("dek", post.get("dek", "")), ("body", post.get("body", "")), ("caption", post.get("caption", ""))):
+        if copy.wrong_chamber(text):
+            problems.append(f"{label} calls a chamber by another country's name: {copy.wrong_chamber(text)!r}")
     if (post.get("body") or "").strip() and copy.LEANS.search(copy.sentences(post["body"])[0]):
         problems.append(f"report opens leaning on a sentence that is not there: {copy.sentences(post['body'])[0]!r}")
     if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf) or E.EVENT.search(pf)

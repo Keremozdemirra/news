@@ -73,9 +73,12 @@ Fields:
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any. Plain
   words: "more than £400m", never "£400m+"; no question; no quote marks around a single word. Name the
   country when a senate, parliament, court, central bank or election is not American ("Argentina's Senate"), and
-  call a chamber by its own name: Japan's upper house (House of Councillors), India's Rajya Sabha or Lok Sabha,
-  Britain's House of Commons or House of Lords, Germany's Bundestag or Bundesrat, Russia's State Duma, South
-  Korea's National Assembly, Israel's Knesset; "Senate" only where the chamber is called that
+  call a chamber by its own name: Japan's Diet (House of Representatives, House of Councillors, never
+  "Senate" or "Congress"), India's Rajya Sabha or Lok Sabha, Britain's House of Commons or House of Lords,
+  Germany's Bundestag or Bundesrat, Russia's State Duma, South Korea's National Assembly, Israel's Knesset,
+  Taiwan's Legislative Yuan, China's National People's Congress; "Senate" only where the chamber is called that
+  (the United States, Australia, Canada, France, Italy, Spain, the Philippines, Argentina, Brazil, Mexico) and
+  "Congress" only for the United States and Latin America. This holds in the dek and the report too
 - dek: one sentence, max 140 characters, the most useful extra fact (not a restatement of the headline); it
   sums up the story the headline names, so it never leads with a company or person the headline leaves out
 - company: {company_rule}
@@ -702,20 +705,61 @@ def drop_offtopic(post, headline, dek="", source=""):
     return (body + ("\n\n" + "\n".join(tail) if tail else "")).strip() if body else "\n".join(tail)
 
 
-# Upper houses that are not called a Senate: "Japan's Senate" is the House of Councillors (2026-11-27)
+# Legislatures called by another country's name. A country that has no Senate has an upper house under its own name
+# ("Japan's Senate" is the House of Councillors, 2026-11-27); one that has no Congress has a parliament, a Diet, a
+# Bundestag. Countries that do have a Senate (Australia, Canada, France, Italy, Spain, the Philippines, Argentina,
+# Brazil, Mexico, the Netherlands' Eerste Kamer in English wire copy) are left alone, and so is "India's Congress",
+# which is the party.
 UPPER_HOUSE = {"Japan": "upper house", "India": "upper house", "Germany": "Bundesrat", "Russia": "upper house",
                "Britain": "House of Lords", "UK": "House of Lords", "U.K.": "House of Lords", "Malaysia": "upper house",
                "Netherlands": "upper house", "Austria": "upper house", "Switzerland": "upper house", "Ireland": "upper house",
                "South Korea": "National Assembly", "Taiwan": "legislature", "Israel": "Knesset", "Turkey": "parliament",
                "China": "legislature", "Sweden": "parliament", "Denmark": "parliament", "Norway": "parliament",
                "Finland": "parliament", "New Zealand": "parliament", "Indonesia": "upper house", "Ukraine": "parliament",
-               "Hungary": "parliament", "Portugal": "parliament", "Greece": "parliament", "Vietnam": "National Assembly"}
+               "Hungary": "parliament", "Portugal": "parliament", "Greece": "parliament", "Vietnam": "National Assembly",
+               "Thailand": "upper house", "Pakistan": "upper house", "Poland": "upper house", "Belgium": "upper house",
+               "Czech Republic": "upper house", "Romania": "upper house", "Kenya": "upper house", "Nigeria": "upper house",
+               "South Africa": "upper house", "Egypt": "upper house", "Iran": "parliament", "Saudi Arabia": "council",
+               "Singapore": "parliament", "Kazakhstan": "upper house", "Jordan": "upper house", "Morocco": "upper house"}
+CONGRESS = {"Japan": "Diet", "Britain": "Parliament", "UK": "Parliament", "U.K.": "Parliament", "Germany": "Bundestag",
+            "Australia": "Parliament", "Canada": "Parliament", "Russia": "State Duma", "South Korea": "National Assembly",
+            "Israel": "Knesset", "Turkey": "parliament", "Italy": "parliament", "New Zealand": "Parliament",
+            "Ireland": "Dail", "Sweden": "Riksdag", "Norway": "Storting", "Denmark": "Folketing", "Taiwan": "Legislative Yuan",
+            "Singapore": "Parliament", "Poland": "Sejm", "Hungary": "parliament", "Ukraine": "Verkhovna Rada"}
+# "Japanese Senate", "British Congress": the country's adjective names it the same way
+ADJECTIVE = {"Japanese": "Japan", "British": "Britain", "German": "Germany", "Russian": "Russia", "Israeli": "Israel",
+             "Turkish": "Turkey", "Korean": "South Korea", "Taiwanese": "Taiwan", "Indian": "India", "Swedish": "Sweden",
+             "Norwegian": "Norway", "Danish": "Denmark", "Polish": "Poland", "Ukrainian": "Ukraine", "Irish": "Ireland",
+             "Australian": "Australia", "Canadian": "Canada"}
+_PLACES = sorted(set(UPPER_HOUSE) | set(CONGRESS) | set(ADJECTIVE), key=len, reverse=True)
 SENATE = re.compile(r"\b(" + "|".join(map(re.escape, sorted(UPPER_HOUSE, key=len, reverse=True))) + r")(['’]s)?\s+Senate\b")
+WRONG_CHAMBER = re.compile(r"\b(" + "|".join(map(re.escape, _PLACES)) + r")(['’]s)?\s+(Senate|Congress)\b(?!\s+(?:Party|party|leader|"
+                           r"spokes\w+|president|chief|MPs?)\b)")
 
 
-def fix_legislature(headline):
-    """A country's chamber by its own name: "Japan's Senate" becomes "Japan's upper house"."""
-    return SENATE.sub(lambda m: f"{m.group(1)}{m.group(2) or ''} {UPPER_HOUSE[m.group(1)]}", headline or "")
+def _right_chamber(country, word):
+    country = ADJECTIVE.get(country, country)
+    if word == "Senate":
+        return UPPER_HOUSE.get(country)
+    # "Indian Congress" and "India's Congress" are the party; Australia and Canada have a Senate but no Congress
+    return CONGRESS.get(country)
+
+
+def fix_legislature(text):
+    """A country's chamber by its own name: "Japan's Senate" becomes "Japan's upper house", "Britain's Congress"
+    "Britain's Parliament". A chamber the country does have is never touched."""
+    def swap(m):
+        right = _right_chamber(m.group(1), m.group(3))
+        return m.group(0) if right is None else f"{m.group(1)}{m.group(2) or ''} {right}"
+    return WRONG_CHAMBER.sub(swap, text or "")
+
+
+def wrong_chamber(text):
+    """The first "Japan's Senate" in a text, or "". Used by the audit, which holds a post that still has one."""
+    for m in WRONG_CHAMBER.finditer(text or ""):
+        if _right_chamber(m.group(1), m.group(3)) is not None:
+            return m.group(0)
+    return ""
 
 
 # a headline's own opener is a name only when it is not a plain word: "Spain holds snap election" is about Spain,
@@ -854,7 +898,8 @@ def apply(stories, reply_rows):
                                                  "person_role", "figure", "x_post", "linkedin_post", "image_query",
                                                  "topic", "venue")},
                      copy_status="ok")
-            s["headline"] = fix_legislature(s["headline"])
+            for f in ("headline", "dek", "x_post", "linkedin_post"):
+                s[f] = fix_legislature(s.get(f, ""))
             if s.get("dek") and (META.search(s["dek"]) or OFFTOPIC.search(s["dek"])):
                 s["dek"] = ""
             s["linkedin_post"] = drop_offtopic(s["linkedin_post"], s["headline"], s.get("dek", ""),
