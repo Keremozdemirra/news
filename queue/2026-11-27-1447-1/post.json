@@ -58,5 +58,16 @@
  "credit_file": "El Alto International Airport main hall.jpg",
  "status": "web",
  "published": "2026-11-27T14:47:19+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "threads": {
+   "id": "18165026479502455",
+   "url": "https://www.threads.com/@boardread/post/DgP7xkXEf-v",
+   "at": "2026-11-27T14:51:25+00:00",
+   "format": "text",
+   "reply": {
+    "id": "18232973326335763"
+   }
+  }
+ }
 }

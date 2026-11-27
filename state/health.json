@@ -1,10 +1,8 @@
 {
- "since": {
-  "ig-failed": "2026-11-26T23:00:17+00:00"
- },
+ "since": {},
  "issue": 9,
  "reported": [
   "ig-failed"
  ],
- "clear_since": null
+ "clear_since": "2026-11-27T14:51:32+00:00"
 }
