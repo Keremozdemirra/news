@@ -300,6 +300,15 @@ class Glossary(unittest.TestCase):
                    "Mexico's Congress", "the US Senate", "Japan's upper house", "Japan's Diet"):
             self.assertEqual(copy.fix_legislature(ok), ok, ok)
 
+    def test_countries_with_a_real_senate_and_names_that_only_look_like_a_chamber_are_left_alone(self):
+        for ok in ("Pakistan's Senate approves the bill", "Thailand's Senate", "Poland's Senate", "Belgium's Senate", "Czech Republic's Senate",
+                   "Romania's Senate", "Kenya's Senate", "Nigeria's Senate", "Egypt's Senate", "Kazakhstan's Senate", "Jordan's Senate",
+                   "Netherlands' Senate", "Ireland's Senate", "Malaysia's Senate", "Irish Senate",
+                   "Irish Congress of Trade Unions", "Nigeria's Senate President Godswill Akpabio", "Japan's Senate Majority Leader",
+                   "Britain's Congress Party", "Ireland's Senate minority leader"):
+            self.assertEqual(copy.fix_legislature(ok), ok, ok)
+            self.assertEqual(copy.wrong_chamber(ok), "", ok)
+
     def test_apply_fixes_the_dek_the_report_and_the_x_post_too(self):
         s = story("Japan's upper house rejects censure motion against Education Minister Seki",
                   "The Senate vote was narrow. Japan's Senate voted 120 to 118 on Friday.", source="NHK")

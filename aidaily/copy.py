@@ -834,20 +834,18 @@ def drop_offtopic(post, headline, dek="", source=""):
 
 # Legislatures called by another country's name. A country that has no Senate has an upper house under its own name
 # ("Japan's Senate" is the House of Councillors, 2026-11-27); one that has no Congress has a parliament, a Diet, a
-# Bundestag. Countries that do have a Senate (Australia, Canada, France, Italy, Spain, the Philippines, Argentina,
-# Brazil, Mexico, the Netherlands' Eerste Kamer in English wire copy) are left alone, and so is "India's Congress",
-# which is the party.
+# Bundestag. UPPER_HOUSE is a short allow-list of countries known to have none: a country that really has a Senate
+# (Australia, Canada, France, Italy, Spain, the Philippines, Argentina, Brazil, Mexico, Thailand, Pakistan, Poland,
+# Belgium, the Czech Republic, Romania, Kenya, Nigeria, Egypt, Kazakhstan, Jordan, the Netherlands, Ireland, Malaysia)
+# is not in it, so its copy is never rewritten. "India's Congress" is the party and stays.
 UPPER_HOUSE = {"Japan": "upper house", "India": "upper house", "Germany": "Bundesrat", "Russia": "upper house",
-               "Britain": "House of Lords", "UK": "House of Lords", "U.K.": "House of Lords", "Malaysia": "upper house",
-               "Netherlands": "upper house", "Austria": "upper house", "Switzerland": "upper house", "Ireland": "upper house",
-               "South Korea": "National Assembly", "Taiwan": "legislature", "Israel": "Knesset", "Turkey": "parliament",
-               "China": "legislature", "Sweden": "parliament", "Denmark": "parliament", "Norway": "parliament",
-               "Finland": "parliament", "New Zealand": "parliament", "Indonesia": "upper house", "Ukraine": "parliament",
-               "Hungary": "parliament", "Portugal": "parliament", "Greece": "parliament", "Vietnam": "National Assembly",
-               "Thailand": "upper house", "Pakistan": "upper house", "Poland": "upper house", "Belgium": "upper house",
-               "Czech Republic": "upper house", "Romania": "upper house", "Kenya": "upper house", "Nigeria": "upper house",
-               "South Africa": "upper house", "Egypt": "upper house", "Iran": "parliament", "Saudi Arabia": "council",
-               "Singapore": "parliament", "Kazakhstan": "upper house", "Jordan": "upper house", "Morocco": "upper house"}
+               "Britain": "House of Lords", "UK": "House of Lords", "U.K.": "House of Lords", "Austria": "upper house",
+               "Switzerland": "upper house", "South Korea": "National Assembly", "Taiwan": "legislature", "Israel": "Knesset",
+               "Turkey": "parliament", "China": "legislature", "Sweden": "parliament", "Denmark": "parliament",
+               "Norway": "parliament", "Finland": "parliament", "New Zealand": "parliament", "Indonesia": "upper house",
+               "Ukraine": "parliament", "Hungary": "parliament", "Portugal": "parliament", "Greece": "parliament",
+               "Vietnam": "National Assembly", "South Africa": "upper house", "Iran": "parliament",
+               "Saudi Arabia": "council", "Singapore": "parliament", "Morocco": "upper house"}
 CONGRESS = {"Japan": "Diet", "Britain": "Parliament", "UK": "Parliament", "U.K.": "Parliament", "Germany": "Bundestag",
             "Australia": "Parliament", "Canada": "Parliament", "Russia": "State Duma", "South Korea": "National Assembly",
             "Israel": "Knesset", "Turkey": "parliament", "Italy": "parliament", "New Zealand": "Parliament",
@@ -860,8 +858,9 @@ ADJECTIVE = {"Japanese": "Japan", "British": "Britain", "German": "Germany", "Ru
              "Australian": "Australia", "Canadian": "Canada"}
 _PLACES = sorted(set(UPPER_HOUSE) | set(CONGRESS) | set(ADJECTIVE), key=len, reverse=True)
 SENATE = re.compile(r"\b(" + "|".join(map(re.escape, sorted(UPPER_HOUSE, key=len, reverse=True))) + r")(['’]s)?\s+Senate\b")
-WRONG_CHAMBER = re.compile(r"\b(" + "|".join(map(re.escape, _PLACES)) + r")(['’]s)?\s+(Senate|Congress)\b(?!\s+(?:Party|party|leader|"
-                           r"spokes\w+|president|chief|MPs?)\b)")
+# not a chamber: "Irish Congress of Trade Unions", "Nigeria's Senate President", "Senate Majority Leader"
+WRONG_CHAMBER = re.compile(r"\b(" + "|".join(map(re.escape, _PLACES)) + r")(['\u2019]s)?\s+(Senate|Congress)\b(?!\s+of\b)"
+                           r"(?!\s+(?i:Party|leaders?|spokes\w+|president|chief|MPs?|majority|minority)\b)")
 
 
 def _right_chamber(country, word):
