@@ -2,6 +2,8 @@
 thing only on an article about it, the sport's own ground, and no search on the headline's other proper names."""
 import json
 import re
+import tempfile
+from pathlib import Path
 import unittest
 from unittest import mock
 
@@ -153,7 +155,8 @@ class SceneTags(unittest.TestCase):
         info = {"width": 2000, "height": 1400, "url": "u", "extmetadata": {}}
         with mock.patch.object(entities, "_commons_info", return_value=info), \
              mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC0, via Wikimedia Commons")), \
-             mock.patch.object(entities, "_get", return_value=b"jpeg"):
+             mock.patch.object(entities, "_get", return_value=b"jpeg"), \
+             mock.patch.object(entities, "CACHE", Path(tempfile.mkdtemp())):
             for _ in range(3):
                 _, _, f, _ = scenes.photo("Taiwan votes Saturday in local elections", "Politics", set(), batch=batch)
                 got.append(f)
@@ -167,6 +170,7 @@ class LastRung(unittest.TestCase):
         every = {i["file"] for items in scenes.entries("Taiwan votes Saturday", "Politics", DATA) for i in items}
         with mock.patch.object(entities, "_commons_info", return_value=info), \
              mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC0, via Wikimedia Commons")), \
-             mock.patch.object(entities, "_get", return_value=b"jpeg"):
+             mock.patch.object(entities, "_get", return_value=b"jpeg"), \
+             mock.patch.object(entities, "CACHE", Path(tempfile.mkdtemp())):
             _, _, f, _ = scenes.photo("Taiwan votes Saturday", "Politics", set(), batch=set(every))
         self.assertIn(f, every)
