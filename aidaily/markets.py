@@ -372,6 +372,77 @@ def fetch():
     return out
 
 
+# What a value may be before the pages show it. A publisher's glitch (a unit change, a column shift, a stale file served
+# again) once printed as a price; a number outside these bounds is hidden, not shown, and the last good one stays.
+# lo/hi are wide on purpose, several times beyond anything the series has printed since 2010: they catch a wrong unit
+# or a shifted column, not a market move. A day can move a daily series by MOVE[source] at most (a yield by 1.0 point).
+BOUNDS = {"eurusd": (0.5, 2.0), "usdjpy": (70, 250), "gbpusd": (0.8, 2.2), "usdcny": (4.5, 9.5), "eurgbp": (0.5, 1.2),
+          "eurtry": (3, 400), "brent": (10, 250), "wti": (0, 250), "gasoline": (1, 10), "henryhub": (0.3, 30),
+          "gold": (500, 12000), "silver": (5, 400), "platinum": (300, 6000), "copper": (2000, 25000),
+          "aluminium": (1000, 7000), "nickel": (5000, 60000), "zinc": (1000, 7000), "lead": (1000, 5000),
+          "tin": (8000, 70000), "ironore": (30, 400), "ust10": (0, 15), "ust2": (0, 15)}
+MOVE = {"ecb": 0.15, "calc": 0.15, "eia": 0.5, "wb": 0.6}
+YIELD_MOVE = 1.0
+# newest observation older than this many days: not shown (daily rates skip weekends and holidays; the EIA daily
+# spot series lag four days; gasoline is weekly; the World Bank monthly averages arrive in the first days of the month)
+MAX_AGE_DAYS = {"ecb": 7, "calc": 7, "ust": 7, "eia": 12, "wb": 75}
+WEEKLY_AGE_DAYS = 16
+
+
+def check_series(key, pts, today=None):
+    """Why a series may not be shown, or None. pts: [[iso date, value], ...] oldest first."""
+    if key not in SERIES or not pts:
+        return None
+    today = today or datetime.now(timezone.utc).date()
+    try:
+        d, v = pts[-1]
+        day = date.fromisoformat(d)
+        v = float(v)
+    except (TypeError, ValueError):
+        return "unreadable last observation"
+    if v != v or v in (float("inf"), float("-inf")):
+        return "not a number"
+    lo, hi = BOUNDS.get(key, (float("-inf"), float("inf")))
+    if not lo <= v <= hi:
+        return f"{v:g} is outside {lo:g}..{hi:g}"
+    src = SERIES[key][3]
+    if day > today + timedelta(days=1):
+        return f"dated {d}, in the future"
+    limit = WEEKLY_AGE_DAYS if key == "gasoline" else MAX_AGE_DAYS.get(src, 12)
+    if (today - day).days > limit:
+        return f"last observation {d} is {(today - day).days} days old (limit {limit})"
+    if len(pts) > 1:
+        prev = float(pts[-2][1])
+        if SERIES[key][1] == "%":
+            if abs(v - prev) > YIELD_MOVE:
+                return f"moved {abs(v - prev):.2f} points since the observation before"
+        elif prev and abs(v - prev) / abs(prev) > MOVE.get(src, 0.5):
+            return f"moved {100 * abs(v - prev) / abs(prev):.0f}% since the observation before"
+    return None
+
+
+def sanitize(data, today=None):
+    """data without the series (and the ECB rate) that fail check_series; the held ones are named in data["held"]."""
+    held = {}
+    series = {}
+    for k, pts in (data.get("series") or {}).items():
+        why = check_series(k, pts, today)
+        if why:
+            held[k] = why
+        else:
+            series[k] = pts
+    out = {**data, "series": series}
+    dfr = data.get("dfr")
+    if dfr and not -1 <= float(dfr.get("value", 0)) <= 15:
+        out.pop("dfr")
+        held["dfr"] = f"{dfr.get('value')} is outside -1..15"
+    if held:
+        out["held"] = held
+        for k, why in held.items():
+            print(f"markets: {k} not shown: {why}")
+    return out
+
+
 def load(live=True):
     """The markets data to render: fresh blocks over the last good file, which is rewritten when something was fresh.
     None when there is nothing at all (the market sections are then left out of the pages)."""
@@ -380,6 +451,10 @@ def load(live=True):
     data = {**old, **{k: v for k, v in new.items() if k != "series"}}
     data["series"] = dict(old.get("series", {}))
     for k, pts in new.get("series", {}).items():  # a fresh series replaces the kept one unless it ends earlier
+        bad = check_series(k, pts)
+        if bad and data["series"].get(k):
+            print(f"markets: fresh {k} refused ({bad}); the last good one stays")
+            continue
         if not data["series"].get(k) or pts[-1][0] >= data["series"][k][-1][0]:
             data["series"][k] = pts
     stored = {**data, "series": dict(data["series"])}
@@ -388,6 +463,7 @@ def load(live=True):
         data["fetched"] = stored["fetched"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
         file().parent.mkdir(parents=True, exist_ok=True)
         file().write_text(json.dumps(stored, indent=1) + "\n")
+    data = sanitize(data)
     return data if data["series"] else None
 
 
