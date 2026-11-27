@@ -366,3 +366,12 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
   border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);scrollbar-width:thin;scrollbar-color:var(--soft) transparent;scroll-padding-top:56px}
 .newspanel::-webkit-scrollbar{width:8px}.newspanel::-webkit-scrollbar-thumb{background:var(--soft)}
 .newspanel:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
+
+/* chips: the sections of the panel, one tap away; sideways on a phone, 44 px to hit */
+.newspanel{position:relative}
+.chips{position:sticky;top:0;z-index:5;background:var(--paper);border-bottom:1px solid var(--rule);margin:0 calc(var(--s2) * -1);padding:0 var(--s2)}
+.chips ul{list-style:none;margin:0;padding:0;display:flex;gap:var(--s1);overflow-x:auto;scrollbar-width:none}
+.chips ul::-webkit-scrollbar{display:none}
+.chips a{flex:none;display:flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--ink);margin:var(--s1) 0;font:600 14px/1 var(--f);color:var(--ink)}
+.chips a:hover{background:var(--ink);color:var(--paper);text-decoration:none}
+.chips a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}

@@ -415,8 +415,8 @@ class FrontBuilt(Features):
         self.assertEqual(rows, [])  # sections reflow with auto-fit columns: no counts, no empty slots
         # twenty articles: Top 5 and Latest take their share, the rest of the day fills the section blocks
         h = views.front([fake(f"Story number {i} of the day", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"s{i}", published=f"2026-11-26T{22 - i // 2:02d}:{(i % 2) * 30:02d}:00+00:00") for i in range(20)], {}, None)
-        self.assertGreaterEqual(h.count('<section class="sect">'), 1)
-        for sect in re.findall(r'<section class="sect">(.*?)</section>', h, re.S):
+        self.assertGreaterEqual(h.count('<section class="sect" id="'), 1)
+        for sect in re.findall(r'<section class="sect" id="[^"]+">(.*?)</section>', h, re.S):
             self.assertIn("<article", sect)  # a section head always has an article under it
 
     def test_more_in_section_ends_an_article_with_no_related_and_never_lists_the_article_itself(self):
@@ -493,6 +493,20 @@ class FrontBuilt(Features):
         page = site.page("t", h, "d", "/", front=True)
         self.assertLess(page.index('class="newspanel"'), page.index('<footer class="foot">'))
         self.assertNotIn("gradient", css)
+
+    def test_the_section_chips_link_to_every_section_that_has_articles(self):
+        import re
+        rows = [fake(f"Story number {i} of the day", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"c{i}", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
+        h = views.front(rows, {}, None)
+        nav = re.search(r'<nav class="chips" aria-label="Jump to a section"><ul>(.*?)</ul></nav>', h, re.S).group(1)
+        chips = re.findall(r'<a href="#(sec-[a-z-]+)">([^<]+)</a>', nav)
+        self.assertEqual([t for _, t in chips], ["Economy", "Business", "Tech"])  # no Markets, no Culture: nothing to jump to
+        for sid, _ in chips:
+            self.assertEqual(h.count(f'<section class="sect" id="{sid}">'), 1)  # every chip lands on a section
+        self.assertLess(h.index('class="chips"'), h.index('class="front"'))
+        css = (site.ASSETS / "views.css").read_text()
+        self.assertIn("position:sticky;top:0", css.split(".chips{")[1].split("}")[0])
+        self.assertIn("min-height:44px", css.split(".chips a{")[1].split("}")[0])
 
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")

@@ -120,6 +120,20 @@ def latest_list(rows):
     return "<ul>" + "".join(f'<li><a href="{S.href(p)}">{rel_time(p)}<span>{E(p["headlines"][0])}</span></a></li>' for p in rows) + "</ul>"
 
 
+def sec_id(t):
+    return "sec-" + re.sub(r"[^a-z0-9]+", "-", t.lower()).strip("-")
+
+
+def chips(ids, sport):
+    """A sideways row of links to the sections below, at the top of the news panel. A section with no articles has no chip.
+    Without the script a chip is an ordinary in-page link; the script scrolls the panel instead of the page."""
+    items = list(ids) + ([("Sport", "sec-sport")] if sport else [])
+    if not items:
+        return ""
+    return ('<nav class="chips" aria-label="Jump to a section"><ul>'
+            + "".join(f'<li><a href="#{i}">{E(t)}</a></li>' for t, i in items) + "</ul></nav>")
+
+
 def section_rows(rows, newest, n=4):
     """The n articles a section block shows: the day's by news value, most important first. A section with fewer than n
     in the day is filled from older ones, newest first, so a quiet section still has a block."""
@@ -188,7 +202,7 @@ def front(shown, cos, m, sport=()):
     seconds_html = [second(p) for p in seconds]
     rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(seconds_html) + latest + "</div>"
 
-    blocks = []  # (html, estimated height at the left column's width) per section, in section order
+    blocks, sec_ids = [], []  # (html, estimated height at the left column's width) per section, in section order
     for t in S.NEWS_ORDER:
         rows = section_rows([p for p in shown if S.topic(p) == t and p["id"] not in used], newest)
         if not rows:
@@ -197,10 +211,11 @@ def front(shown, cos, m, sport=()):
         top, rest = rows[0], rows[1:]
         shows = ph(top)
         photo = img(top, "3/2") + photo_cap(top) if shows else ""
-        html = (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
+        html = (f'<section class="sect" id="{sec_id(t)}"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
                 f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
                 + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
         blocks.append((html, _block_height(top, rest, shows)))
+        sec_ids.append((t, sec_id(t)))
     # Desktop: the left column ends where the lead, Top 5 and the markets box end, the rail much lower. The first sections go
     # under the lead, two to a row, as many as bring the two columns level; the rest run full width below.
     left_h = 1124 + (380 if fig else 0)  # measured at 1280 px: lead 370, Top 5 300, markets box 370, gaps
@@ -215,7 +230,7 @@ def front(shown, cos, m, sport=()):
     left_over = len(blocks) - take
     cols = " c3" if left_over in (5, 6, 9) else ""  # 5 run 3 and 2, never 4 and 1 under a wide gap
     below = f'<div class="sects{cols}">{"".join(b[0] for b in blocks[take:])}</div>' if blocks[take:] else ""
-    inner = (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}{inlead}</div>' + below
+    inner = (chips(sec_ids, bool(sport)) + S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}{inlead}</div>' + below
              + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph) + puzzles_block("inrow"))
     return panel(inner)
 
@@ -244,7 +259,7 @@ def sport_block(rows, ph, n=4):
         return ""
     cells = "".join(f'<article class="slead"><a href="{S.href(p)}">{img(p, "3/2") + photo_cap(p) if ph(p) else ""}<h3>{E(p["headlines"][0])}</h3></a>'
                     f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)}</div></article>' for p in rows)
-    return (f'<section class="sportblk" aria-label="Sport"><h2 class="sh"><a href="{S.BASE}/sport/">Sport</a></h2><div class="sportgrid">{cells}</div>'
+    return (f'<section class="sportblk" id="sec-sport" aria-label="Sport"><h2 class="sh"><a href="{S.BASE}/sport/">Sport</a></h2><div class="sportgrid">{cells}</div>'
             f'<p class="sportmore"><a href="{S.BASE}/sport/">More sport</a></p></section>')
 
 
