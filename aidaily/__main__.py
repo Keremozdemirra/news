@@ -174,6 +174,9 @@ def main(argv=None):
     so.add_argument("dir", nargs="?", default="_site")
     tp = sub.add_parser("telegram-pin", help="print the Telegram pinned post; --send posts it silently and pins it")
     tp.add_argument("--send", action="store_true")
+    ix = sub.add_parser("indexnow", help="after a deploy: send the pages new since LIVE_SITEMAP to IndexNow (Bing, Yandex)")
+    ix.add_argument("dir", nargs="?", default="_site")
+    ix.add_argument("live", nargs="?", default="live-sitemap.xml")
     bf = sub.add_parser("bsky-feed", help="write bsky-feed.json (the Bluesky custom feed's post list) into DIR")
     bf.add_argument("dir", nargs="?", default="_site")
     bg = sub.add_parser("bsky-feed-record", help="print, or with --send write, the Bluesky feed generator record")
@@ -327,6 +330,9 @@ def main(argv=None):
         from . import distribution
         distribution.pin(send=args.send)
         return 0
+    if args.cmd == "indexnow":
+        from . import indexnow, site
+        return indexnow.main(args.dir, args.live, site.SITE)
     if args.cmd == "bsky-feed":
         from . import distribution
         distribution.write_skeleton(args.dir)

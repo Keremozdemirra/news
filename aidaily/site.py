@@ -952,6 +952,8 @@ def build(out=desk.HERE / "_site"):
         shutil.copy(ASSETS / f, out / f)
     for f in ASSETS.glob("google*.html"):  # Search Console ownership files; they must stay for the property to stay verified
         shutil.copy(f, out / f.name)
+    from . import indexnow
+    shutil.copy(ASSETS / f"{indexnow.KEY}.txt", out / f"{indexnow.KEY}.txt")  # proves the IndexNow key belongs to this host
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
     shown = []

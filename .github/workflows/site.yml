@@ -64,6 +64,10 @@ jobs:
           probe route "https://api.eia.gov/v2/petroleum/pri/spt/?api_key=$EIA_API_KEY"
           probe data_plain "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&data%5B0%5D=value&length=1"
           probe data_series "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&frequency=daily&data%5B0%5D=value&facets%5Bseries%5D%5B%5D=RBRTE&length=1"
+      # the live sitemap before this deploy, so IndexNow is told only about pages that are new in it
+      - name: Live sitemap
+        if: steps.changed.outputs.build == 'yes'
+        run: curl -fsS --max-time 20 "$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')/sitemap.xml" -o live-sitemap.xml || echo "no live sitemap"
       - name: Build
         if: steps.changed.outputs.build == 'yes'
         env:
@@ -103,3 +107,7 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
       - if: steps.deploy2.outcome == 'failure'
         run: echo "::warning::Pages deploy failed twice; the next site run retries"
+      - name: IndexNow
+        if: steps.deploy.outcome == 'success' || steps.deploy2.outcome == 'success'
+        continue-on-error: true
+        run: python3 -m aidaily indexnow _site live-sitemap.xml
