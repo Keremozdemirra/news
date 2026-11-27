@@ -226,6 +226,14 @@ def so_what(s):
     return (s.get("so_what") or "") if growth("so_what") else ""
 
 
+def detail_text(m, s, web, ctas):
+    """The detail slide's text: dek and report, minus the dek when another slide already sets it (the text card's
+    hook, or the number slide's line) and the report has more to say. No sentence is read twice in one carousel."""
+    elsewhere = R.T.hook_shown(s) or any(n == "number" and R.T.number_line(s) == (s.get("dek") or "").strip()
+                                         for n, _ in extra_slides(m, s, web, ctas))
+    return body(s) if elsewhere and body(s) else report(s)
+
+
 def extra_slides(m, s, web, ctas):
     """[(name, html)] of the slides after the detail slide, with growth.carousel_extended on: "number" when the post
     has a figure the headline or dek states (the figure, the sentence that holds it, its source), then "sources" (every
@@ -1220,7 +1228,7 @@ def queue(day_dir, batch=None, render=True):
             img.mkdir(parents=True, exist_ok=True)
             R.jpeg(day_dir / "pack" / m["file"]).replace(img / "card.jpg")
             png = img / "detail.png"
-            R.shoot(R.T.detail(s, report(s), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
+            R.shoot(R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
             R.jpeg(png)
             png.unlink()
             for name, html in extra_slides(m, s, web, ctas):

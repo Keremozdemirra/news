@@ -345,14 +345,23 @@ def card(story, brand=BRAND, motion=False, height=1350):
 {_hook(story, title)}<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
 
 
+def hook_shown(story):
+    """True when a text-only card carries its dek. Only a dek that adds two content words to the headline, short enough
+    for three lines, and only when the report has more to say: the detail slide then prints the report alone, so no
+    sentence is read twice across the two slides."""
+    from . import copy, desk
+    title = story.get("headline") or story.get("title") or ""
+    dek = (story.get("dek") or "").strip()
+    return (layout(story) == "headline" and bool(dek) and len(dek) <= 150 and bool(desk.body(story))
+            and len(copy._stems(dek) - copy._stems(title, short=True)) >= 2)
+
+
 def _hook(story, title):
     """The dek under a text-only headline: the second fact, set where the card was empty paper. Only a dek that adds
     to the headline, and short enough to stay a line or three."""
-    from . import copy
-    dek = (story.get("dek") or "").strip()
-    # two content words the headline lacks, or it is the headline again
-    if not dek or len(dek) > 150 or len(copy._stems(dek) - copy._stems(title, short=True)) < 2:
+    if not hook_shown(story):
         return ""
+    dek = story["dek"].strip()
     return (f'<div style="margin-top:36px;padding-top:28px;border-top:2px solid {BLACK};font-size:38px;font-weight:500;'
             f'line-height:1.28;color:{GREY}">{t(dek)}</div>')
 
@@ -398,18 +407,29 @@ def _slide(story, kicker, inner, brand=BRAND):
 </div></body></html>"""
 
 
-def number_slide(story, brand=BRAND):
-    """The number and its context: the figure set large, the headline or dek sentence that states it, and who reported
-    it. None when the post has no figure its own text states (a figure the reader cannot find is not set large)."""
+def number_line(story):
+    """The sentence that states the post's figure, as written ("€550M" is "€550 million" in the headline): the headline
+    first, then the dek. "" when there is no figure or no sentence of ours states it."""
     from . import copy, desk
     fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
     raw = story.get("figure") or fig
+    if not fig:
+        return ""
     title = story.get("headline") or story.get("title") or ""
-    # the sentence that states it, as written ("€550M" is "€550 million" in the headline)
-    line = next((x for x in (title, story.get("dek") or "")
-                 if raw and (desk._in_text(raw, x) or desk._in_text(fig, x) or key_figure(x) == fig)), "")
-    if not fig or not line or not copy.figure_ok(raw, line):
+    for x in (title, (story.get("dek") or "").strip()):
+        if x and (desk._in_text(raw, x) or desk._in_text(fig, x) or key_figure(x) == fig) and copy.figure_ok(raw, x):
+            return x
+    return ""
+
+
+def number_slide(story, brand=BRAND):
+    """The number and its context: the figure set large, the headline or dek sentence that states it, and who reported
+    it. None when the post has no figure its own text states (a figure the reader cannot find is not set large)."""
+    from . import desk
+    line = number_line(story)
+    if not line:
         return None
+    fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
     names = desk.outlets(story, story)
     src = f"Source: {desk.reported_by(names)}" if names else ""
     size = 300 if len(fig) <= 4 else 250 if len(fig) <= 6 else 190

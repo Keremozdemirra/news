@@ -369,8 +369,11 @@ class PostDesign(unittest.TestCase):
             self.assertIn('class="kick"', html)
 
     def test_text_card_carries_the_dek_as_its_hook_unless_it_repeats(self):
-        self.assertIn("latest to restructure", T.card(self.story()))
-        self.assertNotIn("SAP explores 10,000", T.card(self.story(dek="SAP explores 10,000 job cuts, it says.")))
+        with_report = dict(linkedin_post="Talks are at an early stage.\n\nSource: FT")
+        self.assertIn("latest to restructure", T.card(self.story(**with_report)))
+        self.assertNotIn("SAP explores 10,000", T.card(self.story(dek="SAP explores 10,000 job cuts, it says.", **with_report)))
+        # no report beyond the dek: the dek goes on the detail slide, not on the card too
+        self.assertNotIn("latest to restructure", T.card(self.story()))
 
     def test_number_slide_needs_a_figure_the_text_states(self):
         self.assertIsNone(T.number_slide(self.story()))
@@ -405,6 +408,15 @@ class ExtendedCarousel(unittest.TestCase):
             self.assertEqual([n for n, _ in desk.extra_slides(*self.rows("77,000"), web=False, ctas=0)], ["number", "sources"])
             self.assertEqual([n for n, _ in desk.extra_slides(*self.rows(""), web=False, ctas=0)], ["sources"])
             self.assertEqual(desk.extra_slides(*self.rows("77,000"), web=True, ctas=0), [])
+
+    def test_no_sentence_is_read_twice_across_the_slides(self):
+        m, s = self.rows("36%")
+        s.update(headline="Bangladesh garment workers clash with police over wages",
+                 dek="A 36% minimum wage increase fell short of the workers' demands.",
+                 linkedin_post="The clashes followed weeks of protests.\n\nSource: Al Jazeera")
+        with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": True}):
+            self.assertEqual(desk.detail_text(m, s, web=False, ctas=0), "The clashes followed weeks of protests.")
+        self.assertEqual(desk.detail_text(m, s, web=False, ctas=0), desk.report(s))  # two slides: dek and report
 
     def test_alt_text_covers_every_slide(self):
         post = {"headlines": ["UK net migration falls to 77,000"], "dek": "", "figure": "77,000", "sources": ["The Guardian"],
