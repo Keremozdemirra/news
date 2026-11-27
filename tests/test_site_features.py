@@ -550,8 +550,10 @@ class Play(Features):
                 self.assertTrue((d / ref).exists(), f"{slug}: {ref}")
             u = f"{site.SITE}/play/{slug}/"                                 # the same head the site's own pages carry
             for tag in (f'<link rel="canonical" href="{u}">', f'property="og:url" content="{u}"', 'property="og:title"', 'property="og:description"',
-                        f'property="og:image" content="{u}assets/share.jpg"', 'name="twitter:card" content="summary_large_image"', 'name="twitter:image"', '<meta name="description"'):
+                        'name="twitter:card" content="summary_large_image"', 'name="twitter:image"', '<meta name="description"'):
                 self.assertIn(tag, html, f"{slug}: {tag}")
+            # the share image, with the day in its address when the build could draw the date on it
+            self.assertRegex(html, rf'property="og:image" content="{re.escape(u)}assets/share\.jpg(\?d=\d{{4}}-\d\d-\d\d)?"', slug)
             self.assertEqual(html.count("<h1"), 1, slug)
             self.assertTrue((d / "assets" / "share.jpg").exists(), slug)
             self.assertIn('href="/play/"', html, slug)                     # a way back to the hub and to Boardread
