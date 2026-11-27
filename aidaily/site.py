@@ -912,11 +912,18 @@ def story(p, rows, cos=None, counts=None):
     alt = photo_alt(p)
     fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
            f'<figcaption class="meta">{credit_html(p)}</figcaption></figure>') if p.get("_hires") else ""
-    i = rows.index(p)
-    newer, older = (rows[i - 1] if i > 0 else None), (rows[i + 1] if i + 1 < len(rows) else None)
+    # Older and Newer stay inside the article's own section: a step to the next story is a step to a story of the same kind
+    same = [o for o in rows if topic(o) == topic(p)]
+    i = same.index(p)
+    newer, older = (same[i - 1] if i > 0 else None), (same[i + 1] if i + 1 < len(same) else None)
     rel = related(p, rows, exclude=[o for o in (newer, older) if o])
     more = (f'<section class="related" aria-labelledby="rel"><h2 id="rel">Related news</h2><ul>'
             + "".join(f'<li><a href="{href(o)}"><span class="h-s">{E(o["headlines"][0])}</span>{meta(E(topic(o)), t_tag(o))}</a></li>' for o in rel) + "</ul></section>") if rel else ""
+    if not rel:  # nothing is about the same thing: the newest of the section, headline and time only, under the section's own name
+        newest = [o for o in same if o is not p and o is not older and o is not newer][:3]
+        if newest:
+            more = (f'<section class="related more" aria-labelledby="rel"><h2 id="rel"><a href="{BASE}{topic_path(topic(p))}">More in {E(topic(p))}</a></h2>'
+                    f'<div class="latest">{views.latest_list(newest)}</div></section>')
     nav = "".join(f'<a href="{href(o)}" rel="{r}"><span class="kick">{k}</span><span class="h-s">{E(o["headlines"][0])}</span></a>'
                   for o, r, k in ((older, "prev", "&larr; Older"), (newer, "next", "Newer &rarr;")) if o)
     prevnext = f'<nav class="prevnext{"" if older and newer else " one"}" aria-label="More news">{nav}</nav>' if nav else ""

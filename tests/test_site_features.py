@@ -403,6 +403,26 @@ class FrontBuilt(Features):
         for sect in re.findall(r'<section class="sect">(.*?)</section>', h, re.S):
             self.assertIn("<article", sect)  # a section head always has an article under it
 
+    def test_more_in_section_ends_an_article_with_no_related_and_never_lists_the_article_itself(self):
+        import re
+        seen = 0
+        for d in sorted((self.out / "s").iterdir()):
+            h = (d / "index.html").read_text()
+            m = re.search(r'<section class="related more".*?</section>', h, re.S)
+            if not m:
+                continue
+            seen += 1
+            block = m.group(0)
+            self.assertRegex(block, r">More in [A-Z][A-Za-z ]+</a></h2>")  # the article's own section, never "Related news"
+            self.assertNotIn("Related news", h)
+            self.assertNotIn(f'href="{site.BASE}/s/{d.name}/"', block)  # not the article itself
+            hrefs = re.findall(r'<li><a href="([^"]+)"', block)
+            self.assertLessEqual(len(hrefs), 3)
+            for older_newer in re.findall(r'<a href="([^"]+)" rel="(?:prev|next)"', h):
+                self.assertNotIn(older_newer, hrefs)  # not what Older and Newer already offer
+            self.assertNotIn("<img", block)  # headline and time only
+        self.assertGreater(seen, 0)
+
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)
