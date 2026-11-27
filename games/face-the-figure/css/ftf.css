@@ -75,10 +75,10 @@ a { color: inherit; }
 .src a { text-underline-offset: 2px; }
 
 /* under the table: what the call came to, then the links already called, as many as fit */
-.ledger { flex: 1 1 0; min-height: 0; overflow: hidden; padding: 16px var(--pad) 0; display: grid; align-content: start; gap: 12px; }
+.ledger { flex: 1 1 0; min-height: 0; overflow: hidden; padding: 16px var(--pad) 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; }
 .v-line { min-height: 22px; font: 400 17px/22px var(--serif); }
-.links { list-style: none; padding: 0; }
-.links li { display: grid; grid-template-columns: 18px 1fr auto 36px; gap: 10px; align-items: baseline; height: 38px; align-content: center; border-top: 1px solid var(--rule); font: 400 14px/1 var(--f); }
+.links { list-style: none; padding: 0; height: 100%; display: flex; flex-direction: column; flex-wrap: wrap; overflow: hidden; }
+.links li { flex: none; width: 100%; display: grid; grid-template-columns: 18px 1fr auto 36px; gap: 10px; align-items: baseline; height: 38px; align-content: center; border-top: 1px solid var(--rule); font: 400 14px/1 var(--f); }
 .links .n { color: var(--soft); }
 .links .a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .links .m { font: 600 10.5px/1 var(--f); letter-spacing: 0.1em; text-transform: uppercase; }
