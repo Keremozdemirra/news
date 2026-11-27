@@ -7,7 +7,8 @@
     {
      "file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg",
      "alt": "An empty pit straight at a racing circuit",
-     "sport": "f1"
+     "sport": "f1",
+     "generic": true
     }
    ]
   },
@@ -18,7 +19,8 @@
     {
      "file": "Inter&Co Stadium gridiron football configuration.jpg",
      "alt": "An American football stadium",
-     "sport": "nfl"
+     "sport": "nfl",
+     "generic": true
     }
    ]
   },
@@ -29,7 +31,8 @@
     {
      "file": "OAKA Basketball Arena in December 2024.jpg",
      "alt": "A basketball arena",
-     "sport": "nba"
+     "sport": "nba",
+     "generic": true
     }
    ]
   },
@@ -51,7 +54,8 @@
     {
      "file": "Adelaide Oval (23183793744).jpg",
      "alt": "A cricket oval",
-     "sport": "cricket"
+     "sport": "cricket",
+     "generic": true
     }
    ]
   },
@@ -62,7 +66,8 @@
     {
      "file": "Putting green at the Royal Canberra Golf Club 4.JPG",
      "alt": "A putting green and bunker seen from above",
-     "sport": "golf"
+     "sport": "golf",
+     "generic": true
     }
    ]
   },
@@ -73,7 +78,8 @@
     {
      "file": "Boxing ring, MGM Grand.jpg",
      "alt": "A boxing ring",
-     "sport": "boxing"
+     "sport": "boxing",
+     "generic": true
     }
    ]
   },
@@ -84,7 +90,8 @@
     {
      "file": "The Olympic Rings in Tokyo 04.jpg",
      "alt": "The Olympic rings",
-     "sport": "olympics"
+     "sport": "olympics",
+     "generic": true
     }
    ]
   },
@@ -100,12 +107,14 @@
     {
      "file": "Soccer goals in the south field in Brastad 3.jpg",
      "alt": "Football goals on a grass field",
-     "sport": "football"
+     "sport": "football",
+     "generic": true
     },
     {
      "file": "Fence and soccer goal in the north field in Brastad 2.jpg",
      "alt": "A football goal behind a wooden rail",
-     "sport": "football"
+     "sport": "football",
+     "generic": true
     },
     {
      "file": "Soccer goal low angle.jpg",
@@ -122,7 +131,8 @@
    "files": [
     {
      "file": "A view of the server room at The National Archives.jpg",
-     "alt": "A server room corridor with glowing racks"
+     "alt": "A server room corridor with glowing racks",
+     "generic": true
     },
     {
      "file": "Data center roof.jpg",
@@ -198,15 +208,18 @@
    "files": [
     {
      "file": "El aeropuerto, a primera hora de la mañana del fin de semana, estaba abarrotado de gente que se apresuraba a llegar a sus destinos. El sol de invierno brillaba cálidamente sobre sus cabezas. ¿Adónde voy hoy - Flickr - ringo134.jpg",
-     "alt": "A departures hall in black and white"
+     "alt": "A departures hall in black and white",
+     "generic": true
     },
     {
      "file": "El Alto International Airport main hall.jpg",
-     "alt": "A bright airport terminal hall with a steel roof"
+     "alt": "A bright airport terminal hall with a steel roof",
+     "generic": true
     },
     {
      "file": "PROANTAR - Missão Programa Antártico XXXVII à estação Antartica Comandante Ferraz 11 03 2019 (46645107704).jpg",
-     "alt": "An airport apron and control tower on a clear day"
+     "alt": "An airport apron and control tower on a clear day",
+     "generic": true
     },
     {
      "file": "GIB Bags New.JPG",
@@ -220,19 +233,23 @@
    "files": [
     {
      "file": "Container ship in Koper 2013.jpg",
-     "alt": "A container ship on a calm sea"
+     "alt": "A container ship on a calm sea",
+     "generic": true
     },
     {
      "file": "Cranes at the Port of Halifax (Nova Scotia).jpg",
-     "alt": "Red container cranes at a busy port"
+     "alt": "Red container cranes at a busy port",
+     "generic": true
     },
     {
      "file": "Bulk carrier at Halifax Grain Elevator.jpg",
-     "alt": "A bulk carrier at a grain terminal seen from above"
+     "alt": "A bulk carrier at a grain terminal seen from above",
+     "generic": true
     },
     {
      "file": "Vancouver Container Port (11436902093).jpg",
-     "alt": "Cranes over a container port"
+     "alt": "Cranes over a container port",
+     "generic": true
     }
    ]
   },
@@ -242,41 +259,49 @@
    "files": [
     {
      "file": "Shahamah LNG carrier.jpg",
-     "alt": "An LNG carrier with spherical tanks at sea"
+     "alt": "An LNG carrier with spherical tanks at sea",
+     "generic": true
     },
     {
      "file": "LNG Carrier Fuji Lng.jpg",
-     "alt": "An LNG carrier with spherical tanks at a jetty"
+     "alt": "An LNG carrier with spherical tanks at a jetty",
+     "generic": true
     },
     {
      "file": "Negishi LNG Terminal 01.jpg",
-     "alt": "Storage tanks at an LNG terminal on a harbour"
+     "alt": "Storage tanks at an LNG terminal on a harbour",
+     "generic": true
     },
     {
      "file": "LNG carrier Aman Hakata.jpg",
-     "alt": "An LNG carrier moored at a lit terminal at night"
+     "alt": "An LNG carrier moored at a lit terminal at night",
+     "generic": true
     }
    ]
   },
   {
    "id": "energy",
-   "match": "\\b(oil|crude|opec|brent|gas|lng|petrol|gasoline|diesel|fuel|refiner\\w*|pipelines?|drilling|energy prices?)\\b",
+   "match": "\\b(oil|crude|opec|brent|petrol|gasoline|diesel|fuel|refiner\\w*|pipelines?|drilling|energy prices?)\\b",
    "files": [
     {
      "file": "Oil pumpjack in the Permian Basin.jpg",
-     "alt": "An oil pumpjack in a dry desert landscape"
+     "alt": "An oil pumpjack in a dry desert landscape",
+     "generic": true
     },
     {
      "file": "Burnaby Refinery.jpg",
-     "alt": "An oil refinery at dusk by the water"
+     "alt": "An oil refinery at dusk by the water",
+     "generic": true
     },
     {
      "file": "Caspian Sea nefteplatforma.jpg",
-     "alt": "Offshore oil platforms seen from the air"
+     "alt": "Offshore oil platforms seen from the air",
+     "generic": true
     },
     {
      "file": "Anacortes Refinery 31911.JPG",
-     "alt": "An oil refinery with smoking stacks"
+     "alt": "An oil refinery with smoking stacks",
+     "generic": true
     }
    ]
   },
@@ -286,7 +311,8 @@
    "files": [
     {
      "file": "Windkraftanlagen in Ostfriesland.jpg",
-     "alt": "Offshore wind farm on the horizon at sunset"
+     "alt": "Offshore wind farm on the horizon at sunset",
+     "generic": true
     },
     {
      "file": "Aerial View - Rosskopf1.jpg",
@@ -294,15 +320,18 @@
     },
     {
      "file": "20201230 Windkraftanlage Freimann 01.jpg",
-     "alt": "A wind turbine on a hilltop at golden hour"
+     "alt": "A wind turbine on a hilltop at golden hour",
+     "generic": true
     },
     {
      "file": "Landscape, Fraisse-sur-Agout.jpg",
-     "alt": "Wind turbines beyond a rural valley"
+     "alt": "Wind turbines beyond a rural valley",
+     "generic": true
     },
     {
      "file": "Windräder nahe Mödlareuth 20201003 DSC4782.jpg",
-     "alt": "Wind turbines above green fields"
+     "alt": "Wind turbines above green fields",
+     "generic": true
     },
     {
      "file": "Photovoltaic Panels at a Solar Farm Near Vulcan, Alberta.jpg",
@@ -316,11 +345,13 @@
    "files": [
     {
      "file": "Electric car charging points, Trenwith Car Park, St Ives, Cornwall - May 2025.jpg",
-     "alt": "Electric car charging points in a car park"
+     "alt": "Electric car charging points in a car park",
+     "generic": true
     },
     {
      "file": "Southern Motorway Auckland traffic - copyright-free photo released to public domain.jpg",
-     "alt": "Heavy traffic on a motorway at rush hour"
+     "alt": "Heavy traffic on a motorway at rush hour",
+     "generic": true
     },
     {
      "file": "Evening car trip (Unsplash).jpg",
@@ -328,7 +359,8 @@
     },
     {
      "file": "Kleinmachnow Bundesautobahn 115 lub 2025-04-17.jpg",
-     "alt": "A motorway traffic jam at night"
+     "alt": "A motorway traffic jam at night",
+     "generic": true
     }
    ]
   },
@@ -424,7 +456,8 @@
    "files": [
     {
      "file": "20220709 Neufahrn bei Freising.jpg",
-     "alt": "Construction cranes beside a new housing estate and a wheat field"
+     "alt": "Construction cranes beside a new housing estate and a wheat field",
+     "generic": true
     },
     {
      "file": "20200417 Quartier Eurobahnhof 01.jpg",
@@ -432,15 +465,18 @@
     },
     {
      "file": "DSC02266 Construction Site, Haus der Digitalisierung Montanuniversität Leoben, 2023-08.jpg",
-     "alt": "A tower crane on a building site under a blue sky"
+     "alt": "A tower crane on a building site under a blue sky",
+     "generic": true
     },
     {
      "file": "Ardmore residential gnangarra-1.jpg",
-     "alt": "A row of terraced houses with ornate balconies"
+     "alt": "A row of terraced houses with ornate balconies",
+     "generic": true
     },
     {
      "file": "Aurora apartment hotel san antonio.jpg",
-     "alt": "A tall brick apartment building among trees"
+     "alt": "A tall brick apartment building among trees",
+     "generic": true
     }
    ]
   },
@@ -450,25 +486,29 @@
    "files": [
     {
      "file": "Mega store, Clothing shop, Rostov-on-Don, Russia.jpg",
-     "alt": "Mannequins in a clothing shop window"
+     "alt": "Mannequins in a clothing shop window",
+     "generic": true
     },
     {
      "file": "Mercado Artesanal en São Paulo 2.jpg",
-     "alt": "Market stalls on a city street"
+     "alt": "Market stalls on a city street",
+     "generic": true
     },
     {
      "file": "Bemmel-Centrum - view on the shopping street of the town.jpg",
-     "alt": "An empty shopping street on a sunny day"
+     "alt": "An empty shopping street on a sunny day",
+     "generic": true
     },
     {
      "file": "Galeria shopping mall interior 12.jpg",
-     "alt": "Shops on the floors of a mall atrium"
+     "alt": "Shops on the floors of a mall atrium",
+     "generic": true
     }
    ]
   },
   {
    "id": "jobs",
-   "match": "\\b(jobs?|jobless|unemployment|employment|layoffs?|hiring|payrolls?|workers|workforce|wages?|labou?r|neet)\\b",
+   "match": "\\b(job cuts?|job losses|jobs?|jobless|unemployment|employment|layoffs?|hiring|payrolls?|workers|workforce|wages?|labou?r|neet)\\b",
    "files": [
     {
      "file": "LOOM office seating.jpg",
@@ -694,7 +734,8 @@
   "Tech": [
    {
     "file": "Katrin Radio Tower.jpg",
-    "alt": "A radio tower on a mountain ridge"
+    "alt": "A radio tower on a mountain ridge",
+    "generic": true
    },
    {
     "file": "Datacenter Server Racks (22370909788).jpg",
@@ -706,7 +747,8 @@
    },
    {
     "file": "20250702 Pico del Inglés.jpg",
-    "alt": "A cell tower rising out of fog"
+    "alt": "A cell tower rising out of fog",
+    "generic": true
    }
   ],
   "AI": [
@@ -716,7 +758,8 @@
    },
    {
     "file": "Robots at Tepia (83269).jpg",
-    "alt": "A tracked robot carrying a crate"
+    "alt": "A tracked robot carrying a crate",
+    "generic": true
    },
    {
     "file": "BESM-6 (London Science Museum).jpg",
@@ -733,7 +776,8 @@
   "Business": [
    {
     "file": "Glass office tower seen from below, São Paulo.jpg",
-    "alt": "A glass office tower seen from below"
+    "alt": "A glass office tower seen from below",
+    "generic": true
    },
    {
     "file": "AUS Melbourne, Central Business District, Skyline 001.jpg",
@@ -760,11 +804,13 @@
   "World": [
    {
     "file": "Alley of flags UNO Geneva.jpg",
-    "alt": "National flags along the approach to the UN in Geneva"
+    "alt": "National flags along the approach to the UN in Geneva",
+    "generic": true
    },
    {
     "file": "Palais des Nations unies, à Genève.jpg",
-    "alt": "Flags in front of the Palais des Nations in Geneva"
+    "alt": "Flags in front of the Palais des Nations in Geneva",
+    "generic": true
    },
    {
     "file": "Den Haag Peace Palace (1).jpg",
@@ -784,11 +830,13 @@
    },
    {
     "file": "Auditorium Theatre (11284674035).jpg",
-    "alt": "A theatre auditorium with a lit proscenium"
+    "alt": "A theatre auditorium with a lit proscenium",
+    "generic": true
    },
    {
     "file": "Theatre Royal Auditorium, Portsmouth.jpg",
-    "alt": "A theatre auditorium with a balcony and empty seats"
+    "alt": "A theatre auditorium with a balcony and empty seats",
+    "generic": true
    },
    {
     "file": "Estantería de la Biblioteca Vasconcelos.jpg",
@@ -801,24 +849,28 @@
    },
    {
     "file": "Asikkala Library interior 5.jpg",
-    "alt": "A public library with open shelves"
+    "alt": "A public library with open shelves",
+    "generic": true
    }
   ],
   "Sport": [
    {
     "file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg",
     "alt": "An empty pit straight at a racing circuit",
-    "sport": "f1"
+    "sport": "f1",
+    "generic": true
    },
    {
     "file": "Inter&Co Stadium gridiron football configuration.jpg",
     "alt": "An American football stadium",
-    "sport": "nfl"
+    "sport": "nfl",
+    "generic": true
    },
    {
     "file": "OAKA Basketball Arena in December 2024.jpg",
     "alt": "A basketball arena",
-    "sport": "nba"
+    "sport": "nba",
+    "generic": true
    },
    {
     "file": "Tennis line markings (Unsplash).jpg",
@@ -828,22 +880,26 @@
    {
     "file": "Adelaide Oval (23183793744).jpg",
     "alt": "A cricket oval",
-    "sport": "cricket"
+    "sport": "cricket",
+    "generic": true
    },
    {
     "file": "Putting green at the Royal Canberra Golf Club 4.JPG",
     "alt": "A putting green and bunker seen from above",
-    "sport": "golf"
+    "sport": "golf",
+    "generic": true
    },
    {
     "file": "Boxing ring, MGM Grand.jpg",
     "alt": "A boxing ring",
-    "sport": "boxing"
+    "sport": "boxing",
+    "generic": true
    },
    {
     "file": "The Olympic Rings in Tokyo 04.jpg",
     "alt": "The Olympic rings",
-    "sport": "olympics"
+    "sport": "olympics",
+    "generic": true
    },
    {
     "file": "Football (6869489634).jpg",
@@ -852,7 +908,7 @@
    }
   ]
  },
- "_fields": "place: names one of which the article must carry, on a file whose picture itself names a place (a skyline, a parliament, a ballot box, a currency, a landmark) or another organisation; needs: a pattern the article must match (a ballot box needs an election); skip on a rule: a pattern that keeps the rule off the article; sport: the sport a Sport-topic file shows; retired: files taken off the lists, which audit holds wherever they still are",
+ "_fields": "place: names one of which the article must carry, on a file whose picture itself names a place (a skyline, a parliament, a ballot box, a currency, a landmark) or another organisation; needs: a pattern the article must match (a ballot box needs an election); skip on a rule: a pattern that keeps the rule off the article; sport: the sport a Sport-topic file shows; retired: files taken off the lists, which audit holds wherever they still are; generic: true when the file's title names a place but the picture shows nothing that says where (a person checked it)",
  "retired": [
   "202408 The sea horizon was only two seabirds fishing at the distance in the morning.jpg",
   "BlackMarble20161km.jpg",

@@ -80,6 +80,7 @@ def in_headline(name, headline):
 # Commons files already on recent posts; the desk fills it before a render so no photo repeats for weeks
 USED = set()
 LAST = {}  # file -> when a post last used it, for the scene photos' least-recently-used rotation
+BATCH = set()  # scene files this run's cards carry: none twice in one batch
 
 
 def pick_photo(story, head_, co, fetch=True, sport=False):
@@ -105,10 +106,12 @@ def pick_photo(story, head_, co, fetch=True, sport=False):
             break
     if not file_ and fetch:
         text = title + " " + story.get("summary", "")
-        ph, credit, file_, alt = scenes.photo(text, story.get("topic", ""), USED, LAST, fetch=fetch, sport=sport)
+        ph, credit, file_, alt = scenes.photo(text, story.get("topic", ""), USED, LAST, fetch=fetch, sport=sport,
+                                              title=title, batch=BATCH)
         kind = "scene" if file_ else ""
     if file_:
         USED.add(file_)
+        BATCH.add(file_)
         LAST[file_] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     return ph, credit, file_, kind, alt
 

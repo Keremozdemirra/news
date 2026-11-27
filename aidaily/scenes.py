@@ -56,17 +56,55 @@ LEAGUES = (("nfl", _NFL), ("nba", _NBA), ("football", _FOOT), ("f1", "ferrari|" 
 LEAGUES = tuple((k, re.compile(r"\b(" + v + r")\b", re.I)) for k, v in LEAGUES)
 
 
-def entries(headline, topic, data=None, sport=False):
-    """The lists to try, best first: the first keyword rule the headline matches, the story's topic, then the two
-    general ones. Each item is {"file", "alt"}. A sport story reads the sport rules (a ground or a court of its own
-    sport) and then the Sport topic; the news rules would read "city" and "united" as place names."""
+# One-word triggers that also mean something else in a business story: "AI exports drive Asia growth" is no shipping
+# story, "Bank of Japan" no high-street bank. Each counts half, so it needs a second signal before its rule applies.
+WEAK = re.compile(r"^(?:tariffs?|exports?|imports?|ports?|ships?|chips?|banks?|banking|fed|jobs?|workers|labou?r|"
+                  r"gas|homes?|property|construction|developers?|stores?|shops?|consumers?|tokens?|vehicles?|"
+                  r"cars?|autos?|trucks?|outage|passwords?|encryption|inflation|cargo|straits?|processors?|lenders?|"
+                  r"utilit(?:y|ies)|batter(?:y|ies)|nuclear|electricity|flights?|aircraft|trade war|employment|hiring)$", re.I)
+
+
+def rule_score(rule, title, text):
+    """How strongly an article is about a rule's subject: each distinct term once, a strong term 2 in the headline and
+    1 elsewhere, a weak term half that."""
+    score, seen = 0.0, set()
+    for m in re.finditer(rule["match"], text or "", re.I):
+        term = m.group(0).lower()
+        if term in seen:
+            continue
+        seen.add(term)
+        # a weak word written as a name mid-sentence is the institution: "the Fed", "Bank of Japan"
+        proper = (m.group(0) == "Fed" or m.group(0)[:1].isupper() and m.start() > 0
+                  and not re.search(r"[.!?]\s*$", (text or "")[:m.start()]))
+        weight = 0.5 if WEAK.match(term) and not proper else 1.0
+        score += weight * (2 if re.search(r"(?<![a-z])" + re.escape(term) + r"(?![a-z])", title or "", re.I) else 1)
+    return score
+
+
+def best_rule(rules, title, text):
+    """The rule an article is most about, or None when none scores 2 or the top two tie (a ship and a bank in one
+    story say neither)."""
+    scored = sorted(((rule_score(r, title, text), i, r) for i, r in enumerate(rules)
+                     if not (r.get("skip") and re.search(r["skip"], text or "", re.I))), key=lambda x: (-x[0], x[1]))
+    if not scored or scored[0][0] < 2 or (len(scored) > 1 and scored[1][0] == scored[0][0]):
+        return None
+    return scored[0][2]
+
+
+def entries(headline, topic, data=None, sport=False, title=None):
+    """The lists to try, best first: the rule the article is most about (see best_rule), the story's topic, then the
+    two general ones. Each item is {"file", "alt"}. `headline` is the text read (headline and summary); `title` the
+    headline alone, which counts double (it defaults to the text). A sport story reads the sport rules (a ground or a
+    court of its own sport) and then the Sport topic; the news rules would read "city" and "united" as place names."""
     data = data or load()
+    title = headline if title is None else title
+    gone = set(data.get("retired", []))
     out = []
-    for rule in data["sport"] if sport else data["rules"]:
-        if re.search(rule["match"], headline or "", re.I) and not (rule.get("skip") and re.search(rule["skip"], headline or "", re.I)):
-            out.append(rule["files"])
-            break
     if sport:
+        for rule in data["sport"]:
+            if re.search(rule["match"], headline or "", re.I) and not (rule.get("skip") and re.search(rule["skip"], headline or "", re.I)):
+                out.append(rule["files"])
+                break
         # the Sport topic only lends a file of the article's own sport: an F1 pit lane is no picture of a football match
         kind = sport_of(headline, data)
         rule = next((r for r in data["sport"] if r["id"] == kind), None)
@@ -75,13 +113,14 @@ def entries(headline, topic, data=None, sport=False):
         same = [i for i in data["topics"].get("Sport", []) if kind and i.get("sport") == kind]
         if same:
             out.append(same)
-        gone = set(data.get("retired", []))
-        return [[i for i in items if i["file"] not in gone] for items in out]
+        return [[i for i in items if fits(i, headline) and i["file"] not in gone] for items in out]
+    rule = best_rule(data["rules"], title, headline)
+    if rule:
+        out.append(rule["files"])
     for t in (topic,) + FALLBACK_TOPICS:
         if t in data["topics"] and data["topics"][t] not in out:
             out.append(data["topics"][t])
     # a retired file is never picked, whichever list still names it (the audit holds one already on a post)
-    gone = set(data.get("retired", []))
     return [[i for i in items if fits(i, headline) and i["file"] not in gone] for items in out]
 
 
@@ -96,16 +135,18 @@ def order(items, used, last=None, seed=""):
     return fresh + sorted((i for i in ring if i["file"] in used), key=lambda i: last.get(i["file"], ""))
 
 
-def photo(headline, topic, used, last=None, fetch=True, data=None, sport=False):
-    """(path, credit, file, alt) of the scene photo to use, or four empty strings when nothing could be fetched."""
+def photo(headline, topic, used, last=None, fetch=True, data=None, sport=False, title=None, batch=()):
+    """(path, credit, file, alt) of the scene photo to use, or four empty strings when nothing could be fetched.
+    A file already in `batch` (this run's cards) is never used twice: the next list is tried instead. The voting
+    machine ran on six posts of one batch and the New Jersey stadium on four."""
     if not fetch:
         return None, "", "", ""
     entities.CACHE.mkdir(parents=True, exist_ok=True)
     seen = set()
-    for items in entries(headline, topic, data, sport):
+    for items in entries(headline, topic, data, sport, title=title):
         for item in order(items, used, last, seed=headline):
             f = item["file"]
-            if f in seen:
+            if f in seen or f in batch:
                 continue
             seen.add(f)
             try:

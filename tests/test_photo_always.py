@@ -226,7 +226,8 @@ class Always(unittest.TestCase):
                    mock.patch.object(entities, "ticker", return_value=None),
                    mock.patch.object(entities, "_commons_info", return_value=info),
                    mock.patch.object(entities, "_get", return_value=b"jpeg"),
-                   mock.patch.object(templates, "USED", set()), mock.patch.object(templates, "LAST", {})]
+                   mock.patch.object(templates, "USED", set()), mock.patch.object(templates, "LAST", {}),
+                   mock.patch.object(templates, "BATCH", set())]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)

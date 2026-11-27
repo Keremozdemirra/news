@@ -1,6 +1,7 @@
 """Scenes fit the article (2026-11-27): a place-named scene only on an article about that place, a scene of one
 thing only on an article about it, the sport's own ground, and no search on the headline's other proper names."""
 import json
+import re
 import unittest
 from unittest import mock
 
@@ -119,3 +120,42 @@ class Retired(unittest.TestCase):
         # no text-only card (Kerem): Business and World, the topics every story falls back on, keep files any story may carry
         for t in scenes.FALLBACK_TOPICS:
             self.assertGreaterEqual(len([i for i in DATA["topics"][t] if not i.get("place") and not i.get("needs")]), 2, t)
+
+
+# names of places that appear in Commons titles of scene files; a file whose title or alt names one must say where it
+# may go (place or needs) or carry generic: true, a person's word that the picture itself shows nowhere in particular
+PLACE_WORDS = re.compile(r"\b(Manhattan|New York|Seattle|Halifax|Nova Scotia|Koper|Vancouver|Anacortes|Burnaby|Permian|Caspian|Ostfriesland|Freimann|Mödlareuth|Fraisse|Neufahrn|Leoben|Ardmore|San Antonio|Bemmel|São Paulo|Rostov|Russia|Gibraltar|El Alto|Medicine Hat|Auckland|Kleinmachnow|Trenwith|Cornwall|Katrin|Inglés|Tepia|London|Phillip Island|Adelaide|Canberra|MGM Grand|Tokyo|Inter&Co|OAKA|Geneva|Genève|Brussels|Hague|Haag|Brastad|Washington|Melbourne|Säynätsalo|Polish|Basque|Bermuda|Hakata|Negishi|Fuji|Shahamah|Vasconcelos|Asikkala|Portsmouth|Auditorium Theatre|National Archives|aeropuerto|Antártico|PROANTAR|Galeria|Mega store|Gliwice|Tomaszów|Japan|China|India|France|Germany|Spain|Italy|Brazil|Canada|Australia|Mexico|Korea|Taiwan|Israel|Poland|Finland|Ukraine|Turkey|Iran|Egypt|Nigeria|Kenya|Argentina|Chile|Indonesia|Vietnam|Thailand|Singapore|Malaysia|Philippines|Pakistan|Algeciras|Antwerp|Haifa|Ljubljana|Connecticut|Paris|Berlin|Madrid|Rome|Beijing|Shanghai|Mumbai|Delhi|Seoul|Sydney|Toronto|Moscow|Istanbul|Dubai)\b", re.I)
+
+
+class SceneTags(unittest.TestCase):
+    """Photo plan item 3."""
+
+    def test_a_scene_that_names_a_place_says_where_it_may_go(self):
+        bad = []
+        for items in [r["files"] for r in DATA["rules"] + DATA["sport"]] + list(DATA["topics"].values()):
+            for i in items:
+                if PLACE_WORDS.search(i["file"] + " " + i["alt"]) and not (i.get("place") or i.get("needs") or i.get("generic")):
+                    bad.append(i["file"])
+        self.assertEqual(bad, [])
+
+    def test_the_audited_headlines_get_their_subject_not_a_broad_word(self):
+        rules = DATA["rules"]
+        pick = lambda t, s="": (scenes.best_rule(rules, t, t + " " + s) or {}).get("id")  # noqa: E731
+        self.assertIsNone(pick("AI exports drive Asia growth", "Exports of AI chips lifted growth across Asia."))
+        self.assertEqual(pick("Australia clears law requiring LNG exporters to keep 20% for domestic use"), "gas")
+        self.assertEqual(pick("Hong Kong home rents hit new highs as competing offers push prices up"), "realestate")
+        self.assertIsNone(pick("Tokyo core inflation hits 16-month high", "Core consumer prices rose 2.9%."))
+        self.assertEqual(pick("Maltese-flagged tanker capsizes off Ibiza", "A chemical tanker capsized."), "shipping")
+
+    def test_no_scene_twice_in_one_batch(self):
+        got = []
+        batch = set()
+        info = {"width": 2000, "height": 1400, "url": "u", "extmetadata": {}}
+        with mock.patch.object(entities, "_commons_info", return_value=info), \
+             mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC0, via Wikimedia Commons")), \
+             mock.patch.object(entities, "_get", return_value=b"jpeg"):
+            for _ in range(3):
+                _, _, f, _ = scenes.photo("Taiwan votes Saturday in local elections", "Politics", set(), batch=batch)
+                got.append(f)
+                batch.add(f)
+        self.assertEqual(len(got), len(set(got)))
