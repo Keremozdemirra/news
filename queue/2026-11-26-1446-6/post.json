@@ -64,5 +64,18 @@
  "score_before": 10.397,
  "credit_file": "GIB Bags New.JPG",
  "photo_kind": "scene",
- "photo_alt": "A baggage carousel in an arrivals hall"
+ "photo_alt": "A baggage carousel in an arrivals hall",
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
+ }
 }

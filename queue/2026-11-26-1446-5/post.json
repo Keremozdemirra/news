@@ -68,5 +68,18 @@
   "why": "a sentence restated the dek",
   "dek": "Elon Musk says he will personally match the shares donated, and SpaceX's COO separately pledged more than 2 million shares.",
   "body": "SpaceX said Wednesday that it will give one share of its stock to every active Trump Account. CEO Elon Musk will personally match the number of shares donated as part of a broader commitment. SpaceX's COO has separately pledged more than 2 million of the rocket maker's shares."
+ },
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
  }
 }

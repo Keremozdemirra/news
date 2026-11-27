@@ -1,0 +1,64 @@
+{
+ "days": {
+  "2026-11-27": {
+   "at": "2026-11-27T23:01:25+00:00",
+   "platforms": {
+    "instagram": {
+     "posts": 9,
+     "followers": 17,
+     "views": null,
+     "likes": null,
+     "comments": null,
+     "shares": null
+    },
+    "threads": {
+     "posts": 17,
+     "followers": 0,
+     "views": 19,
+     "likes": 1,
+     "comments": 17,
+     "shares": 0
+    },
+    "facebook": {
+     "posts": 2,
+     "followers": null,
+     "views": null,
+     "likes": null,
+     "comments": null,
+     "shares": null
+    },
+    "bluesky": {
+     "posts": 20,
+     "followers": 0,
+     "views": null,
+     "likes": 0,
+     "comments": 0,
+     "shares": 0
+    },
+    "telegram": {
+     "posts": 8,
+     "followers": 3,
+     "views": 16,
+     "likes": null,
+     "comments": null,
+     "shares": null
+    },
+    "youtube": {
+     "posts": 2,
+     "narrated": 0,
+     "views": null,
+     "likes": null,
+     "comments": null,
+     "shares": null,
+     "followers": null
+    }
+   },
+   "errors": {
+    "facebook": {
+     "count": 11,
+     "first": "facebook: HTTP 400"
+    }
+   }
+  }
+ }
+}

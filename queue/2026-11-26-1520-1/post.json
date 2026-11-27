@@ -79,5 +79,18 @@
   "why": "a sentence restated the dek",
   "dek": "The chain says it reinstalled a plaque at the booth where Nvidia's three founders first met.",
   "body": "Denny's used Jensen Huang's return to Nvidia to reshare its role in the company's origin story. The chain said it reinstalled a plaque at the booth where Nvidia's three founders first met. Huang, a former Denny's dishwasher, has repeatedly called the diner brand his \"alma mater.\""
+ },
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
  }
 }

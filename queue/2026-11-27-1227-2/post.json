@@ -99,5 +99,27 @@
  "attempted": "2026-11-27T15:10:18+00:00",
  "published": "2026-11-27T15:11:05+00:00",
  "media_id": "18137800795742187",
- "permalink": "https://www.instagram.com/reel/DgP-FU7BxPz/"
+ "permalink": "https://www.instagram.com/reel/DgP-FU7BxPz/",
+ "metrics": {
+  "threads": {
+   "views": 0,
+   "likes": 0,
+   "replies": 1,
+   "reposts": 0,
+   "quotes": 0,
+   "shares": 0,
+   "at": "2026-11-27T23:01:16+00:00"
+  },
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
+ }
 }

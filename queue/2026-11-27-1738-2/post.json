@@ -98,5 +98,27 @@
    "at": "2026-11-27T19:51:28+00:00",
    "format": "link"
   }
+ },
+ "metrics": {
+  "threads": {
+   "views": 1,
+   "likes": 0,
+   "replies": 1,
+   "reposts": 0,
+   "quotes": 0,
+   "shares": 0,
+   "at": "2026-11-27T23:01:18+00:00"
+  },
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
  }
 }

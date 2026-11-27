@@ -76,5 +76,18 @@
   "why": "a sentence restated the dek",
   "dek": "Many of the Asian partners depend on trade and investment from both the United States and China.",
   "body": "President Trump sent a message to trading partners across Asia that he is ready to escalate tariffs. Many of those partners depend on trade and investment from both the United States and China. The latest tariffs revive the focus on pressuring China."
+ },
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
  }
 }

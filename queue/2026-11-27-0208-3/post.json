@@ -71,5 +71,23 @@
   "why": "report too thin (1 sentences, 16 words beyond the dek)",
   "dek": "Prime Minister Christopher Luxon needs the support of the centrist Opportunity Party to remain in power.",
   "body": "Final election results showed on Friday that New Zealand's center-right coalition narrowly missed a parliamentary majority."
+ },
+ "metrics": {
+  "threads": {
+   "views": 0,
+   "likes": 0,
+   "replies": 1,
+   "reposts": 0,
+   "quotes": 0,
+   "shares": 0,
+   "at": "2026-11-27T23:01:13+00:00"
+  },
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  }
  }
 }

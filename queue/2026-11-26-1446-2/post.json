@@ -68,5 +68,18 @@
   "why": "a sentence restated the dek",
   "dek": "The error had incorrectly discounted usage at the launch of the GPT-6.2 Astra and Sol models.",
   "body": "OpenAI says it corrected a billing mistake from the launch of its GPT-6.2 Astra and Sol models. The error had incorrectly discounted usage. Astra users will now hit their usage limits up to 40% faster."
+ },
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
  }
 }

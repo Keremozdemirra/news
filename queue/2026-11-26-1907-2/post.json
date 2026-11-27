@@ -61,5 +61,14 @@
  },
  "photo_kind": "scene",
  "photo_alt": "An open office floor with a lounge area",
- "score_before": 8.886
+ "score_before": 8.886,
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  }
+ }
 }

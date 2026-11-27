@@ -68,5 +68,18 @@
   "dek": "Pension funds and endowments are dropping legacy stakes at knockdown prices to free up cash for next-generation tech start-ups.",
   "body": "Institutional investors are selling stakes in older VC funds from the 2021 investment boom peak at steep discounts. They are rushing to back new AI funds. Pension funds and endowments are dropping legacy stakes at knockdown prices to free up cash for next-generation tech start-ups."
  },
- "credit_file": "Stockmarket.jpg"
+ "credit_file": "Stockmarket.jpg",
+ "metrics": {
+  "bluesky": {
+   "likes": 0,
+   "reposts": 0,
+   "quotes": 0,
+   "replies": 0,
+   "at": "2026-11-27T23:01:22+00:00"
+  },
+  "telegram": {
+   "views": 2,
+   "at": "2026-11-27T23:01:24+00:00"
+  }
+ }
 }
