@@ -360,3 +360,9 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 /* a picture on a card says what kind of photo it is, in one line */
 .second img,.slead img,.fcard img,.leadrow .pic{margin-bottom:0}
 .pcap{display:block;font:500 12.5px/1.4 var(--f);color:var(--soft);margin:6px 0 var(--s1)}
+
+/* ---- the front page's news is one panel that scrolls inside the page, so the footer is a short scroll away ---- */
+.newspanel{height:72vh;height:72dvh;min-height:360px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin-top:var(--s2);padding:0 var(--s2) var(--s4);
+  border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);scrollbar-width:thin;scrollbar-color:var(--soft) transparent;scroll-padding-top:56px}
+.newspanel::-webkit-scrollbar{width:8px}.newspanel::-webkit-scrollbar-thumb{background:var(--soft)}
+.newspanel:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}

@@ -215,8 +215,15 @@ def front(shown, cos, m, sport=()):
     left_over = len(blocks) - take
     cols = " c3" if left_over in (5, 6, 9) else ""  # 5 run 3 and 2, never 4 and 1 under a wide gap
     below = f'<div class="sects{cols}">{"".join(b[0] for b in blocks[take:])}</div>' if blocks[take:] else ""
-    return (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}{inlead}</div>' + below
-            + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph) + puzzles_block("inrow"))
+    inner = (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}{inlead}</div>' + below
+             + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph) + puzzles_block("inrow"))
+    return panel(inner)
+
+
+def panel(inner):
+    """The news of the front page is one scrolling panel inside the page: the page stays a few screens long, the footer is one short scroll away.
+    The panel is a region the keyboard can reach and scroll; without the script it is only CSS."""
+    return f'<div class="newspanel" id="news" tabindex="0" role="region" aria-label="The news">{inner}</div>'
 
 
 def _lines(text, per_line):

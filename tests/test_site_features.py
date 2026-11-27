@@ -479,6 +479,21 @@ class FrontBuilt(Features):
             self.assertLess(h.index('class="h-xl"'), h.index('<span class="pic"') if '<span class="pic"' in h else 10**9)  # headline above the picture
         self.assertIn("max-height:480px", self.read("assets/views.css"))
 
+    def test_the_front_news_is_one_scrolling_panel_the_keyboard_can_reach(self):
+        rows = [fake(f"Economy story number {i} today", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"e{i}", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
+        h = views.front(rows, {}, None)
+        self.assertTrue(h.startswith('<div class="newspanel" id="news" tabindex="0" role="region" aria-label="The news">'))
+        self.assertTrue(h.endswith("</div>"))
+        self.assertEqual(h.count('class="newspanel"'), 1)
+        for part in ('class="front"', 'class="sects', 'id="since"'):
+            self.assertIn(part, h)
+        css = (site.ASSETS / "views.css").read_text()
+        self.assertRegex(css, r"\.newspanel\{height:72vh;height:72dvh;")  # a fallback, then the dynamic viewport unit
+        self.assertIn("overscroll-behavior:contain", css)
+        page = site.page("t", h, "d", "/", front=True)
+        self.assertLess(page.index('class="newspanel"'), page.index('<footer class="foot">'))
+        self.assertNotIn("gradient", css)
+
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)
