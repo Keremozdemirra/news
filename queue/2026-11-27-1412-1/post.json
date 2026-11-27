@@ -1,0 +1,59 @@
+{
+ "id": "2026-11-27-1412-1",
+ "batch": "2026-11-27-1412",
+ "n": 1,
+ "created": "2026-11-27T14:12:35+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Bombay High Court refuses Tata Trusts a stay on Tata Sons board meeting\n\nThe board meets on Monday, and any outcome is subject to the court's final ruling. The Bombay High Court ruled on Friday on interim relief sought by Sir Dorabji Tata Trust and RD Tata Trust. The casting vote at Tata Sons remains intact.\n\nReported by Mint.\n\nSend this to whoever on your team covers Tata Sons.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.livemint.com/companies/tata-trusts-vs-tata-sons-bombay-high-court-11795785693009.html"
+ ],
+ "links": [
+  "https://www.livemint.com/companies/tata-trusts-vs-tata-sons-bombay-high-court-11795785693009.html"
+ ],
+ "headlines": [
+  "Bombay High Court refuses Tata Trusts a stay on Tata Sons board meeting"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Business",
+ "photo_file": "Glass office tower seen from below, São Paulo.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A glass office tower seen from below",
+ "score": 8.391,
+ "figure": "",
+ "company": "Tata Sons",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Bombay High Court",
+ "orgs": [
+  "Tata Sons",
+  "Sir Dorabji Tata Trust",
+  "RD Tata Trust"
+ ],
+ "venue": "Bombay High Court",
+ "logo_names": [
+  "Tata Sons"
+ ],
+ "dek": "The board meets on Monday, and any outcome is subject to the court's final ruling.",
+ "body": "The Bombay High Court ruled on Friday on interim relief sought by Sir Dorabji Tata Trust and RD Tata Trust. The casting vote at Tata Sons remains intact.",
+ "so_what": "",
+ "sources": [
+  "Mint"
+ ],
+ "source_urls": [
+  "https://www.livemint.com/companies/tata-trusts-vs-tata-sons-bombay-high-court-11795785693009.html"
+ ],
+ "credit": "Photo: Wilfredor, CC0, via Wikimedia Commons",
+ "credit_file": "Glass office tower seen from below, São Paulo.jpg",
+ "status": "web",
+ "published": "2026-11-27T14:12:35+00:00",
+ "story": ""
+}
