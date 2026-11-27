@@ -48,5 +48,12 @@
  "credit_file": "A view of the server room at The National Archives.jpg",
  "status": "web",
  "published": "2026-11-27T07:52:02+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bs34yrvh2x",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bs34yrvh2x",
+   "at": "2026-11-27T08:40:13+00:00"
+  }
+ }
 }
