@@ -57,5 +57,13 @@
   "why": "report too thin (1 sentences, 7 words beyond the dek)",
   "dek": "Habitat Property's Victoria Allan cites returning expatriates, increased bank hiring and more arrivals from mainland China.",
   "body": "Together these factors are tightening housing supply."
+ },
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3cf3bzluu23",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3cf3bzluu23",
+   "at": "2026-11-27T14:20:19+00:00",
+   "format": "link"
+  }
  }
 }
