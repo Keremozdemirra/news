@@ -65,6 +65,13 @@ def load_words(path: Path) -> set:
     return {w.strip().lower() for w in path.read_text().split() if w.strip()}
 
 
+def ticker_of(t) -> str:
+    """The desk writes a ticker as "TGT" or as {"exchange": "NYSE", "symbol": "TGT"}; anything else is no ticker."""
+    if isinstance(t, dict):
+        t = t.get("symbol")
+    return t.strip() if isinstance(t, str) else ""
+
+
 def load_posts(queue: Path):
     posts = []
     for f in sorted(queue.glob("*/post.json")):
@@ -83,7 +90,7 @@ def load_posts(queue: Path):
         posts.append({
             "id": d["id"], "day": str(d.get("created", ""))[:10], "head": heads[0],
             "src": srcs[0] if srcs else "", "company": (d.get("company") or "").strip(),
-            "ticker": (d.get("ticker") or "").strip(), "logos": d.get("logo_names") or [],
+            "ticker": ticker_of(d.get("ticker")), "logos": d.get("logo_names") or [],
             "text": " ".join([*heads, d.get("dek") or "", d.get("body") or ""]),
         })
     return posts

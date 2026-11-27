@@ -159,6 +159,15 @@ console.log(JSON.stringify(out));""" % (TOP, TOP, json.dumps(names.GENERIC), jso
 
 
 class TickerflipWords(unittest.TestCase):
+    def test_a_ticker_in_either_shape_does_not_stop_the_build(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("tk_build", ROOT / "games" / "tickerflip" / "build_data.py")
+        tk = importlib.util.module_from_spec(spec); spec.loader.exec_module(tk)
+        self.assertEqual(tk.ticker_of({"exchange": "NYSE", "symbol": " TGT "}), "TGT")
+        self.assertEqual(tk.ticker_of("NVDA"), "NVDA")
+        for odd in (None, {}, {"exchange": "NYSE"}, 7, ["TGT"]):
+            self.assertEqual(tk.ticker_of(odd), "")
+
     def test_plain_business_words_and_company_names_are_valid_guesses(self):
         d = ROOT / "games" / "tickerflip" / "assets" / "data"
         words = set((d / "words.txt").read_text().split()) | set((d / "words-more.txt").read_text().split())
