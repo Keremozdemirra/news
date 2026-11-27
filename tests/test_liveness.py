@@ -148,8 +148,8 @@ class Shorts(Base):
 
 class Duplicates(Base):
     def test_one_headline_twice_on_one_platform_is_named(self):
-        self.post("Lab ships a model", platforms={"threads": {"id": "1", "at": ago(hours=5)}}, published=ago(hours=40))
-        self.post("Lab ships a model!", platforms={"threads": {"id": "2", "at": ago(hours=2)}}, published=ago(hours=40))
+        self.post("Lab ships a model", platforms={"threads": {"id": "1", "at": ago(hours=5)}}, published=ago(hours=60))
+        self.post("Lab ships a model!", platforms={"threads": {"id": "2", "at": ago(hours=2)}}, published=ago(hours=60))
         self.assertEqual(self.keys(liveness.duplicates, T), ["dup-threads"])
 
     def test_one_headline_on_two_platforms_is_a_crosspost(self):
