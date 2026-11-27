@@ -54,6 +54,11 @@ a { color: inherit; }
 .tile[data-s="correct"], .tile[data-s="revealed"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
 .tile[data-s="present"] { border: 2px solid var(--ink); border-bottom-width: calc(var(--t) * 0.12); }
 .tile[data-s="absent"] { background: var(--wash); border-color: var(--wash); color: var(--faint); }
+.tile .leaf { position: absolute; inset: 0; display: grid; place-items: center; will-change: transform; backface-visibility: hidden; }
+/* the seam of a split-flap card: a hairline of paper across a filled card, of rule across an open one */
+.tile::after { content: ""; position: absolute; left: -1px; right: -1px; top: calc(50% - 0.5px); height: 1px; background: var(--paper); opacity: 0.55; pointer-events: none; }
+.tile[data-s="empty"]::after, .tile[data-s="typed"]::after { background: var(--rule); opacity: 1; }
+.tile[data-s="typed"]::after { opacity: 0; }
 .tile .mark { display: none; }
 .row.shake { animation: shake 240ms linear; }
 @keyframes shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }

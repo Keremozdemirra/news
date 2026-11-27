@@ -36,12 +36,13 @@
 
   <main class="stage" id="stage">
     <section class="game" id="game" aria-label="Today’s building">
-      <div class="lift">
-        <div class="lift-row">
-          <p class="floor"><span class="cap">Floor</span><b class="num" id="floor">0</b></p>
-          <p class="band"><span class="cap">So far</span><strong id="band">Lobby</strong></p>
-        </div>
-        <div class="scale" id="scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><u id="mark"></u></div>
+      <div class="tower" id="tower" aria-hidden="true">
+        <div class="strip" id="strip"></div>
+        <i class="cable"></i><i class="car" id="car"></i>
+      </div>
+      <div class="readout">
+        <p class="floor"><span class="cap">Floor</span><b class="num" id="floor">0</b></p>
+        <p class="band"><span class="cap">So far</span><strong id="band">Lobby</strong></p>
       </div>
 
       <div class="q" id="card" data-screen="prompt">
@@ -66,9 +67,6 @@
         </div>
       </div>
 
-      <div class="ledger">
-        <ol class="links" id="links" aria-label="Your answers"></ol>
-      </div>
     </section>
 
     <section class="end" id="end" hidden aria-labelledby="e-floor">

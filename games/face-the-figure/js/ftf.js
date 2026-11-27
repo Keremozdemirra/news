@@ -65,6 +65,21 @@ function fill(card, f, sealed) {
   if (sealed) { fig.textContent = "?"; fig.className = "fig num"; card.querySelector(".src").textContent = ""; }
   else { setFig(fig, f.kind, f.value); card.querySelector(".src").innerHTML = srcLine(f); }
 }
+// The weighing: each figure has a bar. Until the call they say nothing (A at a neutral length, B empty); at the reveal
+// both run to their true proportion, the larger one filling its column.
+const REST = 0.6;
+function shares(r) {
+  const a = r.a.value, b = r.b.value, hi = Math.max(a, b);
+  if (r.kind === "founded") { const lo = Math.min(a, b) - Math.max(8, Math.abs(a - b)); return [(a - lo) / (hi - lo), (b - lo) / (hi - lo)]; }
+  return [Math.max(0.03, a / hi), Math.max(0.03, b / hi)];
+}
+function bars(wa, wb, ms) {
+  [[pa, wa], [pb, wb]].forEach(([card, w]) => {
+    const el = card.querySelector(".bar i"), to = `scaleX(${w.toFixed(4)})`;
+    if (ms && !RM && el.animate) el.animate([{ transform: el.style.transform || "scaleX(0)" }, { transform: to }], { duration: ms, easing: EASE });
+    el.style.transform = to;
+  });
+}
 function relation(r) {
   const a = r.a.value, b = r.b.value;
   if (r.kind === "founded") { const d = Math.abs(b - a); return `${d} year${d === 1 ? "" : "s"} ${b > a ? "later" : "earlier"}`; }
@@ -126,6 +141,7 @@ function startRound(i) {
   $("vtag").hidden = true; $("v-line").textContent = "";
   const shift = pb.getBoundingClientRect().left - pa.getBoundingClientRect().left;
   fill(pa, r.a, false); fill(pb, r.b, true);
+  bars(REST, 0, 0);
   if (!RM && i > 0 && phase !== "intro") {
     pa.animate([{ transform: carried ? `translateX(${shift}px)` : "translateY(6px)", opacity: carried ? 1 : 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: EASE });
     pb.animate([{ transform: "translateY(6px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 200, delay: 60, easing: EASE, fill: "backwards" });
@@ -183,7 +199,9 @@ function pick(choice) {
   (choice === "higher" ? $("k-down") : $("k-up")).classList.add("fade");
   const fig = pb.querySelector(".fig"), end = r.b.value, from = r.kind === "founded" ? end - 24 : end * 0.2;
   const land = () => { setFig(fig, r.b.kind, end); pb.querySelector(".src").innerHTML = srcLine(r.b); settle(choice); };
-  if (RM || !fig.animate) { pb.classList.remove("sealed"); land(); return; }
+  const [wa, wb] = shares(r);
+  if (RM || !fig.animate) { pb.classList.remove("sealed"); bars(wa, wb, 0); land(); return; }
+  bars(wa, wb, COUNT + 220);
   // the seal closes to a line, opens as the figure, and the figure runs up to its value
   fig.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0.04)" }], { duration: 90, easing: "cubic-bezier(0.55, 0, 0.85, 0.3)" }).onfinish = () => {
     pb.classList.remove("sealed");
@@ -354,7 +372,7 @@ async function boot() {
   });
 
   const saved = stats.days?.[data.date];
-  fill(pa, data.rounds[0].a, false); fill(pb, data.rounds[0].b, true);
+  fill(pa, data.rounds[0].a, false); fill(pb, data.rounds[0].b, true); bars(REST, 0, 0);
   // a record from before today's chain was dealt (another build of the day) does not fit these rounds: play again
   if (saved && !params.has("fresh") && (saved.sig || "") === (data.sig || "")) restore(saved);
   else { screen("intro"); pipsRender(); hud(); }

@@ -41,19 +41,40 @@ a { color: inherit; }
 .stage { position: relative; flex: 1 1 0; min-height: 0; }
 .game { height: 100%; display: flex; flex-direction: column; }
 
-/* the lift: where the player stands, always in view above the question, even with the phone keyboard up */
-.lift { flex: none; padding: 16px var(--pad) 16px; border-bottom: 1px solid var(--rule); }
-.lift-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.floor { display: flex; align-items: baseline; gap: 10px; }
-.floor b { font: 800 56px/0.8 var(--f); letter-spacing: -0.04em; min-width: 1.2em; }
-.band { display: grid; justify-items: end; gap: 6px; text-align: right; }
-.band strong { font: 500 24px/1 var(--serif); letter-spacing: -0.01em; }
-.scale { position: relative; height: 8px; margin-top: 16px; display: grid; grid-template-columns: 20fr 25fr 27fr 20fr 9fr; gap: 2px; }
-.scale i { background: var(--wash); }
-.scale i.on { background: var(--faint); }
-.scale u { position: absolute; left: -1px; top: -5px; width: 3px; height: 18px; background: var(--ink); will-change: transform; }
+/* the building: a window on a hundred floors. The car keeps its place; the floors go past it. */
+.tower { position: relative; flex: 1 1 0; min-height: 88px; overflow: hidden; --fh: 18px; --gut: 44px; --shaft: 46px; }
+.strip { position: absolute; left: var(--pad); right: var(--pad); top: 0; will-change: transform; }
+.fl { position: relative; height: var(--fh); --d: 0ms; }
+.fl .tick { position: absolute; left: var(--gut); bottom: 0; width: 8px; height: 1px; background: var(--faint); }
+.fl.t5 .tick { width: 14px; background: var(--ink); }
+.fl.t10 .tick { left: var(--gut); right: 0; width: auto; background: var(--rule); }
+.fl.bs .tick { left: 0; right: 0; width: auto; height: 2px; background: var(--ink); }
+.fl .no { position: absolute; left: 0; bottom: 2px; width: calc(var(--gut) - 8px); text-align: right; font: 400 11px/1 var(--f); color: var(--soft); }
+.fl.t10 .no { font-weight: 800; font-size: 13px; color: var(--ink); }
+.fl .lab { position: absolute; left: calc(var(--gut) + var(--shaft) + 22px + var(--fh) * 2.5 + 16px + 14px); right: 0; bottom: 1px; font: 500 16px/1 var(--serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the building's face: five windows a floor, dark until the car has passed */
+.fl .wins { position: absolute; left: calc(var(--gut) + var(--shaft) + 22px); bottom: 3px; display: flex; gap: 4px; }
+.fl .wins i { width: calc(var(--fh) * 0.5); height: calc(var(--fh) - 7px); background: var(--ink); opacity: 0.1; transition: opacity 160ms var(--ease) var(--d); }
+.fl.below .wins i { opacity: 1; }
+.roof { position: relative; height: calc(var(--fh) * 2); border-bottom: 2px solid var(--ink); margin-left: calc(var(--gut) + 12px); width: calc(var(--shaft) + 22px + var(--fh) * 2.5 + 16px); }
+.roof .cap { position: absolute; left: 0; bottom: 6px; }
+.street .cap { position: absolute; left: calc(var(--gut) + var(--shaft) + 22px); top: 10px; }
+.fl .bn { position: absolute; right: 0; bottom: 5px; font: 600 10px/1 var(--f); letter-spacing: 0.12em; text-transform: uppercase; color: var(--soft); }
+.fl.has .bn { display: none; }
+.street { position: relative; height: 2px; background: var(--ink); margin-top: -1px; }
+/* the shaft and the car in it */
+.tower::before, .tower::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); left: calc(var(--pad) + var(--gut) + 12px); }
+.tower::after { left: calc(var(--pad) + var(--gut) + 12px + var(--shaft)); }
+.cable { position: absolute; top: 0; height: 72%; left: calc(var(--pad) + var(--gut) + 12px + var(--shaft) / 2); width: 1px; background: var(--ink); }
+.car { position: absolute; top: calc(72% - var(--fh) * 1.5); left: calc(var(--pad) + var(--gut) + 16px); width: calc(var(--shaft) - 7px); height: calc(var(--fh) * 1.5); background: var(--ink); will-change: transform; }
 
-.q { flex: none; padding: 20px var(--pad) 0; will-change: transform; }
+.readout { flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 12px var(--pad) 12px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--rule); }
+.floor { display: flex; align-items: baseline; gap: 10px; }
+.floor b { font: 800 44px/0.8 var(--f); letter-spacing: -0.04em; min-width: 1.2em; }
+.band { display: flex; align-items: baseline; gap: 10px; }
+.band strong { font: 500 22px/1 var(--serif); letter-spacing: -0.01em; }
+
+.q { flex: none; padding: 16px var(--pad) calc(20px + var(--sab)); will-change: transform; }
 .screen { display: grid; }
 .q-row { display: flex; align-items: baseline; justify-content: space-between; }
 .time, .pts { font: 800 20px/1 var(--f); }
@@ -75,6 +96,8 @@ a { color: inherit; }
 .lamps i.on { background: var(--ink); animation: step 160ms var(--ease) calc(var(--i) * 60ms) backwards; }
 @keyframes step { from { opacity: 0; } }
 .q .btn { margin-top: 20px; height: 56px; }
+
+.btn { margin-top: 20px; height: 56px; }
 
 .ledger { flex: 1 1 0; min-height: 0; overflow: hidden; padding: 20px var(--pad) 0; }
 .links { list-style: none; padding: 0; height: 100%; display: flex; flex-direction: column; flex-wrap: wrap; overflow: hidden; }
@@ -143,3 +166,14 @@ a { color: inherit; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+@media (min-height: 760px) { .tower { --fh: 22px; } }
+/* wide screens: the building takes one side at full height, the question the other */
+@media (min-width: 900px) {
+  .app { max-width: 1040px; }
+  .game { display: grid; grid-template-columns: minmax(0, 1fr) 440px; grid-template-rows: 1fr auto auto 1fr; column-gap: 48px; }
+  .tower { grid-column: 1; grid-row: 1 / -1; --fh: 24px; --shaft: 56px; border-right: 1px solid var(--rule); }
+  .readout { grid-column: 2; grid-row: 2; border-top: 0; padding-top: 0; }
+  .floor b { font-size: 72px; }
+  .q { grid-column: 2; grid-row: 3; padding-top: 24px; }
+}

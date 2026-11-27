@@ -55,43 +55,70 @@ function rareLine(p) {
 let toastT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200); }
 
-// ---- the lift: a number and a mark on a scale of five bands
-let countRaf = 0;
-function setFloor(f, animate) {
+// ---- the building: a hundred floors drawn as rules and numbers, and a car that stays put while the building
+// slides past it. A rare answer is a long ride, a common one a single floor.
+const FLOORS = [];
+function buildTower() {
+  const strip = $("strip"); strip.textContent = "";
+  const roof = mk("div", "roof"); roof.append(mk("span", "cap", "Roof")); strip.appendChild(roof);
+  for (let f = MAXF; f >= 0; f--) {
+    const b = BANDS.findIndex(([, a]) => a === f);
+    const row = mk("div", "fl" + (f % 10 === 0 ? " t10" : f % 5 === 0 ? " t5" : "") + (b >= 0 ? " bs" : ""));
+    const wins = mk("span", "wins"); for (let k = 0; k < 5; k++) wins.appendChild(mk("i"));
+    row.append(mk("span", "no num", f % 5 === 0 ? String(f) : ""), mk("i", "tick"), wins, mk("span", "lab"));
+    if (b >= 0) row.append(mk("span", "bn", BANDS[b][0]));
+    strip.appendChild(row); FLOORS[f] = row;
+  }
+  const street = mk("div", "street"); street.append(mk("span", "cap", "Street")); strip.appendChild(street);
+}
+// the answers stand on the floor the lift had reached with them
+function labelFloors() {
+  for (const r of FLOORS) { r.lastLab = ""; r.querySelector(".lab").textContent = ""; r.classList.remove("has"); }
+  let sum = 0;
+  answers.forEach((a) => {
+    if (!a || a.tier < 0) return;
+    sum += a.pts;
+    const r = FLOORS[Math.min(MAXF, Math.round(sum / 7))], lab = r.querySelector(".lab");
+    lab.textContent = lab.textContent ? `${lab.textContent}, ${a.label}` : a.label; r.classList.add("has");
+  });
+}
+let countRaf = 0, rideAnim = null;
+const yOf = (f) => { const t = $("tower"), fh = FLOORS[0].offsetHeight; return Math.round(t.clientHeight * CAR_AT - (MAXF - f + 1) * fh - FLOORS[MAXF].offsetTop); };
+const CAR_AT = 0.72;      // where the car rides in the window, from the top
+function setFloor(f, animate, top) {
   const from = floor; floor = f;
-  const b = bandOf(f);
-  $("band").textContent = BANDS[b][0];
-  [...$("scale").children].slice(0, 5).forEach((el, i) => el.classList.toggle("on", i <= b && f > 0));
-  const mark = $("mark"), x = `translateX(${(f / MAXF * $("scale").clientWidth).toFixed(1)}px)`;
-  cancelAnimationFrame(countRaf);
-  if (!animate || REDUCED || from === f) { mark.style.transform = x; $("floor").textContent = f; return; }
-  const ms = Math.min(700, 320 + Math.abs(f - from) * 9);
-  mark.animate([{ transform: mark.style.transform || "translateX(0)" }, { transform: x }], { duration: ms, easing: EASE });
-  mark.style.transform = x;
+  $("band").textContent = BANDS[bandOf(f)][0];
+  const strip = $("strip"), y1 = yOf(f), car = $("car");
+  cancelAnimationFrame(countRaf); rideAnim?.cancel();
+  // the floors passed light up, each as the car goes by it
+  const ride = !animate || REDUCED || from === f ? 0 : Math.round(Math.min(700, 400 + Math.abs(f - from) * 12));
+  FLOORS.forEach((r, i) => { r.style.setProperty("--d", ride && i >= from && i < f ? `${Math.round(ride * 0.75 * (i - from) / (f - from))}ms` : "0ms"); r.classList.toggle("below", i < f); });
+  if (!animate || REDUCED || from === f) { strip.style.transform = `translate3d(0, ${y1}px, 0)`; $("floor").textContent = f; labelFloors(); return; }
+  // the ride: longer for more floors, always inside 400 to 700 ms, braking into the landing
+  const ms = ride, y0 = yOf(from);
+  rideAnim = strip.animate([{ transform: `translate3d(0, ${y0}px, 0)` }, { transform: `translate3d(0, ${y1}px, 0)` }], { duration: ms, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+  strip.style.transform = `translate3d(0, ${y1}px, 0)`;
   const t0 = performance.now(), el = $("floor");
   const step = (now) => {
-    const u = Math.min(1, (now - t0) / ms), v = Math.round(from + (f - from) * (1 - Math.pow(1 - u, 3)));
+    const u = Math.min(1, (now - t0) / ms), v = Math.round(from + (f - from) * (1 - Math.pow(1 - u, 4)));
     if (el.textContent !== String(v)) { el.textContent = v; if (v !== f) snd.pass(v); }
     if (u < 1) countRaf = requestAnimationFrame(step);
   };
   countRaf = requestAnimationFrame(step);
+  rideAnim.onfinish = () => {
+    // the landing: the car settles on its floor and the answer is set down there
+    labelFloors();
+    car.animate([{ transform: "translateY(-4px)" }, { transform: "translateY(1px)", offset: 0.6 }, { transform: "none" }], { duration: 180, easing: EASE });
+    FLOORS[f].querySelector(".lab").animate([{ opacity: 0, transform: "translateX(-8px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: EASE });
+    // an answer as rare as they come: the whole building takes the jolt
+    if (top) $("tower").animate([{ transform: "translateY(0)" }, { transform: "translateY(5px)", offset: 0.35 }, { transform: "translateY(-2px)", offset: 0.7 }, { transform: "none" }], { duration: 260, easing: EASE });
+  };
 }
 function screen(name) {
   app.dataset.phase = name;
   $("intro").hidden = name !== "intro"; $("end").hidden = name !== "end"; $("game").hidden = name === "end";
   if (name === "prompt" || name === "result") { card.dataset.screen = name; card.querySelectorAll(".screen").forEach((s) => { s.hidden = s.dataset.s !== name; }); }
 }
-// the answers given, newest first: as many as the screen has room for
-function linksRender() {
-  const ol = $("links"); ol.textContent = "";
-  for (let i = answers.length - 1; i >= 0; i--) {
-    const a = answers[i]; if (!a) continue;
-    const li = mk("li", a.tier >= 0 ? "ok" : "no");
-    li.append(mk("span", "n num", String(i + 1)), mk("span", "a", a.label || "No answer"), mk("span", "m", a.tier >= 0 ? data.tiers[a.tier].name : ""), mk("span", "p num", a.tier >= 0 ? `+${a.pts}` : "0"));
-    ol.appendChild(li);
-  }
-}
-
 // ---- the clock: the fuse is one animation the compositor runs; the page only rewrites the seconds
 let fuseAnim = null, secT = 0, endT = 0, deadline = 0, leftMs = 0;
 function clockStop() { clearInterval(secT); clearTimeout(endT); fuseAnim?.cancel(); fuseAnim = null; }
@@ -128,7 +155,6 @@ function startPrompt(i) {
   $("q-text").textContent = p.text;
   $("ans").value = ""; $("ride").classList.remove("ready");
   $("q-note").textContent = `${(info[i]?.n ?? p.n).toLocaleString("en-US")} answers on file.`; $("q-note").classList.remove("bad");
-  linksRender();
   if (!REDUCED && i > 0) card.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 200, easing: EASE });
   clockRun(SECS * 1000 + GRACE);
   $("ans").focus({ preventScroll: true });
@@ -191,9 +217,8 @@ function success(hit) {
   const n = N.toLocaleString("en-US");
   $("r-rare").textContent = [`One of the best known of ${n} answers on file.`, `A familiar name among the ${n} answers on file.`, "Past most people’s first thought.", "Few people would name it.", `As rare as answers get on this list of ${n}.`][hit.rank / N < 0.03 ? 0 : Math.max(1, tier)];
   if (hit.extra) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${hit.extra}”`; }
-  linksRender();
   snd.ding(tier);
-  setFloor(Math.min(MAXF, Math.round(total / 7)), true);
+  setFloor(Math.min(MAXF, Math.round(total / 7)), true, tier === 4);
 }
 function timeout() {
   const p = data.prompts[idx];
@@ -203,7 +228,6 @@ function timeout() {
   $("r-answer").textContent = "No answer";
   $("r-rare").textContent = `Familiar answers: ${p.easy.map(nice).join(", ")}.`;
   $("r-extra").hidden = false; $("r-extra").textContent = `${rareLine(p)}.`;
-  linksRender();
   snd.thunk();
 }
 let nextAt = 0;
@@ -344,6 +368,7 @@ async function boot() {
   else SECS = data.seconds || 25;
   // each prompt's full answer list is its own file, read in a worker; a game waits for it
   loadLists(data.prompts).catch(() => {});
+  buildTower();
   fit();
   addEventListener("resize", fit);
   window.visualViewport?.addEventListener("resize", fit);
