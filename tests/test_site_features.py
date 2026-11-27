@@ -482,7 +482,8 @@ class Play(Features):
         day = "2026-11-27"
         live = {"v": 2, "date": day, "rounds": [1], "sig": "a"}
         self.assertTrue(play.same_day_same_puzzle({"v": 2, "date": day, "rounds": [2], "sig": "b"}, live, day), "a later build keeps the published one")
-        self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": "2026-11-28", "rounds": [2], "sig": "b"}, live, "2026-11-28"), "a new day deals anew")
+        self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": day, "rounds": [2], "sig": "b"}, live, "2026-11-28"), "a new day deals anew")
+        self.assertTrue(play.same_day_same_puzzle({"v": 2, "date": "2026-11-20", "rounds": [2], "sig": "b"}, live, day), "the committed copy is only the format to compare with")
         self.assertFalse(play.same_day_same_puzzle({"v": 3, "date": day, "rounds": [2], "sig": "b"}, live, day), "a new format replaces it")
         self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": day, "rounds": [2], "sig": "b", "pool": []}, live, day), "a new field replaces it")
         self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": day}, None, day))

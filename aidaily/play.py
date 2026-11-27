@@ -29,12 +29,13 @@ def live():
 
 
 def same_day_same_puzzle(fresh, live, today):
-    """True when the puzzle already on the site is today's and has the shape this build writes.
+    """True when the puzzle already on the site is today's and has the shape this code writes (fresh: any puzzle
+    in the current format, the committed one will do).
 
     The site is rebuilt many times a day and the queue grows between builds, so a fresh build would deal another word
     and another chain at noon than at nine. The first puzzle published for a UTC day stays for that day. A change of
     format (another version, another set of fields) is the one thing that replaces it."""
-    return (isinstance(live, dict) and live.get("date") == today and fresh.get("date") == today
+    return (isinstance(live, dict) and isinstance(fresh, dict) and live.get("date") == today
             and live.get("v") == fresh.get("v") and set(live) == set(fresh))
 
 
@@ -63,16 +64,22 @@ def copy_games(out):
         shutil.copytree(GAMES_DIR / slug, dest, ignore=SKIP)
         script = GAMES_DIR / slug / "build_data.py"
         if script.exists() and os.environ.get("DESK_SITE_OFFLINE") != "1":
-            tmp = dest / "assets" / "data" / "today.new.json"
-            r = subprocess.run([sys.executable, str(script), "--out", str(tmp)], capture_output=True, text=True, timeout=240)
-            if r.returncode == 0 and tmp.exists():
-                kept = published_today(slug, tmp)
-                if kept is not None:
-                    tmp.write_text(kept)
-                tmp.replace(dest / "assets" / "data" / "today.json")
+            today_json = dest / "assets" / "data" / "today.json"
+            kept = published_today(slug, today_json)       # the committed copy shows the format this code writes
+            if kept is not None:
+                today_json.write_text(kept)                 # today's puzzle is already out: no new deal, no upstream calls
             else:
-                tmp.unlink(missing_ok=True)
-                print(f"play: {slug} puzzle not refreshed, serving the committed one: {(r.stderr or r.stdout).strip()[-200:]}")
+                tmp = dest / "assets" / "data" / "today.new.json"
+                try:
+                    r = subprocess.run([sys.executable, str(script), "--out", str(tmp)], capture_output=True, text=True, timeout=240)
+                    ok, why = r.returncode == 0 and tmp.exists(), (r.stderr or r.stdout).strip()[-200:]
+                except subprocess.TimeoutExpired:           # a slow upstream must not take the whole site build down
+                    ok, why = False, "the puzzle script ran over 240 s"
+                if ok:
+                    tmp.replace(today_json)
+                else:
+                    tmp.unlink(missing_ok=True)
+                    print(f"play: {slug} puzzle not refreshed, serving the committed one: {why}")
         done.append(slug)
     return done
 
