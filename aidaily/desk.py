@@ -2135,16 +2135,15 @@ def cross_post(post, path, factories=None, names=None):
         if not CONFIG.get("platforms", {}).get(name):
             continue
         slot = post.setdefault("platforms", {}).get(name, {})
-        if slot.get("id") or slot.get("skipped"):
+        if slot.get("id") or (slot.get("skipped") and slot["skipped"] not in FACEBOOK_LATER):
             continue
         if slot.get("attempted"):
             print(f"{post['id']}: {name}: a send was attempted {slot['attempted']} and its result is unknown; check the account")
             continue
         reason = platforms.facebook_skip(post) if name == "facebook" else ""
         if reason:
-            post["platforms"][name] = {"skipped": reason}  # recorded, so the post is not looked at again
-            _save(path, post)
-            print(f"{post['id']}: {name} skipped: {reason}")
+            # not recorded: the bar and the cap change with the clock, so the next run looks again
+            print(f"{post['id']}: {name} not now: {reason}")
             continue
         blocked = platform_cooldown(name)
         if blocked:
@@ -2242,9 +2241,16 @@ def _cross_post(post, path):
 WEB_PLATFORMS = ("threads", "bluesky")
 
 
+# Facebook's score bar and daily cap move with the clock (facebook_min_score_now, a rolling 24 h): a post held by
+# one of them is looked at again on the next run, never closed for good. Slots written by the old code that closed
+# them are read the same way.
+FACEBOOK_LATER = ("below facebook_min_score", "above facebook_daily_max")
+
+
 def _slot_done(post, name):
     slot = (post.get("platforms") or {}).get(name) or {}
-    return bool(slot.get("id") or slot.get("skipped") or slot.get("attempted"))
+    skipped = slot.get("skipped") not in (None, "") and slot.get("skipped") not in FACEBOOK_LATER
+    return bool(slot.get("id") or skipped or slot.get("attempted"))
 
 
 def web_social(factories=None):
@@ -2342,6 +2348,8 @@ def mirror_social(factories=None):
                 continue  # retry_unchecked owns a post whose check failed
             if _stamp(post["published"]) + timedelta(minutes=mirror_delay(name, post)) > now():
                 continue
+            if name == "facebook" and platforms.facebook_skip(post):
+                continue  # held for now; a later post or a later run may clear the bar
             cross_post(post, path, factories, names=[name])
             sent += 1
             break

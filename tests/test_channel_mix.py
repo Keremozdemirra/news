@@ -37,7 +37,7 @@ class Mirror(Tmp):
         self.fact = {n: (lambda n=n: FakeClient(n, self.sent)) for n in platforms.NAMES}
 
     def ig(self, pid, minutes, **kw):
-        return self.write_post(pid, status="published", published=ago(minutes), tier="instagram", score=12, **kw)
+        return self.write_post(pid, status="published", published=ago(minutes), tier="instagram", **{"score": 12, **kw})
 
     def test_instagram_publish_sends_nothing_at_once(self):
         p = self.ig("a", 0)
@@ -60,6 +60,15 @@ class Mirror(Tmp):
         self.assertEqual({i for _, i in self.sent}, {"a"})  # the oldest first
         self.assertEqual(desk.mirror_social(self.fact), 0)  # every platform inside its spacing now
         self.assertEqual(len(self.sent), 4)
+
+    def test_facebook_holds_a_post_below_its_bar_and_takes_the_next_one(self):
+        with mock.patch.dict(desk.CONFIG, {"facebook_min_score": 11}):
+            self.ig("low", 120, score=9)
+            self.ig("high", 100, score=13)
+            desk.mirror_social(self.fact)
+            self.assertIn(("facebook", "high"), self.sent)
+            self.assertNotIn(("facebook", "low"), self.sent)
+            self.assertNotIn("facebook", desk._load(desk.QUEUE / "low" / "post.json", {}).get("platforms", {}))
 
     def test_stories_data_and_web_posts_are_not_mirrored(self):
         self.ig("s", 90, kind="story")

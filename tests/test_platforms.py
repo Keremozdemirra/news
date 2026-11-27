@@ -532,40 +532,52 @@ class FacebookGate(CrossPost):
         self.assertLessEqual(shipped["facebook_min_score"], shipped["breaking_score"])
         self.assertEqual(shipped["facebook_daily_max"], 4)
 
-    def test_below_the_bar_is_skipped_recorded_and_never_retried(self):
+    def test_below_the_bar_is_held_not_closed_and_goes_once_the_bar_drops(self):
         fb = Good("facebook")
         got = self.run_cross(post(score=desk.CONFIG["facebook_min_score"] - 0.1), facebook=lambda: fb)
-        self.assertEqual(got["platforms"]["facebook"], {"skipped": "below facebook_min_score"})
+        self.assertNotIn("facebook", got["platforms"])  # nothing recorded: the next run looks again
         self.assertIn("id", got["platforms"]["bluesky"])
-        self.run_cross(got, facebook=lambda: fb)
         self.assertEqual(fb.sent, 0)
+        # the 2026-11-27 case: the Page's rolling 24 h empties and the floor lowers the bar
+        with mock.patch.dict(desk.CONFIG, {"facebook_min_score": desk.CONFIG["facebook_min_score"] - 1}):
+            got = self.run_cross(got, facebook=lambda: fb)
+        self.assertIn("id", got["platforms"]["facebook"])
+        self.assertEqual(fb.sent, 1)
 
-    def test_a_post_without_a_score_is_skipped(self):
+    def test_a_slot_the_old_code_closed_for_the_bar_is_open_again(self):
+        p = post(score=desk.CONFIG["facebook_min_score"])
+        p["platforms"] = {"facebook": {"skipped": "below facebook_min_score"}}
+        self.assertFalse(desk._slot_done(p, "facebook"))
+        p["platforms"]["facebook"] = {"skipped": "account could not be checked 3 times"}
+        self.assertTrue(desk._slot_done(p, "facebook"))
+
+    def test_a_post_without_a_score_is_held(self):
         got = self.run_cross(post(score=None))
-        self.assertEqual(got["platforms"]["facebook"]["skipped"], "below facebook_min_score")
+        self.assertNotIn("facebook", got["platforms"])
 
     def test_at_the_bar_is_posted(self):
         got = self.run_cross(post(score=desk.CONFIG["facebook_min_score"]))
         self.assertIn("id", got["platforms"]["facebook"])
 
-    def test_daily_max_then_skipped_and_yesterdays_do_not_count(self):
+    def test_daily_max_holds_until_yesterdays_age_out(self):
         with mock.patch.dict(desk.CONFIG, {"facebook_daily_max": 2}):
             for i in range(2):
                 got = self.run_cross(post(id=f"p{i}"))
                 self.assertIn("id", got["platforms"]["facebook"])
             third = self.run_cross(post(id="p2"))
-            self.assertEqual(third["platforms"]["facebook"], {"skipped": "above facebook_daily_max"})
+            self.assertNotIn("facebook", third["platforms"])
             self.assertEqual(desk.platform_sent_last_24h("facebook"), 2)
             old = json.loads((desk.QUEUE / "p0" / "post.json").read_text())
             old["platforms"]["facebook"]["at"] = (desk.now() - timedelta(hours=25)).isoformat()
             (desk.QUEUE / "p0" / "post.json").write_text(json.dumps(old))
-            self.assertIn("id", self.run_cross(post(id="p3"))["platforms"]["facebook"])
+            self.assertIn("id", self.run_cross(third)["platforms"]["facebook"])
 
-    def test_skip_does_not_depend_on_secrets_or_the_other_platforms(self):
+    def test_hold_does_not_depend_on_secrets_or_the_other_platforms(self):
         def missing():
             raise platforms.Missing("FB")
         got = self.run_cross(post(score=1), facebook=missing)
-        self.assertEqual(got["platforms"]["facebook"]["skipped"], "below facebook_min_score")
+        self.assertNotIn("facebook", got["platforms"])
+        self.assertIn("id", got["platforms"]["bluesky"])
 
 
 class ThreadsResult(CrossPost):
