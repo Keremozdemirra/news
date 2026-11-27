@@ -78,5 +78,19 @@
  "attempted": "2026-11-27T21:00:17+00:00",
  "published": "2026-11-27T21:01:08+00:00",
  "media_id": "18009433634793019",
- "permalink": "https://www.instagram.com/p/DgQmJYvEnkV/"
+ "permalink": "https://www.instagram.com/p/DgQmJYvEnkV/",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3d4k6cegd2c",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3d4k6cegd2c",
+   "at": "2026-11-27T21:20:15+00:00",
+   "format": "link"
+  },
+  "telegram": {
+   "id": "39",
+   "url": "https://t.me/boardread/39",
+   "at": "2026-11-27T21:20:16+00:00",
+   "format": "photo"
+  }
+ }
 }
