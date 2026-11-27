@@ -1,0 +1,91 @@
+{
+ "id": "2026-11-27-1852-1",
+ "batch": "2026-11-27-1852",
+ "n": 1,
+ "created": "2026-11-27T18:52:48+00:00",
+ "layout": "type",
+ "photos": [
+  {
+   "file": "Katrin Radio Tower.jpg",
+   "credit": "Photo: AVDLCZ, CC0, via Wikimedia Commons",
+   "name": ""
+  }
+ ],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Nvidia Blackwell chips turn up at Shanghai data center tied to Alice Huang\n\nTwo Chinese companies installed the chips, including a GB300 NVL72 rack, at the Yangtze River Delta Project. A serial number in documents filed with Chinese regulators in November identifies the rack. A Bloomberg investigation traced the serial number to Taiwanese manufacturer Gigabyte.\n\nReported by The Decoder; Bloomberg.\n\nSend this to a colleague who covers Nvidia.\n\n#tech #news\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://the-decoder.com/banned-nvidia-blackwell-chips-turn-up-in-a-shanghai-data-center-linked-to-alice-huang-bloomberg-reports/"
+ ],
+ "links": [
+  "https://the-decoder.com/banned-nvidia-blackwell-chips-turn-up-in-a-shanghai-data-center-linked-to-alice-huang-bloomberg-reports/",
+  "https://www.bloomberg.com/news/articles/2026-11-27/nvidia-blackwell-chips-turn-up-at-china-site-tied-to-alice-huang",
+  "https://www.bloomberg.com/news/videos/2026-11-27/blackwell-chips-found-at-alice-huang-linked-china-site-video",
+  "https://www.bloomberg.com/news/videos/2026-11-27/nvidia-blackwell-chips-turn-up-at-china-site-video",
+  "https://www.bloomberg.com/news/videos/2026-11-27/nvidia-chips-turn-up-at-china-site-linked-to-alice-huang-video",
+  "https://www.techmeme.com/261127/p6#a261127p6"
+ ],
+ "headlines": [
+  "Nvidia Blackwell chips turn up at Shanghai data center tied to Alice Huang"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Tech",
+ "photo_file": "Katrin Radio Tower.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A radio tower on a mountain ridge",
+ "score": 9.605,
+ "figure": "",
+ "company": "Nvidia",
+ "ticker": null,
+ "person": "Alice Huang",
+ "person_role": "Woman at center of Nvidia chip controversy, Shanghai",
+ "image_query": "data center",
+ "orgs": [
+  "Nvidia",
+  "Gigabyte",
+  "Shanghai Innovation Bank"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Two Chinese companies installed the chips, including a GB300 NVL72 rack, at the Yangtze River Delta Project.",
+ "body": "A serial number in documents filed with Chinese regulators in November identifies the rack. A Bloomberg investigation traced the serial number to Taiwanese manufacturer Gigabyte.",
+ "supported": "fc0870a0799f",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "The Decoder",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://the-decoder.com/banned-nvidia-blackwell-chips-turn-up-in-a-shanghai-data-center-linked-to-alice-huang-bloomberg-reports/",
+  "https://www.bloomberg.com/news/articles/2026-11-27/nvidia-blackwell-chips-turn-up-at-china-site-tied-to-alice-huang",
+  "https://www.bloomberg.com/news/videos/2026-11-27/blackwell-chips-found-at-alice-huang-linked-china-site-video",
+  "https://www.bloomberg.com/news/videos/2026-11-27/nvidia-blackwell-chips-turn-up-at-china-site-video",
+  "https://www.bloomberg.com/news/videos/2026-11-27/nvidia-chips-turn-up-at-china-site-linked-to-alice-huang-video"
+ ],
+ "credit": "Photo: AVDLCZ, CC0, via Wikimedia Commons",
+ "credit_file": "Katrin Radio Tower.jpg",
+ "video": {
+  "shape": "card",
+  "file": "video.mp4",
+  "cover": "cover.jpg",
+  "spec": [],
+  "headline": "Nvidia Blackwell chips turn up at Shanghai data center tied to Alice Huang",
+  "photo_file": "Katrin Radio Tower.jpg",
+  "credit": "Photo: AVDLCZ, CC0, via Wikimedia Commons",
+  "focus": [
+   0.5,
+   0.25
+  ],
+  "seconds": 8.0
+ },
+ "status": "queued",
+ "publish_after": "2026-11-27T19:22:34+00:00",
+ "story": ""
+}
