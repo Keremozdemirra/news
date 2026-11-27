@@ -1,6 +1,5 @@
 import { createWorld, paletteAt, MAXF } from "./world.js";
 import { buildDial, buildCar, score, play } from "./parts.js";
-import { matcher } from "./match.js";
 import * as snd from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -18,7 +17,24 @@ const save = (o) => { try { localStorage.setItem(STORE, JSON.stringify(o)); } ca
 
 // ---- state
 let data, world, needle, doors, S = 1;
-let idx = 0, total = 0, floor = 0, phase = "loading", answers = [], maps = [];
+let idx = 0, total = 0, floor = 0, phase = "loading", answers = [];
+
+// ---- the answer lists, in a worker (js/lists.worker.js). info[i] = { n, rareTier } once a set of prompts is in.
+let lists = null, askId = 0, info = [], ready = Promise.resolve();
+const waiting = new Map();
+function ask(msg) {
+  return new Promise((res, rej) => { const id = ++askId; waiting.set(id, [res, rej]); lists.postMessage({ ...msg, id }); });
+}
+function loadLists(prompts) {
+  if (!lists) {
+    lists = new Worker(new URL("./lists.worker.js", import.meta.url), { type: "module" });
+    lists.onmessage = ({ data: m }) => { const w = waiting.get(m.id); if (!w) return; waiting.delete(m.id); m.error ? w[1](new Error(m.error)) : w[0](m); };
+    lists.onerror = () => { for (const [, rej] of waiting.values()) rej(new Error("lists worker")); waiting.clear(); };
+  }
+  const slim = prompts.map((p) => ({ list: p.list, entries: p.entries, generic: p.generic, rare: p.rare }));
+  ready = ask({ t: "load", prompts: slim, rules: data.match, base: location.href }).then((m) => { info = m.info; });
+  return ready;
+}
 const GRACE = 1500;   // the doors open and the prompt is read before the clock runs
 let deadline = 0, leftMs = 0, raf = 0, SECS = 25, arrived = true, autoTimer = 0;
 const stats = load();
@@ -61,7 +77,7 @@ function applyPalette(alt) { const p = paletteAt(alt); for (const k in p) app.st
 
 function ascendTo(f, done) {
   const delta = Math.abs(f - floor);
-  const ms = REDUCED ? 1 : Math.round(Math.min(2300, 1150 + delta * 60));
+  const ms = REDUCED ? 1 : Math.round(Math.min(1700, 800 + delta * 45));      // seven rides a day: under two seconds each
   setLiftMs(ms);
   floor = f;
   needle.to(f, ms, REDUCED);
@@ -112,8 +128,8 @@ const pad = (n) => String(n).padStart(2, "0");
 const nice = (s) => (s && s === s.toLowerCase() ? s.replace(/^\p{L}/u, (c) => c.toUpperCase()) : s);
 // the example of what scores high: a real entry with its own tier, never a claim about "the rarest"
 function rareLine(p) {
-  const e = p.entries.find((x) => x[0] === p.rare[0]);
-  return `${e ? data.tiers[e[2]].name : "Rare"} answer: ${nice(p.rare[0])}`;
+  const t = info[data.prompts.indexOf(p)]?.rareTier;
+  return `${t != null ? data.tiers[t].name : "Rare"} answer: ${nice(p.rare[0])}`;
 }
 // The floor indicator over the result: lamps come on one by one up to the answer's tier, so the player sees
 // both where the answer stopped and what was still above it.
@@ -142,7 +158,7 @@ function startPrompt(i) {
   $("q-count").textContent = `Question ${i + 1} of ${data.prompts.length}`;
   $("q-text").textContent = p.text;
   $("ans").value = ""; $("ride").classList.remove("ready");
-  $("q-note").textContent = `${p.entries.length} answers on file.`; $("q-note").classList.remove("bad");
+  $("q-note").textContent = `${info[i]?.n ?? p.n} answers on file.`; $("q-note").classList.remove("bad");
   $("q-time").textContent = `0:${pad(SECS)}`; $("q-time").classList.remove("hot");
   doors.alarm.classList.remove("hot");
   pipsRender();
@@ -165,8 +181,9 @@ function tick(now) {
   doors.alarm.classList.toggle("hot", hot);
   if (leftMs <= 0) {
     // the doors close on what is in the slot: a valid answer typed in time is not thrown away for a missing Enter
-    const typed = $("ans").value.trim(), hit = typed ? find(idx, typed) : null;
-    return hit === null ? timeout() : success(hit);
+    phase = "checking";
+    find(idx, $("ans").value).then((hit) => (hit ? success(hit) : timeout()), () => timeout());
+    return;
   }
   raf = requestAnimationFrame(tick);
 }
@@ -176,17 +193,21 @@ document.addEventListener("visibilitychange", () => {
   else { deadline = performance.now() + leftMs; raf = requestAnimationFrame(tick); }
 });
 
-function find(i, raw) {
-  return raw.trim() ? maps[i](raw) : null;
+// the entry a typed answer means ({ rank, label, tier, extra }) or null; answered by the worker
+async function find(i, raw) {
+  return raw.trim() ? (await ask({ t: "find", i, raw })).hit : null;
 }
 let promptAt = 0;
-function submit() {
-  if (phase !== "prompt" || performance.now() - promptAt < 400) return;     // a held Enter from the last card is not an answer
-  const raw = $("ans").value.trim();
-  const note = $("q-note");
+let asking = false;
+async function submit() {
+  if (phase !== "prompt" || asking || performance.now() - promptAt < 400) return;     // a held Enter from the last card is not an answer
+  const raw = $("ans").value.trim(), at = idx;
   if (!raw) { nope("Type an answer first."); return; }
-  const hit = find(idx, raw);
-  if (hit === null) { missed(raw); nope(`Not on file. Try another.`); return; }
+  asking = true;
+  let hit = null;
+  try { hit = await find(at, raw); } catch { /* the worker died: the answer is treated as unknown */ } finally { asking = false; }
+  if (phase !== "prompt" || idx !== at) return;                 // the clock ran out while the list was being read
+  if (!hit) { missed(raw); nope(`Not on file. Try another.`); return; }
   success(hit);
 }
 // An answer we did not know stays on this device only (nothing is sent anywhere): the last 200, for the day's
@@ -213,22 +234,21 @@ function resultCommon() {
   $("next").hidden = true;
   $("r-extra").hidden = true;
 }
-function success(entryIdx) {
-  const p = data.prompts[idx], e = p.entries[entryIdx];
-  const tier = e[2], pts = data.tiers[tier].pts;
+function success(hit) {
+  const p = data.prompts[idx], N = info[idx].n;
+  const tier = hit.tier, pts = data.tiers[tier].pts;
   resultCommon();
-  answers[idx] = { label: nice(e[0]), tier, pts, rank: entryIdx, n: p.entries.length };
+  answers[idx] = { label: nice(hit.label), tier, pts, rank: hit.rank, n: N };
   total += pts;
   progress(false);
   const st = $("stamp");
   st.style.setProperty("--c", `var(--t${tier})`);
   $("st-tier").textContent = data.tiers[tier].name; $("st-pts").textContent = `+${pts}`;
   lampsRun(tier);
-  $("r-answer").textContent = nice(e[0]);
+  $("r-answer").textContent = nice(hit.label);
   // what the tier means in words; a percentile would mislead, because most of any list is names few people know
-  const N = p.entries.length;
-  $("r-rare").textContent = [`One of the best known of ${N} answers on file.`, `A familiar name among the ${N} answers on file.`, `Past most people’s first thought.`, `Few people would name it.`, `As rare as answers get on this list of ${N}.`][entryIdx / N < 0.03 ? 0 : Math.max(1, tier)];
-  if (e[5]) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${e[5]}”`; }
+  $("r-rare").textContent = [`One of the best known of ${N} answers on file.`, `A familiar name among the ${N} answers on file.`, `Past most people’s first thought.`, `Few people would name it.`, `As rare as answers get on this list of ${N}.`][hit.rank / N < 0.03 ? 0 : Math.max(1, tier)];
+  if (hit.extra) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${hit.extra}”`; }
   pipsRender();
   arrived = false;
   const F = Math.min(MAXF, Math.round(total / 7));
@@ -313,9 +333,10 @@ async function startPractice() {
     const mix = (l) => l.map((p) => [Math.random(), p]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
     const pick = [...mix((data.pool || []).filter((p) => !today.has(p.id))), ...mix((data.pool || []).filter((p) => today.has(p.id)))].slice(0, 7);
     if (pick.length < 7) { toast("No practice building today."); return; }
-    await Promise.all(pick.map(async (p) => { if (!p.entries) p.entries = (await (await fetch(p.list)).json()).entries; }));
-    practice = true; data.prompts = pick;
-    maps = pick.map((p) => matcher(p.entries, p.generic || [], data.match));
+    const before = data.prompts;
+    data.prompts = pick;
+    try { await loadLists(pick); } catch (e) { data.prompts = before; loadLists(before).catch(() => {}); throw e; }
+    practice = true;
     idx = 0; total = 0; floor = 0; answers = [];
     setLiftMs(1); applyPalette(0); world.setFloor(0, true); world.setProgress(0); world.setLitFloors(0); setOdometer(0); needle.set(0);
     clearInterval(cdT);
@@ -387,8 +408,8 @@ function renderEnd(rec) {
     const sub = document.createElement("span"); sub.className = "sub";
     sub.append(`${noun(p.text)} · `);
     if (a[1] >= 0) { const em = document.createElement("em"); em.textContent = data.tiers[a[1]].name; sub.append(em, " · "); }
-    const ex = p.entries.find((x) => x[0] === p.rare[0]);
-    if (!ex || a[1] < ex[2]) sub.append(rareLine(p)); else sub.lastChild.remove();   // no example for an answer already that high
+    const rt = info[i]?.rareTier;
+    if (rt == null || a[1] < rt) sub.append(rareLine(p)); else sub.lastChild.remove();   // no example for an answer already that high
     li.append(sub); ol.appendChild(li);
   });
   mini(rec);
@@ -444,14 +465,8 @@ async function boot() {
   }
   if (params.get("t")) SECS = Math.max(3, +params.get("t"));
   else SECS = data.seconds || 25;
-  // each prompt's full answer list is its own file; the game opens once all seven are in
-  try {
-    await Promise.all(data.prompts.map(async (p) => { if (!p.entries) p.entries = (await (await fetch(p.list)).json()).entries; }));
-  } catch (e) {
-    $("card").innerHTML = '<p class="lede">Today’s answer lists did not load. Reload to try again.</p>';
-    app.dataset.phase = "intro"; return;
-  }
-  maps = data.prompts.map((p) => matcher(p.entries, p.generic || [], data.match));
+  // each prompt's full answer list is its own file, read in a worker while the street is drawn; a game waits for it
+  loadLists(data.prompts).catch(() => {});
 
   world = createWorld($("world"));
   needle = buildDial($("dial-svg"), $("needle"));
@@ -476,7 +491,13 @@ async function boot() {
   sb.addEventListener("click", () => { setSound(!snd.isOn()); if (snd.isOn()) snd.ding(1); });
 
   // wiring
-  $("start").addEventListener("click", () => { if (phase !== "intro") return; if (localStorage.getItem("topfloor:sound") === "1" && !snd.isOn()) setSound(true); startPrompt(0); });
+  $("start").addEventListener("click", async () => {
+    if (phase !== "intro") return;
+    if (localStorage.getItem("topfloor:sound") === "1" && !snd.isOn()) setSound(true);
+    phase = "opening";                      // the lists are usually in long before the first tap; if not, the tap waits for them
+    try { await ready; } catch { phase = "intro"; toast("Today’s answer lists did not load. Reload to try again."); return; }
+    startPrompt(0);
+  });
   $("form").addEventListener("submit", (e) => { e.preventDefault(); submit(); });
   $("ride").addEventListener("mousedown", (e) => e.preventDefault());
   $("ride").addEventListener("pointerdown", () => $("ride").classList.add("press"));
@@ -484,7 +505,7 @@ async function boot() {
   $("ans").addEventListener("input", () => {
     const slot = $("slot"); slot.classList.remove("tick", "nope"); void slot.offsetWidth; slot.classList.add("tick");
     $("ride").classList.toggle("ready", $("ans").value.trim().length > 0);
-    if ($("q-note").classList.contains("bad")) { $("q-note").classList.remove("bad"); $("q-note").textContent = `${data.prompts[idx].entries.length} answers on file.`; }
+    if ($("q-note").classList.contains("bad")) { $("q-note").classList.remove("bad"); $("q-note").textContent = `${info[idx].n} answers on file.`; }
     snd.click();
   });
   $("next").addEventListener("click", next);
@@ -500,8 +521,8 @@ async function boot() {
       // a day left half way: the lift waits at the floor it had reached, on the next question
       answers = saved.ans.map((a) => ({ label: a[0], tier: a[1], pts: a[2] }));
       const F = saved.floor; floor = F; setLiftMs(1); applyPalette(F / MAXF); world.setFloor(F, true); world.setProgress(total / 700); world.setLitFloors(F); setOdometer(F); needle.set(F);
-      startPrompt(answers.length);
-    } else { phase = "end"; app.dataset.phase = "end"; renderEnd(saved); }
+      ready.then(() => startPrompt(answers.length), () => toast("Today’s answer lists did not load. Reload to try again."));
+    } else { phase = "end"; app.dataset.phase = "end"; ready.then(() => renderEnd(saved), () => renderEnd(saved)); }
   }
   else { phase = "intro"; show("intro"); pipsRender(); }
   requestAnimationFrame(() => requestAnimationFrame(() => { app.dataset.phase = card.dataset.screen; }));

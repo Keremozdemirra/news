@@ -1,6 +1,6 @@
-// The balance. Art is pre-rendered in Blender (art/build_scale.py): one back layer and one front layer
-// per beam angle. This module picks the frame, stands the two paper tickets in the pans from the
-// exported pan coordinates, and plays authored motion scores. No physics, no CSS easing on the beam.
+// The balance. Art is pre-rendered in Blender (art/build_scale.py layers): seven sprites at level beam.
+// This module turns the beam, shifts the pans, stands the two paper tickets in them from the exported pan
+// coordinates, and plays authored motion scores. No physics, no CSS easing on the beam.
 
 let A0 = -12, STEP = 1, N = 25;             // frame n is the beam at A0 + n * STEP degrees (read from scale.json)
 let IMG_W = 900, IMG_H = 880, DW = 450, DH = 440;     // render px, and the same at 1x design px
@@ -42,19 +42,32 @@ export function score(keys) {
 }
 
 export function createRig({ zone, back, front, plate, pa, pb, reduced }) {
-  const bctx = back.getContext("2d"), fctx = front.getContext("2d");
-  let meta = null, bImgs = [], fImgs = [], k = 1, shown = -1, theta = 0, raf = 0, ox = 0, oy = 0;
+  let meta = null, k = 1, theta = 0, raf = 0, ox = 0, oy = 0;
   const sway = { a: 0, b: 0 };
+  const L = {};          // layer name -> <img>
 
+  // Seven sprites rendered at level beam (art/build_scale.py layers): the stand with the balance's shadow, the beam, the
+  // head and reading plate that cover its middle and its needle tip, and each pan as a back and a front half. The beam only turns about its pin and the pans only shift, so a frame is three
+  // transforms on images the compositor already holds. No frame is decoded or painted while the beam moves.
   async function load(base) {
     meta = await (await fetch(base + "scale.json")).json();
     A0 = meta.angles[0]; STEP = meta.step; N = meta.frames.length; IMG_W = meta.w; IMG_H = meta.h; DW = IMG_W / 2; DH = IMG_H / 2;
-    const get = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
-    const ext = meta.ext || "png";
-    const names = Array.from({ length: meta.frames.length }, (_, n) => String(n).padStart(2, "0"));
-    [bImgs, fImgs] = await Promise.all([Promise.all(names.map((n) => get(`${base}back_${n}.${ext}`))), Promise.all(names.map((n) => get(`${base}front_${n}.${ext}`)))]);
-    for (const c of [back, front]) { c.width = IMG_W; c.height = IMG_H; }
+    const place = (name, host) => new Promise((res, rej) => {
+      const b = meta.layers[name], i = new Image();
+      i.alt = ""; i.decoding = "async"; i.draggable = false; i.className = "sprite";
+      i.style.cssText = `left:${(100 * b.x / IMG_W).toFixed(4)}%;top:${(100 * b.y / IMG_H).toFixed(4)}%;width:${(100 * b.w / IMG_W).toFixed(4)}%;height:${(100 * b.h / IMG_H).toFixed(4)}%`;
+      i.onload = () => res(); i.onerror = rej; i.src = `${base}${name}.webp`;
+      host.appendChild(i); L[name] = i;
+    });
+    back.textContent = ""; front.textContent = "";
+    await Promise.all([...["stand", "beam", "top", "pan_l_back", "pan_r_back"].map((n) => place(n, back)), ...["pan_l_front", "pan_r_front"].map((n) => place(n, front))]);
+    const b = meta.layers.beam;
+    L.beam.style.transformOrigin = `${(100 * (meta.pivot[0] * IMG_W - b.x) / b.w).toFixed(3)}% ${(100 * (meta.pivot[1] * IMG_H - b.y) / b.h).toFixed(3)}%`;
   }
+
+  // a ticket's height is read when it can change (layout, new text), never inside a frame
+  const measure = () => { for (const el of [pa, pb]) el._h = el.offsetHeight; };
+  if (typeof ResizeObserver !== "undefined") { const ro = new ResizeObserver(() => { measure(); if (meta && !raf) draw(theta); }); ro.observe(pa); ro.observe(pb); }
 
   function layout() {
     const zw = zone.clientWidth, zh = zone.clientHeight;
@@ -63,10 +76,11 @@ export function createRig({ zone, back, front, plate, pa, pb, reduced }) {
     ox = (zw - w) / 2; oy = zh - h;                       // art stands on the bottom of the zone
     for (const c of [back, front]) { c.style.width = w + "px"; c.style.height = h + "px"; c.style.left = ox + "px"; c.style.top = oy + "px"; }
     if (plate) { plate.style.width = w * PLATE_W + "px"; plate.style.height = h * PLATE_H + "px"; plate.style.left = (zw - w * PLATE_W) / 2 + "px"; plate.style.top = zh - h * PLATE_H + "px"; }
-    draw(theta, true);
+    measure();
+    draw(theta);
   }
 
-  // pan position at a continuous angle: linear blend of the two nearest exported frames
+  // pan position at a continuous angle: linear blend of the two nearest exported positions
   function panAt(side, deg) {
     const f = clamp((deg - A0) / STEP, 0, N - 1), i = Math.floor(f), j = Math.min(N - 1, i + 1), u = f - i;
     const a = meta.frames[i][side], b = meta.frames[j][side];
@@ -74,32 +88,31 @@ export function createRig({ zone, back, front, plate, pa, pb, reduced }) {
     return { x: m(a.base[0], b.base[0]), y: m(a.base[1], b.base[1]), rx: m(a.rim[0], b.rim[0]), ry: m(a.rim[1], b.rim[1]) };
   }
 
-  function draw(deg, force) {
+  function draw(deg) {
     theta = clamp(deg, A0, A0 + (N - 1) * STEP);
     if (!meta) return;
-    const n = Math.round((theta - A0) / STEP);
-    if (n !== shown || force) {
-      shown = n;
-      bctx.clearRect(0, 0, IMG_W, IMG_H); bctx.drawImage(bImgs[n], 0, 0);
-      fctx.clearRect(0, 0, IMG_W, IMG_H); fctx.drawImage(fImgs[n], 0, 0);
-    }
+    const w = DW * k, h = DH * k;
+    L.beam.style.transform = `rotate(${theta.toFixed(3)}deg)`;
     for (const [el, side, sw] of [[pa, "l", sway.a], [pb, "r", sway.b]]) {
-      const p = panAt(side, theta), x = ox + p.x * DW * k, y = oy + ((p.y + p.ry) / 2) * DH * k;   // the ticket stands half way down the bowl, behind its front wall
-      el.style.transform = `translate(${(x - TICKET_W / 2).toFixed(2)}px, ${(y - el.offsetHeight).toFixed(2)}px) rotate(${sw.toFixed(2)}deg) scale(${k.toFixed(4)}, ${(k * (el._sq || 1)).toFixed(4)})`;
+      const p = panAt(side, theta), p0 = panAt(side, 0);
+      const t = `translate3d(${((p.x - p0.x) * w).toFixed(2)}px, ${((p.y - p0.y) * h).toFixed(2)}px, 0)`;
+      L[`pan_${side}_back`].style.transform = t; L[`pan_${side}_front`].style.transform = t;
+      const x = ox + p.x * w, y = oy + ((p.y + p.ry) / 2) * h;   // the ticket stands half way down the bowl, behind its front wall
+      el.style.transform = `translate3d(${(x - TICKET_W / 2).toFixed(2)}px, ${(y - (el._h || 0)).toFixed(2)}px, 0) rotate(${sw.toFixed(2)}deg) scale(${k.toFixed(4)}, ${(k * (el._sq || 1)).toFixed(4)})`;
     }
   }
 
   // play a score f(t) -> degrees for `dur` ms; lag swings the tickets a little behind the beam
   function play(f, dur, onDone, onFrame) {
     cancelAnimationFrame(raf);
-    if (reduced) { draw(f(dur), false); onDone?.(); return; }
+    if (reduced) { draw(f(dur)); onDone?.(); return; }
     const t0 = performance.now(); let prev = f(0), sw = 0;
     const loop = (now) => {
       const t = Math.min(dur, now - t0), d = f(t);
       sw += (clamp(-(d - prev) * 5, -2.2, 2.2) - sw) * 0.35;   // tickets hang a beat behind the beam
       sway.a = sway.b = sw; prev = d;
-      draw(d, false); onFrame?.(t);
-      if (t < dur) raf = requestAnimationFrame(loop); else { sway.a = sway.b = 0; draw(f(dur), false); onDone?.(); }
+      draw(d); onFrame?.(t);
+      if (t < dur) raf = requestAnimationFrame(loop); else { raf = 0; sway.a = sway.b = 0; draw(f(dur)); onDone?.(); }
     };
     raf = requestAnimationFrame(loop);
   }
@@ -109,9 +122,9 @@ export function createRig({ zone, back, front, plate, pa, pb, reduced }) {
     if (reduced) return;
     const keys = score([[0, 1], [55, 0.94, "out"], [110, 1.03, "inOut"], [170, 1, "inOut"]]);
     const t0 = performance.now();
-    const loop = (now) => { const t = now - t0; el._sq = keys(t); draw(theta, false); if (t < 170) requestAnimationFrame(loop); else { el._sq = 1; draw(theta, false); } };
+    const loop = (now) => { const t = now - t0; el._sq = keys(t); draw(theta); if (t < 170) requestAnimationFrame(loop); else { el._sq = 1; draw(theta); } };
     requestAnimationFrame(loop);
   }
 
-  return { load, layout, draw, play, squash, get theta() { return theta; }, get k() { return k; }, set(deg) { cancelAnimationFrame(raf); draw(deg, false); } };
+  return { load, layout, draw, play, squash, get theta() { return theta; }, get k() { return k; }, set(deg) { cancelAnimationFrame(raf); raf = 0; draw(deg); } };
 }

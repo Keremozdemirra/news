@@ -42,8 +42,8 @@ button { font: inherit; color: inherit; }
 .app { position: fixed; inset: 0; height: var(--vh); overflow: hidden; isolation: isolate; background: var(--wall); opacity: 0; }
 .app.ready { opacity: 1; }
 
-.hall { position: absolute; inset: 0; z-index: -2; background: #140d0a url("../assets/art/hall-portrait.png") center top / cover no-repeat; }
-@media (min-width: 1040px) { .hall { background-image: url("../assets/art/hall-wide.png"); } }
+.hall { position: absolute; inset: 0; z-index: -2; background: #140d0a url("../assets/art/hall-portrait.webp") center top / cover no-repeat; }
+@media (min-width: 1040px) { .hall { background-image: url("../assets/art/hall-wide.webp"); } }
 
 .top { position: absolute; z-index: 6; left: 0; right: 0; top: var(--sat); height: 46px; display: flex; align-items: center; justify-content: space-between;
   padding: 0 max(8px, env(safe-area-inset-left)) 0 max(14px, env(safe-area-inset-left)); }
@@ -63,7 +63,7 @@ button { font: inherit; color: inherit; }
 .side { display: none; }
 .app[data-phase="intro"] .stage { pointer-events: none; }
 
-.frame { position: relative; width: 100%; border: 8px solid transparent; border-image: url("../assets/art/frame.png") 56 fill / 8px stretch; padding: 0 0 4px; background: var(--cab); }
+.frame { position: relative; width: 100%; border: 8px solid transparent; border-image: url("../assets/art/frame.webp") 56 fill / 8px stretch; padding: 0 0 4px; background: var(--cab); }
 .plate { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 4px 7px 8px; margin-bottom: 6px; border-bottom: 3px solid var(--brass-lo); font-family: var(--plate); font-weight: 800; text-transform: uppercase; }
 .plate-main { display: flex; flex-direction: column; line-height: 1; }
 .plate-k { font-size: 12px; letter-spacing: 0.2em; color: #b99a5d; }
@@ -95,8 +95,8 @@ button { font: inherit; color: inherit; }
 .top span { top: 0; }
 .bot span { top: calc(var(--th) / -2); }
 /* rendered depth: the two-card housing (slot, pins, edge falloff) and the shadow the falling flap throws, both from Blender */
-.tile::before { content: ""; position: absolute; inset: -1px; z-index: 4; pointer-events: none; background: url("../assets/art/tile-shade.png") 0 0 / 100% 100%; mix-blend-mode: multiply; }
-.shade { position: absolute; inset: 0; pointer-events: none; background: url("../assets/art/flap-shadow.png") 0 0 / 600% 100%; mix-blend-mode: multiply; }
+.tile::before { content: ""; position: absolute; inset: -1px; z-index: 4; pointer-events: none; background: url("../assets/art/tile-shade.webp") 0 0 / 100% 100%; mix-blend-mode: multiply; }
+.shade { position: absolute; inset: 0; pointer-events: none; background: url("../assets/art/flap-shadow.webp") 0 0 / 600% 100%; mix-blend-mode: multiply; }
 
 /* states: flat colour AND shape. correct = lit amber face + square; present = hatched face + amber keyline + diamond; absent = dark face + bar */
 [data-s="empty"]    { --f1: #2a241f; --f2: #1f1a16; --ink: #3c332a; }
@@ -147,7 +147,7 @@ button { font: inherit; color: inherit; }
 
 .scrim { position: absolute; inset: 0; z-index: 8; background: rgba(8, 5, 4, 0.8); }
 .intro { position: absolute; z-index: 9; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(calc(100vw - 12px), 460px); max-height: calc(var(--vh) - 12px); overflow-y: auto;
-  border: 12px solid transparent; border-image: url("../assets/art/frame.png") 56 fill / 12px stretch; padding: 0 0 12px; text-align: left; background: var(--cab); }
+  border: 12px solid transparent; border-image: url("../assets/art/frame.webp") 56 fill / 12px stretch; padding: 0 0 12px; text-align: left; background: var(--cab); }
 .dep-head { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 12px 6px; border-bottom: 3px solid var(--brass-lo); font-family: var(--plate); font-weight: 800; text-transform: uppercase; }
 .dep-k { font-size: 15px; letter-spacing: 0.24em; color: var(--amber); }
 .dep-d { font-size: 15px; letter-spacing: 0.12em; color: var(--brass-hi); }
@@ -249,7 +249,7 @@ button { font: inherit; color: inherit; }
 
 .home { margin-top: 10px; font-family: var(--plate); font-weight: 800; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: #8f7a52; }
 .home a { color: #b99a5d; text-underline-offset: 3px; }
-.home a:hover { color: var(--amber-hi); }
+@media (hover: hover) and (pointer: fine) { .home a:hover { color: var(--amber-hi); } }
 .brand-logo { width: 30px; height: 30px; flex: none; border: 2px solid var(--brass); }
 /* phone: the hall is only a dark wall behind the board; the lamps and the lit rail belong to the wide view */
 @media (max-width: 1039px) { .hall { background-image: none; background-color: #100a08; } }

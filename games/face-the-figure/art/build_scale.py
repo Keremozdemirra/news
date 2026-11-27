@@ -256,6 +256,52 @@ if ONLY == "plate":
     print("plate done"); sys.exit(0)
 
 for o in room + GOBO: o.hide_render = True
+
+if ONLY == "layers":
+    # The balance as six sprites at level beam, for a page that moves them with transforms instead of swapping 98
+    # frames: the stand with the whole balance's shadow, the beam (it only rotates about the pin), the head that covers
+    # the beam's middle, and each pan as a
+    # back and a front half (they only translate, the camera is orthographic). A part that is out of a sprite still
+    # throws its shadow and its bounce light: it is hidden from the camera alone.
+    def kids(o):
+        out = []
+        for c in o.children:
+            out += [c] + kids(c)
+        return out
+    beam_set = set(kids(piv))
+    pan_set = {s: set(kids(pans[s][0])) for s in pans}
+    stand = [o for o in balance if o not in beam_set and all(o not in pan_set[s] for s in pans)]
+    piv.rotation_euler = (0, 0, 0)
+    for s, sgn in (("l", -1), ("r", 1)):
+        pans[s][0].location = (sgn * L, 0, ZP - DROP)
+    bpy.context.view_layer.update()
+    # what stands in front of the beam and its needle: the head the beam passes through, the pin, the finial and the
+    # reading plate the needle tip runs behind. Drawn again over the beam, so the beam turns inside the head.
+    top = {o for o in stand if o.name in ("head", "pin", "finial", "plate") or o.name.startswith("tick")}
+    sets = {"stand": (set(stand), True), "beam": (beam_set, False), "top": (top, False)}
+    for s in pans:
+        sets[f"pan_{s}_back"] = (pan_set[s] - {pans[s][2]}, False)
+        sets[f"pan_{s}_front"] = ({pans[s][2]}, False)
+    for name, (show, shadow) in sets.items():
+        # the beam alone is lit as a free part: where it runs inside the head and the pan rings it would render black,
+        # and those places come into view as soon as the sprite turns
+        for o in balance: o.hide_render = (name == "beam" and o not in show); o.visible_camera = o in show
+        for o in catchers: o.hide_render = not shadow
+        sc.render.filepath = f"{OUT}/{name}.png"
+        bpy.ops.render.render(write_still=True)
+        print("layer", name, flush=True)
+    pv = world_to_camera_view(sc, cam, Vector((0, 0, ZP)))
+    meta = {"w": W, "h": H, "pivot": [round(pv.x, 5), round(1 - pv.y, 5)], "layers": list(sets), "frames": [], "angles": ANGLES, "step": STEP}
+    for th in ANGLES:
+        t = math.radians(th); fr = {"angle": th}
+        for s, sgn in (("l", -1), ("r", 1)):
+            g = Vector((sgn * L * math.cos(t), 0, ZP - sgn * L * math.sin(t) - DROP))
+            c = world_to_camera_view(sc, cam, Vector((g.x, g.y, g.z + PAN_D))); b = world_to_camera_view(sc, cam, g)
+            fr[s] = {"rim": [round(c.x, 5), round(1 - c.y, 5)], "base": [round(b.x, 5), round(1 - b.y, 5)]}
+        meta["frames"].append(fr)
+    json.dump(meta, open(f"{OUT}/layers.json", "w"))
+    print("layers done"); sys.exit(0)
+
 meta = {"w": W, "h": H, "step": STEP, "angles": ANGLES, "frames": []}
 for n, th in enumerate(ANGLES):
     t = math.radians(th)

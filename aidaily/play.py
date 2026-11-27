@@ -21,7 +21,8 @@ GAMES = [
     ("tickerflip", "Tickerflip", "One word from today's news. Six guesses.", True),
     ("face-the-figure", "Face the Figure", "Higher or lower? Each figure meets the next.", True),
 ]
-SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", "lockup.html", "extras.json", ".DS_Store")
+# "frames" and "png" are the lossless renders and older frame sets under a game's art/: sources, never served
+SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", "lockup.html", "extras.json", ".DS_Store", "frames", "png")
 
 
 def live():

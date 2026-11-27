@@ -1,12 +1,12 @@
 """Pre-rendered art for Tickerflip, built in Blender 5.2 (Cycles, CPU).
 Run: /Applications/Blender.app/Contents/MacOS/Blender -b --factory-startup -P art/build_art.py -- [tile|flap|frame|lamp|hall|all]
-Outputs go to assets/art/. Depth objects (the flap cell, the brass frame, the lamps, the lacquered hall) are
+Outputs go to art/png/ (run art/pack.py afterwards for the WebP in assets/art/). Depth objects (the flap cell, the brass frame, the lamps, the lacquered hall) are
 rendered here and used as sprites; the page draws only flat colour and text on top of them."""
 import bpy, bmesh, math, sys, os
 import numpy as np
 from mathutils import Vector
 
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "art")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "png")      # lossless renders; art/pack.py writes the WebP the page loads
 os.makedirs(OUT, exist_ok=True)
 what = (sys.argv[sys.argv.index("--") + 1:] or ["all"])[0] if "--" in sys.argv else "all"
 sub = (sys.argv[sys.argv.index("--") + 2:] or ["all"])[0] if "--" in sys.argv else "all"

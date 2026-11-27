@@ -1,6 +1,6 @@
 // One split-flap cell. Four layers: static top (new letter), static bottom (old letter),
 // the falling top flap (old letter) and the rising bottom flap (new letter), plus a cast shadow
-// frame from the Blender sheet (assets/art/flap-shadow.png) under the falling flap.
+// frame from the Blender sheet (assets/art/flap-shadow.webp) under the falling flap.
 //
 // Motion is authored frame by frame, not tweened: every angle below is a held frame.
 //  - cycling flap : fall in 2 frames, rise in 2 frames
@@ -11,7 +11,7 @@
 // the falling top flap (old letter) and the rising bottom flap (new letter).
 //
 // The fall is drawn, not rotated: each held frame is a hand-picked vertical squash of the flap (its foreshortening at
-// that angle) plus one frame of the Blender shading sheet (assets/art/flap-shadow.png: the lamp's light on the card
+// that angle) plus one frame of the Blender shading sheet (assets/art/flap-shadow.webp: the lamp's light on the card
 // at 0, 16, 30, 50, 72 and 86 degrees). Authored beats:
 //  - cycling flap : fall in 3 frames, rise in 3 frames
 //  - landing flap : anticipation (the flap lifts 2px), three falling frames, a rising run that overshoots (1.04),

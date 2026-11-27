@@ -191,7 +191,7 @@ function pick(choice) {
   (choice === "higher" ? $("k-up") : $("k-down")).classList.add("picked");
   (choice === "higher" ? $("k-down") : $("k-up")).classList.add("fade");
   const fig = pb.querySelector(".fig");
-  const end = r.b.value, from = r.kind === "founded" ? end - 34 : 0, D = r.kind === "founded" ? 1100 : 1500;
+  const end = r.b.value, from = r.kind === "founded" ? end - 34 : 0, D = r.kind === "founded" ? 700 : 900;      // the count runs under a second: eight rounds of it are played every day
   const fin = tiltFor(r.kind, end, r.a.value), sgn = Math.sign(fin) || 1, mag = Math.abs(fin);
   // tear the tape off in five stepped frames
   const tape = pb.querySelector(".tape");
@@ -208,15 +208,16 @@ function pick(choice) {
     return dip(t) * (1 - w) + track * w;
   };
   let lastTick = 0, contact = false, stamped = false;
+  // the verdict goes up with the stamp, while the beam is still coming to rest: nobody waits for brass to stop swinging
+  const land = () => { if (stamped) return; stamped = true; setFig(fig, r.b.kind, end); pb.querySelector(".src").innerHTML = srcLine(r.b); stamp(choice === r.answer); settle(choice); };
   const onFrame = (t) => {
     const v = val(t);
     if (setFig(fig, r.b.kind, v) && t - lastTick > 55 && t < D) { snd.tick(t / D); lastTick = t; }
     if (t >= D && !contact) { contact = true; rig.squash(pb); (choice === r.answer ? snd.ding(streak + 1) : snd.thud()); }
-    if (t >= D + 190 && !stamped) { stamped = true; stamp(choice === r.answer); }
+    if (t >= D + 190) land();
   };
-  const done = () => { setFig(fig, r.b.kind, end); pb.querySelector(".src").innerHTML = srcLine(r.b); if (!stamped) { stamped = true; stamp(choice === r.answer); } setTimeout(() => settle(choice), RM ? 0 : 380); };
-  if (RM) { setFig(fig, r.b.kind, end); rig.set(fin); done(); return; }
-  rig.play(theta, D + 650, done, onFrame);
+  if (RM) { rig.set(fin); land(); return; }
+  rig.play(theta, D + 650, land, onFrame);
 }
 
 function stamp(ok) {
@@ -241,6 +242,7 @@ function settle(choice) {
   points += pts;
   results[idx] = { ok, pick: choice, pts, gap: gapOf(r) };
   phase = "result"; show("result");
+  nextAt = performance.now() + 350;      // the button lands where the keys were: the tap that made the call must not also press it
   panel.querySelector(".verdict").classList.toggle("miss", !ok);
   const line = `${r.b.subject}: ${plain(r.b.kind, r.b.value)}, ${relation(r)} than ${r.a.subject}.`;
   $("back").hidden = true;
