@@ -62,7 +62,7 @@
   ],
   "seconds": 8.0
  },
- "status": "queued",
+ "status": "published",
  "publish_after": "2026-11-27T12:27:25+00:00",
  "story": "",
  "issue": 12,
@@ -87,7 +87,14 @@
     "id": "18119726384601201"
    },
    "video": true
+  },
+  "facebook": {
+   "skipped": "below facebook_min_score"
   }
  },
- "lead_published": "2026-11-27T12:30:20+00:00"
+ "lead_published": "2026-11-27T12:30:20+00:00",
+ "attempted": "2026-11-27T13:40:14+00:00",
+ "published": "2026-11-27T13:42:38+00:00",
+ "media_id": "18035094911683088",
+ "permalink": "https://www.instagram.com/p/DgPz9XrAK1J/"
 }

@@ -57,5 +57,20 @@
   "why": "report too thin (1 sentences, 14 words beyond the dek)",
   "dek": "He said he made the request when they met in China last week and thinks it would help lead to a deal on Ukraine.",
   "body": "His comments came a day after he hosted Nato chief Mark Rutte in Florida."
+ },
+ "platforms": {
+  "threads": {
+   "id": "17895005613619064",
+   "url": "https://www.threads.com/@boardread/post/DgP0CralmQe",
+   "at": "2026-11-27T13:43:52+00:00",
+   "reply": {
+    "id": "17982095442138800"
+   }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3cd26b2kx2x",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3cd26b2kx2x",
+   "at": "2026-11-27T13:43:54+00:00"
+  }
  }
 }
