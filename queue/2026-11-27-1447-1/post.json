@@ -68,6 +68,12 @@
    "reply": {
     "id": "18232973326335763"
    }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3cigmna4r2w",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3cigmna4r2w",
+   "at": "2026-11-27T15:20:21+00:00",
+   "format": "link"
   }
  }
 }
