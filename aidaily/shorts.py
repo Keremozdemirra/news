@@ -3,8 +3,9 @@
 The Short is the video card's Reel shape carried further: the story's own licensed photo moves full-bleed behind
 the card text (cardvideo.py), then the same picture carries one or two sentences from the published dek and body,
 the outlets the story was reported from, and an end frame with the site. Every word on screen was already published
-and checked on the story page: the video adds no new claim. No footage, no generated imagery, no AI line (the
-channel bio carries the disclosure); the photo is a real photograph, so containsSyntheticMedia is false.
+and checked on the story page: the video adds no new claim. When a vetted archive clip fits the headline
+(broll.py), it plays behind the text instead, labelled "Archive footage, not from this event". No generated imagery,
+no AI line (the channel bio carries the disclosure); photo and footage are real, so containsSyntheticMedia is false.
 
 Candidates are the stories the desk already picked for the social channels: on the site (status published or web),
 on a topic the social channels carry, at or above social_min_score, with a photo under CC0, CC BY or public domain.
@@ -154,8 +155,24 @@ def overlay(idx, t_in, t_out, rise=RISE, fade_in=FADE_IN):
     return f, (f"{rise}*pow(1-{p},3)" if rise else "0")
 
 
-def build(post, out_mp4, fetch=True):
-    """Render the Short. Returns (path, credit); raises when the post cannot be one or a tool fails."""
+def choose_footage(post, seconds, fetch=True):
+    """An archive clip that fits the headline and runs long enough, with its licence read again, or None."""
+    if not fetch or not (desk.CONFIG.get("video") or {}).get("footage"):
+        return None
+    from . import broll
+    clip = broll.pick(post["headlines"][0], min_seconds=seconds, seed=post["id"])
+    if not clip:
+        return None
+    ok, why = broll.still_ok(clip)
+    if not ok:
+        print(f"shorts: footage {clip['id']} skipped: {why}")
+        return None
+    return clip
+
+
+def build(post, out_mp4, fetch=True, clip=None):
+    """Render the Short. Returns (path, credit); raises when the post cannot be one or a tool fails. With a clip
+    (choose_footage) the archive footage replaces the moving photo and its credit replaces the photo's."""
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
     if not post.get("photo_file") or not V.photo_ok({"credit": post.get("credit", "")}):
@@ -173,6 +190,15 @@ def build(post, out_mp4, fetch=True):
         why = CV.eligible(story)
         if why:
             raise ValueError(why)
+        clip = clip if clip is not None else choose_footage(post, total, fetch)
+        footage = None
+        if clip:
+            from . import broll
+            try:
+                footage = broll.fetch(clip, tmp / "clip.mp4", total)
+                story, credit = CV.with_footage(story, clip), broll.credit(clip)
+            except Exception as e:  # noqa: BLE001  no footage this time: the photo moves instead
+                print(f"shorts: footage {clip['id']} not fetched, photo instead: {str(e)[:160]}")
         layers = []  # (png, t_in, t_out, rise, fade_in)
         t = 0.0
         for name, d in plan:
@@ -201,11 +227,18 @@ def build(post, out_mp4, fetch=True):
             t += d
         sw, sh = CV.probe_size(photo)
         fx, fy = CV.focus(story)
-        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(photo)]
+        if footage:
+            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-t", f"{total}", "-i", str(footage)]
+        else:
+            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(photo)]
         for png, *_ in layers:
             cmd += ["-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(png)]
         cmd += ["-f", "lavfi", "-t", f"{total}", "-i", "anullsrc=r=48000:cl=mono"]
-        chain, last = [CV.camera(sw, sh, h, fx, fy, total, PUSH)], "bg"
+        if footage:
+            from . import broll
+            chain, last = [broll.background(*CV.probe_size(footage), CV.W, h, total, CV.FPS)], "bg"
+        else:
+            chain, last = [CV.camera(sw, sh, h, fx, fy, total, PUSH)], "bg"
         for i, (png, t_in, t_out, rise, fade_in) in enumerate(layers, start=1):
             f, y = overlay(i, t_in, t_out, rise, fade_in)
             chain.append(f"[{i}:v]{f}[l{i}];[{last}][l{i}]overlay=x=0:y='{y}':format=auto:eval=frame[v{i}]")
@@ -239,7 +272,8 @@ def description(post, credit):
     if credit:
         from . import entities
         credit = entities.clean_credit(credit)
-        lines += ["", _clean(credit) + (". Edited" if re.search(r"\bCC BY\b", credit) else "")]
+        edited = re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited")
+        lines += ["", _clean(credit) + (". Edited" if edited else "")]
     lines += ["", "#Shorts #news #business"]
     text = "\n".join(lines).strip()
     while len(text.encode("utf-8")) > DESCRIPTION_MAX:

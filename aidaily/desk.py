@@ -14,6 +14,7 @@ State lives in the repository, so every post and reply is a commit:
 import json
 import math
 import shutil
+import tempfile
 import unicodedata
 import os
 import re
@@ -445,6 +446,13 @@ def video_problems(post):
         out.append(f"video failed the spec check: {'; '.join(v.get('spec') or ['not checked'])}")
     if v.get("headline") != post["headlines"][0] or v.get("photo_file") != post.get("photo_file") or v.get("credit") != post.get("credit"):
         out.append("video was made from another headline, photo or credit than the post")
+    if v.get("footage"):
+        from . import broll
+        clip = next((c for c in broll.load()["clips"] if c["id"] == v["footage"].get("id")), None)
+        if not clip:
+            out.append("footage is not in the vetted clip library")
+        elif v["footage"].get("credit") != broll.credit(clip) or clip.get("people") or not broll.fits(clip, post["headlines"][0]):
+            out.append("footage credit, people check or headline fit no longer holds")
     return out
 
 
@@ -467,8 +475,21 @@ def make_video(s, img, post_id):
         print(f"{post_id}: no video card: {why}")
         return None
     shape = video_shape()
+    seconds = float(video_cfg("seconds", CV.SECONDS))
+    clip, footage = pick_footage(s, post_id, seconds), None
     try:
-        mp4 = CV.build(s, img / "video.mp4", shape, seconds=float(video_cfg("seconds", CV.SECONDS)))
+        if clip:
+            from . import broll
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    src = broll.fetch(clip, Path(tmp) / "clip.mp4", seconds)
+                    mp4 = CV.build(CV.with_footage(s, clip), img / "video.mp4", shape, seconds=seconds, footage=src)
+                footage = {"id": clip["id"], "credit": broll.credit(clip), "page": clip["page"], "licence": clip["licence"]}
+            except Exception as e:  # noqa: BLE001  footage that will not fetch or render: the photo moves instead
+                print(f"{post_id}: footage {clip['id']} failed, moving photo instead: {str(e)[:200]}")
+                mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds)
+        else:
+            mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds)
         CV.cover(mp4, img / "cover.jpg")
     except Exception as e:  # noqa: BLE001  a render failure costs the video, never the post
         print(f"{post_id}: video render failed, stills only: {str(e)[:300]}")
@@ -478,7 +499,25 @@ def make_video(s, img, post_id):
     a = s.get("_assets") or {}
     return {"shape": shape, "file": "video.mp4", "cover": "cover.jpg", "spec": CV.audit_file(mp4, shape),
             "headline": s.get("headline") or s["title"], "photo_file": a.get("file", ""), "credit": a.get("credit", ""),
-            "focus": list(CV.focus(s)), "seconds": float(video_cfg("seconds", CV.SECONDS))}
+            "focus": list(CV.focus(s)), "seconds": seconds, **({"footage": footage} if footage else {})}
+
+
+def pick_footage(s, post_id, seconds):
+    """A vetted archive clip for the story, or None (the photo moves). Clips used in the last day go last."""
+    if not video_cfg("footage"):
+        return None
+    from . import broll
+    cut = now() - timedelta(hours=24)
+    used = [p["video"]["footage"]["id"] for p, _ in posts()
+            if (p.get("video") or {}).get("footage") and (_stamp(p.get("created", "")) or cut) > cut]
+    clip = broll.pick(s.get("headline") or s["title"], used=used, min_seconds=seconds, seed=post_id)
+    if not clip:
+        return None
+    ok, why = broll.still_ok(clip)
+    if not ok:
+        print(f"{post_id}: footage {clip['id']} skipped: {why}")
+        return None
+    return clip
 
 
 SLOP = re.compile(r"\b(delve|game[- ]changer|landscape|unlock|revolutioni[sz]e|it'?s worth noting|in today'?s|"

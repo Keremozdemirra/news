@@ -146,6 +146,7 @@
     "format": "alternate",
     "trial": "",
     "seconds": 8,
+    "footage": true,
     "platforms": {"threads": true, "bluesky": true, "telegram": true, "facebook": true}
   },
   "growth": {

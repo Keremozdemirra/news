@@ -141,8 +141,17 @@ def reveal(name, idx):
     return fade, y
 
 
-def build(story, out_mp4, shape="card", seconds=SECONDS):
-    """Render one video card. Returns the output path; raises when ffmpeg or Chrome fail."""
+def with_footage(story, clip):
+    """The story as the footage card shows it: the clip's label and credit in place of the photo's (the photo is not
+    on screen, so its credit would name the wrong work)."""
+    from . import broll
+    a = dict(story.get("_assets") or {}, credit=broll.credit(clip))
+    return dict(story, _assets=a)
+
+
+def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None):
+    """Render one video card. Returns the output path; raises when ffmpeg or Chrome fail. footage: a local clip file
+    (broll.fetch) that replaces the moving photo; the story must already carry its credit (with_footage)."""
     why = eligible(story)
     if why:
         raise ValueError(why)
@@ -159,11 +168,18 @@ def build(story, out_mp4, shape="card", seconds=SECONDS):
         for name in LAYERS:
             pngs[name] = Path(tmp) / f"{name}.png"
             shoot_layer(layer_html(story, shape, name), pngs[name], W, h)
-        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(FPS), "-t", f"{seconds}", "-i", str(src)]
+        if footage:
+            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-t", f"{seconds}", "-i", str(footage)]
+        else:
+            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(FPS), "-t", f"{seconds}", "-i", str(src)]
         for name in LAYERS:
             cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{seconds}", "-i", str(pngs[name])]
         cmd += ["-f", "lavfi", "-t", f"{seconds}", "-i", "anullsrc=r=48000:cl=mono"]
-        chain = [camera(sw, sh, h, fx, fy, seconds)]
+        if footage:
+            from . import broll
+            chain = [broll.background(*probe_size(footage), W, h, seconds, FPS)]
+        else:
+            chain = [camera(sw, sh, h, fx, fy, seconds)]
         chain.append("[1:v]format=rgba[l1];[bg][l1]overlay=0:0:format=auto[v1]")
         last = "v1"
         for i, name in enumerate(LAYERS[1:], start=2):

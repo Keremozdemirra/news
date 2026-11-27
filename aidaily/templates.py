@@ -281,9 +281,11 @@ def _logo_block(uri, name, h=60, invert=False):
 def _foot(story, brand, dark=False, edited=False):
     grey = GREY_DARK if dark else GREY
     credit = entities.clean_credit(assets(story)["credit"])
-    if edited and credit and re.search(r"\bCC BY\b", credit):
+    if edited and credit and re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited"):
         credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
-    c = f'<div style="margin-top:10px;font-size:16px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
+    # archive footage says so where it can be read on a phone; a photo credit stays small
+    size = 21 if credit.startswith("Archive footage") else 16
+    c = f'<div style="margin-top:10px;font-size:{size}px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
     return (f'<div><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
             f'<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand["name"])}</span>'
             f'<span style="color:{grey}">{e(domain())}</span></div>{c}</div>')
