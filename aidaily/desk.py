@@ -795,10 +795,15 @@ def story_frame(img, kicker="New post"):
 
 
 def _published(hours):
+    """Feed posts readers have had in the last `hours`: those Instagram published, and web-tier posts (on the site,
+    Threads and Bluesky) at or above social_min_score. Instagram alone starved every story on 2026-11-27: a
+    cooldown and the daily cap left 3 Instagram posts in 24 hours beside 48 on the web tier, so each builder
+    stayed under its minimum and skipped without a word."""
     cut = (now() - timedelta(hours=hours)).isoformat()
     # Sport is website-only: no story format may carry it, so every builder reads its posts through here
-    return [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") not in ("story", "data")
-            and p.get("published", "") > cut and social_allowed(p)]
+    return [p for p, _ in posts() if (p.get("status") == "published"
+                                      or (p.get("status") == "web" and (p.get("score") or 0) >= CONFIG["social_min_score"]))
+            and p.get("kind") not in ("story", "data", "reel") and p.get("published", "") > cut and social_allowed(p)]
 
 
 def _queue_story(pid, html, title, delay=0, **extra):

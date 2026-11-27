@@ -1587,6 +1587,19 @@ class Formats(Tmp):
         with mock.patch.dict(desk.CONFIG, {"story_quota_stop": 3}):
             self.assertEqual(self.run_at(_at(4, 6), "last12"), {})
 
+    def test_web_tier_posts_feed_the_stories_when_instagram_published_none(self):
+        """2026-11-27: an Instagram cooldown and the daily cap left 3 Instagram posts beside 48 web-tier ones, and every
+        story builder read Instagram's alone, so nothing was built all day and no reason was printed."""
+        w = _at(4, 6, 30)
+        for i in range(3):
+            self.write_post(f"2026-11-2x-w{i}", status="web", tier="web", headlines=[f"Web headline {i}"], score=9.5,
+                            published=(w - timedelta(hours=1 + i)).isoformat())
+        self.write_post("2026-11-2x-low", status="web", tier="web", headlines=["Below the social bar"], score=8.1,
+                        published=(w - timedelta(hours=1)).isoformat())
+        out = self.run_at(w, "last12")
+        self.assertEqual(list(out), ["last12"])
+        self.assertNotIn("Below the social bar", out["last12"])
+
     def test_copy_rules_hold_in_every_format(self):
         """Nothing a reader sees says story, AI, or a stock phrase; question slides end on the same footer."""
         w = _at(2, 11)  # Wednesday: the Fill the number day
