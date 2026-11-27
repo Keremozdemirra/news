@@ -21,13 +21,15 @@ class SiteMeta(Tmp):
         new, old = desk.now(), desk.now() - timedelta(days=5)
         for pid, when, head in (("2026-11-26-1300-1", new, "A very long headline " * 8), ("2026-11-21-1300-1", old, "Old story")):
             self.write_post(pid, status="published", published=when.isoformat(), headlines=[head], dek="Dek <b>here</b>.",
-                            body="Body.", sources=["CNBC"], source_urls=["https://www.cnbc.com/x"], categories=["policy"])
+                            body="Body.", sources=["CNBC"], source_urls=["https://www.cnbc.com/x"], categories=["policy"], photo_kind="person")
             (desk.MEDIA / pid).mkdir(parents=True)
             (desk.MEDIA / pid / "thumb.jpg").write_text("x")
         (desk.MEDIA / "2026-11-26-1300-1" / "photo.jpg").write_text("x")
         # a stand-in for ffmpeg: the real cut is checked by hand, here only that its result is wired in
         stub = lambda *a: a[-1].write_bytes(b"jpg") or True  # noqa: E731
-        with mock.patch.object(site, "og_image", side_effect=stub), mock.patch.object(site, "share_card", side_effect=stub):
+        crop = lambda ph, dest, *a, **k: dest.write_bytes(b"jpg") or True  # noqa: E731
+        with mock.patch.object(site, "og_image", side_effect=stub), mock.patch.object(site, "share_card", side_effect=stub), \
+                mock.patch.object(site, "crop_image", side_effect=crop):
             return site.build(self.root / "_site")
 
     def test_every_page_carries_preview_tags(self):
@@ -94,8 +96,46 @@ class SitePages(SiteMeta):
         out = self.build()
         for f in ("latest/index.html", "archive/index.html", f"archive/{desk.now():%Y-%m-%d}/index.html", "search/index.html",
                   "about/index.html", "standards/index.html", "contact/index.html",
-                  "404.html", "robots.txt", "search.json", "assets/site.css", "assets/site.js", "t/ai/index.html", "week/index.html"):
+                  "404.html", "robots.txt", "llms.txt", "search.json", "assets/site.css", "assets/site.js", "t/ai/index.html", "week/index.html"):
             self.assertTrue((out / f).exists(), f)
+
+    def test_structured_data_gives_google_three_crops_a_visible_byline_and_list_pages_an_itemlist(self):
+        out = self.build()
+        h = (out / "s" / "2026-11-26-1300-1" / "index.html").read_text()
+        ld = json.loads(LD.search(h).group(1))
+        self.assertEqual([u.rsplit("-", 1)[1] for u in ld["image"]], ["16x9.jpg", "4x3.jpg", "1x1.jpg"])
+        for u in ld["image"]:
+            self.assertTrue((out / u.replace(site.ORIGIN + site.BASE, "").lstrip("/")).exists(), u)
+        self.assertIn(f'<span class="by">By <a href="{site.BASE}/about/">Boardread</a></span>', h)  # the byline Google News looks for
+        photoless = json.loads(LD.search((out / "s" / "2026-11-21-1300-1" / "index.html").read_text()).group(1))
+        self.assertEqual(len(photoless["image"]), 1)  # no photo: the one share card
+        home = (out / "index.html").read_text()
+        self.assertNotIn("SearchAction", home)  # nothing on the site reads it
+        pages = ["latest/index.html"] + [f"t/{d.name}/index.html" for d in sorted((out / "t").iterdir()) if d.is_dir()]
+        with_list = 0
+        for page in pages:
+            colls = [x for x in (json.loads(y) for y in LD.findall((out / page).read_text())) if x["@type"] == "CollectionPage"]
+            self.assertEqual(len(colls), 1, page)
+            if "mainEntity" in colls[0]:
+                with_list += 1
+                self.assertEqual(colls[0]["mainEntity"]["@type"], "ItemList")
+                self.assertTrue(colls[0]["mainEntity"]["itemListElement"][0]["url"].startswith("https://"))
+        self.assertGreaterEqual(with_list, 2)  # Latest and the section the story is in
+        self.assertTrue(any(json.loads(x)["@type"] == "CollectionPage" for x in LD.findall((out / "numbers" / "index.html").read_text()))
+                        if (out / "numbers" / "index.html").exists() else True)
+
+    def test_llms_txt_names_the_site_its_sections_newest_articles_standards_and_feeds(self):
+        out = self.build()
+        txt = (out / "llms.txt").read_text()
+        lines = txt.splitlines()
+        self.assertLess(len(lines), 40)
+        self.assertEqual(lines[0], "# Boardread")
+        self.assertTrue(lines[2].startswith("> "))
+        for head in ("## Sections", "## Latest", "## Standards", "## Feeds"):
+            self.assertIn(head, lines)
+        self.assertIn(f"{site.SITE}/s/2026-11-26-1300-1/", txt)
+        self.assertIn(f"{site.SITE}/news-sitemap.xml", txt)
+        self.assertIn(f"{site.SITE}/standards/", txt)
 
     def test_search_index_has_the_fields_the_script_reads(self):
         out = self.build()

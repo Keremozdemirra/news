@@ -180,7 +180,8 @@ def build_views(out, shown, sm, m, days):
     for path, title, body, desc, active in pages:
         if active not in S.SHIPPED:  # a page is built only once it has shipped, so no menu or link points at a missing page
             continue
-        S.put(out, path, S.page(title, body(), desc, path, active=active, body_class="v-" + active))
+        S.put(out, path, S.page(title, body(), desc, path, active=active, body_class="v-" + active,
+                                ld=S.collection_ld(title.replace(" · boardread.", ""), desc, path) if path == "/numbers/" else None))
         sm.append((S.SITE + path, latest))
     if "paper" not in S.SHIPPED:
         return

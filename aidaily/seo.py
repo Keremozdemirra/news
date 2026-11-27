@@ -9,6 +9,7 @@ Errors (things that break eligibility or point Google at the wrong address):
     publisher logo; a headline over 110 characters
   - a sitemap <loc> outside site_url; a news sitemap over 1,000 entries; a noindex page listed in a sitemap
   - an internal link to a file that does not exist
+  - no /llms.txt, or one without an H1 or over 40 lines
 Warnings: images without width and height (layout shift), pages over 200 KB of HTML, news-sitemap entries older
 than two days, robots.txt not naming every sitemap.
 
@@ -162,6 +163,11 @@ def audit(root, site_url, now=None):
                 except ValueError:
                     out.append(("error", "/" + name, f"publication_date not ISO 8601: {d}"))
                     break
+    llms = root / "llms.txt"
+    if not llms.exists():
+        out.append(("error", "/llms.txt", "missing: the file that tells language-model agents what the site is"))
+    elif len(llms.read_text().splitlines()) > 40 or not llms.read_text().startswith("# "):
+        out.append(("error", "/llms.txt", "must start with an H1 and stay under 40 lines"))
     robots = root / "robots.txt"
     if robots.exists():
         r = robots.read_text()

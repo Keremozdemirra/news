@@ -657,19 +657,27 @@ def share_links(p):
             f'<button type="button" data-share data-url="{E(u)}" data-title="{E(h)}" hidden>Share</button></div>')
 
 
-def og_image(photo, dest, at=None, size=None):
-    """A 1200x630 JPEG cut from the article's photo, for link previews (Facebook, Telegram, Threads, X).
-
-    The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop whose window is centred on the
-    photo's focal point (the face of a portrait), as far as the edges allow. ffmpeg is on the Actions image and on the desk's Mac."""
-    px, py = focus.position(at or focus.PRIOR_SCENE, size or focus.jpeg_size(photo) or (OG_W, OG_H), OG_W / OG_H)
-    vf = f"scale={OG_W}:{OG_H}:force_original_aspect_ratio=increase,crop={OG_W}:{OG_H}:(iw-{OG_W})*{px:.4f}:(ih-{OG_H})*{py:.4f}"
+def crop_image(photo, dest, w, h, at=None, size=None):
+    """A w x h JPEG cut from the article's photo: a cover crop whose window is centred on the photo's focal point (the face of a
+    portrait), as far as the edges allow. The photos are 1050-1400 px wide in every aspect ratio. ffmpeg is on the Actions image
+    and on the desk's Mac. False when the cut fails: the article still builds."""
+    px, py = focus.position(at or focus.PRIOR_SCENE, size or focus.jpeg_size(photo) or (w, h), w / h)
+    vf = f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}:(iw-{w})*{px:.4f}:(ih-{h})*{py:.4f}"
     try:
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "3", str(dest)],
                        check=True, capture_output=True, timeout=60)
     except (OSError, subprocess.SubprocessError):
-        return False  # the article still builds; its preview falls back to the shared image
+        return False
     return True
+
+
+def og_image(photo, dest, at=None, size=None):
+    """A 1200x630 JPEG cut from the article's photo, for link previews (Facebook, Telegram, Threads, X); the preview falls back to the shared image."""
+    return crop_image(photo, dest, OG_W, OG_H, at, size)
+
+
+# the three shapes Google asks the article's image in (structured data), cut from the same photo as the preview
+LD_CROPS = (("16x9", 1200, 675), ("4x3", 1200, 900), ("1x1", 1200, 1200))
 
 
 def card_html(p, photo=None):
@@ -766,7 +774,7 @@ def article_ld(p, image):
     url = f"{SITE}/s/{p['id']}/"
     ld = {"@context": "https://schema.org", "@type": "NewsArticle", "mainEntityOfPage": {"@type": "WebPage", "@id": url},
           "headline": clip(p["headlines"][0], 110), "description": p.get("dek", ""),
-          "image": [ORIGIN + (image or DEFAULT_OG)], "datePublished": iso(p["published"]), "dateModified": iso(max([p["published"]] + [c["time"] for c in CORRECTIONS.get(p["id"], [])], key=dt)),
+          "image": ([f"{ORIGIN}{BASE}/og/{p['id']}-{n}.jpg" for n in p["_crops"]] if p.get("_crops") else [ORIGIN + (image or DEFAULT_OG)]), "datePublished": iso(p["published"]), "dateModified": iso(max([p["published"]] + [c["time"] for c in CORRECTIONS.get(p["id"], [])], key=dt)),
           "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
           "author": {"@type": "Organization", "name": NAME, "url": SITE + "/about/"},
           "publisher": seo.organization(SITE, NAME, accounts())}
@@ -987,7 +995,7 @@ def story(p, rows, cos=None, counts=None):
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1>{f'<p class="dek">{E(p["dek"])}</p>' if (p.get("dek") or "").strip() else ""}
-<div class="mt art-meta"><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div>{sources}{notes}</header>
+<div class="mt art-meta"><span class="by">By <a href="{BASE}/about/">Boardread</a></span><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div>{sources}{notes}</header>
 {fig}
 <div class="art-body">{f'<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>' if paras else ""}
 <p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work</a>. <a href="{report_link(p)}" rel="noopener nofollow">Report an error</a>.</p>
@@ -1148,12 +1156,33 @@ def not_found(rows=()):
 {'<section class="latest"><h2 class="sh"><a href="' + BASE + '/latest/">Latest</a></h2>' + views.latest_list(rows) + "</section>" if rows else f'<p><a href="{BASE}/latest/">Latest</a></p>'}</div>"""
 
 
+def llms_txt(shown, news):
+    """/llms.txt (llmstxt.org): what the site is, where its sections, newest articles, standards and feeds are, in under 40 lines."""
+    lines = [f"# {NAME}", "", f"> {TAGLINE}. Articles are written by an AI system from the sources named on each one and checked by code before publishing. All times UTC.", "",
+             "## Sections"]
+    lines += [f"- [{t}]({SITE}{topic_path(t)}): {TOPICS[t]}" if t in TOPICS else f"- [{t}]({SITE}{topic_path(t)})" for t in TOPIC_ORDER]
+    lines += ["", "## Latest"] + [f"- [{p['headlines'][0]}]({SITE}/s/{p['id']}/)" for p in news[:6]]
+    lines += ["", "## Standards", f"- [About]({SITE}/about/)", f"- [How it works]({SITE}/how-it-works/)",
+              f"- [Standards and corrections]({SITE}/standards/)", f"- [Corrections]({SITE}/corrections/)", f"- [Contact]({SITE}/contact/)",
+              "", "## Feeds", f"- [RSS]({SITE}/feed.xml)", f"- [Sitemap]({SITE}/sitemap.xml)", f"- [News sitemap]({SITE}/news-sitemap.xml)"]
+    return "\n".join(lines) + "\n"
+
+
 # ---------------------------------------------------------------- build
 
 def put(out, path, html_):
     d = out / path.strip("/")
     d.mkdir(parents=True, exist_ok=True)
     (d / "index.html").write_text(html_)
+
+
+def collection_ld(title, desc, path, rows=()):
+    """A list page for search engines: a CollectionPage, and the articles it lists as an ItemList in the order shown."""
+    ld = {"@context": "https://schema.org", "@type": "CollectionPage", "name": title, "description": desc, "url": SITE + path, "inLanguage": "en",
+          "isPartOf": {"@type": "WebSite", "name": NAME, "url": SITE + "/"}}
+    if rows:
+        ld["mainEntity"] = {"@type": "ItemList", "itemListElement": [{"@type": "ListItem", "position": i, "url": f"{SITE}/s/{p['id']}/"} for i, p in enumerate(rows, 1)]}
+    return ld
 
 
 def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, feed=None, own=None, days=True):
@@ -1166,9 +1195,10 @@ def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, fe
             rel["prev"] = path if n == 2 else f"{path}page/{n - 1}/"
         if n < total:
             rel["next"] = f"{path}page/{n + 1}/"
+        chunk = rows[(n - 1) * PER:n * PER]
         put(out, here, page(title + (f" · page {n}" if n > 1 else "") + " · boardread.",
-                            head + listing(rows[(n - 1) * PER:n * PER], path, n, total, aside if n == 1 else "", own, days),
-                            desc, here, active=active, rel=rel, feed=feed))
+                            head + listing(chunk, path, n, total, aside if n == 1 else "", own, days),
+                            desc, here, active=active, rel=rel, feed=feed, ld=collection_ld(title, desc, here, chunk)))
         if sitemap is not None and rows:
             sitemap.append((SITE + here, iso(max(p["published"] for p in rows))))
 
@@ -1270,7 +1300,11 @@ def build(out=desk.HERE / "_site"):
         photo = photo if photo.exists() else None
         dest = out / "og" / f"{p['id']}.jpg"
         m = PHOTOS.get(p["id"], {})
-        return share_card(p, photo, dest) or bool(photo and og_image(photo, dest, m.get("focus"), m.get("dim")))
+        ok = share_card(p, photo, dest) or bool(photo and og_image(photo, dest, m.get("focus"), m.get("dim")))
+        src = desk.MEDIA / p["id"] / "photo.jpg"
+        if photo and src.exists() and not generic_photo(p):  # a stand-in photo is not offered to Google as the article's picture
+            p["_crops"] = [n for n, w, h in LD_CROPS if crop_image(src, out / "og" / f"{p['id']}-{n}.jpg", w, h, m.get("focus"), m.get("dim"))]
+        return ok
     with ThreadPoolExecutor(max_workers=6) as pool:
         for p, ok in zip(shown, pool.map(card, shown)):
             if ok:
@@ -1290,7 +1324,6 @@ def build(out=desk.HERE / "_site"):
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
     if news:
         site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/", "inLanguage": "en",
-                   "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"},
                    "publisher": seo.organization(SITE, NAME, accounts())}
         put(out, "/", page(f"boardread. · {TAGLINE}", views.front(news, companies(news), MARKETS, sport), desc, "/", ld=site_ld, front=True))
     else:
@@ -1377,6 +1410,7 @@ def build(out=desk.HERE / "_site"):
     (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
         "display": "browser", "background_color": "#ffffff", "theme_color": "#ffffff",
         "icons": [{"src": f"{BASE}/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": f"{BASE}/icon-512.png", "sizes": "512x512", "type": "image/png"}]}))
+    (out / "llms.txt").write_text(llms_txt(shown, news))
     (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\nSitemap: {SITE}/news-sitemap.xml\n")
     (out / ".nojekyll").write_text("")
     print(f"site: {len(shown)} articles, {len(weeks)} weeks -> {out}")

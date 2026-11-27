@@ -40,8 +40,19 @@ class Audit(unittest.TestCase):
         self.put("s/a/index.html", html("/s/a/", ARTICLE))
         self.put("sitemap.xml", f"<urlset><url><loc>{SITE}/</loc></url><url><loc>{SITE}/s/a/</loc></url></urlset>")
         self.put("robots.txt", f"Sitemap: {SITE}/sitemap.xml\n")
+        self.put("llms.txt", "# Boardread\n\n> The news that moves business.\n")
         self.assertEqual(self.found(), [])
         self.assertEqual(self.found("warn"), [])
+
+    def test_llms_txt_is_part_of_the_gate(self):
+        self.put("index.html", html("/"))
+        self.assertTrue(any("llms.txt" in w or "language-model" in w for w in self.found()))  # missing: an error
+        self.put("llms.txt", "no heading\n")
+        self.assertTrue(any("H1" in e for e in self.found()))
+        self.put("llms.txt", "# Boardread\n" + "- a\n" * 45)
+        self.assertTrue(any("40 lines" in e for e in self.found()))
+        self.put("llms.txt", "# Boardread\n- a\n")
+        self.assertEqual(self.found(), [])
 
     def test_old_address_and_foreign_canonical_are_errors(self):
         self.put("index.html", html("/", extra='<a href="https://keremozdemir.de/news/s/a/">old</a>'))
@@ -81,6 +92,7 @@ class Audit(unittest.TestCase):
         self.assertTrue(any("news-sitemap.xml" in w for w in warns))
 
     def test_main_exit_code(self):
+        self.put("llms.txt", "# Boardread\n")
         self.put("index.html", html("/", canonical=False))
         self.assertEqual(seo.main(self.root, SITE), 1)
         self.put("index.html", html("/"))

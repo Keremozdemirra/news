@@ -148,7 +148,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .srcs a{text-decoration:underline;text-underline-offset:3px}
 .srcs .tag{border:1px solid var(--ink);padding:0 6px;font:600 12px/1.6 var(--f)}
 .art-meta{display:flex;flex-wrap:wrap;gap:4px var(--s2);padding:var(--s1) 0 var(--s1);margin:0}
-.art-meta span+span::before{content:"\00b7";margin-right:var(--s2)}
+.art-meta>*+*::before{content:"\00b7";margin-right:var(--s2)}.art-meta .by a{text-decoration:underline;text-underline-offset:3px}
 .art figure{margin:0 0 var(--s4)}.art figure img{width:100%;aspect-ratio:16/9;object-fit:cover;object-position:50% 25%}
 .art .pic{aspect-ratio:16/9;display:block;background:var(--wash)}
 .art figcaption{margin-top:var(--s1)}
@@ -328,7 +328,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 /* rows carry no image (v2); the lead of a listing is 16:9 */
 .listing .row{grid-template-columns:minmax(0,1fr)}.listing .row .pic,.row:not(.dep) .pic{display:none}
 .leadrow .pic{aspect-ratio:16/9;max-height:480px;margin-top:var(--s2)}.dayh{margin-top:var(--s4)}.dayh:first-child{margin-top:var(--s2)}.earlier{margin:var(--s4) 0 0}.earlier a{font:600 15px var(--f);color:var(--ink);border-bottom:1px solid var(--ink)}
-@media(max-width:720px){.art-meta span+span::before{margin-right:var(--s1)}}
+@media(max-width:720px){.art-meta>*+*::before{margin-right:var(--s1)}}
 .bside .rtgrid{grid-template-columns:1fr}.bside .rt{grid-template-columns:1fr auto}.bside .rt .rs{display:none}.bside .rt .rc{grid-column:2}
 
 /* ---- touch: a link that stands alone is at least 44 px to hit. The padding is cancelled by an equal negative margin, so the page does not move. ---- */
