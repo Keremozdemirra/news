@@ -9,6 +9,7 @@ free: on 2026-09-28 every TechCrunch photo of Dario Amodei on Commons said
 CC BY 2.0 while its EXIF said "2023 Getty Images".
 """
 import json
+import unicodedata
 import re
 import urllib.parse
 import urllib.request
@@ -39,6 +40,11 @@ def _slug(name):
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
 
 
+def _fold(text):
+    """"Hernández" and "Hernandez" are one name: accents go before names are compared."""
+    return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+
+
 def _entity(name):
     q = urllib.parse.quote(name)
     hits = _get(f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=1&search={q}")["search"]
@@ -54,7 +60,8 @@ ROLE_STOP = set("the of and for a an in at to who is was former current born ame
 
 
 def _role_words(text):
-    return {w[:6] for w in re.findall(r"[a-z]+", (text or "").lower()) if len(w) > 2 and w not in ROLE_STOP}
+    # accents folded and hyphens split: "Hernández" is "hernandez", "Calvert-Lewin" two words
+    return {w[:6] for w in re.findall(r"[a-z]+", _fold(text or "").lower()) if len(w) > 2 and w not in ROLE_STOP}
 
 
 def person_entity(name, role):
@@ -74,6 +81,9 @@ def person_entity(name, role):
         if want & _role_words(h.get("description", "")):
             qid = h["id"]
             ent = _get(f"https://www.wikidata.org/wiki/Special:EntityData/{qid}.json")["entities"][qid]
+            # a human (Q5), never a film, a band or a ship that carries the name
+            if "Q5" not in _claim_ids(ent.get("claims", {}), "P31"):
+                continue
             return ent.get("labels", {}).get("en", {}).get("value", name), ent.get("claims", {})
     return None, {}
 
@@ -82,12 +92,31 @@ def person_entity(name, role):
 SEARCHED = set()
 
 
+# what a company's Wikidata description says, and what a namesake's says: the TV channel "Minimax" stood in for the AI
+# company MiniMax, and "Parliament" found the UK's (logo: the portcullis) on an Indian story (2026-11-27)
+COMPANY_DESC = re.compile(r"\b(company|companies|corporation|conglomerate|firm|startup|start-up|developer|maker|manufacturer|"
+                          r"producer|retailer|airline|carrier|bank|insurer|lender|brand|platform|provider|operator|group|"
+                          r"chain|publisher|studio|enterprise|business|holding|automaker|carmaker|chipmaker|laborator(?:y|ies)|"
+                          r"exchange|network|service|software|games?|website|app|marketplace|fund|investment|asset manager)\b", re.I)
+NOT_COMPANY = re.compile(r"\b(television channel|tv channel|youtube channel|television station|legislature|parliament|chamber|city|town|"
+                         r"village|country|state of|province|river|mountain|film|novel|album|song|band|given name|surname|"
+                         r"family name|genus|species|disambiguation|episode|character)\b", re.I)
+
+
 def company_entity(name):
-    """(label, claims) of the Wikidata entity for a company name, or LookupError when the top hit is not it.
+    """(label, claims) of the Wikidata entity for a company name, or LookupError when none of the top hits is it.
 
     The top search hit can be a neighbour of the company: "S&P" finds the S&P 500 index. Logos and tickers
-    both come from this one lookup, so they can never disagree about which entity is the company."""
-    label, claims = _entity(name)
+    both come from this one lookup, so they can never disagree about which entity is the company. A hit counts only
+    when its description says it is a company and not a channel, a legislature or a place."""
+    q = urllib.parse.quote(name)
+    hits = _get(f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=7&search={q}")["search"]
+    hit = next((h for h in hits if _fold(h.get("label", "")).lower().startswith(_fold(name).lower())
+                and COMPANY_DESC.search(h.get("description", "")) and not NOT_COMPANY.search(h.get("description", ""))), None)
+    if hit is None:
+        raise LookupError(f"no company named {name!r} on Wikidata")
+    ent = _get(f"https://www.wikidata.org/wiki/Special:EntityData/{hit['id']}.json")["entities"][hit["id"]]
+    label, claims = ent.get("labels", {}).get("en", {}).get("value", name), ent.get("claims", {})
     extra = (label or "").lower().replace(name.lower(), "", 1) if label and name.lower() in label.lower() else None
     # words may follow the name ("Norse Atlantic Airways", "Meta Platforms") but not precede it, unless they are a
     # legal form: "Congress" found the United States Congress and its seal went on a car-import post as a logo
@@ -151,18 +180,6 @@ def photo_ok(info):
     return True, f"Photo: {artist or 'Wikimedia Commons'}, {lic}, via Wikimedia Commons"
 
 
-def _site_icon(site, name):
-    html = _get(site, raw=True).decode("utf-8", "ignore")
-    title = re.search(r"<title[^>]*>(.*?)</title>", html, re.S | re.I)
-    if not title or name.split()[0].lower() not in title.group(1).lower():
-        return None  # the domain does not say it belongs to this company
-    links = re.findall(r'<link[^>]+rel=["\'][^"\']*(?:apple-touch-icon|icon)[^"\']*["\'][^>]*>', html, re.I)
-    hrefs = [re.search(r'href=["\']([^"\']+)', l).group(1) for l in links if "href" in l]
-    # the largest square icon a site offers is its webclip / apple-touch-icon
-    hrefs.sort(key=lambda h: ("webclip" in h.lower() or "apple" in h.lower() or "180" in h, h.endswith(".svg")), reverse=True)
-    return urllib.parse.urljoin(site, hrefs[0]) if hrefs else None
-
-
 def logo(name, domain="", fetch=True):
     """Path to a cached logo file, or None."""
     if not name:
@@ -183,17 +200,14 @@ def logo(name, domain="", fetch=True):
             if not domain:
                 raise LookupError(f"{name!r} is a place on Wikidata")
         f = pick_logo(label or name, claims)
-        if f:
-            url = _commons_info(f, width=600 if not f.lower().endswith(".svg") else None)
-            src = url.get("thumburl") or url["url"]
-            ext = "svg" if f.lower().endswith(".svg") else "png"
-        else:
-            site = domain and f"https://{domain}" or next(
-                (c["mainsnak"]["datavalue"]["value"] for c in claims.get("P856", []) if "datavalue" in c["mainsnak"]), "")
-            src = _site_icon(site, name) if site else None
-            ext = "svg" if src and src.lower().endswith(".svg") else "png"
-        if not src:
-            raise LookupError("no logo")
+        if not f:
+            raise LookupError("no logo on Wikidata")
+        # the same licence gate as a photo (CC0, public domain, CC BY), and nothing scraped from a website
+        url = _commons_info(f, width=600 if not f.lower().endswith(".svg") else None)
+        if not photo_ok(url)[0]:
+            raise LookupError(f"logo {f!r} fails the licence check")
+        src = url.get("thumburl") or url["url"]
+        ext = "svg" if f.lower().endswith(".svg") else "png"
         data = _get(src, raw=True)
         if ext == "svg":  # strip styles and scripts from a file we embed
             s = data.decode("utf-8", "ignore")
@@ -202,8 +216,10 @@ def logo(name, domain="", fetch=True):
         p = CACHE / f"logo-{_slug(name)}.{ext}"
         p.write_bytes(data)
         return p
-    except Exception:  # noqa: BLE001  a miss is recorded so the next run does not ask again
+    except LookupError:  # a real miss is recorded so the next run does not ask again
         (CACHE / f"logo-{_slug(name)}.none").write_text("")
+        return None
+    except Exception:  # noqa: BLE001  a network error is not an answer: no logo now, ask again next run
         return None
 
 
@@ -737,7 +753,10 @@ def candidates(subject, person=False, company=False, role=None, venue=False):
         # beyond the Wikidata image, only files whose names say they are a picture of the person: a crop,
         # a portrait, an official photo. A Commons category also holds protest signs, cartoons and posters
         # about a politician, and one of those once landed on a tariff story.
+        # a file found by search must carry the name in its order: "Frank Thomas 1997" is a baseball player, not
+        # the football manager Thomas Frank; the person's own category is trusted as it is
         files = lead + [f for f in files[len(lead):] if need <= _words(f) and FACE.search(f)
+                        and (f in category or phrase_in(_fold(subject), _fold(f)))
                         and not GROUP.search(own.sub("", f)) and not PEOPLE_ART.search(f)]
         SEARCHED.update(f for f in searched if f not in category)
     else:

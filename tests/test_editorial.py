@@ -305,10 +305,11 @@ class Photos(unittest.TestCase):
         # the FBI's Andrew Bailey once ran on a Bank of England governor's post
         hits = {"search": [{"id": "Q1", "label": "Andrew Bailey", "description": "American lawyer, FBI deputy director"},
                            {"id": "Q2", "label": "Andrew Bailey", "description": "British economist, Governor of the Bank of England"}]}
-        ent = {"entities": {"Q2": {"labels": {"en": {"value": "Andrew Bailey"}}, "claims": {"P18": ["x"]}}}}
+        human = {"P18": ["x"], "P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q5"}}}}]}
+        ent = {"entities": {"Q2": {"labels": {"en": {"value": "Andrew Bailey"}}, "claims": human}}}
         with mock.patch.object(E, "_get", side_effect=[hits, ent]):
             label, claims = E.person_entity("Andrew Bailey", "British economist, Bank of England governor")
-        self.assertEqual(claims, {"P18": ["x"]})
+        self.assertEqual(claims, human)
         with mock.patch.object(E, "_get", return_value=hits):
             self.assertEqual(E.person_entity("Andrew Bailey", "Australian cricketer"), (None, {}))
         self.assertEqual(E.person_entity("Andrew Bailey", ""), (None, {}))  # no role, no guess

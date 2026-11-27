@@ -101,7 +101,10 @@ def pick_photo(story, head_, co, fetch=True, sport=False):
     # then the named institution or ground (a central bank, a court, a parliament, a stadium; a club's home ground),
     # resolved by its Wikidata class: Bank of Japan's head office, not Antwerp's cranes
     venue = story.get("venue", "") or (co if sport else "")
-    for tag, subject in [("person", (story.get("person", ""), True, story.get("person_role", "") if not sport else None)),
+    # a sport story's person is checked too: "Thomas Frank" found an American author for a Palace manager's first win
+    role = story.get("person_role", "") or ("football soccer basketball tennis cricket golf racing driver boxer athlete "
+                                             "player manager coach sportsperson" if sport else "")
+    for tag, subject in [("person", (story.get("person", ""), True, role)),
                          ("company", (story.get("image_query", "") if sport else own_co, False)),
                          ("place", (venue, False, None, "venue"))]:
         ph, credit, file_ = entities.fresh_photo([subject], USED, fetch=fetch, allow=allow, teams=sport)

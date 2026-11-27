@@ -30,7 +30,7 @@ def wikidata(label, *listings, delisted=False):
                                         if sym and l["mainsnak"]["datavalue"]["value"]["id"] == (NYSE if ex == "otherlisted" else NASDAQ)]
             return ("Symbol|Security Name|x|y\n" + "\n".join(rows) + "\nFile Creation Time: 1126202600:00|||\n").encode()
         if "wbsearchentities" in url:
-            return {"search": [{"id": "Q1"}]}
+            return {"search": [{"id": "Q1", "label": label, "description": "company"}]}
         return {"entities": {"Q1": {"labels": {"en": {"value": label}}, "claims": {"P414": list(listings)}}}}
     return get
 

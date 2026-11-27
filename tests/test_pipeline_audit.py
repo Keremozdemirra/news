@@ -266,3 +266,56 @@ class VenueTier(unittest.TestCase):
              mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC BY 2.0")), \
              mock.patch.object(entities, "_get", side_effect=AssertionError("must not download")):
             self.assertEqual(entities.fresh_photo([("Lincoln Financial Field", False)], set(), allow="Eagles")[2], "")
+
+
+class Identity(unittest.TestCase):
+    """Photo plan item 5: the right person, the right company, a licensed logo."""
+
+    def test_a_tv_channel_or_a_legislature_is_never_the_company(self):
+        def fake(url, raw=False):
+            if "wbsearchentities" in url and "MiniMax" in url:
+                return {"search": [{"id": "Q1", "label": "Minimax", "description": "Czech television channel for children"},
+                                   {"id": "Q2", "label": "MiniMax Group", "description": "Chinese artificial intelligence company"}]}
+            if "wbsearchentities" in url:
+                return {"search": [{"id": "Q3", "label": "Parliament of the United Kingdom", "description": "legislature of the UK"},
+                                   {"id": "Q4", "label": "Parliament", "description": "legislative body of a state"}]}
+            return {"entities": {"Q2": {"labels": {"en": {"value": "MiniMax Group"}}, "claims": {}}}}
+        with mock.patch.object(entities, "_get", side_effect=fake):
+            self.assertEqual(entities.company_entity("MiniMax")[0], "MiniMax Group")
+            with self.assertRaises(LookupError):
+                entities.company_entity("Parliament")
+
+    def test_a_logo_passes_the_photo_licence_gate_and_a_network_error_is_not_cached(self):
+        claims = {"P154": [{"mainsnak": {"datavalue": {"value": "Acme logo.svg"}}}]}
+        with tempfile_cache() as cache, \
+             mock.patch.object(entities, "company_entity", return_value=("Acme", claims)), \
+             mock.patch.object(entities, "_commons_info", return_value={"url": "u", "extmetadata": {
+                 "LicenseShortName": {"value": "CC BY-SA 4.0"}}}):
+            self.assertIsNone(entities.logo("Acme"))
+            self.assertTrue((cache / "logo-acme.none").exists())
+        with tempfile_cache() as cache, mock.patch.object(entities, "company_entity", side_effect=OSError("timeout")):
+            self.assertIsNone(entities.logo("Acme"))
+            self.assertFalse((cache / "logo-acme.none").exists())
+
+    def test_a_namesake_in_reversed_order_is_not_the_person(self):
+        claims = {"P31": [{"mainsnak": {"datavalue": {"value": {"id": "Q5"}}}}]}
+        def fake(url, raw=False):
+            if "wbsearchentities" in url:
+                return {"search": [{"id": "Q9", "label": "Thomas Frank", "description": "Danish association football manager"}]}
+            if "EntityData" in url:
+                return {"entities": {"Q9": {"labels": {"en": {"value": "Thomas Frank"}}, "claims": claims}}}
+            return {"query": {"search": [{"title": "File:Frank Thomas 1997 CROP cropped.jpg"},
+                                         {"title": "File:Thomas Frank 2024 (cropped).jpg"}]}}
+        with mock.patch.object(entities, "_get", side_effect=fake):
+            self.assertEqual(entities.candidates("Thomas Frank", True, role="football manager"), ["Thomas Frank 2024 (cropped).jpg"])
+
+
+from contextlib import contextmanager  # noqa: E402
+
+
+@contextmanager
+def tempfile_cache():
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory() as d, mock.patch.object(entities, "CACHE", Path(d)):
+        yield Path(d)
