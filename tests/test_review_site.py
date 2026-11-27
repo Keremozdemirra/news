@@ -37,6 +37,19 @@ class Ranking(unittest.TestCase):
         self.assertLess(html.index('class="lead"'), html.index('class="top5"'))
         self.assertIn(".front .lead .rates", (site.ASSETS / "views.css").read_text())
 
+    def test_todays_puzzles_link_every_live_game_in_the_rail_and_under_the_top_stories(self):
+        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(8)]
+        from aidaily import play
+        with mock.patch.object(site, "SHIPPED", {"play"}):
+            html = views.front(rows, {}, None)
+        self.assertEqual(html.count('class="puzzles inrail"'), 1)
+        self.assertEqual(html.count('class="puzzles inlead"'), 1)
+        for slug, title, _, _ in play.live():
+            self.assertEqual(html.count(f'href="/play/{slug}/"'), 2)
+        self.assertLess(html.index('class="top5"'), html.index('class="puzzles inlead"'))
+        with mock.patch.object(site, "SHIPPED", set()):
+            self.assertNotIn("puzzles", views.front(rows, {}, None))
+
     def test_section_rows_pads_a_quiet_section_with_older_articles(self):
         rows = [fake("a", "New one", "Tech", hours=1), fake("b", "Old one", "Tech", hours=40)]
         got = views.section_rows(rows, site.dt(rows[0]["published"]))

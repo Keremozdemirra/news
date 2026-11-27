@@ -117,6 +117,16 @@ def section_rows(rows, newest, n=4):
     return (top + [p for p in rows if id(p) not in day])[:n]
 
 
+def puzzles_block(cls=""):
+    """"Today's puzzles": one link per live game. Static: no state about the visitor. Empty while no game is live."""
+    from . import play
+    games = play.live() if "play" in S.SHIPPED else []
+    if not games:
+        return ""
+    items = "".join(f'<li><a href="{S.BASE}/play/{slug}/">{E(title)}</a></li>' for slug, title, _, _ in games)
+    return f'<section class="puzzles {cls}" aria-label="Today\'s puzzles"><h2 class="sh"><a href="{S.BASE}/play/">Today\'s puzzles</a></h2><ul>{items}</ul></section>'
+
+
 def top5_list(ranked, n=5):
     """The phone's scan list right after the lead: the next five headlines with their age, no pictures. The desktop has the rail."""
     items = "".join(f'<li><a href="{S.href(p)}"><span>{E(p["headlines"][0])}</span>{rel_time(p)}</a></li>' for p in ranked[1:1 + n])
@@ -150,7 +160,7 @@ def front(shown, cos, m, sport=()):
     lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}{S.topic_path(S.topic(lead))}">{E(S.topic(lead))}</a>'
                  f'<h2 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h2><p class="dk">{E(lead.get("dek", ""))}</p>'
                  f'<div class="mt">{rel_time(lead)} &middot; {nroom(lead)}</div>{fig}'
-                 f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{top5_list(ranked)}{markets.rates_box(m, S.BASE)}</div>')
+                 f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{top5_list(ranked)}{puzzles_block("inlead")}{markets.rates_box(m, S.BASE)}</div>')
 
     def second(p):
         photo = img(p, "3/2") if ph(p) else ""
@@ -158,7 +168,7 @@ def front(shown, cos, m, sport=()):
                 f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
     latest = ('<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2><ul>'
               + "".join(f'<li><a href="{S.href(p)}">{rel_time(p)}<span>{E(p["headlines"][0])}</span></a></li>' for p in latest_rows) + "</ul></section>")
-    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + "</div>"
+    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + puzzles_block("inrail") + "</div>"
 
     blocks = ""
     for t in S.NEWS_ORDER:

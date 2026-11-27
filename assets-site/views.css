@@ -334,11 +334,16 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 
 /* ---- phone front page: after the lead, a list of headlines to scan; the markets tiles repeat the ticker, and the rail's two pictured stories are in the list ---- */
 .top5{display:none}
+.puzzles ul{list-style:none;margin:0;padding:0}.puzzles li{border-bottom:1px solid var(--rule)}
+.puzzles a{display:flex;align-items:center;min-height:44px;font:600 var(--t-row)/1.25 var(--serif);color:var(--ink)}
+.puzzles .sh a{display:inline-block;font:700 15px/1.3 var(--f)}
+.puzzles.inlead{display:none}
 @media(max-width:900px){
   .top5{display:block;margin-top:var(--s3)}
   .top5 ol{list-style:none;margin:0;padding:0}
   .top5 li{border-bottom:1px solid var(--rule)}
   .top5 a{display:flex;justify-content:space-between;gap:var(--s2);align-items:baseline;padding:14px 0;min-height:44px;font:600 var(--t-row)/1.25 var(--serif);color:var(--ink)}
   .top5 time{flex:none;font:500 var(--t-meta) var(--f);color:var(--soft)}
-  .front .lead .rates,.toprail .second{display:none}
+  .front .lead .rates,.toprail .second,.puzzles.inrail{display:none}
+  .puzzles.inlead{display:block;margin-top:var(--s3)}
 }
