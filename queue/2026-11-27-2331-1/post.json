@@ -65,5 +65,13 @@
  "credit_file": "Stockmarket.jpg",
  "status": "web",
  "published": "2026-11-27T23:32:01+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3dewrpvhz2q",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3dewrpvhz2q",
+   "at": "2026-11-27T23:50:28+00:00",
+   "format": "link"
+  }
+ }
 }
