@@ -72,6 +72,9 @@
    "url": "https://bsky.app/profile/boardread.news/post/3n3cmxnukbj2q",
    "at": "2026-11-27T16:41:27+00:00",
    "format": "link"
+  },
+  "facebook": {
+   "skipped": "below facebook_min_score"
   }
  }
 }
