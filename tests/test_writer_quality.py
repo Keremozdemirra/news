@@ -598,3 +598,21 @@ class CopiedRuns(unittest.TestCase):
     def test_a_copied_plain_run_is_still_cut(self):
         src = "The minister said prices would keep rising through the winter because of weak supply."
         self.assertNotEqual(copy.copied_run("Prices would keep rising through the winter because of weak supply, he said.", src), "")
+
+
+class ReportCap(unittest.TestCase):
+    SENTS = ["Spain's coalition lost its budget majority on Thursday after two junior partners walked out of the talks.",
+             "Prime Minister Pedro Sanchez then called a snap election for Sunday, four months before the term ends.",
+             "The People's Party leads the polls with 33 percent against 27 percent for the Socialists in the latest survey.",
+             "Housing costs and immigration dominate the campaign, voters told reporters in Madrid and Valencia this week.",
+             "Polls open at 9am local time and the first projections are due shortly after they close in the evening."]
+
+    def test_the_site_report_is_whole_and_the_slide_text_is_capped(self):
+        from aidaily import desk
+        sents = [x[:-1] + ", according to figures released by the government and the pollsters on Friday." for x in self.SENTS]
+        s = {"dek": "Voters go to the polls on Sunday.", "linkedin_post": " ".join(sents) + "\n\nSource: Reuters"}
+        self.assertEqual(len(copy.sentences(copy.body_of(s["linkedin_post"]))), 5)
+        text = desk.detail_text({}, s, False, [])
+        self.assertLessEqual(len(text), copy.MAX_REPORT + 1)
+        self.assertLess(len(copy.sentences(text)), 6)
+        self.assertGreaterEqual(len(copy.sentences(text)), 2)

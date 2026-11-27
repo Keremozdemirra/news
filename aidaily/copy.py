@@ -1169,7 +1169,8 @@ def apply(stories, reply_rows):
                 if first and len(first[0]) <= 160 and not repeats(first[0], s["headline"], share=0.6) and not LEANS.search(first[0]):
                     s["dek"] = first[0]
                     s["linkedin_post"] = drop_repeats(s["linkedin_post"], [s["dek"]], s["headline"])
-            s["linkedin_post"] = cap_report(s.get("dek", ""), s["linkedin_post"])
+            # no cap here: the site article keeps every checked sentence; the Instagram slide caps its own text
+            # (desk.detail_text, cap_report)
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what") and s.get("lane") != "sport":

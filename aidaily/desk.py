@@ -261,7 +261,12 @@ def detail_text(m, s, web, ctas):
     hook, or the number slide's line) and the report has more to say. No sentence is read twice in one carousel."""
     elsewhere = R.T.hook_shown(s) or any(n == "number" and R.T.number_line(s) == (s.get("dek") or "").strip()
                                          for n, _ in extra_slides(m, s, web, ctas))
-    return body(s) if elsewhere and body(s) else report(s)
+    # the slide holds MAX_REPORT characters; the site article and the caption keep the whole report
+    capped = "\n".join(l for l in copy.cap_report("" if elsewhere else s.get("dek") or "", s.get("linkedin_post") or "").splitlines()
+                       if l.strip() and not l.startswith("Source:"))
+    if elsewhere and capped:
+        return capped
+    return "\n".join(x for x in ((s.get("dek") or "").strip(), capped) if x)
 
 
 def extra_slides(m, s, web, ctas):
