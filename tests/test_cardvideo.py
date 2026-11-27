@@ -143,9 +143,10 @@ class Publish(Tmp):
         p = self.write_post("a", photo_file="Roe.jpg", credit="Photo: Jane Roe, CC BY-SA 4.0, via Wikimedia Commons",
                             video=video(credit="Photo: Jane Roe, CC BY-SA 4.0, via Wikimedia Commons"))
         ig = VideoIG()
-        self.assertEqual(desk.publish(client=ig), 1)
-        self.assertIsNone(ig.calls[0][2])
-        self.assertIn("photo licence does not allow an edited video", json.loads(p.read_text())["video_held"])
+        # a ShareAlike photo is held by audit() before any video decision: neither the video nor the stills go out
+        self.assertEqual(desk.publish(client=ig), 0)
+        self.assertEqual(ig.calls, [])
+        self.assertEqual(json.loads(p.read_text())["status"], "held")
 
 
 class Checks(unittest.TestCase):
