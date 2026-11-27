@@ -174,7 +174,8 @@
     "on": true,
     "per_day": 5,
     "format": "alternate",
-    "trial": "",
+    "trial": "SS_PERFORMANCE",
+    "trial_layouts": ["plain"],
     "seconds": 8,
     "footage": true,
     "platforms": {"threads": true, "bluesky": true, "telegram": true, "facebook": true}

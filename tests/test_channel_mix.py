@@ -125,9 +125,10 @@ class ShortsText(Tmp):
     def test_link_first_and_topic_hashtags(self):
         p = ppost(topic="World")
         d = SH.description(p, "")
-        self.assertTrue(d.startswith("Full story and sources: https://"))
-        self.assertIn("#Shorts #WorldNews #BusinessNews", d)
-        self.assertEqual(d.rsplit("\n", 1)[-1], SH.AI_LINE if SH.cfg("shorts_ai_line", False) else "#Shorts #WorldNews #BusinessNews")
+        self.assertIn("Full story and sources: https://", d)
+        self.assertIn("#Shorts #WorldNews", d)
+        self.assertNotIn("#BusinessNews", d)
+        self.assertEqual(d.rsplit("\n", 1)[-1], SH.AI_LINE if SH.cfg("shorts_ai_line", False) else SH.hashtags(p))
 
 
 class BlueskyLabel(Tmp):
@@ -196,3 +197,31 @@ class WithdrawRun(Tmp):
         saved = desk._load(desk.QUEUE / "w" / "post.json", {})
         self.assertIn("removed", saved["platforms"]["telegram"])
         self.assertEqual([c[0] for c in withdraw.copies(saved)], ["threads"])  # a removed copy is never tried again
+
+
+class DailyMetrics(Tmp):
+    def test_one_row_per_platform_from_the_days_posts(self):
+        from aidaily import insights
+        day = "2026-11-27"
+        rows = [{"id": "a", "media_id": "1", "published": f"{day}T10:00:00+00:00",
+                 "metrics": {"instagram": {"views": 120, "likes": 9}, "threads": {"views": 40, "likes": 2}},
+                 "platforms": {"threads": {"id": "t", "at": f"{day}T10:20:00+00:00"},
+                               "telegram": {"id": "38", "at": f"{day}T10:05:00+00:00", "removed": "x"}}},
+                {"id": "b", "media_id": "2", "published": "2026-11-26T10:00:00+00:00", "metrics": {"instagram": {"views": 999}}}]
+        t = insights.day_table(rows, {"instagram": 500, "threads": 30}, day,
+                               {"attempted": {"s": {"at": f"{day}T17:00:00+00:00", "video_id": "v", "narrated": True}}})
+        self.assertEqual((t["instagram"]["posts"], t["instagram"]["views"], t["instagram"]["followers"]), (1, 120, 500))
+        self.assertEqual((t["threads"]["posts"], t["threads"]["likes"]), (1, 2))
+        self.assertEqual(t["telegram"]["posts"], 0)  # a removed copy does not count
+        self.assertEqual((t["youtube"]["posts"], t["youtube"]["narrated"], t["youtube"]["views"]), (1, 1, None))
+
+    def test_daily_metrics_only_in_the_publish_workflow_and_once_a_day(self):
+        self.assertIsNone(desk.daily_metrics())
+
+
+class TrialReels(Tmp):
+    def test_trial_only_for_the_layout_under_test(self):
+        with mock.patch.dict(desk.CONFIG, {"video": {**desk.CONFIG.get("video", {}), "trial": "SS_PERFORMANCE",
+                                                     "trial_layouts": ["plain"]}}):
+            pick = lambda layout: desk.video_cfg("trial", "") if layout in (desk.video_cfg("trial_layouts") or []) else ""  # noqa: E731
+            self.assertEqual((pick("plain"), pick("lower")), ("SS_PERFORMANCE", ""))

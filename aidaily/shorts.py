@@ -336,18 +336,22 @@ def title(post):
 
 
 def hashtags(post):
-    """#Shorts and the topic: YouTube shows up to three description hashtags above the title
-    (support.google.com/youtube/answer/6390658)."""
+    """#Shorts, the topic and, when the story names one, the company or person: YouTube shows up to three
+    description hashtags above the title (support.google.com/youtube/answer/6390658)."""
     topic = re.sub(r"[^A-Za-z0-9]", "", (desk.CONFIG.get("bluesky_topic_tags") or {}).get(post.get("topic") or "", "")
                    or post.get("topic") or "")
-    return " ".join(x for x in ("#Shorts", f"#{topic}" if topic else "", "#BusinessNews") if x)
+    who = re.sub(r"[^A-Za-z0-9]", "", "".join(w[:1].upper() + w[1:] for w in (post.get("company") or post.get("person") or "").split()))
+    return " ".join(x for x in ("#Shorts", f"#{topic}" if topic else "", f"#{who}" if 2 < len(who) < 30 else "") if x)
 
 
 def description(post, credit):
-    # the link first: only the first lines show under a Short before "more" (growth-options 2026-11-27, option 8)
-    lines = [f"Full story and sources: {desk.story_url(post['id'], 'youtube')}", "", _clean(post.get("dek"))]
+    """The news sentence first (it is what shows under the Short), then who reported it, then the link to the full
+    story and sources, then the photo credit and the hashtags; the AI line closes it (_fit_description)."""
+    news = _clean(post.get("dek")) or _clean(post["headlines"][0])
+    lines = [news]
     if outlets_line(post):
         lines.append(f"Reported by {outlets_line(post)}.")
+    lines += ["", f"Full story and sources: {desk.story_url(post['id'], 'youtube')}"]
     if credit:
         from . import entities
         credit = entities.clean_credit(credit)
@@ -503,6 +507,20 @@ def today_count(st=None):
     return sum(1 for v in (st or _state()).get("attempted", {}).values() if (v.get("at") or "").startswith(day))
 
 
+# when the two Shorts go out (UTC): Europe's evening and America's evening. Evening local time is the playbook's
+# default until Studio data says otherwise (Buffer's best-time study is a correlation: buffer.com, read 2026-11-27).
+WINDOWS = [[16, 19], [22, 25]]
+
+
+def in_window(now=None):
+    """Inside one of growth.shorts_windows: [start hour, end hour) in UTC, an end past 24 running into the next day."""
+    h = (now or desk.now()).hour
+    for a, b in cfg("shorts_windows", WINDOWS):
+        if a <= h < b or (b > 24 and h < b - 24):
+            return True
+    return False
+
+
 def due():
     """(True, "") when a Short should be made now, else (False, why)."""
     if not desk.growth("shorts"):
@@ -510,6 +528,8 @@ def due():
     if desk.paused():
         return False, "paused"
     st = _state()
+    if not in_window():
+        return False, "outside the posting windows"
     if today_count(st) >= per_day():
         return False, "daily cap reached"
     last = max((v.get("at", "") for v in st.get("attempted", {}).values()), default="")

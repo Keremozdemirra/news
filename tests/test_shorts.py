@@ -12,7 +12,8 @@ from aidaily import shorts as SH
 from test_desk import Tmp
 
 CREDIT = "Photo: Jane Roe, CC BY 4.0, via Wikimedia Commons"
-GROWTH_ON = {"shorts": True, "shorts_per_day": 2, "shorts_spacing_minutes": 180, "shorts_max_age_hours": 12}
+GROWTH_ON = {"shorts": True, "shorts_per_day": 2, "shorts_spacing_minutes": 180, "shorts_max_age_hours": 12,
+             "shorts_windows": [[0, 24]]}  # the posting windows are tested on their own
 
 
 def post(**kw):
@@ -53,11 +54,13 @@ class Metadata(unittest.TestCase):
         self.assertIn("Reported by Bloomberg and France 24.", d)
         self.assertIn("CC BY 4.0, via Wikimedia Commons. Edited", d)
         self.assertIn("#Shorts", d)
+        self.assertTrue(d.startswith(post()["dek"]))  # the news sentence first, then sources, then the link
+        self.assertLess(d.index("Reported by"), d.index("https://boardread.news/s/a/"))
         self.assertNotRegex(m["snippet"]["title"].lower(), r"written by ai|ai[- ]generated")
         # Kerem, 2026-11-27: the description discloses, the title does not
         with mock.patch.dict(desk.CONFIG, {"site_url": "https://boardread.news", "growth": {"shorts_ai_line": True}}):
             d = SH.metadata(post(), CREDIT)["snippet"]["description"]
-            self.assertTrue(d.endswith("#BusinessNews\n\nWritten by AI from the sources listed."))  # last, after the hashtags
+            self.assertTrue(d.endswith(SH.hashtags(post()) + "\n\nWritten by AI from the sources listed."))  # last, after the hashtags
             self.assertTrue(SH.metadata(post(dek="é" * 6000), CREDIT)["snippet"]["description"].endswith("sources listed."))
         with mock.patch.dict(desk.CONFIG, {"site_url": "https://boardread.news", "growth": {"shorts_ai_line": False}}):
             self.assertNotIn("Written by AI", SH.metadata(post(), CREDIT)["snippet"]["description"])
@@ -237,3 +240,17 @@ class Render(Tmp):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Windows(unittest.TestCase):
+    def test_europe_and_america_evenings(self):
+        from datetime import datetime, timezone
+        at = lambda h: datetime(2026, 11, 28, h, 10, tzinfo=timezone.utc)  # noqa: E731
+        with mock.patch.dict(desk.CONFIG, {"growth": {}}):
+            self.assertEqual([h for h in range(24) if SH.in_window(at(h))], [0, 16, 17, 18, 22, 23])
+
+    def test_titles_say_the_news_in_60(self):
+        self.assertEqual(SH.title(post(headlines=["Spain heads to early election Sunday as housing and immigration dominate debate"])),
+                         "Spain heads to early election Sunday")
+        self.assertEqual(SH.title(post(headlines=["South Korean banks' net profit rises 2.1% to 21.5 trillion won"])),
+                         "South Korean banks' net profit rises 2.1%")

@@ -2759,6 +2759,20 @@ def _send_story(client, post):
     return client.story(url)
 
 
+METRICS_HOUR = 23  # the day's row is read once, late in the UTC day
+
+
+def daily_metrics(factories=None):
+    """Once a day after METRICS_HOUR UTC, in the publish workflow only: the per-platform counter (insights.daily)."""
+    if os.environ.get("DESK_PUBLISH") != "1" or now().hour < METRICS_HOUR:
+        return None
+    day = f"{now():%Y-%m-%d}"
+    if day in _load(STATE / "metrics.json", {"days": {}}).get("days", {}):
+        return None
+    from . import insights
+    return insights.daily(factories, day)
+
+
 def bluesky_bot_label(factories=None):
     """Once: the Bluesky account's "bot" self-label (Kerem, 2026-11-27: Bluesky discloses by label and bio, not per
     post). Recorded in state/bluesky-label.json when done, so it is never written again; a failure is tried once a day."""
@@ -2808,6 +2822,10 @@ def publish(client=None, dry=False):
             bluesky_bot_label()
         except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
             print(f"bluesky label crashed: {str(e)[:200]}")
+        try:
+            daily_metrics()
+        except Exception as e:  # noqa: BLE001  a counting failure never touches publishing
+            print(f"daily metrics crashed: {str(e)[:200]}")
         try:
             fb_stories()
         except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
@@ -3066,8 +3084,10 @@ def _publish(client, dry):
                 from .instagram import VideoRejected
                 try:
                     if v["shape"] == "reel":
+                        # Trial Reels (shown to non-followers first) only for a layout under test, never every Reel
+                        trial = video_cfg("trial", "") if v.get("layout") in (video_cfg("trial_layouts") or []) else ""
                         media, link = client.reel(video_url(post["id"], v["file"]), post["caption"], share_to_feed=True,
-                                                  trial=video_cfg("trial", ""), cover_url=media_url(post["id"], v["cover"]))
+                                                  trial=trial, cover_url=media_url(post["id"], v["cover"]))
                     else:
                         media, link = client.post_carousel(urls, post["caption"], video_first=video_url(post["id"], v["file"]),
                                                            thumb_offset=1600, **extra)

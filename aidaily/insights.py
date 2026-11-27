@@ -620,3 +620,64 @@ def summary_md(report):
         lines += ["", "Not connected: " + ", ".join(sorted(report["missing"]))]
     return "\n".join(lines) + "\n"
 
+
+
+# the per-platform daily table (Kerem, 2026-11-27): one row per platform per day, from the read access we already have
+
+VIEW_KEYS = ("views", "reach", "impressions", "post_impressions_unique")
+LIKE_KEYS = ("likes", "like_count", "reactions")
+COMMENT_KEYS = ("comments", "replies", "comments_count")
+SHARE_KEYS = ("shares", "reposts", "quotes")
+
+
+def _first(m, keys):
+    return next((m[k] for k in keys if isinstance(m.get(k), (int, float))), None)
+
+
+def day_table(rows, followers, day, shorts_state=None):
+    """{platform: {posts, views, likes, comments, shares, followers}} for the posts published on `day` (UTC date)."""
+    out = {}
+    for name in SOURCES:
+        sent = []
+        for p in rows:
+            if name == "instagram":
+                ok = p.get("media_id") and (p.get("published") or "").startswith(day)
+            else:
+                slot = (p.get("platforms") or {}).get(name) or {}
+                ok = slot.get("id") and not slot.get("removed") and (slot.get("at") or "").startswith(day)
+            if ok:
+                sent.append((p.get("metrics") or {}).get(name) or {})
+        row = {"posts": len(sent), "followers": followers.get(name)}
+        for label, keys in (("views", VIEW_KEYS), ("likes", LIKE_KEYS), ("comments", COMMENT_KEYS), ("shares", SHARE_KEYS)):
+            vals = [v for v in (_first(m, keys) for m in sent) if v is not None]
+            row[label] = sum(vals) if vals else None
+        out[name] = row
+    st = shorts_state if shorts_state is not None else desk._load(desk.STATE / "shorts.json", {})
+    made = [v for v in (st.get("attempted") or {}).values() if (v.get("at") or "").startswith(day) and v.get("video_id")]
+    # the YouTube token is upload-only by design: no views or followers until a read scope is granted
+    out["youtube"] = {"posts": len(made), "narrated": sum(1 for v in made if v.get("narrated")), "views": None,
+                      "likes": None, "comments": None, "shares": None, "followers": None}
+    return out
+
+
+def daily(factories=None, day=None):
+    """Read today's posts on every connected platform and write the day's row to state/metrics.json (90 days kept).
+    Site clicks are not counted: the site keeps no analytics by design (its privacy page). Returns the day's table."""
+    day = day or f"{desk.now():%Y-%m-%d}"
+    rows = window_posts(days=2)
+    sources, missing = open_sources(factories)
+    errors = pull(rows, sources)
+    followers = {}
+    for name, src in sources.items():
+        try:
+            followers[name] = src.followers()
+        except Exception as e:  # noqa: BLE001
+            errors.setdefault(name, {"count": 0, "first": str(e)[:200]})["count"] += 1
+    table = day_table([p for p, _ in rows], followers, day)
+    path = desk.STATE / "metrics.json"
+    data = desk._load(path, {"days": {}})
+    data["days"][day] = {"at": desk.now().isoformat(timespec="seconds"), "platforms": table,
+                         **({"missing": missing} if missing else {}), **({"errors": errors} if errors else {})}
+    data["days"] = dict(sorted(data["days"].items())[-90:])
+    desk._save(path, data)
+    return table
