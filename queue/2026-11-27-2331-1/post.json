@@ -1,0 +1,69 @@
+{
+ "id": "2026-11-27-2331-1",
+ "batch": "2026-11-27-2331",
+ "n": 1,
+ "created": "2026-11-27T23:32:01+00:00",
+ "layout": "type",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "S&P cuts France's credit outlook to negative from stable\n\nS&P Global Ratings made the change on Friday, ahead of elections in France. Weak economic growth and higher interest costs add to budget pressure, S&P says. France's public debt is mounting.\n\nReported by Financial Times; Bloomberg; France 24; The Wall Street Journal.\n\nSend this to a colleague who follows markets.\n\n#markets #spglobalratings\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.ft.com/content/4e16110a-9604-4455-8557-4edece5df01a?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/france-outlook-cut-to-negative-by-s-p-in-pre-election-warning",
+  "https://www.france24.com/en/france/20261127-s-p-revises-france-s-outlook-from-stable-to-negative",
+  "https://www.ft.com/content/4e16110a-9604-4455-8557-4edece5df01a?syn-25a6b1a6=1",
+  "https://www.wsj.com/world/europe/s-p-revises-outlook-on-french-credit-rating-to-negative-from-stable-eab7384f?mod=rss_worldnews"
+ ],
+ "headlines": [
+  "S&P cuts France's credit outlook to negative from stable"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "Stockmarket.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A wall of stock prices in green and red",
+ "score": 10.821,
+ "figure": "",
+ "company": "S&P Global Ratings",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Paris skyline",
+ "orgs": [
+  "S&P Global Ratings"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "S&P Global Ratings made the change on Friday, ahead of elections in France.",
+ "body": "Weak economic growth and higher interest costs add to budget pressure, S&P says. France's public debt is mounting.",
+ "supported": "6ea49655b16a",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "Financial Times",
+  "Bloomberg",
+  "France 24",
+  "The Wall Street Journal"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/4e16110a-9604-4455-8557-4edece5df01a?syn-25a6b1a6=1",
+  "https://www.bloomberg.com/news/articles/2026-11-27/france-outlook-cut-to-negative-by-s-p-in-pre-election-warning",
+  "https://www.france24.com/en/france/20261127-s-p-revises-france-s-outlook-from-stable-to-negative",
+  "https://www.wsj.com/world/europe/s-p-revises-outlook-on-french-credit-rating-to-negative-from-stable-eab7384f?mod=rss_worldnews"
+ ],
+ "credit": "Photo: AhmadArdity, CC0, via Wikimedia Commons",
+ "credit_file": "Stockmarket.jpg",
+ "status": "web",
+ "published": "2026-11-27T23:32:01+00:00",
+ "story": ""
+}
