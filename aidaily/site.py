@@ -964,6 +964,9 @@ def build(out=desk.HERE / "_site"):
         shutil.copy(ASSETS / f, out / f)
     for f in ASSETS.glob("google*.html"):  # Search Console ownership files; they must stay for the property to stay verified
         shutil.copy(f, out / f.name)
+    # Bluesky's HTTP handle check: https://<domain>/.well-known/atproto-did holds the account's DID (atproto.com/specs/handle)
+    (out / ".well-known").mkdir(exist_ok=True)
+    shutil.copy(ASSETS / "well-known" / "atproto-did", out / ".well-known" / "atproto-did")
     from . import indexnow
     shutil.copy(ASSETS / f"{indexnow.KEY}.txt", out / f"{indexnow.KEY}.txt")  # proves the IndexNow key belongs to this host
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
