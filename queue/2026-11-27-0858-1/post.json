@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0858-1",
+ "batch": "2026-11-27-0858",
+ "n": 1,
+ "created": "2026-11-27T08:58:04+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Vietnam expects to sign US trade deal to limit tariff hit\n\nTransshipment and non-tariff barriers are among the main sticking points after months of negotiations.\n\nReported by The Straits Times; Bloomberg.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/asia/se-asia/vietnam-expects-to-sign-us-trade-deal-to-limit-tariff-hit"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/vietnam-expects-to-sign-us-trade-deal-to-limit-tariff-hit",
+  "https://www.straitstimes.com/asia/se-asia/vietnam-expects-to-sign-us-trade-deal-to-limit-tariff-hit"
+ ],
+ "headlines": [
+  "Vietnam expects to sign US trade deal to limit tariff hit"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Economy",
+ "photo_file": "Bulk carrier at Halifax Grain Elevator.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A bulk carrier at a grain terminal seen from above",
+ "score": 9.114,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Transshipment and non-tariff barriers are among the main sticking points after months of negotiations.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Straits Times",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/asia/se-asia/vietnam-expects-to-sign-us-trade-deal-to-limit-tariff-hit",
+  "https://www.bloomberg.com/news/articles/2026-11-27/vietnam-expects-to-sign-us-trade-deal-to-limit-tariff-hit"
+ ],
+ "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "Bulk carrier at Halifax Grain Elevator.jpg",
+ "status": "web",
+ "published": "2026-11-27T08:58:04+00:00",
+ "story": ""
+}
