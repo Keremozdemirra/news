@@ -124,7 +124,8 @@ class Photos(unittest.TestCase):
             self.assertEqual(first, next(r["files"] for r in data["sport"] if r["id"] == want), text)
 
     def test_audit_lets_a_scene_stand_and_holds_a_foreign_team_file(self):
-        post = {"headlines": ["Steelers owner backs McCarthy"], "topic": "Sport", "tier": "web", "status": "web", "body": "The Steelers owner spoke.", "dek": "",
+        post = {"headlines": ["Steelers owner backs McCarthy"], "topic": "Sport", "tier": "web", "status": "web", "body": "Art Rooney II spoke to reporters in Pittsburgh. He said the coach keeps his job through the end of the season.",
+                "dek": "The owner spoke after the quarterback's interview.",
                 "photo_file": "Aaron Rodgers Packers OCT2021 (cropped).jpg", "credit": "c", "person": "Aaron Rodgers", "caption": "c", "logo_names": []}
         self.assertTrue(any("Packers" in p for p in desk.audit(post)))
         post.update(photo_file="Inter&Co Stadium gridiron football configuration.jpg", photo_kind="scene", person="")

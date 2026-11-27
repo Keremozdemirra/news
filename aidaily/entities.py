@@ -409,6 +409,9 @@ ART = re.compile(r"\b(museum|painting|textile|fragment|sculpture|statue|artwork|
 # fans, visitors and passers-by are people the story is not about
 CROWD = re.compile(r"\b(fan|fans|crowd|cosplay|cosplayer|visitors?|audience|attendees?|man|woman|men|women|girl|boy|"
                    r"people|person|kids?|child|children|queue|line outside|selfie)\b", re.I)
+# a show at a venue is not the venue: "One Direction - Lincoln Financial Field" ran on an Eagles result (2026-11-27)
+EVENT = re.compile(r"\b(concerts?|tour|live|festival|gig|performing|performance|show|stage|fireworks|wedding|halftime|"
+                   r"rally|ceremony|parade|wrestlemania|exhibition match)\b", re.I)
 FACE = re.compile(r"cropped|crop\b|portrait|official|headshot", re.I)
 # What a company photo may show: the company's own premises or its own sign. A file that only carries the name
 # shows whatever the uploader liked: an Nvidia graphics card from 2008 on a credit-rating story, a FIFA
@@ -671,8 +674,11 @@ def candidates(subject, person=False, company=False, role=None):
             # about the US network
             if company and len(re.sub(r"[^A-Za-z0-9]", "", subject)) <= 4:
                 shows = False
+            # "<act> - <venue>" is an act's photo filed under the venue's name
+            billed = re.search(r"\S\s+[-–]\s+(?=" + re.escape(subject.strip()) + r")", name, re.I)
             if (subject.strip() and phrase.search(name) and shows and not PEOPLE.search(name) and not NATURE.search(name)
-                    and not ART.search(name) and not CROWD.search(name) and company_context(name, subject)):
+                    and not ART.search(name) and not CROWD.search(name) and not EVENT.search(name) and not billed
+                    and company_context(name, subject)):
                 files.append(name)
     seen, out = set(), []
     for f in files:

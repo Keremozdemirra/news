@@ -10,6 +10,7 @@
 Everything is made from the same published posts; nothing here invents a figure or a name. Pages that need a script name it
 (paper.js) and work as plain pages without it.
 """
+import math
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -69,6 +70,15 @@ def front_score(p):
             + (2 if HARD.search(p["headlines"][0]) else 0) - (8 if SOFT.search(text) else 0))
 
 
+def front_rank(rows):
+    """News value, then freshness: the page led a morning with an 18-hour-old tariff item while the day's news waited
+    below it (2026-11-27). Freshness is worth three points at most, half gone after about eight hours."""
+    newest = max((S.dt(p["published"]) for p in rows), default=None)
+    def fresh(p):
+        return 3 * math.exp(-max((newest - S.dt(p["published"])).total_seconds(), 0) / 3600 / 12)
+    return sorted(rows, key=lambda p: front_score(p) + fresh(p), reverse=True)
+
+
 NAME_TOKEN = re.compile(r"[A-Z][A-Za-z0-9]{2,}")
 
 
@@ -101,7 +111,7 @@ def front(shown, cos, m, sport=()):
     """The front page: the lead (8 columns) and the rail (4: two seconds, the markets block, Latest), then the sections.
     Each article appears once; the lead and the seconds come from the news-value ranking above."""
     today = S.window(shown)
-    ranked = sorted(today, key=front_score, reverse=True)
+    ranked = front_rank(today)
     lead = ranked[0]
     used = {lead["id"]}
     seconds = [p for p in ranked[1:] if p["id"] not in used][:2]

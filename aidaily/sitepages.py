@@ -17,13 +17,15 @@ E = S.E
 
 
 def brief_rows(shown, day):
-    """The brief of a day: the top articles by score in the 24 hours up to the day's last article."""
-    ps = [p for p in shown if S.day_of(p["published"]) == day]
-    if not ps:
-        return []
-    end = S.dt(ps[0]["published"])
-    pool = [p for p in shown if timedelta(0) <= end - S.dt(p["published"]) <= timedelta(hours=24)]
-    return S.by_score(pool)[:BRIEF_N]
+    """The brief of a day: that day's top articles by score. Only that day's: the 24 hours before its last article
+    put seven of 26 November's articles under a brief dated 27 November."""
+    return S.by_score([p for p in shown if S.day_of(p["published"]) == day])[:BRIEF_N]
+
+
+def brief_day(shown, days):
+    """The day /brief/ shows: the newest with a full brief, so the page is not two articles long just after midnight
+    UTC. The newest day when none has BRIEF_N yet."""
+    return next((d for d in days if len(brief_rows(shown, d)) >= BRIEF_N), days[0])
 
 
 def brief_words(rows):
@@ -194,7 +196,7 @@ def build(out, shown, sm, cos):
     if shown:
         earlier = ('<div class="prose past-wrap"><h2>Earlier briefs</h2><ul class="past">'
                    + "".join(f'<li><a href="{S.BASE}/brief/{d}/">{S.day_label(d)}</a></li>' for d in days[1:30]) + "</ul></div>") if days[1:] else ""
-        S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, days[0], m) + earlier,
+        S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, brief_day(shown, days), m) + earlier,
               "The day's top articles in about a minute, one block each.", "/brief/", active="brief"))
         for d in days:
             S.put(out, f"/brief/{d}/", S.page(f"The brief, {S.day_label(d)} · boardread.", brief_page(shown, d, m),

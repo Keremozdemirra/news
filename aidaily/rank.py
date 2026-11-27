@@ -231,6 +231,20 @@ def score_story(story, sources, now=None):
     return round(base + breadth + recency + engage + hard + bonus - soft, 3), cat, newest
 
 
+def reports(items, lead, sources, cap=4):
+    """Title and summary from up to `cap` other newsrooms, one each, the longest summary first: never a discussion
+    board, a column or the lead's own outlet."""
+    seen, out = {publisher(lead, sources)}, []
+    for i in sorted(items, key=lambda i: -len(i.get("summary") or "")):
+        p = publisher(i, sources)
+        if (p in seen or sources.get(i["source_id"], {}).get("category") == "community" or SOFT.search(i["title"])
+                or not (i.get("summary") or "").strip()):
+            continue
+        seen.add(p)
+        out.append({"outlet": p, "title": i["title"], "summary": i["summary"][:600]})
+    return out[:cap]
+
+
 def pick_lead(items, sources):
     """The item whose outlet ranks highest carries the headline and the link."""
     order = {"lab": 0, "news": 1, "funding": 1, "world": 1, "politics": 1, "business": 1, "culture": 2, "sport": 1,
@@ -268,6 +282,10 @@ def rank(items, sources, now=None, max_age_h=36):
             "newsrooms": [p for p, _ in trace([i for i in s["items"]
                                                if sources.get(i["source_id"], {}).get("category") != "community"], sources)],
             "links": sorted({i["url"] for i in s["items"]}),
+            # what the other newsrooms wrote: the copy step reads them and checks every word against them, so a
+            # report can carry facts the lead outlet's one-line summary leaves out (26 of 91 articles had no report
+            # beyond the dek on 2026-11-27, each written from a single summary)
+            "reports": reports(s["items"], lead, sources),
             # when each newsroom first ran it: the coverage trace printed on every card
             "timeline": trace(s["items"], sources),
             # the lab's own feed carried it: announced, not reported

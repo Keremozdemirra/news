@@ -21,6 +21,10 @@ WEB_HEADLINES = [
     ("Amazon and Meta talk about lifting the block on Meta's Muse shopping agent", "Business", "", "Amazon"),
 ]
 
+# every audited post carries a dek and a report of two sentences beyond it (copy.thin)
+REPORT = {"dek": "The figures came out on Thursday morning.", "body": "Officials published the data at the usual time. "
+          "Analysts at several banks had expected a smaller change in the latest month."}
+
 
 class WrongSense(unittest.TestCase):
     def test_the_parrot_is_not_amazon(self):
@@ -51,7 +55,7 @@ class WrongSense(unittest.TestCase):
 
     def test_audit_holds_a_parrot_already_in_the_queue(self):
         post = {"headlines": ["Amazon and Meta talk"], "topic": "Business", "company": "Amazon", "photo_file": PARROT,
-                "credit": "Photo: X", "caption": "x", "body": "", "dek": ""}
+                "credit": "Photo: X", "caption": "x", **REPORT}
         problems = desk.audit(post)
         self.assertTrue(any("another sense" in p or "not a news photo" in p for p in problems), problems)
 
@@ -82,7 +86,7 @@ class Licence(unittest.TestCase):
             self.assertTrue(entities.NOT_PHOTO.search(t), t)
 
     def test_audit_holds_a_sharealike_or_ai_photo_already_in_the_queue(self):
-        base = {"headlines": ["Global stocks rally"], "topic": "Markets", "body": "", "dek": "", "caption": "x #news",
+        base = {"headlines": ["Global stocks rally"], "topic": "Markets", **REPORT, "caption": "x #news",
                 "photo_file": "Harbour.jpg", "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
         self.assertEqual(desk.audit(base), [])
         self.assertTrue(any("ShareAlike" in p for p in desk.audit({**base, "credit": "Photo: A, CC BY-SA 4.0, via Wikimedia Commons"})))
@@ -104,7 +108,7 @@ class OtherPeoplesNames(unittest.TestCase):
         self.assertEqual(f("Nvidia headquarters.jpg", "Nvidia"), "")
 
     def test_audit_holds_them_in_the_queue_but_not_a_vetted_scene(self):
-        base = {"headlines": ["OpenAI corrects billing mistake"], "topic": "AI", "body": "", "dek": "", "caption": "x #news",
+        base = {"headlines": ["OpenAI corrects billing mistake"], "topic": "AI", **REPORT, "caption": "x #news",
                 "company": "OpenAI", "photo_file": "Virginia Tech - data center.jpg", "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
         self.assertTrue(any("Virginia Tech" in p for p in desk.audit(base)))
         self.assertEqual(desk.audit({**base, "photo_kind": "scene"}), [])
@@ -260,7 +264,7 @@ class Always(unittest.TestCase):
 
 class Gate(unittest.TestCase):
     def post(self, **kw):
-        p = {"headlines": ["Global stocks rally"], "topic": "Markets", "body": "", "dek": "", "caption": "x #news",
+        p = {"headlines": ["Global stocks rally"], "topic": "Markets", **REPORT, "caption": "x #news",
              "photo_file": "Container cranes.jpg", "credit": "Photo: A, CC BY 4.0", "photo_kind": "scene"}
         return {**p, **kw}
 

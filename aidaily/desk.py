@@ -134,11 +134,33 @@ def recent_headlines(days=None, limit=80):
     return out[:limit]
 
 
+# a day's market session is one event however many wraps report it: "Global stocks climb after volatile US trading" and
+# "Global stocks rally as investors shrug off new U.S. tariffs" ran five hours apart on 2026-11-26
+MOVE = r"(?:rise|rises|fall|falls|climb|climbs|slip|slips|jump|jumps|drop|drops|gain|gains|close|closes|end|ends|hit|hits|top|tops|sink|sinks|rally|rallies|edge|edges|tick|ticks|slide|slides|surge|surges|tumble|tumbles|extend|extends|steady|mixed|higher|lower|record)"
+WRAP = re.compile(r"^(?:global|world|asian|asia|european|europe|us|u\.s\.|uk|london|japanese|chinese|emerging[- ]market)\s+"
+                  r"(?:stocks?|shares|equities|markets?|stock futures|futures)\b"
+                  r"|^(?:stocks?|shares|equities|stock futures)\b(?!\s+(?:of|in|at|for)\b)"
+                  r"|^wall street\s+(?:stocks|futures|opens|" + MOVE + r")\b|^(?:the\s+)?(?:s&p 500|dow|nasdaq|ftse 100|ftse|dax|nikkei|stoxx 600|stoxx)\s+" + MOVE, re.I)
+WRAP_HOURS = 12
+
+
+def _wrap(x):
+    return bool(WRAP.search((x.get("headline") or x.get("title") or "").strip()))
+
+
 def same_story(a, b):
     """Two runs cluster the same event under different lead links, so a shared link or a close
-    headline both count as a repeat."""
+    headline both count as a repeat; so do two market wraps within WRAP_HOURS."""
     if set(a.get("links") or [a.get("url")]) & set(b.get("links") or [b.get("url")]):
         return True
+    if _wrap(a) and _wrap(b):
+        try:
+            gap = abs(datetime.fromisoformat(a.get("created") or now().isoformat())
+                      - datetime.fromisoformat(b.get("created") or now().isoformat()))
+        except ValueError:
+            gap = timedelta(0)
+        if gap <= timedelta(hours=WRAP_HOURS):
+            return True
     sa, sb = copy._stems(a.get("headline") or a.get("title")), copy._stems(b.get("headline") or b.get("title"))
     # 0.5: "U.S. plans fresh tariff hikes on 14 trading partners" repeats "Trump signals he is ready to escalate
     # tariffs on Asian trading partners" with no shared link
@@ -149,7 +171,7 @@ def pick(manifest, stories, weights):
     """Cards in rank order, minus repeats and topics the brand does not post about; a learned weight can
     lift a category a few places, never to the top on its own."""
     by_url = {s["url"]: s for s in stories}
-    recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
+    recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i], "created": p.get("created")}
               for p in _recent_posts(CONFIG["repeat_window_days"])
               for i, u in enumerate(p.get("urls", []))]
     rows, taken = [], []
@@ -157,7 +179,9 @@ def pick(manifest, stories, weights):
         s = by_url.get(m["url"], {})
         mine = {"url": m["url"], "links": s.get("links", []), "headline": m["headline"]}
         text = " ".join([m["headline"], s.get("dek", ""), s.get("title", "")])
-        if (s.get("copy_status") != "ok" or SKIP.search(text) or FORMAT.search(s.get("title", "") + " " + m["headline"])
+        # an article is a headline, a dek and a report of facts beyond both. When the sources hold too little for
+        # that, the story is not posted: a page of headline and dek only was a quarter of the site on 2026-11-27
+        if (s.get("copy_status") != "ok" or copy.thin(s) or SKIP.search(text) or FORMAT.search(s.get("title", "") + " " + m["headline"])
                 or any(same_story(mine, r) for r in recent + taken)):
             continue
         taken.append(mine)
@@ -495,7 +519,14 @@ def audit(post):
     if pf and not scene and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
         other = E.foreign_brand(pf, head_ + " " + (owners[0] if owners else ""), own=owners[0] if owners else "")
         problems.append(f"photo file names {other}, which the story does not name")
-    if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
+    # every article carries a dek and a report of facts beyond it; a story pulled from a feed with one line of
+    # summary used to reach the site as a headline and a dek (26 of 91 articles on 2026-11-27)
+    why = copy.thin({"dek": post.get("dek", ""), "linkedin_post": post.get("body", "")})
+    if why:
+        problems.append(why)
+    if (post.get("body") or "").strip() and copy.LEANS.search(copy.sentences(post["body"])[0]):
+        problems.append(f"report opens leaning on a sentence that is not there: {copy.sentences(post['body'])[0]!r}")
+    if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf) or E.EVENT.search(pf)
                              or (not post.get("person") and E.CROWD.search(pf))):
         problems.append(f"photo {pf!r} is not a news photo of the subject")
     if pf and post.get("person") and post["person"].split()[-1].lower() not in (
@@ -1313,7 +1344,7 @@ def select(stories, lane="news"):
     bar = CONFIG.get("sport_min_score", site_min_score()) if sport else site_min_score()
     limit = min(CONFIG.get("sport_per_run", 4), sport_room()) if sport else CONFIG["max_per_run"]
     cut = now() - timedelta(hours=CONFIG["max_age_hours"])
-    recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
+    recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i], "created": p.get("created")}
               for p in _recent_posts(CONFIG["repeat_window_days"]) for i, u in enumerate(p.get("urls", []))]
     out = []
     for s in stories:

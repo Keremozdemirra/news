@@ -11,7 +11,7 @@
   ],
   "send_line": "Follow for the news that moves business.",
   "media_branch": "media",
-  "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder\\w*|killed|shooting|terror\\w*|overdose|died|dies|death of|deaths?|dead|deadly|death toll|fatal\\w*|massacre|stabb\\w*|injured|wounded|bodies|kill(?:s|ing) (?:at least |up to |more than |nearly |about )?(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|dozens|hundreds|scores|thousands|people|civilians|children|soldiers|a|an)",
+  "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder\\w*|killed|shooting(?! stars?)|terror\\w*|overdose|died|dies|death of|deaths?(?! spiral| cross)|dead(?! heat| cat)|deadly|death toll|fatal\\w*|massacre|stabb\\w*|injured|wounded|bodies|kill(?:s|ing) (?:at least |up to |more than |nearly |about )?(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|dozens|hundreds|scores|thousands|people|civilians|children|soldiers|a|an)",
   "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[’']m a|q&a|interview with|what .{0,30} daily routine|review:",
   "not_sources": [
     "Google News",

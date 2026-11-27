@@ -31,6 +31,9 @@ def story(i, cat="launch", status="ok", headline=None):
     return ({"file": f"card-{i:02d}.png", "url": f"https://x/{i}", "headline": h, "category": cat, "source": f"Outlet {i}", "score": 9.0,
              "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene"},
             {"url": f"https://x/{i}", "title": h, "dek": f"It does thing {i}.", "copy_status": status, "outlets": [f"Outlet {i}"],
+             # an article needs a report of two sentences beyond the dek (copy.thin)
+             "linkedin_post": "The company said the change reaches every customer this week. Its rivals have not announced "
+                              f"a matching plan so far.\n\nSource: Outlet {i}",
              "score": 9.0, "_assets": {"credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}})
 
 
@@ -61,7 +64,9 @@ class Tmp(unittest.TestCase):
         post = {"id": pid, "created": desk.now().isoformat(), "publish_after": (desk.now() - timedelta(minutes=1)).isoformat(),
                 "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 reports.", "urls": ["u"],
                 "headlines": ["Lab ships a model"], "topic": "Tech", "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene",
-                "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
+                "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons", "dek": "The lab said the model runs on its own chips.",
+                "body": "The company trained it over several months on licensed data. Customers can reach it through the existing "
+                        "interface from Monday."}
         post.update(kw)
         (d / "post.json").write_text(json.dumps(post))
         return d / "post.json"
@@ -1591,7 +1596,9 @@ class Logos(unittest.TestCase):
 class Audit(Tmp):
     def good(self, **kw):
         p = {"headlines": ["FCC clears SpaceX to deploy 1 million satellites"], "topic": "Tech", "logo_names": ["SpaceX"],
-             "body": "The FCC authorized SpaceX. Boston Consulting Group estimates costs stay high.", "dek": "",
+             "body": "The FCC authorized SpaceX on Tuesday. Boston Consulting Group estimates launch costs stay high for every "
+                     "operator that plans a network in orbit.",
+             "dek": "The approval covers a network meant to run data centers in orbit.",
              "caption": "FCC clears SpaceX\n\n#news #business #spacex", "photo_file": "SpaceX headquarters, Hawthorne.jpg",
              "credit": "Photo: NASA"}
         p.update(kw)

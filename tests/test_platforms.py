@@ -63,7 +63,8 @@ def post(**kw):
     p = {"id": "2026-11-26-1446-1", "created": desk.now().isoformat(), "status": "published", "cards": ["card.jpg", "detail.jpg"],
          "headlines": ["Denny's reshares Nvidia origin story after Jensen Huang's return"], "topic": "Business", "score": 12.5,
          "dek": "The chain says it reinstalled a plaque at the booth where Nvidia's three founders first met.",
-         "body": "Denny's used Jensen Huang's return to Nvidia to reshare its role in the company's origin story.",
+         "body": "Denny's used Jensen Huang's return to Nvidia to reshare its role in the company's origin story. The "
+                 "post on its own accounts named the booth in San Jose where the founders met.",
          "caption": "x\n\nReported by CNBC.\n\nWant the sources? Comment SOURCE",
          "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene", "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
     p.update(kw)

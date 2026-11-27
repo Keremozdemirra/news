@@ -141,8 +141,9 @@ class Copy(unittest.TestCase):
                                   "policy.\n\nSource: FT", "figure": ""}]
         self.assertEqual(copy.apply([s], rows), [])
         self.assertEqual(s["copy_status"], "ok")
-        self.assertNotIn("industrial", s["linkedin_post"])
-        self.assertIn("restructuring", s["linkedin_post"])
+        self.assertNotIn("industrial", s["linkedin_post"] + s["dek"])
+        # with no dek written, the report's first sentence moves up into the dek
+        self.assertIn("restructuring", s["dek"])
 
     def test_hype_is_cut_and_a_long_headline_falls_back_to_the_source(self):
         s = {"title": "Trump demands probe after GDP data revision", "summary": "A massive revision to GDP data lifted growth.", "source": "CNBC"}
@@ -166,7 +167,8 @@ class Copy(unittest.TestCase):
         rows = [{"id": 0, "headline": "US announces new tariffs on a host of countries", "dek": "", "x_post": "",
                  "linkedin_post": "The levies hit many partners.\n\nSource: BBC", "figure": ""}]
         copy.apply([s], rows)
-        self.assertEqual(desk.body(s), "The levies hit many partners.")
+        self.assertNotIn("Source", desk.body(s) + s["dek"])
+        self.assertEqual(s["dek"], "The levies hit many partners.")
 
     def test_a_surname_that_is_a_brand_gets_the_full_name(self):
         s = {"title": "Ford and Unifor leader urge Ottawa to scrap automaker emissions rules", "summary": "Premier Doug Ford "
@@ -468,7 +470,9 @@ class Typography(unittest.TestCase):
 class Audit(unittest.TestCase):
     def post(self, **kw):
         p = {"headlines": ["Nvidia halts chip shipments to Southeast Asia"], "topic": "Tech", "company": "Nvidia",
-             "logo_names": ["Nvidia"], "body": "The pause covers four countries.", "dek": "",
+             "logo_names": ["Nvidia"], "body": "The pause covers four countries in the region. Nvidia said the "
+                     "shipments resume once each buyer confirms where the servers will run.",
+             "dek": "The chipmaker stopped server sales to Malaysia, Singapore, Thailand and Vietnam.",
              "caption": "Nvidia halts chip shipments to Southeast Asia\n\n#tech #news",
              "photo_file": "NVIDIA Headquarters.jpg", "credit_file": "NVIDIA Headquarters.jpg", "credit": "Photo: X",
              "photo_kind": "company"}
