@@ -171,8 +171,35 @@ class Conversions(unittest.TestCase):
     def test_audit_holds_a_post_with_a_conversion_sentence(self):
         from aidaily import desk
         post = {"headlines": ["Coupang posts record revenue"], "dek": "Revenue was 405.8 billion won.",
-                "body": "Sales rose in the quarter. That is about $303 million."}
+                "body": "Sales rose to 405.8 billion won in the quarter. That equals about $303 million."}
         self.assertTrue(any("currency conversion on its own" in p for p in desk.audit(post)))
+
+    def test_audit_leaves_a_real_dollar_fact_alone(self):
+        from aidaily import desk
+        for body in ("The deal is worth $5 billion. It is about $20 per share.", "The total is $12 billion, the largest on record.",
+                     "The price is $1.2 million.", "Sales rose to 405.8 billion won. The deal is worth $5 billion."):
+            post = {"headlines": ["Coupang posts record revenue"], "dek": "Revenue was 405.8 billion won.", "body": body}
+            self.assertFalse(any("currency conversion" in p for p in desk.audit(post)), body)
+
+    def test_money_phrases_that_are_not_conversions_stay_as_written(self):
+        for t in ("a deal worth $5 billion", "funds of about $5 million", "valued at roughly $2 billion", "priced at $5 or $6",
+                  "Fines reached 30 million, or $37,000, last year", "raised about $18.6 billion this year",
+                  "the bid is worth $5.8 billion"):
+            c = {"headline": t, "dek": "", "linkedin_post": "", "x_post": ""}
+            self.assertEqual(copy.fix_conversions(c), [])
+            self.assertEqual(c["headline"], t)
+
+    def test_a_conversion_after_a_foreign_amount_swallows_its_comma(self):
+        c = {"headline": "", "dek": "Revenue was 405.8 billion won, or $303 million, in the quarter. It cost EUR 5, or $6.", "linkedin_post": "", "x_post": ""}
+        copy.fix_conversions(c)
+        self.assertEqual(c["dek"], "Revenue was 405.8 billion won ($303 million) in the quarter. It cost EUR 5, or $6.")
+        c = {"headline": "Deal of \u20ac40 million, equivalent to $43 million, signed", "dek": "", "linkedin_post": "", "x_post": ""}
+        copy.fix_conversions(c)
+        self.assertEqual(c["headline"], "Deal of \u20ac40 million ($43 million) signed")
+
+    def test_a_sentence_after_a_dollar_sentence_is_not_a_conversion(self):
+        self.assertFalse(copy.is_conversion("It equals $5 billion.", "Sales were $2 billion."))
+        self.assertTrue(copy.is_conversion("It equals $5 billion.", "Sales were 7 billion euros."))
 
 
 GUARDIAN = story("Labour MPs write to Starmer urging him to name a successor",

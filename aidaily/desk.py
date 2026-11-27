@@ -656,13 +656,15 @@ def audit(post):
         if gap:
             problems.append(gap)
     for field in ("dek", "body"):
+        prev = ""
         for x in copy.sentences(post.get(field) or ""):
+            before, prev = prev, x
             if copy.META.search(x) or copy.OFFTOPIC.search(x):
                 problems.append(f"{field} sentence is about the source or another story: {x[:80]!r}")
             names = copy.outlet_names({"newsrooms": post.get("sources") or []})
             if names and re.search(rf"^(?:the )?{copy._outlet_rx(names)}\s+(?:also )?{copy.SAYS}\b", x, re.I):
                 problems.append(f"{field} sentence opens with a newsroom's name, which the sources list already gives: {x[:80]!r}")
-            if copy.CONVERSION_SENTENCE.search(x):
+            if copy.is_conversion(x, before):
                 problems.append(f"{field} sentence is a currency conversion on its own: {x[:80]!r}")
     for label, text in (("headline", head_), ("dek", post.get("dek", "")), ("body", post.get("body", "")), ("caption", post.get("caption", ""))):
         if copy.wrong_chamber(text):

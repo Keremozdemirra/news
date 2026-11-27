@@ -300,12 +300,24 @@ def trim_periods(story, c):
     return out
 
 
-MONEY = r"(?:about |roughly |around |nearly |some )?[$€£¥][\d.,]+(?: ?(?:million|billion|trillion|m|bn|tn|k))?"
-# a conversion that is a sentence of its own: "That equals $303 million.", "It is worth about 40 euros."
-CONVERSION_SENTENCE = re.compile(r"^(?:That|This|It|The (?:sum|amount|figure|total|payout|deal|price))\s+(?:is|equals?|is equal to|is worth|"
-                                 r"comes to|works out to|converts to|translates to|is equivalent to|is roughly|is about)\s+" + MONEY, re.I)
-# ", or about $303 million" after another currency's figure: the same conversion, written outside parentheses
-INLINE_CONVERSION = re.compile(r"(?<=[a-z\d])(,)? (?:or|equal(?:s|ing)?|equivalent to|worth|about|roughly) (" + MONEY + r")(?(1),?)(?=[,.;]|\s|$)", re.I)
+AMOUNT = r"\d+(?:[.,]\d+)*(?: ?(?:million|billion|trillion|m|bn|tn|k))?"
+MONEY = r"(?:about |roughly |around |nearly |some )?[$\u20ac\u00a3\u00a5][\d]+(?:[.,]\d+)*(?: ?(?:million|billion|trillion|m|bn|tn|k))?"
+# an amount in a currency other than the dollar: "405.8 billion won", "40 euros", "\u20ac40 million"
+FOREIGN = (r"(?:[\u20ac\u00a3\u00a5\u20b9]\d+(?:[.,]\d+)*(?: ?(?:million|billion|trillion|m|bn|tn|k))?|" + AMOUNT +
+           r" (?:won|yen|euros?|pounds?|rupees?|yuan|renminbi|francs?|kroner|krona|rubles?|reais|pesos?|lira|zloty|baht|rand|dirhams?|riyals?))")
+# a conversion that is a sentence of its own: "That equals $303 million." It only counts after a sentence that holds a
+# foreign amount: "The deal is worth $5 billion." is a fact, not a conversion.
+CONVERSION_SENTENCE = re.compile(r"^(?:That|This|It)\s+(?:equals?|is equal to|converts to|translates to|works out to|is equivalent to)\s+" + MONEY, re.I)
+# "405.8 billion won, or $303 million": the same conversion, written outside parentheses. Only after a foreign amount:
+# "priced at $5 or $6" and "a deal worth $5 billion" are not conversions.
+INLINE_CONVERSION = re.compile(r"(" + FOREIGN + r")(,)? (?:or|equal(?:s|ing)?|equivalent to) (" + MONEY + r")(?(2),?)(?=[,.;]|\s|$)", re.I)
+
+
+def is_conversion(sent, prev=""):
+    """A sentence that is only the dollar value of the foreign amount the sentence before it gave."""
+    return bool(CONVERSION_SENTENCE.search(sent) and re.search(FOREIGN, prev or "", re.I))
+
+
 PAREN_CONVERSION = re.compile(r"\((" + MONEY + r")\)", re.I)
 
 
@@ -325,12 +337,13 @@ def fix_conversions(c):
             if line.startswith("Source:") or not line.strip():
                 lines.append(line)
                 continue
-            kept = []
+            kept, prev = [], ""
             for sent in sentences(line):
-                if CONVERSION_SENTENCE.search(sent):
+                before, prev = prev, sent
+                if is_conversion(sent, before):
                     cut.append(sent)
                     continue
-                sent = INLINE_CONVERSION.sub(lambda m: f" ({m.group(2)})", sent)
+                sent = INLINE_CONVERSION.sub(lambda m: f"{m.group(1)} ({m.group(3)})", sent)
 
                 def once(m):
                     key = re.sub(r"\W", "", m.group(1).lower())
