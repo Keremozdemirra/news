@@ -372,3 +372,12 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .newspanel{position:relative}
 .topstories .leadrow{padding-top:var(--s3)}
 .puzzles.inrow{display:block}.puzzles.inrow ul{display:flex;flex-wrap:wrap;gap:0 var(--s4)}.puzzles.inrow li{border-bottom:0}
+
+/* desktop: the panel with the compact rail beside it; a phone has the panel only */
+.frontgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--gut);align-items:start}
+.frail{margin-top:var(--s2)}.frail .latest{margin-top:0}.frail .sh:first-child{margin-top:0}.frail section+section{margin-top:var(--s4)}
+.frail .latest ul{list-style:none;margin:0;padding:0}
+@media(max-width:1000px){.frontgrid{display:block}.frail{display:none}}
+/* a link around a whole row or lead underlines the headline only, and only on hover or focus */
+.row:hover,.leadrow .story-link:hover,.row:focus-visible,.leadrow .story-link:focus-visible{text-decoration:none}
+.row:hover .h-l,.row:focus-visible .h-l,.leadrow .story-link:hover .h-xl,.leadrow .story-link:focus-visible .h-xl{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}

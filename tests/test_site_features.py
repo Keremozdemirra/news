@@ -472,7 +472,7 @@ class FrontBuilt(Features):
     def test_the_front_news_is_one_scrolling_panel_the_keyboard_can_reach(self):
         rows = [fake(f"Economy story number {i} today", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"e{i}", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
         h = views.front(rows, {}, None)
-        self.assertTrue(h.startswith('<div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">'))
+        self.assertTrue(h.startswith('<div class="frontgrid"><div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">'))
         self.assertEqual(h.count('class="newspanel"'), 1)
         for part in ('class="topstories"', 'class="leadrow"', 'id="since"'):
             self.assertIn(part, h)

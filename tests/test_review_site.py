@@ -30,7 +30,7 @@ class Ranking(unittest.TestCase):
     def test_the_front_panel_holds_only_the_top_stories_in_importance_order(self):
         rows = [fake(f"r{i}", f"Story number {i} of the day", ("Economy", "Tech", "Business", "World")[i % 4], n=2 + i % 4, score=9, hours=i * 0.3) for i in range(30)]
         html = views.front(rows, {}, None)
-        panel = re.search(r'<div class="newspanel".*', html, re.S).group(0)
+        panel = re.search(r'<div class="newspanel".*?<aside', html, re.S).group(0)
         ids = re.findall(r'/s/([^/"]+)/', panel)
         ranked = [p["id"] for p in views.front_rank(site.window(rows))[:views.TOP_N]]
         self.assertEqual(list(dict.fromkeys(ids)), ranked)  # the lead, then the rows, in the one importance order
@@ -39,6 +39,20 @@ class Ranking(unittest.TestCase):
             self.assertNotIn(gone, html)  # no section blocks: the sections are in the masthead
         self.assertEqual(html.count('class="leadrow"'), 1)
         self.assertIn('href="/latest/">All latest</a>', html)
+
+    def test_the_rail_beside_the_panel_has_latest_with_ages_and_the_five_most_important(self):
+        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=2 + i % 4, score=5 + i % 7, hours=i * 0.3) for i in range(20)]
+        html = views.front(rows, {}, None)
+        self.assertLess(html.index('class="newspanel"'), html.index('<aside class="frail"'))  # beside it, not above
+        self.assertTrue(html.startswith('<div class="frontgrid">'))
+        rail = re.search(r'<aside class="frail".*?</aside>', html, re.S).group(0)
+        self.assertEqual(len(re.findall(r'<li><a href="[^"]*/s/', re.search(r'<section class="latest".*?</section>', rail, re.S).group(0))), 6)
+        self.assertEqual(rail.count("data-age"), 6)
+        self.assertEqual(rail.count('<span class="n" aria-hidden="true">'), 5)
+        self.assertNotIn("<img", rail)
+        css = (site.ASSETS / "views.css").read_text()
+        self.assertIn("@media(max-width:1000px){.frontgrid{display:block}.frail{display:none}}", css)  # a phone has the panel only
+        self.assertIn(".leadrow .story-link:hover,", css)  # hovering a lead underlines its headline, not the dek and the age
 
     def test_a_row_carries_its_photo_on_the_right_with_the_caption_and_a_row_without_one_is_text(self):
         rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3, photo_kind="scene", photo_file=f"Story{i}.jpg", _thumb=True) for i in range(4)]

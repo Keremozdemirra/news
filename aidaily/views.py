@@ -147,7 +147,15 @@ def front(shown, cos, m, sport=()):
     rows = f'<ol>{"".join(S.listing_row(p) for p in top[1:])}</ol>' if top[1:] else ""
     inner = (S.updated_line(since=True) + f'<div class="topstories">{lead_html}{rows}'
              f'<p class="earlier"><a href="{S.BASE}/latest/">All latest</a></p></div>')
-    return panel(inner) + puzzles_block("inrow")
+    return f'<div class="frontgrid">{panel(inner)}{rail(shown)}</div>' + puzzles_block("inrow")
+
+
+def rail(shown):
+    """Beside the panel on a desktop: the newest stories with their age, and the five most important. Compact, no pictures; a phone drops it."""
+    latest = sorted(shown, key=lambda p: p["published"], reverse=True)[:6]
+    top = S.by_score(S.window(shown))[:5]
+    return (f'<aside class="frail" aria-label="Latest and most important"><section class="latest"><h2 class="sh"><a href="{S.BASE}/latest/">Latest</a></h2>{latest_list(latest)}</section>'
+            f'<section><h2 class="sh">Most important</h2>{S.ranked(top, 5)}</section></aside>' if shown else "")
 
 
 def panel(inner):
