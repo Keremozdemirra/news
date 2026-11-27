@@ -477,6 +477,17 @@ class Play(Features):
         with mock.patch.object(play, "GAMES", [("topfloor", "T", "x", False), ("ghost", "G", "x", True)]):
             self.assertEqual(play.live(), [])
 
+    def test_the_first_puzzle_of_a_day_stays_for_that_day(self):
+        from aidaily import play
+        day = "2026-11-27"
+        live = {"v": 2, "date": day, "rounds": [1], "sig": "a"}
+        self.assertTrue(play.same_day_same_puzzle({"v": 2, "date": day, "rounds": [2], "sig": "b"}, live, day), "a later build keeps the published one")
+        self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": "2026-11-28", "rounds": [2], "sig": "b"}, live, "2026-11-28"), "a new day deals anew")
+        self.assertFalse(play.same_day_same_puzzle({"v": 3, "date": day, "rounds": [2], "sig": "b"}, live, day), "a new format replaces it")
+        self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": day, "rounds": [2], "sig": "b", "pool": []}, live, day), "a new field replaces it")
+        self.assertFalse(play.same_day_same_puzzle({"v": 2, "date": day}, None, day))
+
+
     def test_no_game_file_is_git_ignored(self):
         import subprocess
         from aidaily import play
