@@ -82,7 +82,8 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; border-radiu
 .src a:hover { background: var(--ink); color: var(--paper); }
 .head { font: 400 11px / 1.25 var(--plate); margin-top: 4px; color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .head:empty { display: none; }
-.stamp { position: absolute; left: 62%; top: 4%; padding: 3px 9px 2px; border: 3px solid currentColor; font: 700 22px / 1 var(--stamp); letter-spacing: 0.14em; text-transform: uppercase; background: var(--paper); z-index: 3; transform: translate(-50%, -50%) rotate(-9deg); pointer-events: none; }
+/* Sits on the top edge, wholly above the name: the name starts 24px down however many lines it wraps to. */
+.stamp { position: absolute; left: 62%; top: -8px; padding: 3px 9px 2px; border: 3px solid currentColor; font: 700 22px / 1 var(--stamp); letter-spacing: 0.14em; text-transform: uppercase; background: var(--paper); z-index: 3; transform: translate(-50%, -50%) rotate(-9deg); pointer-events: none; }
 .stamp.right { color: var(--right); } .stamp.wrong { color: var(--wrong); }
 .coin { position: absolute; width: 12px; height: 12px; margin: -6px; border-radius: 50%; background: #c99a3c; border: 2px solid var(--ink); pointer-events: none; z-index: 6; }
 
