@@ -94,7 +94,7 @@ def hub_body():
                         f'<span class="gd">{S.E(blurb)}</span><span class="gm">Play today</span></a></li>')
         else:
             rows.append(f'<li><div class="game soon"><span class="gt">{S.E(title)}</span><span class="gm">Coming soon</span></div></li>')
-    return (S.pagehead("Play", "A new puzzle every day at 00:00 UTC. Same puzzle for everyone, no account.")
+    return (S.pagehead("Play", "Three games. New every day.")
             + f'<ul class="games">{"".join(rows)}</ul>')
 
 
