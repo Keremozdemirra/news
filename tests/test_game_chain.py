@@ -152,7 +152,7 @@ if __name__ == "__main__":
 class Ranks(unittest.TestCase):
     """Reported 27 Nov: the ladder was cut for ten links, the day had eight, and a perfect run read Chief cashier."""
     def ladder(self, n):
-        js = "import { rankOf } from '%s/js/rig.js'; console.log(JSON.stringify([...Array(%d + 1).keys()].map((c) => rankOf(c, %d))));" % (GAME, n, n)
+        js = "import { rankOf } from '%s/js/rank.js'; console.log(JSON.stringify([...Array(%d + 1).keys()].map((c) => rankOf(c, %d))));" % (GAME, n, n)
         r = subprocess.run(["node", "--input-type=module", "-e", js], capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr[-400:])
         return json.loads(r.stdout)
@@ -175,3 +175,4 @@ class Ranks(unittest.TestCase):
     def test_the_page_uses_the_chain_length(self):
         src = (GAME / "js" / "ftf.js").read_text()
         self.assertIn("rankOf(correct, rounds.length)", src)
+        self.assertIn('from "./rank.js"', src)

@@ -506,13 +506,13 @@ class Play(Features):
             self.assertTrue((self.out / "play" / slug / "index.html").exists(), slug)
         self.assertNotIn("Coming soon", h)
 
-    def test_the_hub_shows_each_game_by_its_own_key_art(self):
+    def test_the_hub_lists_each_game_in_type_and_ships_no_render_sources(self):
         h = self.read("play/index.html")
+        self.assertNotIn("<img", h[h.index('<ul class="games">'):h.index("</ul>", h.index('<ul class="games">'))])
         for slug in ("topfloor", "tickerflip", "face-the-figure"):
-            self.assertIn(f'src="{site.BASE}/play/{slug}/assets/share.jpg"', h)
-            self.assertTrue((self.out / "play" / slug / "assets" / "mark.webp").exists(), slug)
-            self.assertIn('src="assets/mark.webp"', (self.out / "play" / slug / "index.html").read_text(), slug)   # the game page wears its mark
-            self.assertFalse((self.out / "play" / slug / "art" / "lockup.html").exists(), slug)
+            self.assertIn(f'href="{site.BASE}/play/{slug}/"', h)
+            self.assertFalse((self.out / "play" / slug / "art").exists(), slug)
+            self.assertFalse((self.out / "play" / slug / "assets" / "art").exists(), slug)
 
     def test_topfloor_ships_its_answer_lists_and_not_the_hand_list(self):
         d = self.out / "play" / "topfloor"
@@ -530,7 +530,7 @@ class Play(Features):
 
     def test_topfloor_is_copied_whole_without_its_build_tools(self):
         d = self.out / "play" / "topfloor"
-        for f in ("index.html", "css/topfloor.css", "js/topfloor.js", "js/world.js", "assets/data/today.json", "assets/fonts/Jost-latin.woff2"):
+        for f in ("index.html", "css/topfloor.css", "js/topfloor.js", "js/lists.worker.js", "js/match.js", "assets/data/today.json"):
             self.assertTrue((d / f).exists(), f)
         self.assertFalse((d / ".cache").exists())
 

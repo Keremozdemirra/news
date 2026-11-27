@@ -13,99 +13,83 @@
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Tickerflip · boardread.">
 <meta name="twitter:description" content="One word from today's news. Six guesses."><meta name="twitter:image" content="https://boardread.news/play/tickerflip/assets/share.jpg">
-<meta name="theme-color" content="#120c0a">
-<link rel="preload" href="assets/fonts/BarlowCondensed-700.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="assets/fonts/BigShouldersDisplay-800.woff2" as="font" type="font/woff2" crossorigin>
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#121212" media="(prefers-color-scheme: dark)">
+<link rel="preload" href="/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/Newsreader-var.woff2?v=4cd42e5a" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/tickerflip.css">
 </head>
 <body>
 <div class="app" id="app" data-phase="loading">
 
-  <div class="hall" aria-hidden="true"></div>
-  
   <header class="top">
-    <a class="brand" href="./" aria-label="Tickerflip, start page"><img class="brand-logo" src="assets/mark.webp" alt="" width="30" height="30">Tickerflip</a>
+    <a class="brand" href="./">Tickerflip</a>
     <div class="tools">
       <button class="icon-btn" id="help" type="button" aria-label="How to play">
-        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2.9-1.2 1.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="16.6" r="1" fill="currentColor"/></svg>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.2c-.8.4-1.2.9-1.2 1.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/><path d="M11.2 16h1.6v1.6h-1.6z" fill="currentColor"/></svg>
       </button>
       <button class="icon-btn" id="sound" type="button" aria-pressed="false" aria-label="Sound off">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
           <path class="spk" d="M3.5 9.5h3.6L12 5.6v12.8l-4.9-3.9H3.5z" fill="currentColor"/>
-          <path class="wave" d="M15.4 9.2a4 4 0 0 1 0 5.6M17.9 6.7a7.5 7.5 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <path class="mute" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <path class="wave" d="M15.4 9.2a4 4 0 0 1 0 5.6M17.9 6.7a7.5 7.5 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+          <path class="mute" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.6"/>
         </svg>
       </button>
     </div>
   </header>
 
   <main class="stage" id="stage">
-    <aside class="side side-l" aria-hidden="true">
-      <div class="clock">
-        <svg viewBox="0 0 200 200" id="clock"></svg>
-        <p class="clock-cap">Exchange time<br><b class="mono" id="clock-txt">00:00:00</b> UTC</p>
-      </div>
-    </aside>
-
     <section class="center" id="center">
+      <div class="plate" id="plate">
+        <p class="cap"><span class="plate-k">Today’s word</span> · <b id="plate-len">6 letters</b></p>
+        <p class="clue" id="clue"><span id="clue-text">Clue after 3 misses</span></p>
+      </div>
       <div class="frame" id="frame">
-        <div class="plate" id="plate">
-          <div class="plate-main"><span class="plate-k">Today’s word</span><b id="plate-len">7 letters</b></div>
-          <div class="plate-clue" id="clue"><i class="lamp" aria-hidden="true"></i><span id="clue-text">Clue after 3 misses</span></div>
-        </div>
         <div class="board" id="board" role="grid" aria-label="Guess board"></div>
-        <div class="board ansrow" id="ans" hidden><span class="ans-k">The word</span></div>
+        <div class="board ansrow" id="ans" hidden><span class="cap ans-k">The word</span></div>
       </div>
 
       <p class="msg" id="msg" role="status" aria-live="polite"></p>
 
       <div class="kb" id="kb" role="group" aria-label="Keyboard"></div>
-
-      <section class="end" id="end" hidden aria-labelledby="e-title">
-        <div class="e-head">
-          <p class="eyebrow" id="e-issue">Tickerflip</p>
-          <h2 class="e-title" id="e-title" tabindex="-1">Boarded</h2>
-          <p class="e-sub" id="e-sub"></p>
-        </div>
-        <div class="reveal" id="reveal">
-          <h3 class="h3">Where the word came from</h3>
-          <ul class="arts" id="arts"></ul>
-        </div>
-        <div class="share">
-          <pre class="share-text" id="share-text" aria-label="Share text"></pre>
-          <button class="btn wide" id="share" type="button"><span id="share-label">Share your board</span></button>
-          <p class="next-in">Next word in <b class="mono" id="countdown">00:00:00</b></p>
-          <button class="btn wide ghost" id="extra" type="button" hidden><span id="extra-label">Another board</span></button>
-          <button class="textbtn" id="to-daily" type="button" hidden>Back to today’s board</button>
-        </div>
-        <div class="statsbox">
-          <h3 class="h3">Your record</h3>
-          <dl class="stats" id="stats"></dl>
-          <div class="dist" id="dist" role="img"></div>
-        </div>
-        <p class="credit" id="credit"></p>
-        <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
-      </section>
     </section>
 
-    <aside class="side side-r" aria-hidden="true" id="legend-side"></aside>
+    <section class="end" id="end" hidden aria-labelledby="e-title">
+      <div class="e-head">
+        <p class="cap" id="e-issue">Tickerflip</p>
+        <h2 class="e-title" id="e-title" tabindex="-1">Solved</h2>
+        <p class="e-sub" id="e-sub"></p>
+      </div>
+      <div class="card">
+        <div class="card-top"><span class="cap">Your board</span><b class="e-score num" id="e-score">3/6</b></div>
+        <div class="mini" id="mini" aria-hidden="true"></div>
+        <pre class="share-text" id="share-text" aria-label="Share text"></pre>
+        <button class="btn" id="share" type="button"><span id="share-label">Share</span></button>
+      </div>
+      <p class="next-in"><span class="cap">Next word in</span> <b class="num" id="countdown">00:00:00</b></p>
+      <button class="btn ghost" id="extra" type="button" hidden><span id="extra-label">Another word</span></button>
+      <button class="textbtn" id="to-daily" type="button" hidden>Back to today’s word</button>
+      <div class="reveal" id="reveal">
+        <h3 class="cap">Where the word came from</h3>
+        <ul class="arts" id="arts"></ul>
+      </div>
+      <div class="statsbox">
+        <h3 class="cap">Your record</h3>
+        <dl class="stats" id="stats"></dl>
+        <div class="dist" id="dist" role="img"></div>
+      </div>
+      <p class="credit" id="credit"></p>
+      <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
+    </section>
   </main>
 
   <div class="scrim" id="scrim" hidden></div>
   <section class="intro" id="intro" role="dialog" aria-modal="true" aria-labelledby="t-intro" hidden>
-    <div class="dep-head"><span class="dep-k">Departures</span><span class="dep-d" id="issue">No. 1</span></div>
-    <h1 class="sr" id="t-intro">Tickerflip</h1>
-    <div class="dep-title" id="title-row" aria-hidden="true"></div>
+    <p class="cap" id="issue">No. 1</p>
+    <h1 class="title" id="t-intro">Tickerflip</h1>
     <p class="lede">One word from today’s news. Six guesses.</p>
-    <dl class="dep-rows">
-      <div><dt>Gate</dt><dd id="d-len">7 letters</dd></div>
-      <div><dt>Guesses</dt><dd>6</dd></div>
-      <div><dt>Source</dt><dd>Boardread</dd></div>
-      <div><dt>Next board</dt><dd class="mono" id="d-next">00:00:00</dd></div>
-    </dl>
+    <p class="how"><b id="d-len">6 letters</b>. A company, a ticker or a headline word.</p>
     <div id="legend-intro"></div>
-    <p class="how">A company, a ticker or a headline word.</p>
-    <button class="btn wide" id="start" type="button">Open the board</button>
+    <button class="btn" id="start" type="button">Play</button>
     <p class="fine" id="intro-fine"></p>
     <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
   </section>

@@ -86,12 +86,11 @@ def copy_games(out):
 
 
 def hub_body():
-    """Three games, three worlds: each tile is the game's own key art (its logo in its scene), not a row of text."""
+    """The games as three entries in the site's own type: a rule, the name, one line, and where to go."""
     rows = []
     for slug, title, blurb, is_live in GAMES:
         if is_live and (GAMES_DIR / slug / "index.html").exists():
-            art = f'<img class="ga" src="{S.BASE}/play/{slug}/assets/share.jpg" alt="" width="1200" height="630" loading="lazy">' if (GAMES_DIR / slug / "assets" / "share.jpg").exists() else ""
-            rows.append(f'<li><a class="game" href="{S.BASE}/play/{slug}/">{art}<span class="gt">{S.E(title)}</span>'
+            rows.append(f'<li><a class="game" href="{S.BASE}/play/{slug}/"><span class="gt">{S.E(title)}</span>'
                         f'<span class="gd">{S.E(blurb)}</span><span class="gm">Play today</span></a></li>')
         else:
             rows.append(f'<li><div class="game soon"><span class="gt">{S.E(title)}</span><span class="gm">Coming soon</span></div></li>')

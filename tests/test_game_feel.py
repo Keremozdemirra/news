@@ -10,7 +10,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 GAMES = ROOT / "games"
 SLUGS = ("topfloor", "tickerflip", "face-the-figure")
-ART_BUDGET = 400 * 1024          # bytes of pictures a game may ship in assets/art, share image apart
 
 
 def without_hover_media(css):
@@ -31,11 +30,11 @@ class Weight(unittest.TestCase):
         for slug in SLUGS:
             self.assertEqual([p.name for p in (GAMES / slug / "assets").rglob("*.png")], [], slug)
 
-    def test_the_art_of_a_game_stays_inside_its_budget(self):
+    def test_a_game_without_its_data_and_share_image_is_small(self):
+        # code, style and markup: what a visitor fetches before the day's data
         for slug in SLUGS:
-            art = GAMES / slug / "assets" / "art"
-            size = sum(p.stat().st_size for p in art.rglob("*") if p.is_file())
-            self.assertLessEqual(size, ART_BUDGET, f"{slug}: {size // 1024} KB of art")
+            size = sum(p.stat().st_size for p in (GAMES / slug).rglob("*") if p.is_file() and p.suffix in (".js", ".css", ".html"))
+            self.assertLessEqual(size, 120 * 1024, f"{slug}: {size // 1024} KB")
 
     def test_render_sources_are_not_copied_to_the_site(self):
         src = (ROOT / "aidaily" / "play.py").read_text()
@@ -50,29 +49,52 @@ class Weight(unittest.TestCase):
                     self.assertTrue((css.parent / ref).resolve().exists(), f"{slug}: {ref}")
 
 
-class Balance(unittest.TestCase):
-    """Face the Figure's balance is seven sprites moved by transforms, not ninety-eight frames drawn on a canvas."""
-    def test_the_sprites_the_rig_loads_are_there(self):
-        art = GAMES / "face-the-figure" / "assets" / "art"
-        meta = json.loads((art / "scale.json").read_text())
-        rig = (GAMES / "face-the-figure" / "js" / "rig.js").read_text()
-        for name, box in meta["layers"].items():
-            self.assertTrue((art / f"{name}.webp").exists(), name)
-            self.assertIn(f'"{name}"', rig)
-            self.assertTrue(0 <= box["x"] and box["x"] + box["w"] <= meta["w"] and 0 <= box["y"] and box["y"] + box["h"] <= meta["h"], name)
-        self.assertEqual(len(meta["frames"]), len(meta["angles"]))
-        self.assertEqual(list(art.glob("back_*")) + list(art.glob("front_*")), [])
+class System(unittest.TestCase):
+    """Kerem, 27 Nov, after seeing both: the flat site system. Paper and ink, the site's two type families, no
+    rendered art, no gradients or shadows, motion on transform and opacity alone."""
+    def css(self, slug):
+        return re.sub(r"/\*.*?\*/", "", next((GAMES / slug / "css").glob("*.css")).read_text(), flags=re.S)
 
-    def test_no_canvas_and_no_layout_read_in_a_frame(self):
-        rig = (GAMES / "face-the-figure" / "js" / "rig.js").read_text()
-        self.assertNotIn("getContext", rig)
-        draw = rig[rig.index("function draw("):rig.index("// play a score")]
-        self.assertNotIn("offsetHeight", draw)
-        self.assertNotIn("clientWidth", draw)
+    def test_only_the_sites_type_families_and_its_own_font_files(self):
+        for slug in SLUGS:
+            css = self.css(slug)
+            fams = set(re.findall(r'font-family:\s*"([^"]+)"', css))
+            self.assertEqual(fams, {"Libre Franklin", "Newsreader", "Franklin Fallback"}, slug)
+            for url in re.findall(r'url\("([^"]+\.woff2[^"]*)"\)', css):
+                self.assertTrue(url.startswith("/fonts/"), f"{slug}: {url}")       # the files the site already serves and caches
+            self.assertFalse((GAMES / slug / "assets" / "fonts").exists(), slug)
 
-    def test_the_scene_keeps_its_height_between_a_call_and_its_result(self):
-        css = (GAMES / "face-the-figure" / "css" / "ftf.css").read_text()
-        self.assertRegex(css, r'\.panel\[data-s="play"\],\s*\.panel\[data-s="result"\]\s*\{\s*height:')
+    def test_no_rendered_art_no_shadow_no_blur_no_radius(self):
+        for slug in SLUGS:
+            css = self.css(slug)
+            self.assertFalse((GAMES / slug / "assets" / "art").exists(), slug)
+            self.assertFalse((GAMES / slug / "art").exists(), slug)
+            for banned in ("drop-shadow", "blur(", "gradient", "backdrop-filter", "text-shadow"):
+                self.assertNotIn(banned, css, f"{slug}: {banned}")
+            for m in re.finditer(r"box-shadow:\s*([^;]+);", css):
+                self.assertTrue(all(part.strip().startswith("inset") for part in m.group(1).split(",")), f"{slug}: {m.group(0)}")   # a flat inset rule, never a cast shadow
+            for m in re.finditer(r"border-radius:\s*([^;]+);", css):
+                self.assertEqual(m.group(1).strip(), "0", f"{slug}: {m.group(0)}")
+
+    def test_motion_is_transform_and_opacity_and_short(self):
+        for slug in SLUGS:
+            css = self.css(slug)
+            for m in re.finditer(r"transition:\s*([^;]+);", css):
+                for part in m.group(1).split(","):
+                    prop = part.split()[0]
+                    self.assertIn(prop, ("transform", "opacity", "none"), f"{slug}: {m.group(0)}")
+                    ms = re.search(r"(\d+)ms", part)
+                    if ms: self.assertLessEqual(int(ms.group(1)), 250, f"{slug}: {m.group(0)}")
+            for body in re.findall(r"@keyframes\s+\w+\s*\{((?:[^{}]*\{[^{}]*\})*)", css):
+                for prop in re.findall(r"([a-z-]+)\s*:", re.sub(r"[\d%a-z, ]+\{", "", body)):
+                    self.assertIn(prop, ("transform", "opacity"), f"{slug}: keyframes animate {prop}")
+            self.assertIn("prefers-reduced-motion", css, slug)
+
+    def test_the_page_has_no_frame_loop_for_its_clock(self):
+        page = (GAMES / "topfloor" / "js" / "topfloor.js").read_text()
+        clock = page[page.index("function clockRun"):page.index("function onClock")]
+        self.assertNotIn("requestAnimationFrame", clock)
+        self.assertIn(".animate(", clock)
 
 
 class Lists(unittest.TestCase):

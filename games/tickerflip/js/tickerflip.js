@@ -1,4 +1,4 @@
-import { Tile } from "./flap.js";
+import { Tile, TURN } from "./flap.js";
 import * as snd from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -48,11 +48,8 @@ function buildBoard() {
   for (let r = 0; r < ROWS; r++) {
     const row = document.createElement("div");
     row.className = "row"; row.setAttribute("role", "row"); row.setAttribute("aria-label", `Guess ${r + 1}`);
-    const n = document.createElement("span"); n.className = "rn"; n.textContent = pad(r + 1); n.setAttribute("aria-hidden", "true");
-    row.appendChild(n);
     const rt = [];
     for (let c = 0; c < L; c++) { const t = new Tile(REDUCED); t.el.style.setProperty("--i", c); t.el.setAttribute("aria-label", `Row ${r + 1}, letter ${c + 1}, empty`); row.appendChild(t.el); rt.push(t); }
-    const lamp = document.createElement("i"); lamp.className = "rlamp"; lamp.setAttribute("aria-hidden", "true"); row.appendChild(lamp);
     board.appendChild(row); rowEls.push(row); tiles.push(rt);
   }
 }
@@ -82,21 +79,15 @@ function keyState(ch, st) {
   k.setAttribute("aria-label", `${ch}, ${WORDS_IN[st]}`);
 }
 
-// ---- legend (used in the intro card and the desktop side wall)
+// ---- how the board reads, on the start card
 function legend() {
-  const wrap = document.createElement("div"); wrap.className = "legend";
-  const h = document.createElement("p"); h.className = "legend-h"; h.textContent = "Reading the board"; wrap.appendChild(h);
-  const rows = [["S", "correct", "Right letter, right place"], ["T", "present", "In the word, wrong place"], ["X", "absent", "Not in the word"]];
-  const ul = document.createElement("ul");
-  for (const [ch, st, txt] of rows) {
+  const ul = document.createElement("ul"); ul.className = "legend";
+  for (const [ch, st, txt] of [["S", "correct", "Right place"], ["T", "present", "In the word"], ["X", "absent", "Not in it"]]) {
     const li = document.createElement("li");
-    const t = new Tile(true); t.set(ch, st); t.el.classList.add("demo"); t.el.dataset.done = "1"; t.el.removeAttribute("role");
-    t.el.setAttribute("aria-hidden", "true");
-    const sp = document.createElement("span"); sp.innerHTML = `<b>${st === "correct" ? "Locked" : st === "present" ? "Loose" : "Dark"}</b> ${txt}`;
-    li.append(t.el, sp); ul.appendChild(li);
+    const t = new Tile(true); t.set(ch, st); t.el.removeAttribute("role"); t.el.setAttribute("aria-hidden", "true");
+    li.append(t.el, txt); ul.appendChild(li);
   }
-  wrap.appendChild(ul);
-  return wrap;
+  return ul;
 }
 
 // ---- helpers
@@ -144,7 +135,7 @@ async function enter() {
     // kept on this device only, never sent: the words we refused, so the list can be checked against them
     try { const log = JSON.parse(localStorage.getItem("tickerflip:misses") || "[]"); log.push({ d: data.date, g }); localStorage.setItem("tickerflip:misses", JSON.stringify(log.slice(-200))); } catch { /* private mode */ }
   }
-  if (!valid.has(g)) { say("Not on the board’s word list.", true); live(`${cur} is not on the word list.`); shake(); return; }
+  if (!valid.has(g)) { say("Not in the word list.", true); live(`${cur} is not on the word list.`); shake(); return; }
   busy = true;
   const r = guesses.length, res = score(cur, answer);
   guesses.push(cur);
@@ -160,17 +151,17 @@ async function enter() {
 }
 async function reveal(r, word, res, instant = false) {
   const row = tiles[r], announce = [];
-  // One cell at a time, left to right: each runs two flaps and lands before the next one starts. The eye follows
-  // a single moving thing; the rest of the board, the keys and the plate stay still.
+  // Left to right, each card starting before the last has opened: the row is read in under a second.
   for (let i = 0; i < row.length; i++) {
     const t = row[i];
     if (instant || REDUCED) t.set(word[i], res[i]);
-    else await t.flip(word[i], res[i], { steps: 2, onStep: (k, last) => { if (!last) snd.flap(); }, onContact: () => { snd.clack(); t.el.dataset.done = "1"; } });
+    else await t.flip(word[i], res[i], { onContact: () => { snd.clack(); t.el.dataset.done = "1"; keyState(word[i], res[i]); } });
     t.el.dataset.done = "1";
     t.el.setAttribute("aria-label", `Row ${r + 1}, letter ${i + 1}, ${word[i]}, ${WORDS_IN[res[i]]}`);
     keyState(word[i], res[i]);
   }
   if (!instant) {
+    await wait(TURN);                       // the last card finishes opening before the next thing happens
     rowEls[r].dataset.done = "1";
     live(`Guess ${r + 1}, ${word}. ` + word.split("").map((ch, i) => `${ch} ${WORDS_IN[res[i]]}`).join("; ") + ".");
   } else rowEls[r].dataset.done = "1";
@@ -197,7 +188,7 @@ function persistDay(status) {
 async function finish(win, animate) {
   won = win;
   setPhase("end"); busy = true;
-  if (animate) await wait(400);
+  if (animate) await wait(250);
   if (win) {
     snd.bell(Math.max(2, 5 - guesses.length));
     if (!REDUCED && animate) { rowEls[guesses.length - 1].classList.add("ripple"); }
@@ -208,19 +199,19 @@ async function finish(win, animate) {
     await showAnswerRow(!animate);
   }
   recordStats(win, animate);
+  if (animate) await wait(win ? 1000 : 700);          // the finished row, or the answer, is looked at before the result covers it
   renderEnd(win);
-  if (animate) await wait(win ? 900 : 300);
   requestAnimationFrame(() => $("e-title").focus({ preventScroll: true }));
 }
 async function showAnswerRow(instant) {
-  // a miss: the word is spelled out on its own brass row under the board
+  // a miss: the word is spelled out on its own row under the board
   $("ans").hidden = false;
   const word = answer.toUpperCase();
   if (!instant) await wait(450);
   await Promise.all(ansTiles.map(async (t, i) => {
     if (instant) { t.set(word[i], "revealed"); return; }
     await wait(i * 90);
-    await t.flip(word[i], "revealed", { steps: 3, onStep: (k, last) => { if (!last) snd.flap(); }, onContact: () => snd.clack() });
+    await t.flip(word[i], "revealed", { onContact: () => snd.clack() });
   }));
   $("ans").setAttribute("aria-label", `The word was ${word}`);
 }
@@ -251,9 +242,13 @@ const hl = (headline, word) => {
 };
 function renderEnd(win) {
   const n = guesses.length, d = new Date(data.date + "T12:00:00Z");
-  $("e-issue").textContent = (extraNo ? `Extra board ${extraNo} · not counted · ` : `Tickerflip No. ${data.no} · `) + `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
-  $("e-title").textContent = win ? (n === 1 ? "First flip. Boarded." : `Boarded on guess ${n}`) : "The board closed";
-  $("e-sub").textContent = win ? `${answer.toUpperCase()} was ${data.clue}.` : `The word was ${answer.toUpperCase()}, ${data.clue}.`;
+  $("e-issue").textContent = (extraNo ? `Extra word ${extraNo} · not counted · ` : `Tickerflip No. ${data.no} · `) + `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+  $("e-title").textContent = win ? (n === 1 ? "Solved in one" : `Solved in ${n}`) : "Not today";
+  $("e-sub").textContent = `${answer.toUpperCase()}: ${data.clue}.`;
+  // the day's board again as squares: what the share text carries, drawn
+  const mini = $("mini"); mini.innerHTML = ""; mini.style.setProperty("--L", L);
+  for (const g of guesses) for (const st of score(g, answer)) { const i = document.createElement("i"); i.dataset.s = st; mini.appendChild(i); }
+  $("e-score").textContent = `${win ? n : "X"}/${ROWS}`;
   // articles behind the word
   const ul = $("arts"); ul.innerHTML = "";
   for (const a of data.articles) {
@@ -261,7 +256,7 @@ function renderEnd(win) {
     const link = document.createElement("a"); link.href = a.url; link.target = "_blank"; link.rel = "noopener";
     const h = document.createElement("span"); h.className = "a-h"; h.appendChild(hl(a.h, answer));
     const meta = document.createElement("span"); meta.className = "a-m"; meta.textContent = `${a.src ? a.src + " · " : ""}boardread.news/s/${a.id}/`;
-    const go = document.createElement("span"); go.className = "a-go"; go.setAttribute("aria-hidden", "true"); go.textContent = "Read the story →";
+    const go = document.createElement("span"); go.className = "a-go"; go.setAttribute("aria-hidden", "true"); go.textContent = "Read it";
     link.append(h, meta, go); li.appendChild(link); ul.appendChild(li);
   }
   // stats
@@ -285,7 +280,7 @@ function renderEnd(win) {
   $("share-text").textContent = shareText(win);
   const done = store.extras?.d === data.date ? store.extras.done : [], left = (daily.more || []).map((m, k) => k + 1).filter((k) => !done.includes(k));
   $("extra").hidden = !left.length; $("extra").dataset.k = left[0] || "";
-  $("extra-label").textContent = left.length ? `Another board (${left.length} left)` : "";
+  $("extra-label").textContent = left.length ? `Another word (${left.length} left)` : "";
   $("to-daily").hidden = !extraNo;
   $("credit").textContent = data.credit;
   $("end").hidden = false; $("kb").hidden = true;
@@ -293,7 +288,7 @@ function renderEnd(win) {
 }
 function shareText(win) {
   const rows = guesses.map((g) => score(g, answer).map((x) => SYM[x]).join(""));
-  return `Tickerflip ${extraNo ? "extra board" : "No. " + data.no}  ${win ? guesses.length : "X"}/${ROWS}\n${L} letters\n${rows.join("\n")}\nhttps://boardread.news/play/tickerflip/?utm_source=share`;
+  return `Tickerflip ${extraNo ? "extra" : "No. " + data.no}  ${win ? guesses.length : "X"}/${ROWS}\n${L} letters\n${rows.join("\n")}\nhttps://boardread.news/play/tickerflip/?utm_source=share`;
 }
 let cdT = 0;
 function countdown() {
@@ -311,54 +306,17 @@ async function share() {
   } catch (e) {
     if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    toast("Select and copy the text.");
+    $("share-text").classList.add("open"); toast("Select and copy the text.");
   }
 }
 let toastTT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTT); toastTT = setTimeout(() => t.classList.remove("show"), 2200); }
 
-// ---- world: lamps and clock, hand built in SVG
-const NS = "http://www.w3.org/2000/svg";
-function el(n, a, p) { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); p?.appendChild(e); return e; }
-function buildClock() {
-  const svg = $("clock"), cx = 100, cy = 100;
-  el("circle", { cx, cy, r: 94, fill: "#0c0807", stroke: "#c9a05a", "stroke-width": 8 }, svg);
-  el("circle", { cx, cy, r: 88, fill: "none", stroke: "#0c0807", "stroke-width": 2 }, svg);
-  for (let i = 0; i < 60; i++) {
-    const a = (i * 6 * Math.PI) / 180, big = i % 5 === 0, r1 = big ? 70 : 78, r2 = 84;
-    el("line", { x1: cx + Math.sin(a) * r1, y1: cy - Math.cos(a) * r1, x2: cx + Math.sin(a) * r2, y2: cy - Math.cos(a) * r2, stroke: big ? "#ecd49c" : "#7a5f2b", "stroke-width": big ? 3 : 1 }, svg);
-  }
-  [[12, 0], [3, 90], [6, 180], [9, 270]].forEach(([n, deg]) => {
-    const a = (deg * Math.PI) / 180, t = el("text", { x: cx + Math.sin(a) * 56, y: cy - Math.cos(a) * 56 + 6, "text-anchor": "middle", class: "c-num" }, svg); t.textContent = n;
-  });
-  const hand = (len, w, id, col) => { const g = el("g", { id }, svg); el("line", { x1: cx, y1: cy + 10, x2: cx, y2: cy - len, stroke: col, "stroke-width": w, "stroke-linecap": "butt" }, g); };
-  hand(44, 5, "c-h", "#f2e9d3"); hand(64, 3.2, "c-m", "#f2e9d3"); hand(72, 1.4, "c-s", "#f6b73c");
-  el("circle", { cx, cy, r: 5, fill: "#f6b73c" }, svg);
-}
-function tickClock() {
-  const n = new Date(), h = n.getUTCHours(), m = n.getUTCMinutes(), s = n.getUTCSeconds();
-  $("c-h").setAttribute("transform", `rotate(${(h % 12) * 30 + m * 0.5} 100 100)`);
-  $("c-m").setAttribute("transform", `rotate(${m * 6 + s * 0.1} 100 100)`);
-  $("c-s").setAttribute("transform", `rotate(${s * 6} 100 100)`);
-  $("clock-txt").textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
-}
-
 // ---- overlay (intro and help)
-function buildTitleRow() {
-  const row = $("title-row"); row.innerHTML = ""; const ts = [];
-  for (const ch of "TICKERFLIP") { const t = new Tile(REDUCED); t.el.classList.add("sm"); t.el.removeAttribute("role"); t.set("", "empty"); row.appendChild(t.el); ts.push([t, ch]); }
-  return ts;
-}
-let titleTiles = [];
-function flipTitle() {
-  // the board refreshes when the card opens: tiles land one after another
-  titleTiles.forEach(([t, ch], i) => setTimeout(() => t.flip(ch, "correct", { steps: 3 + (i % 3) }), REDUCED ? 0 : 200 + i * 90));
-}
 function openIntro(first) {
   helpOpen = true;
-  titleTiles = buildTitleRow(); flipTitle();
   $("intro").hidden = false; $("scrim").hidden = false;
-  $("start").textContent = first ? "Open the board" : "Back to the board";
+  $("start").textContent = first ? "Play" : "Back";
   $("stage").inert = true; document.querySelector(".top").inert = true;
   $("start").focus({ preventScroll: true });
 }
@@ -389,10 +347,10 @@ function startExtra(k) {
   app.classList.remove("won", "lost");
   $("ans").hidden = true; $("ans").innerHTML = ""; $("end").hidden = true; $("kb").hidden = false;
   $("clue").classList.remove("on"); $("clue-text").textContent = clue0;
-  document.querySelector(".plate-k").textContent = `Extra board ${k}`;
+  document.querySelector(".plate-k").textContent = `Extra word ${k}`;
   buildBoard(); buildKeyboard();
   setPhase("play");
-  live(`Extra board ${k}. ${L} letters.`);
+  live(`Extra word ${k}. ${L} letters.`);
 }
 
 // ---- boot
@@ -403,16 +361,14 @@ async function boot() {
     data = await res.json(); words = await wr.text();
     if (wm.ok) more = await wm.text();        // Webster's Second and company names
   } catch (e) {
-    $("stage").innerHTML = '<p class="fail">Today’s board did not load. Reload to try again.</p>';
+    $("stage").innerHTML = '<p class="fail">Today’s word did not load. Reload to try again.</p>';
     app.dataset.phase = "play"; return;
   }
   daily = data; wordLists = [words, more];
 
-  buildClock(); tickClock(); setInterval(tickClock, 1000);
   setWord(daily);
   buildBoard(); buildKeyboard();
   clue0 = $("clue-text").textContent;
-  $("legend-side").appendChild(legend());
   $("legend-intro").appendChild(legend());
   const d = new Date(data.date + "T12:00:00Z");
   $("issue").textContent = `No. ${data.no} · ${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;

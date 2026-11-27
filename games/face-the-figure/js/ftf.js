@@ -1,19 +1,22 @@
-import { createRig, tiltFor, score as keyed, ease, rankOf } from "./rig.js";
+import { rankOf } from "./rank.js";
 import * as snd from "./sound.js";
 
+// Face the Figure. Two figures side by side; the one on the right is sealed until the call. The reveal is the one
+// moment that moves: the seal turns over and the figure counts up in tabular numerals. Everything else is set at once.
 const $ = (id) => document.getElementById(id);
-const app = $("app"), stage = $("stage"), panel = $("panel");
+const app = $("app"), panel = $("panel");
 const params = new URLSearchParams(location.search);
 const RM = matchMedia("(prefers-reduced-motion: reduce)").matches || params.has("rm");
 const STORE = "ftf:v1";
-const IDLE = -2.2;     // sealed B is the lighter pan until it is weighed
+const EASE = "cubic-bezier(0.23, 1, 0.32, 1)";
+const COUNT = 520;      // ms the sealed figure takes to count up
 const pad = (n) => String(n).padStart(2, "0");
 
 const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
 const save = (o) => { try { localStorage.setItem(STORE, JSON.stringify(o)); } catch { /* private mode */ } };
 
-let data, rig, S = 1, idx = 0, streak = 0, bestRun = 0, points = 0, phase = "loading", locked = true, results = [];
-// R is the chain on the balance: the day's ten links, or a practice chain dealt link by link from the day's figures
+let data, idx = 0, streak = 0, bestRun = 0, points = 0, phase = "loading", locked = true, results = [];
+// R is the chain in play: the day's links, or a practice chain dealt link by link from the day's figures
 let R = [], mode = "daily", dealt = null;
 const stats = load();
 const pa = $("pa"), pb = $("pb");
@@ -36,7 +39,7 @@ const plain = (kind, v) => { const p = parts(kind, v); return `${p.cur || ""}${p
 function setFig(fig, kind, v) {
   const p = parts(kind, v), key = JSON.stringify(p);
   if (fig.dataset.k === key) return false;
-  fig.dataset.k = key; fig.className = "fig";
+  fig.dataset.k = key; fig.className = "fig num";
   let h = p.cur ? `<span class="cur">${p.cur}</span>` : "";
   for (const ch of p.num) h += /\d/.test(ch) ? `<span class="d">${ch}</span>` : `<span class="p">${ch}</span>`;
   if (p.u) h += p.pct ? `<span class="p" style="width:auto">%</span>` : `<span class="u">${p.u}</span>`;
@@ -48,22 +51,18 @@ function setFig(fig, kind, v) {
 const KIND = { usd: "Annual revenue · USD", eur: "Annual revenue · EUR", gbp: "Annual revenue · GBP", people: "People", founded: "Year founded", pct: "Percentage" };
 const SUBS = { founded: ["later", "earlier"] };
 function srcLine(f) {
-  const lab = f.src.name === "Wikidata" ? (f.kind === "founded" ? "Founded" : SYM[f.kind] ? `FY${f.year}` : `${f.year}`) : `${f.year}`;
-  return `${lab} · <a href="${f.src.url}" target="_blank" rel="noopener">${f.src.name}</a>`;
+  const lab = f.src.name === "Wikidata" ? (f.kind === "founded" ? "" : SYM[f.kind] ? `FY${f.year} · ` : `${f.year} · `) : `${f.year} · `;
+  return `${lab}<a href="${f.src.url}" target="_blank" rel="noopener">${f.src.name}</a>`;
 }
-function fillTicket(pl, f, hidden) {
-  pl.querySelector(".subj").textContent = f.subject;
-  pl.querySelector(".subj").classList.toggle("long", f.subject.split(/\s+/).some((w) => w.length > 12));
-  pl.querySelector(".what").textContent = f.what;
-  const fig = pl.querySelector(".fig");
-  pl.querySelector(".head").textContent = f.headline || "";
-  pl.querySelectorAll(".stamp,.tally,.coin").forEach((n) => n.remove());
-  pl.querySelector(".tape")?.getAnimations().forEach((x) => x.cancel());   // the last round's torn tape must not stay torn
-  pl.querySelectorAll("[hidden]").forEach((n) => { n.hidden = false; });
-  if (hidden) { fig.dataset.k = ""; fig.className = "fig sealed"; fig.textContent = "0.00"; pl.classList.add("sealed-on"); pl.querySelector(".src").textContent = ""; }
-  else { pl.classList.remove("sealed-on"); setFig(fig, f.kind, f.value); pl.querySelector(".src").innerHTML = srcLine(f); }
+function fill(card, f, sealed) {
+  card.querySelector(".subj").textContent = f.subject;
+  card.querySelector(".what").textContent = f.headline || f.what;
+  const fig = card.querySelector(".fig");
+  fig.dataset.k = "";
+  card.classList.toggle("sealed", sealed);
+  if (sealed) { fig.textContent = "?"; fig.className = "fig num"; card.querySelector(".src").textContent = ""; }
+  else { setFig(fig, f.kind, f.value); card.querySelector(".src").innerHTML = srcLine(f); }
 }
-function seatTape() { const t = pb.querySelector(".tape"), fg = pb.querySelector(".fig"); t.style.top = fg.offsetTop + 3 + "px"; }
 function relation(r) {
   const a = r.a.value, b = r.b.value;
   if (r.kind === "founded") { const d = Math.abs(b - a); return `${d} year${d === 1 ? "" : "s"} ${b > a ? "later" : "earlier"}`; }
@@ -72,31 +71,22 @@ function relation(r) {
   return `${Math.round(b > a ? (b / a - 1) * 100 : (1 - b / a) * 100)}% ${word}`;
 }
 const gapOf = (r) => (r.kind === "founded" ? Math.abs(r.b.value - r.a.value) / 40 : Math.log(Math.max(r.a.value, r.b.value) / Math.min(r.a.value, r.b.value)));
+const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 
-// ---------------------------------------------------------------- layout
-function fit() {
-  const vv = window.visualViewport, w = vv ? vv.width : innerWidth, h = vv ? vv.height : innerHeight;
-  S = Math.max(0.7, Math.min(1.3, Math.min(w / 390, h / 700)));
-  app.style.setProperty("--s", S.toFixed(4));
-  app.style.setProperty("--H", (h / S).toFixed(1) + "px");
-  requestAnimationFrame(relayout);
-}
-function relayout() { rig.layout(); seatTape(); }
-
-function show(name) {
-  for (const s of panel.querySelectorAll(".screen")) s.hidden = s.dataset.s !== name;
-  panel.dataset.s = name;
+// ---------------------------------------------------------------- screens
+function screen(name) {
+  phase = name === "result" ? "result" : name;
   app.dataset.phase = name === "result" ? "play" : name;
-  panel.scrollTop = 0;
-  requestAnimationFrame(relayout);
+  $("intro").hidden = name !== "intro"; $("end").hidden = name !== "end"; $("game").hidden = name === "end";
+  panel.dataset.s = name;
+  $("keys").hidden = name !== "play"; $("next").hidden = name !== "result";
 }
 function pipsRender() {
-  const ol = $("pips"); ol.innerHTML = "";
+  const ol = $("pips"); ol.textContent = "";
   ol.hidden = mode !== "daily";
   for (let i = 0; i < data.rounds.length && mode === "daily"; i++) {
-    const li = document.createElement("li"), r = results[i];
-    li.className = r ? (r.ok ? "ok" : "no") : i === idx && (phase === "play" || phase === "result") ? "now" : "";
-    li.setAttribute("aria-label", `Round ${i + 1}${r ? (r.ok ? ", right" : ", wrong") : ""}`);
+    const r = results[i], li = mk("li", r ? (r.ok ? "ok" : "no") : i === idx && phase !== "intro" ? "now" : "");
+    li.setAttribute("aria-label", `Link ${i + 1}${r ? (r.ok ? ", right" : ", wrong") : ""}`);
     ol.appendChild(li);
   }
 }
@@ -105,40 +95,40 @@ function hud() {
   $("score-l").textContent = mode === "daily" ? "Score" : "Best";
   $("score").textContent = mode === "daily" ? points : Math.max(stats.practice || 0, streak);
 }
+// the links already called, newest first: as many as the screen has room for
+function linksRender() {
+  const ol = $("links"); ol.textContent = "";
+  for (let i = results.length - 1; i >= 0; i--) {
+    const r = results[i], q = R[i]; if (!r || !q) continue;
+    const li = mk("li", r.ok ? "ok" : "no");
+    li.append(mk("span", "n num", String(i + 1)), mk("span", "a", `${q.a.subject} · ${q.b.subject}`), mk("span", "m", r.ok ? "Right" : "Wrong"), mk("span", "p num", r.ok ? `+${r.pts}` : "0"));
+    ol.appendChild(li);
+  }
+}
 let toastT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200); }
 
 // ---------------------------------------------------------------- rounds
-function equalize() { pa.style.height = pb.style.height = ""; const h = Math.max(pa.offsetHeight, pb.offsetHeight); pa.style.height = pb.style.height = h + "px"; }
 function startRound(i) {
-  const from = phase === "result" && i > 0 ? R[i - 1] : null;      // coming from a reveal: the chain moves on
-  idx = i; phase = "play"; locked = false;
+  const carried = phase === "result" && i > 0 && R[i].link !== "turn";      // the figure just revealed moves over to A
+  idx = i; locked = false;
   const r = R[i];
-  show("play");
-  $("kind").textContent = (r.link === "turn" && i ? "New column · " : "") + (KIND[r.kind] || r.what);
-  $("q").innerHTML = r.kind === "founded" ? "Was <em>B</em> founded later or earlier than <em>A</em>?" : "Is <em>B</em> higher or lower than <em>A</em>?";
+  screen("play");
+  $("kind").textContent = KIND[r.kind] || r.what;
+  $("q").textContent = r.kind === "founded" ? `Was ${r.b.subject} founded later or earlier than ${r.a.subject}?` : `Is ${r.b.subject} higher or lower than ${r.a.subject}?`;
   const sub = SUBS[r.kind] || ["more", "less"];
-  $("ks-up").textContent = sub[0]; $("ks-down").textContent = sub[1];
+  $("k-up").querySelector(".kl").textContent = r.kind === "founded" ? "Later" : "Higher";
+  $("k-down").querySelector(".kl").textContent = r.kind === "founded" ? "Earlier" : "Lower";
+  $("ks-up").textContent = r.kind === "founded" ? "higher" : sub[0]; $("ks-down").textContent = r.kind === "founded" ? "lower" : sub[1];
   for (const k of [$("k-up"), $("k-down")]) { k.disabled = false; k.classList.remove("picked", "fade"); }
-  const gapX = pb.getBoundingClientRect().left - pa.getBoundingClientRect().left;
-  fillTicket(pa, r.a, false); fillTicket(pb, r.b, true);
-  equalize(); seatTape();
-  if (from && !RM) {
-    // The link: the ticket just weighed crosses to pan A in six stepped frames (or turns over to its next column),
-    // a sealed one is set down in B, and the beam comes back to rest with a small overshoot.
-    const steps = { duration: 300, easing: "steps(6, end)" };
-    if (r.link === "same") pa.animate({ translate: [`${gapX}px 0`, `${gapX * 0.5}px ${-14 * S}px`, "0 0"] }, steps);
-    else pa.animate({ scale: ["1 1", "0.06 1", "1 1"] }, steps);
-    pb.animate({ translate: [`0 ${-46 * S}px`, "0 0"], opacity: [0, 1] }, { duration: 200, delay: 160, easing: "steps(4, end)", fill: "backwards" });
-    const t0 = rig.theta;
-    rig.play(keyed([[0, t0], [300, IDLE - 1.4, "inOut"], [450, IDLE + 0.5, "inOut"], [580, IDLE, "inOut"]]), 580);
-    setTimeout(() => rig.squash(pa), 300); setTimeout(() => rig.squash(pb), 360);
-    snd.press();
-  } else {
-    rig.set(IDLE);
-    requestAnimationFrame(() => { rig.squash(pa); setTimeout(() => rig.squash(pb), 70); });   // both tickets set down in the pans
+  $("vtag").hidden = true; $("v-line").textContent = "";
+  const shift = pb.getBoundingClientRect().left - pa.getBoundingClientRect().left;
+  fill(pa, r.a, false); fill(pb, r.b, true);
+  if (!RM && i > 0 && phase !== "intro") {
+    pa.animate([{ transform: carried ? `translateX(${shift}px)` : "translateY(6px)", opacity: carried ? 1 : 0 }, { transform: "none", opacity: 1 }], { duration: 220, easing: EASE });
+    pb.animate([{ transform: "translateY(6px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 200, delay: 60, easing: EASE, fill: "backwards" });
   }
-  pipsRender(); hud();
+  pipsRender(); hud(); linksRender();
   $("q").focus({ preventScroll: true });
 }
 
@@ -182,7 +172,6 @@ function backToDaily() {
   if (saved) restore(saved); else location.reload();
 }
 
-// The reveal score. Anticipation, a count the beam follows, contact, overshoot, settle.
 function pick(choice) {
   if (phase !== "play" || locked) return;
   locked = true; snd.press();
@@ -190,79 +179,48 @@ function pick(choice) {
   $("k-up").disabled = $("k-down").disabled = true;
   (choice === "higher" ? $("k-up") : $("k-down")).classList.add("picked");
   (choice === "higher" ? $("k-down") : $("k-up")).classList.add("fade");
-  const fig = pb.querySelector(".fig");
-  const end = r.b.value, from = r.kind === "founded" ? end - 34 : 0, D = r.kind === "founded" ? 700 : 900;      // the count runs under a second: eight rounds of it are played every day
-  const fin = tiltFor(r.kind, end, r.a.value), sgn = Math.sign(fin) || 1, mag = Math.abs(fin);
-  // tear the tape off in five stepped frames
-  const tape = pb.querySelector(".tape");
-  if (!RM) tape.animate([{ transform: "translate(0,0) rotate(0)", opacity: 1 }, { transform: "translate(24px,-6px) rotate(6deg)", opacity: 1, offset: 0.4 }, { transform: "translate(58px,-22px) rotate(14deg)", opacity: 0 }], { duration: 200, easing: "steps(5)", fill: "forwards" }).onfinish = () => pb.classList.remove("sealed-on");
-  else pb.classList.remove("sealed-on");
-  fig.className = "fig";
-  const val = (t) => from + (end - from) * ease.outQ(Math.min(1, t / D));
-  // beam: dip toward A (0-120 ms), then follow the running value, lagging a little; after contact, overshoot offsets
-  const post = keyed([[0, -0.06 * mag - 0.6, "linear"], [110, 0.2 * mag + 1.0, "out"], [250, -0.08 * mag - 0.5, "inOut"], [390, 0.06 * mag + 0.3, "inOut"], [520, -0.02 * mag - 0.1, "inOut"], [650, 0, "inOut"]]);
-  const dip = keyed([[0, IDLE], [120, IDLE - 1.6, "out"]]);
-  const theta = (t) => {
-    if (t >= D) return fin + sgn * post(t - D);
-    const track = tiltFor(r.kind, val(t), r.a.value) * 0.94, w = ease.inOut(Math.min(1, t / 280));
-    return dip(t) * (1 - w) + track * w;
+  const fig = pb.querySelector(".fig"), end = r.b.value, from = r.kind === "founded" ? end - 24 : end * 0.2;
+  const land = () => { setFig(fig, r.b.kind, end); pb.querySelector(".src").innerHTML = srcLine(r.b); settle(choice); };
+  if (RM || !fig.animate) { pb.classList.remove("sealed"); land(); return; }
+  // the seal closes to a line, opens as the figure, and the figure runs up to its value
+  fig.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(0.04)" }], { duration: 90, easing: "cubic-bezier(0.55, 0, 0.85, 0.3)" }).onfinish = () => {
+    pb.classList.remove("sealed");
+    setFig(fig, r.b.kind, from);
+    fig.animate([{ transform: "scaleY(0.04)" }, { transform: "scaleY(1)" }], { duration: 130, easing: EASE });
+    const t0 = performance.now(); let last = 0;
+    const step = (now) => {
+      const u = Math.min(1, (now - t0) / COUNT), e = 1 - Math.pow(1 - u, 3);
+      if (setFig(fig, r.b.kind, from + (end - from) * e) && now - last > 55) { snd.tick(u); last = now; }
+      if (u < 1) requestAnimationFrame(step); else land();
+    };
+    requestAnimationFrame(step);
   };
-  let lastTick = 0, contact = false, stamped = false;
-  // the verdict goes up with the stamp, while the beam is still coming to rest: nobody waits for brass to stop swinging
-  const land = () => { if (stamped) return; stamped = true; setFig(fig, r.b.kind, end); pb.querySelector(".src").innerHTML = srcLine(r.b); stamp(choice === r.answer); settle(choice); };
-  const onFrame = (t) => {
-    const v = val(t);
-    if (setFig(fig, r.b.kind, v) && t - lastTick > 55 && t < D) { snd.tick(t / D); lastTick = t; }
-    if (t >= D && !contact) { contact = true; rig.squash(pb); (choice === r.answer ? snd.ding(streak + 1) : snd.thud()); }
-    if (t >= D + 190) land();
-  };
-  if (RM) { rig.set(fin); land(); return; }
-  rig.play(theta, D + 650, land, onFrame);
-}
-
-function stamp(ok) {
-  const s = document.createElement("div"); s.className = "stamp " + (ok ? "right" : "wrong"); s.textContent = ok ? "Right" : "Wrong"; pb.appendChild(s);
-  if (!RM) s.animate([{ transform: "translate(-50%,-50%) rotate(-3deg) scale(1.7)", opacity: 0 }, { transform: "translate(-50%,-50%) rotate(-9deg) scale(1)", opacity: 1, offset: 0.55 }, { transform: "translate(-50%,-50%) rotate(-9deg) scale(1.04)", offset: 0.75 }, { transform: "translate(-50%,-50%) rotate(-9deg) scale(1)" }], { duration: 160, easing: "steps(8)", fill: "forwards" });
-  if (ok) coins();
-}
-function coins() {
-  if (RM) return;
-  const w = pb.offsetWidth, h = pb.offsetHeight;
-  for (let i = 0; i < 9; i++) {
-    const c = document.createElement("i"); c.className = "coin"; c.style.left = w / 2 + "px"; c.style.top = h - 4 + "px"; pb.appendChild(c);
-    const dx = (Math.random() - 0.5) * 110, up = 60 + Math.random() * 60;
-    c.animate([{ transform: "translate(0,0)", opacity: 1 }, { transform: `translate(${dx * 0.5}px,${-up}px)`, opacity: 1, offset: 0.4 }, { transform: `translate(${dx}px,${40}px)`, opacity: 0 }], { duration: 700 + Math.random() * 250, easing: "cubic-bezier(.3,.6,.5,1)" }).onfinish = () => c.remove();
-  }
 }
 
 function settle(choice) {
   const r = R[idx], ok = choice === r.answer;
-  if (ok) { streak++; bestRun = Math.max(bestRun, streak); } else if (mode === "daily") streak = 0;
+  if (ok) { streak++; bestRun = Math.max(bestRun, streak); snd.ding(streak); } else { if (mode === "daily") streak = 0; snd.thud(); }
   const pts = ok ? streak : 0;
   points += pts;
   results[idx] = { ok, pick: choice, pts, gap: gapOf(r) };
-  phase = "result"; show("result");
+  screen("result");
   nextAt = performance.now() + 350;      // the button lands where the keys were: the tap that made the call must not also press it
-  panel.querySelector(".verdict").classList.toggle("miss", !ok);
-  const line = `${r.b.subject}: ${plain(r.b.kind, r.b.value)}, ${relation(r)} than ${r.a.subject}.`;
+  const tag = $("vtag"); tag.hidden = false; tag.textContent = ok ? "Right" : "Wrong"; tag.className = "verdict-tag " + (ok ? "ok" : "no");
+  if (!RM) tag.animate([{ transform: "scale(1.25)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 160, easing: EASE });
+  $("v-line").textContent = `${plain(r.b.kind, r.b.value)}: ${relation(r)} than ${r.a.subject}.` + (ok && mode === "daily" ? ` +${pts}` : "");
   $("back").hidden = true;
   if (mode === "practice") {
     let more = null;
     if (ok) { more = deal(); if (more) R.push(more); }
     const over = !ok || !more;
     if (over && streak > (stats.practice || 0)) { stats.practice = streak; save(stats); }
-    $("v-word").textContent = !ok ? `Chain broken at ${streak}` : more ? `Right, chain of ${streak}` : `Ledger emptied at ${streak}`;
-    $("v-pts").textContent = over ? `Best ${stats.practice || 0}` : "";
-    $("v-line").textContent = line;
-    $("next-label").textContent = over ? "New practice chain" : "Next link";
+    if (over) $("v-line").textContent += !ok ? ` Chain ended at ${streak}.` : ` No figures left. Chain of ${streak}.`;
+    $("next-label").textContent = over ? "New practice chain" : "Next";
     $("back").hidden = !over;
-    hud(); $("next").focus({ preventScroll: true });
+    hud(); linksRender(); $("next").focus({ preventScroll: true });
     return;
   }
-  $("v-word").textContent = ok ? (streak >= 3 ? `Right, chain of ${streak}` : "Right call") : "Missed it, chain broken";
-  $("v-pts").textContent = ok ? `+${pts}` : "+0";
-  $("v-line").textContent = line;
-  $("next-label").textContent = idx === R.length - 1 ? "See your result" : "Next link";
+  $("next-label").textContent = idx === R.length - 1 ? "See your result" : "Next";
   progress(false);
   pipsRender(); hud();
   $("next").focus({ preventScroll: true });
@@ -310,58 +268,40 @@ function restore(saved) {
   else renderEnd(saved);
 }
 function link(f, text) { const a = document.createElement("a"); a.href = f.src.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = text; return a; }
-function tally(n) {
-  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "tally");
-  const groups = Math.ceil(n / 5) || 1; svg.setAttribute("viewBox", `0 0 ${groups * 40} 26`); svg.setAttribute("width", groups * 40); svg.setAttribute("height", 26);
-  for (let g = 0; g < groups; g++) {
-    const c = Math.min(5, n - g * 5);
-    for (let i = 0; i < Math.min(4, c); i++) { const l = document.createElementNS(NS, "line"); l.setAttribute("x1", g * 40 + 4 + i * 7); l.setAttribute("x2", g * 40 + 4 + i * 7); l.setAttribute("y1", 2); l.setAttribute("y2", 24); svg.appendChild(l); }
-    if (c === 5) { const l = document.createElementNS(NS, "line"); l.setAttribute("x1", g * 40 + 1); l.setAttribute("x2", g * 40 + 31); l.setAttribute("y1", 21); l.setAttribute("y2", 5); svg.appendChild(l); }
-  }
-  return svg;
-}
 function renderEnd(rec) {
-  phase = "end"; show("end");
-  const res = rec.res, correct = res.filter((r) => r[0]).length, rounds = data.rounds, miss = rounds.length - correct;
-  $("e-issue").textContent = `Face the Figure No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+  screen("end");
+  const res = rec.res, correct = res.filter((r) => r[0]).length, rounds = data.rounds, when = new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  $("e-issue").textContent = `Face the Figure No. ${data.no}`;
+  $("e-date").textContent = when;
   $("e-score").innerHTML = `${correct}<small>/${rounds.length}</small>`;
   $("e-rank").textContent = rankOf(correct, rounds.length);
   $("e-line").textContent = correct ? `Score ${rec.score} of ${rounds.length * (rounds.length + 1) / 2}. Longest chain ${rec.run}.` : "No call landed.";
-  const mk = (cls, txt) => { const s = document.createElement("span"); s.className = cls; s.textContent = txt; return s; };
+  const sq = $("squares"); sq.textContent = "";
+  res.forEach((r, i) => { const s = mk("i", r[0] ? "ok" : "no"); s.style.setProperty("--i", i); sq.appendChild(s); });
   const best = res.map((r, i) => ({ r, i })).filter((x) => x.r[0] && rounds[x.i]).sort((x, y) => x.r[3] - y.r[3]).slice(0, 3);
-  const ob = $("e-best"); ob.innerHTML = "";
+  const ob = $("e-best"); ob.textContent = "";
   best.forEach(({ r, i }) => {
-    const q = rounds[i];
-    const li = document.createElement("li");
-    li.append(mk("n", String(i + 1)), mk("a", `${q.a.subject} vs ${q.b.subject}`), mk("p", `+${r[2]}`));
-    const sub = document.createElement("span"); sub.className = "sub"; sub.append(`B was ${relation(q)}. `, link(q.a, "Source A"), " · ", link(q.b, "Source B")); li.append(sub); ob.appendChild(li);
+    const q = rounds[i], li = mk("li", "ok");
+    li.append(mk("span", "n num", String(i + 1)), mk("span", "a", `${q.a.subject} · ${q.b.subject}`), mk("span", "p num", `+${r[2]}`));
+    const sub = mk("span", "sub"); sub.append(`${relation(q)}. `, link(q.a, "Source A"), " · ", link(q.b, "Source B")); li.append(sub); ob.appendChild(li);
   });
-  ob.hidden = !best.length;
-  const ol = $("e-rows"); ol.innerHTML = "";
+  ob.parentElement.hidden = !best.length;
+  const ol = $("e-rows"); ol.textContent = "";
   res.forEach((r, i) => {
     const q = rounds[i]; if (!q) return;
-    const li = document.createElement("li"); li.className = r[0] ? "ok" : "no";
-    li.append(mk("n", String(i + 1)), mk("a", `${q.a.subject} → ${q.b.subject}`), mk("p", r[0] ? `+${r[2]}` : "0"));
-    const sub = document.createElement("span"); sub.className = "sub";
-    sub.append(`${plain(q.a.kind, q.a.value)} vs ${plain(q.b.kind, q.b.value)} · you said ${r[1]} · `, link(q.a, "A"), " · ", link(q.b, "B")); li.append(sub); ol.appendChild(li);
+    const li = mk("li", r[0] ? "ok" : "no");
+    li.append(mk("span", "n num", String(i + 1)), mk("span", "a", `${q.a.subject} · ${q.b.subject}`), mk("span", "p num", r[0] ? `+${r[2]}` : "0"));
+    const sub = mk("span", "sub");
+    sub.append(`${plain(q.a.kind, q.a.value)} and ${plain(q.b.kind, q.b.value)}. You said ${r[1]}. `, link(q.a, "A"), " · ", link(q.b, "B")); li.append(sub); ol.appendChild(li);
   });
-  const played = stats.played || 1, sd = $("stats"); sd.innerHTML = "";
+  const played = stats.played || 1, sd = $("stats"); sd.textContent = "";
   for (const [k, v] of [["Played", played], ["Day streak", stats.streak || 1], ["Best score", stats.best ?? rec.score], ["Avg right", ((stats.sumCorrect ?? correct) / played).toFixed(1)]]) {
-    const d = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; d.append(dd, dt); sd.appendChild(d);
+    const d = mk("div"); d.append(mk("dd", "num", String(v)), mk("dt", "", k)); sd.appendChild(d);
   }
   $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nhttps://boardread.news/play/face-the-figure/?utm_source=share`;
   $("credit").textContent = data.credit;
-  // the tickets become two tallies on the pans: misses weigh down A, right calls weigh down B
-  for (const [pl, n, name, what] of [[pa, miss, "Missed", "Calls that slipped"], [pb, correct, "Called it", "Right calls"]]) {
-    fillTicket(pl, { subject: name, what, kind: "count", value: n, year: 0, src: { name: "", url: "" } }, false);
-    pl.querySelector(".src").textContent = ""; pl.querySelector(".head").textContent = ""; pl.classList.remove("sealed-on");
-    pl.append(tally(n));
-  }
-  equalize();
-  const fin = 11 * Math.tanh((correct - miss) / 4);
-  pipsRender(); hud();
   clearInterval(cdT); cdT = setInterval(countdown, 1000); countdown();
-  requestAnimationFrame(() => { relayout(); rig.play(keyed([[0, IDLE], [250, IDLE - 1.2, "out"], [900, fin + Math.sign(fin) * (0.2 * Math.abs(fin) + 1), "inOut"], [1150, fin - Math.sign(fin) * 0.07 * Math.abs(fin), "inOut"], [1400, fin, "inOut"]]), 1400); $("e-score").focus({ preventScroll: true }); });
+  requestAnimationFrame(() => $("e-score").focus({ preventScroll: true }));
 }
 let cdT = 0;
 function countdown() {
@@ -378,20 +318,14 @@ async function share() {
   } catch (e) {
     if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    toast("Select and copy the text.");
+    $("share-text").classList.add("open"); toast("Select and copy the text.");
   }
 }
 
 // ---------------------------------------------------------------- boot
 async function boot() {
   try { data = await (await fetch("assets/data/today.json", { cache: "no-cache" })).json(); }
-  catch { panel.innerHTML = '<p class="lede">Today’s figures did not load. Reload to try again.</p>'; app.dataset.phase = "intro"; return; }
-  rig = createRig({ zone: $("scale"), back: $("art-back"), front: $("art-front"), plate: $("art-plate"), pa, pb, reduced: RM });
-  try { await rig.load("assets/art/"); } catch { toast("The balance art did not load."); }
-  fit();
-  addEventListener("resize", fit);
-  window.visualViewport?.addEventListener("resize", fit);
-  document.fonts?.ready.then(() => { equalize(); relayout(); });
+  catch { $("stage").innerHTML = '<p class="fail">Today’s figures did not load. Reload to try again.</p>'; app.dataset.phase = "play"; return; }
 
   $("issue").textContent = `No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;
   if (stats.streak && stats.last) $("intro-fine").textContent = `Day streak ${stats.streak}. Best score ${stats.best}.`;
@@ -418,12 +352,10 @@ async function boot() {
   });
 
   const saved = stats.days?.[data.date];
-  fillTicket(pa, data.rounds[0].a, false); fillTicket(pb, data.rounds[0].b, true);
-  equalize(); seatTape(); rig.set(IDLE);
+  fill(pa, data.rounds[0].a, false); fill(pb, data.rounds[0].b, true);
   // a record from before today's chain was dealt (another build of the day) does not fit these rounds: play again
   if (saved && !params.has("fresh") && (saved.sig || "") === (data.sig || "")) restore(saved);
-  else { phase = "intro"; show("intro"); pipsRender(); hud(); }
-  requestAnimationFrame(() => requestAnimationFrame(() => { app.dataset.phase = panel.dataset.s === "play" || panel.dataset.s === "result" ? "play" : panel.dataset.s; relayout(); }));
+  else { screen("intro"); pipsRender(); hud(); }
   window.__ff = { get state() { return { idx, streak, points, phase, results, mode, R }; }, data, pick, next, startRound, startPractice };
 }
 // The next day's puzzle goes up with the first site build after midnight UTC. A page left open over midnight, or
