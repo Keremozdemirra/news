@@ -90,7 +90,7 @@ def _question(i, q):
 def quiz_page(shown):
     qs = quiz_questions(shown)
     if not qs:
-        return S.pagehead("Quiz", "Today's questions.") + '<div class="empty">There is no quiz yet. It needs a few more articles with figures and names.</div>'
+        return S.pagehead("Quiz", "Today's questions.") + '<div class="empty">No quiz yet. It needs more articles with figures and names.</div>'
     day = S.day_label(S.day_of(shown[0]["published"]))
     return (S.pagehead("Today's quiz", f"{day}. {len(qs)} question{'' if len(qs) == 1 else 's'}, each from an article on this site.")
             + f'<div class="quiz" data-quiz>{"".join(_question(i, q) for i, q in enumerate(qs, 1))}'
@@ -105,7 +105,7 @@ def how_page(shown, everything=None):
     c = S.desk_counts(everything)
     share = round(100 * c["three_plus"] / c["stories"]) if c["stories"] else 0
     return S.pagehead("How it works", "How the desk works.") + f"""<div class="prose">
-<h2>The numbers now</h2>
+<h2>Live numbers</h2>
 <dl>
 <dt>Feeds scanned</dt><dd>{c['feeds']} feeds, fetched every 30 minutes</dd>
 <dt>Newsrooms on the site</dt><dd>{c['newsrooms']} different newsrooms across {c['stories']} articles{f", {len(sport)} of them Sport" if sport else ""}</dd>
@@ -115,10 +115,10 @@ def how_page(shown, everything=None):
 </dl>
 <h2>From feed to page</h2>
 <ol class="steps">
-<li><div><b>Scan.</b> The desk fetches the feeds of newsrooms and research labs and groups coverage of the same event into one article.</div></li>
+<li><div><b>Scan.</b> The desk fetches newsroom and research-lab feeds and groups coverage of one event into one article.</div></li>
 <li><div><b>Score.</b> An article is scored on how many newsrooms carry it and how recent it is. Only articles above a fixed bar go on.</div></li>
 <li><div><b>Write.</b> An AI model writes a short report from the source text. It has no other input and no tools.</div></li>
-<li><div><b>Check.</b> Fixed code compares the text with the source before anything is public.</div></li>
+<li><div><b>Check.</b> Code compares the text with the source before anything is public.</div></li>
 </ol>
 <h2>Checks every published article passes</h2>
 <ul>
@@ -128,7 +128,7 @@ def how_page(shown, everything=None):
 <li>A fixed audit of topic, photo, hashtags and stock phrases.</li>
 </ul>
 <h2>What the coverage bar means</h2>
-<p>The bar counts the different newsrooms whose reporting an article draws on. Aggregators and social accounts are not counted. A longer bar means more independent desks reported it. It says nothing about whether the article is right.</p>
+<p>The bar counts the newsrooms an article draws on. Aggregators and social accounts do not count. A longer bar means more newsrooms reported it. It does not show the article is right.</p>
 <p>See also the <a href="{S.BASE}/standards/">standards and corrections policy</a> and the <a href="{S.BASE}/about/">about page</a>.</p>
 </div>"""
 
@@ -216,7 +216,7 @@ def build(out, shown, sm, cos, everything=None):
                                               f"The top articles of {S.day_label(d)}, one block each.", f"/brief/{d}/", active="brief"))
             sm.append((f"{S.SITE}/brief/{d}/", S.iso(brief_rows(shown, d)[0]["published"])))
     else:
-        S.put(out, "/brief/", S.page("The brief · boardread.", S.pagehead("The brief") + '<div class="empty">The first brief is on its way.</div>',
+        S.put(out, "/brief/", S.page("The brief · boardread.", S.pagehead("The brief") + '<div class="empty">No brief yet.</div>',
                                      "The day's top articles in about a minute.", "/brief/", active="brief"))
     build_views(out, shown, sm, m, days)
     if "play" in S.SHIPPED:

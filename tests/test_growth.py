@@ -28,12 +28,12 @@ def on(**names):
     return mock.patch.dict(desk.CONFIG["growth"], {k: True for k in names})
 
 
-ST = {"title": "Norse Atlantic suspends all flights as it faces potential collapse",
-      "summary": "The carrier is looking for urgent funding, but will file for bankruptcy without a financial lifeline."}
-ROW = {"headline": "Norse Atlantic suspends all flights as it faces potential collapse",
+ST = {"title": "Norse Atlantic suspends all flights and seeks urgent funding",
+      "summary": "The carrier is looking for urgent funding, but will file for bankruptcy without it."}
+ROW = {"headline": "Norse Atlantic suspends all flights and seeks urgent funding",
        "dek": "The carrier seeks urgent funding and will file for bankruptcy without it.",
-       "linkedin_post": "Norse Atlantic has suspended all flights as it faces potential collapse. The carrier is looking for "
-                        "urgent funding. It will file for bankruptcy without a financial lifeline.\n\nSource: BBC"}
+       "linkedin_post": "Norse Atlantic has suspended all flights. The carrier is looking for "
+                        "urgent funding. It will file for bankruptcy without it.\n\nSource: BBC"}
 GOOD = "Passengers booked with the carrier cannot fly while all of its flights are suspended."
 
 
@@ -410,6 +410,6 @@ class CompanySendLine(unittest.TestCase):
     def test_company_named_in_headline_gets_its_own_line(self):
         with mock.patch.dict(desk.CONFIG["growth"], {"send_prompt": True}):
             line = desk.send_line({"headline": "Nvidia halts chip shipments"}, {"company": "Nvidia", "topic": "Tech"})
-            self.assertEqual(line, "Send this to whoever on your team covers Nvidia.")
+            self.assertEqual(line, "Send this to a colleague who covers Nvidia.")
             line = desk.send_line({"headline": "Chip shipments halted"}, {"company": "Nvidia", "topic": "Tech"})
-            self.assertEqual(line, "Send this to whoever on your team covers tech.")
+            self.assertEqual(line, "Send this to a colleague who follows tech.")

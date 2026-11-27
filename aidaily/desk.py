@@ -795,6 +795,9 @@ def audit(post):
                 problems.append(f"{why} {m.group(0)!r}")
         if re.search("[\u2014\u2013]", text or ""):
             problems.append("em or en dash")
+    # the house voice: habits of machine-written copy hold a post, in the report and again before it is published
+    for text, is_head in ((head_, True), (post.get("dek", ""), False), (post.get("body", ""), False)):
+        problems += [f"voice: {t}" for t in copy.tells(text, headline=is_head)]
     # the lines the desk writes itself never call the news a "story" (Instagram Stories are something else)
     own = cap
     for t in (*texts, *(post.get("headlines") or [])):
@@ -803,7 +806,8 @@ def audit(post):
     m = re.search(r"\bstor(y|ies)\b", own, re.I)
     if m:
         problems.append(f"caption calls the news a {m.group(0)!r}")
-    if bool(post.get("source_cta")) != (CONFIG["source_line"] in cap):
+    # a caption queued before the line was shortened still carries the old one
+    if bool(post.get("source_cta")) != any(x in cap for x in (CONFIG["source_line"], *CONFIG.get("source_line_legacy", []))):
         problems.append("SOURCE ask and its flag disagree")
     return problems
 

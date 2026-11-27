@@ -46,14 +46,14 @@ OG_W, OG_H = 1200, 630
 PER = 20  # articles on one listing page
 # Order of the section bar and of the blocks on the front page.
 TOPICS = {
-    "Markets": "Equities, rates, currencies and commodities, and what moved them.",
+    "Markets": "Equities, rates, currencies and commodities.",
     "Economy": "Growth, inflation, jobs and central banks.",
     "Business": "Companies, deals, earnings and strategy.",
-    "Politics": "Policy, regulation and elections where they reach business.",
-    "World": "Trade, conflict and geopolitics that end up on a balance sheet.",
-    "Tech": "The technology industry and the products behind it.",
-    "AI": "Models, chips, products and the money around artificial intelligence.",
-    "Culture": "Media, entertainment and consumer trends that move business.",
+    "Politics": "Policy, regulation and elections that touch business.",
+    "World": "Trade, conflict and geopolitics.",
+    "Tech": "Tech companies and their products.",
+    "AI": "Models, chips, products and funding.",
+    "Culture": "Media, entertainment and consumer trends.",
     "Sport": "Football, Formula 1, the NBA and NFL, tennis, golf, cricket, boxing and the Olympics.",
 }
 SPORT = "Sport"
@@ -628,7 +628,7 @@ def pager(path, n, total):
 def listing(rows, path, n, total, aside="", own=None, days=True):
     """own: the section this page lists (its rows leave the section out); days: group the rows under Today, Yesterday, 25 Nov."""
     if not rows:
-        return '<div class="empty">The first articles are on their way.</div>'
+        return '<div class="empty">No articles yet.</div>'
     first = rows[0] if n == 1 and rows[0].get("_hires") else None
     # the headline comes first, then the picture, as on the front page; the picture is capped so it never fills the screen
     shot = pic(first, eager=True, ratio="16/9") if first else ""
@@ -1088,41 +1088,41 @@ def contact_lines():
 
 
 def about_page():
-    return pagehead("About Boardread", "The news that moves business, written by an automated desk, with every source linked.") + f"""<div class="prose">
-<p>Boardread reports what moves business: markets, the economy, politics, world affairs, technology and AI. It is written for consultants, managers and business students who need the day's developments in a minute, and want to open the original reporting when it matters.</p>
-<h2>How the desk works</h2>
+    return pagehead("About Boardread", "Business news written by AI, with every source linked.") + f"""<div class="prose">
+<p>Boardread covers markets, the economy, politics, world affairs, technology and AI. Each story takes a minute to read and links to the original reporting.</p>
+<h2>How it works</h2>
 <ol class="steps">
-<li><div><b>It reads the news.</b> Every 30 minutes the desk fetches {feeds_scanned()} feeds from newsrooms and research labs.</div></li>
-<li><div><b>It ranks.</b> Coverage of the same event is grouped into one article and scored. Only articles above a fixed importance bar, and under a day old, are taken further.</div></li>
-<li><div><b>It writes.</b> An AI model writes a short report from the text of the sources. It has no other input and no tools.</div></li>
-<li><div><b>It checks.</b> Fixed code checks the text before anything is public: every number must appear in the source, sentences that read as commentary are rejected, and articles about deaths, violence and abuse are skipped.</div></li>
-<li><div><b>It publishes with the sources.</b> Each article names the newsrooms it draws on and links to them. Photos are licensed images with their credit shown.</div></li>
+<li><div><b>Read.</b> Every 30 minutes the desk fetches {feeds_scanned()} feeds from newsrooms and research labs.</div></li>
+<li><div><b>Rank.</b> Coverage of one event becomes one article. Only articles above a fixed importance bar and under a day old go on.</div></li>
+<li><div><b>Write.</b> An AI model writes a short report from the text of the sources. It has no other input and no tools.</div></li>
+<li><div><b>Check.</b> Code checks the text before anything is public. Every number must appear in the source. Commentary is rejected. Stories about deaths, violence and abuse are skipped.</div></li>
+<li><div><b>Publish.</b> Each article names its newsrooms and links to them. Photos are licensed and credited.</div></li>
 </ol>
 <h2>Limits</h2>
-<p>Boardread does no original reporting. It summarises what named newsrooms have reported, and says which ones. Read the linked source for the full report. Opinion and speculation are not published.</p>
+<p>Boardread does no original reporting. It summarises named newsrooms and says which. Opinion and speculation are not published.</p>
 <h2>Follow</h2>
-<p>The business news goes out on <a href="{BASE}/feed.xml">RSS</a> (the latest 50, no Sport){"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}. Sport has <a href="{BASE}/sport/feed.xml">its own feed</a>, and so does every section and company.</p>
+<p>Boardread is on <a href="{BASE}/feed.xml">RSS</a> (the latest 50, no Sport){"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}. Sport has <a href="{BASE}/sport/feed.xml">its own feed</a>, and so does every section and company.</p>
 <p>Boardread is run by {OPERATOR["name"]}.</p>
 <p>See the <a href="{BASE}/standards/">editorial standards and corrections policy</a>, the <a href="{BASE}/contact/">contact page</a> and the <a href="{BASE}{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
 
 def standards_page():
-    return pagehead("Editorial standards and corrections", "What a Boardread article promises, and what happens when it is wrong.") + f"""<div class="prose">
+    return pagehead("Editorial standards and corrections", "What an article promises. What happens when it is wrong.") + f"""<div class="prose">
 <h2>Standards</h2>
 <ul>
-<li><b>Sources are named and linked.</b> Every article lists the newsrooms it draws on, each with a link to the original.</li>
-<li><b>AI writes, code checks.</b> Articles are written by an AI model from the source text. Numbers must appear in the source; commentary is rejected before publishing. The disclosure "Written by AI from the sources listed" appears on every article.</li>
-<li><b>No original reporting.</b> Boardread summarises named reporting. It does not use anonymous sources of its own.</li>
-<li><b>Photos are credited.</b> Images are licensed, and the credit line sits under the picture. A photo illustrates the topic and may not show the event.</li>
-<li><b>Times are UTC.</b> Each article shows when it was published.</li>
-<li><b>Topics we skip.</b> Articles centred on deaths, violence, abuse and similar subjects are not published by the desk.</li>
+<li><b>Sources are named and linked.</b> Every article lists its newsrooms and links to each original.</li>
+<li><b>AI writes, code checks.</b> An AI model writes each article from the source text. Every number must appear in the source. Commentary is rejected before publishing. Every article says "Written by AI from the sources listed".</li>
+<li><b>No original reporting.</b> Boardread summarises named reporting and has no anonymous sources of its own.</li>
+<li><b>Photos are credited.</b> Images are licensed and credited under the picture. A photo shows the topic. It may not show the event.</li>
+<li><b>Times are UTC.</b></li>
+<li><b>Topics we skip.</b> The desk skips stories about deaths, violence and abuse.</li>
 </ul>
 <h2>Corrections</h2>
-<p>Every fix and withdrawal is on the <a href="{BASE}/corrections/">corrections page</a>. If an article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
+<p>Every fix and withdrawal is on the <a href="{BASE}/corrections/">corrections page</a>. If an article gets a fact, name or number wrong, send the link and the correct information. We check the source first. If the source disagrees with the article, the article is corrected or withdrawn. If the source was corrected, the article follows.</p>
 <ul>{contact_lines()}</ul>
 <h2>Who is responsible</h2>
-<p>The operator named in the <a href="{BASE}{LEGAL['impressum']}">Impressum</a> is responsible for the site, including the output of its automated desk.</p>
+<p>The operator named in the <a href="{BASE}{LEGAL['impressum']}">Impressum</a> is responsible for the site and for what the desk writes.</p>
 </div>"""
 
 
@@ -1147,7 +1147,7 @@ def impressum_page():
 
 def contact_page():
     return pagehead("Contact", "Corrections, tips and questions.") + f"""<div class="prose">
-<p>Include the link to the article you are writing about. Corrections are read first.</p>
+<p>Send the link to the article. Corrections are read first.</p>
 <ul>{contact_lines()}</ul>
 <p>The operator's details are in the <a href="{BASE}{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
@@ -1344,7 +1344,7 @@ def build(out=desk.HERE / "_site"):
                    "publisher": seo.organization(SITE, NAME, accounts())}
         put(out, "/", page(f"boardread. · {TAGLINE}", views.front(news, companies(news), MARKETS, sport), desc, "/", ld=site_ld, front=True))
     else:
-        put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first articles are on their way.</div>', desc, "/", front=True))
+        put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">No articles yet.</div>', desc, "/", front=True))
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
@@ -1375,7 +1375,7 @@ def build(out=desk.HERE / "_site"):
 
     def top_list(rows, heading, sub, active):
         body = pagehead(heading, sub) + (f'<div class="prose" style="max-width:50rem">{ranked(rows, 10)}</div>' if rows
-                                         else '<div class="empty">The week has just begun.</div>')
+                                         else '<div class="empty">No articles this week yet.</div>')
         return body
 
     issues = []

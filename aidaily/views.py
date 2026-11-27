@@ -374,8 +374,8 @@ def numbers_page(shown, m):
     official = ""
     if m:
         curve = markets.curve_svg(m, 640, 300, 13)
-        official = (f'<section class="msec"><h2 class="sh">Markets</h2><p class="olead">Prices and rates from the central banks, treasuries and statistics offices that publish them. '
-                    f'Every card shows its series date and source.</p>{markets.cards(m)}</section>'
+        official = (f'<section class="msec"><h2 class="sh">Markets</h2><p class="olead">Prices and rates from the offices that publish them. '
+                    f'Each card shows its date and source.</p>{markets.cards(m)}</section>'
                     + markets.crypto_section(m)  # daily, so it sits above the monthly metals
                     + (f'<section class="msec"><h2 class="sh">Metals</h2><p class="olead">Monthly averages from the World Bank, each against the month before. '
                        f'Daily metal prices are licensed and not shown.</p>{markets.cards(m, markets.METALS)}</section>' if any(k in m.get("series", {}) for k in markets.METALS) else "")

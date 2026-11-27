@@ -53,6 +53,14 @@ the reports from other newsrooms listed under it ("also reported").
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
 that sounds quotable. American English. No em or en dashes. No hype words. No "not X but Y" constructions.
+Voice: short, plain, confident. Say each fact once, with the plainest verb the source supports: "says", "cuts",
+"buys", "sues", "rises". Not "signals", "vows", "slams", "unveils", "faces", "eyes". No stock phrases: "amid", "comes
+as", "in a move", "underscores", "highlights", "sends a message", "raises questions", "sparks fears", "paves the way".
+No drama nouns ("salvo", "lifeline", "blow", "fallout", "bombshell"). One hedge in a sentence at most, and only the
+one the source makes. No question, no exclamation mark, no sentence of fragments. The dek and the report never say
+the headline again in other words: every sentence adds a fact the ones before it lack. No filler links ("also",
+"additionally", "separately", "meanwhile") and no sentence that only points back ("The move ...", "The decision
+...", "It ..."). Name the actor each time, not "the company" or "the chip giant". Under 25 words a sentence.
 The page lists its sources, so no sentence opens with a newsroom's name ("Bloomberg reports that ...") for a fact
 several newsrooms give, and a report names a newsroom at most once, only for a claim that newsroom alone makes or that
 the source hedges ("Reuters reported the revival, citing people familiar with the matter"). A hedged claim ("in talks",
@@ -176,10 +184,105 @@ GROUP = re.compile(r"\b(customers?|passengers?|travell?ers?|consumers?|users?|bu
 SO_WHAT_ANCHOR = 0.3    # share that must come from the source, so a consequence still hangs on the report
 ADVICE = re.compile(r"\b(should|must|ought|need to|needs to|could|might|may|likely|unlikely|probably|perhaps|"
                     r"expected to|bullish|bearish|recommend\w*|advis\w*)\b", re.I)
-NOT_BUT = re.compile(r"\bnot\b[^.;]{0,50}\bbut\b|\bnot just\b|\bisn['’]t\b[^.;]{0,50}\bit['’]s\b", re.I)
+NOT_BUT = re.compile(r"\bnot\b[^.;]{0,50}\bbut\b|\bnot just\b|\bnot only\b|\bnot merely\b|\bnot simply\b|\bmore than just\b|"
+                     r"\bisn['’]t\b[^.;]{0,50}\bit['’]s\b", re.I)
 HYPE = re.compile(r"\b(huge|massive|incredible|stunning|shocking|explosive|game[- ]changing|groundbreaking|"
                   r"seismic|earth-shattering|unprecedented)\b", re.I)
 GROUNDED = 0.6  # share of a sentence's content words that must come from the source
+
+
+# The house voice, as code (Kerem, 2026-11-27: everything reads as AI). The writer prompt asks for plain copy; these
+# are the habits it still slips into. plain() rewrites what has a safe plain form, tells() names what only a new
+# sentence fixes, and a post with a tell is held, never edited into a different claim.
+FILLER_OPEN = re.compile(r"(?:(?<=[.!?] )|^)(?:Additionally|Moreover|Furthermore|Notably|Importantly|Crucially|"
+                         r"Interestingly|In addition|Overall),\s+")
+ADVERBS = re.compile(r"\b(?:really|truly|deeply|fundamentally|incredibly|remarkably|importantly|crucially|essentially|"
+                     r"arguably|ultimately|additionally|moreover|furthermore|interestingly|notably)\s+", re.I)
+ALSO = re.compile(r"(?<=[a-z,]) also\b(?=\s+[a-z])")
+SWAPS = ((re.compile(r"\bin order to\b", re.I), "to"), (re.compile(r"\bdue to the fact that\b", re.I), "because"),
+         (re.compile(r"\b(?:serves|stands) as\b"), "is"), (re.compile(r"\butili[sz]e(s|d)?\b"), r"use\1"),
+         (re.compile(r"\butili[sz]ing\b"), "using"), (re.compile(r"\bhas the ability to\b"), "can"),
+         (re.compile(r"\bin the event that\b", re.I), "if"), (re.compile(r"\ba total of\s+"), ""))
+
+
+def plain(text):
+    """The safe rewrites: filler openers, intensifier adverbs, a padding "also", wordy phrases. Digits, names and
+    the "Source:" line are never touched."""
+    out = []
+    for line in str(text).split("\n"):
+        if line.startswith("Source:"):
+            out.append(line)
+            continue
+        line = FILLER_OPEN.sub("", line)
+        line = ADVERBS.sub("", line)
+        if not re.search(r"\bnot only\b|\bas well\b", line, re.I):
+            line = ALSO.sub("", line)
+        for rx, to in SWAPS:
+            line = rx.sub(to, line)
+        out.append(re.sub(r"[ \t]{2,}", " ", line).strip() if line.strip() else line)
+    return "\n".join(out)
+
+
+_VERB_OBJ = r"(?:that|he|she|it|they|a|an|the|its|his|her|their|more|further|readiness|willingness|intent)"
+TELLS = (
+    ("stock verb", re.compile(
+        rf"\bsignal(?:s|ed|ing|led|ling)\s+{_VERB_OBJ}\b|\bunderscor(?:e|es|ed|ing)\b|"
+        r"\bhighlight(?:s|ed|ing)\s+(?:the|that|how|a|an|its|his|her|their|concerns?)\b|"
+        r"\bsend(?:s|ing)?\s+(?:a\s+)?(?:clear |strong |powerful )?(?:message|signal)\b|\bsent\s+(?:a\s+)?(?:clear |strong )?(?:message|signal)\b|"
+        r"\b(?:raise[sd]?|raising)\s+(?:fresh |new |serious |further )?(?:questions|eyebrows)\b|"
+        r"\b(?:spark(?:s|ed|ing)?|fuel(?:s|ed|ing|led|ling)?)\s+(?:fresh |new |growing |further )?(?:concerns?|fears?|questions|"
+        r"speculation|debate|worries|outrage|backlash|tensions)\b|\bcasts? doubt\b|\bshines? a light\b|\bpaves? the way\b|"
+        r"\bsets? the stage\b|\bmarks? a (?:new|major|significant|turning|shift|notable|dramatic|sharp)\b", re.I)),
+    ("stock opener", re.compile(
+        r"\bamid\b|\bcomes? as\b|\bcame as\b|\bin a move\b|\bagainst the backdrop\b|\bat a time when\b|"
+        r"\bin an? (?:bid|effort|attempt) to\b", re.I)),
+    ("drama word", re.compile(
+        r"\b(?:salvo|lifeline|bombshell|shake-?up|turning point|watershed|wake-up call|sea change|sweeping|landmark|"
+        r"pivotal|crucial|seismic|blockbuster)\b", re.I)),
+    ("faces + hedge", re.compile(r"\bfac(?:es|ing|ed)\s+(?:a |an )?(?:potential|possible|mounting|growing|rising|looming|fresh|uncertain)\b", re.I)),
+    ("role cliche", re.compile(r"\bplays? an? (?:key|crucial|pivotal|major|significant|central) role\b|\bkey (?:role|player|driver|moment)\b", re.I)),
+    ("quotable closer", re.compile(
+        r"\b(?:remains to be seen|only time will tell|time will tell|stay tuned|watch this space|one thing is clear|make no mistake|"
+        r"the bottom line|the takeaway|what comes next|what happens next)\b", re.I)),
+    ("throat-clearing", re.compile(
+        r"\bhere['’]s (?:the thing|why|what)\b|\bit turns out\b|\blet that sink in\b|\blet['’]s be clear\b|\bto be clear\b|"
+        r"\bin other words\b|\bneedless to say\b|\bit goes without saying\b|\bit is worth (?:noting|mentioning|pointing out)\b", re.I)),
+    ("staged opener", re.compile(r"(?:(?<=[.!?] )|^)(?:Breaking|Big news|Just in|Imagine|Picture this|Enter|Meet the|Here comes|Say hello to)\b[:,. !]?")),
+)
+HEDGES = re.compile(r"\b(?:could|may|might|potentially|possibly|reportedly|apparently|seemingly|appears? to|seems? to|likely|perhaps)\b", re.I)
+_QUOTED = re.compile(r"[\"“][^\"”]*[\"”]")
+
+
+def _title_case(headline):
+    """A headline set in Title Case: four or more long words and nearly all of them capitalised."""
+    long = [w for w in re.findall(r"[A-Za-z][A-Za-z'’-]{3,}", headline)]
+    return len(long) >= 4 and sum(w[0].isupper() for w in long) / len(long) >= 0.8
+
+
+def tells(text, headline=False):
+    """Habits of machine-written copy found in text, as short strings; empty means none. A quoted statement is the
+    speaker's, so it is not read; the "Source:" line is a name, not copy."""
+    body = "\n".join(l for l in str(text or "").splitlines() if not l.startswith("Source:"))
+    body = _QUOTED.sub(" ", body)
+    found = []
+    for why, rx in TELLS:
+        m = rx.search(body)
+        if m:
+            found.append(f"{why} {m.group(0).strip()!r}")
+    for sent in sentences(body):
+        if len(HEDGES.findall(sent)) >= 2:
+            found.append(f"stacked hedges {sent[:60]!r}")
+            break
+    if "!" in body:
+        found.append("exclamation mark")
+    if "?" in body:
+        found.append("question")
+    words = [len(x.split()) for x in sentences(body)]
+    if any(all(n <= 4 for n in words[i:i + 3]) for i in range(len(words) - 2)):
+        found.append("row of fragments")
+    if headline and _title_case(body):
+        found.append("title case headline")
+    return found
 
 
 INFLECTION = re.compile(r"(ing|ed|es|s)$")
@@ -387,6 +490,8 @@ def verify(story, copy):
         if extra:
             problems.append(f"{field}: numbers not in source {sorted(extra)}")
     problems += [f"period: {why}" for why in period_gaps(story, copy).values()]
+    for field in ("headline", "dek", "x_post", "linkedin_post"):
+        problems += [f"{field}: {t}" for t in tells(copy.get(field, ""), headline=field == "headline")]
     if len(copy.get("headline", "")) > MAX_HEADLINE:
         problems.append("headline too long")
     if re.search(r"\d[\d,.]*\s?(?:[%kKmMbBtn]|bn|tn)?\+", copy.get("headline", "") + " " + copy.get("dek", "")):
@@ -437,6 +542,7 @@ def check_so_what(story, copy, text):
         m = rx.search(text)
         if m:
             problems.append(f"{why}: {m.group(0)!r}")
+    problems += tells(text)
     return problems
 
 
@@ -1129,7 +1235,7 @@ def apply(stories, reply_rows):
             for f in ("headline", "dek", "x_post", "linkedin_post"):
                 if isinstance(c.get(f), str):
                     # spaces only: the report's blank line before "Source:" must survive
-                    c[f] = re.sub(r"[ \t]{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip()
+                    c[f] = plain(re.sub(r"[ \t]{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip())
         problems = verify(s, c) if c else ["no copy returned"]
         # a headline over the limit is the model's slip, not a wrong fact: the source's own headline stands in when
         # it fits and everything else checked out (a Meloni post was lost to five extra characters)

@@ -124,7 +124,7 @@ class Features(Tmp):
 
     def test_quiz_skips_types_without_data_and_says_so_when_nothing_is_left(self):
         self.assertEqual(sitepages.quiz_questions([]), [])
-        self.assertIn("no quiz yet", sitepages.quiz_page([]))
+        self.assertIn("No quiz yet", sitepages.quiz_page([]))
         for p in self.rows():  # the quiz reads the figure the page shows
             p["_hires"] = False
         types = {q["type"] for q in sitepages.quiz_questions(self.rows())}

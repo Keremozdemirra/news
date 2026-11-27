@@ -9,7 +9,7 @@
     "#news",
     "#business"
   ],
-  "send_line": "Follow for the news that moves business.",
+  "send_line": "Follow for business news.",
   "media_branch": "media",
   "skip_topics": "suicide|self-harm|rape|sexual abuse|child abuse|murder\\w*|killed|shooting(?! stars?)|terror\\w*|overdose|died|dies|death of|deaths?(?! spiral| cross)|dead(?! heat| cat)|deadly|death toll|fatal\\w*|massacre|stabb\\w*|injured|wounded|bodies|kill(?:s|ing) (?:at least |up to |more than |nearly |about )?(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|dozens|hundreds|scores|thousands|people|civilians|children|soldiers|a|an)",
   "skip_formats": "pitch decks?|read the|here are|these \\d+|\\d+ (best|top|startups|tools|ways|things)|how to|opinion|podcast|newsletter|quiz|i[’']m a|q&a|interview with|what .{0,30} daily routine|review:",
@@ -43,7 +43,8 @@
   "brand_domain": "boardread.news",
   "contact_email": "",
   "source_keyword": "SOURCE",
-  "source_line": "Want the sources? Comment SOURCE and we'll send them to your DMs.",
+  "source_line": "Comment SOURCE and we'll DM the links.",
+  "source_line_legacy": ["Want the sources? Comment SOURCE and we'll send them to your DMs."],
   "source_dm": "Sources for \"{headline}\": {url}",
   "newsletter_url": "",
   "media_keep_days": 3,
@@ -99,18 +100,12 @@
     }
   ],
   "source_replies": [
-    "Sent to your DMs.",
-    "Check your DMs, the sources are there.",
-    "Done, the links are in your inbox.",
-    "Sources sent. Have a look in your DMs.",
-    "In your DMs now.",
-    "Just sent you the sources.",
-    "Sent. It may be in your message requests.",
-    "The links are on their way to your DMs.",
-    "Check your inbox for the sources.",
-    "Sent you every source.",
-    "Delivered to your DMs.",
-    "Your DMs have the sources."
+  "Sent. Check your DMs.",
+  "In your DMs.",
+  "Links sent.",
+  "Done. Check your DMs.",
+  "Sent to your DMs.",
+  "Sent. It may be in message requests."
   ],
   "stories": false,
   "story_quota_stop": 90,
@@ -214,43 +209,43 @@
   },
   "send_prompts": [
     {
-      "line": "Send this to whoever on your team watches the markets.",
+      "line": "Send this to a colleague who follows markets.",
       "topics": [
         "Markets"
       ]
     },
     {
-      "line": "Send this to whoever on your team tracks the economy.",
+      "line": "Send this to a colleague who tracks the economy.",
       "topics": [
         "Economy"
       ]
     },
     {
-      "line": "Send this to whoever on your team follows policy.",
+      "line": "Send this to a colleague who follows policy.",
       "topics": [
         "Politics"
       ]
     },
     {
-      "line": "Send this to whoever on your team builds with AI.",
+      "line": "Send this to a colleague who builds with AI.",
       "topics": [
         "AI"
       ]
     },
     {
-      "line": "Send this to whoever on your team covers tech.",
+      "line": "Send this to a colleague who follows tech.",
       "topics": [
         "Tech"
       ]
     },
     {
-      "line": "Send this to whoever on your team tracks global risk.",
+      "line": "Send this to a colleague who tracks global risk.",
       "topics": [
         "World"
       ]
     },
     {
-      "line": "Send this to whoever on your team covers this sector.",
+      "line": "Send this to a colleague who follows this sector.",
       "topics": [
         "Business",
         "Culture"
@@ -264,7 +259,7 @@
     "threads": "2027-01-25",
     "facebook": "2027-01-25"
   },
-  "send_company_line": "Send this to whoever on your team covers {company}.",
+  "send_company_line": "Send this to a colleague who covers {company}.",
   "weekly_reminders": [
     [
       "Weekly: check Instagram Account Status",

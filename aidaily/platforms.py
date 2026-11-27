@@ -166,6 +166,11 @@ def why_it_matters(post, count=3):
         w = _words(s)
         if not w or any(len(w & other) / len(w) >= 0.6 for other in [head] + [_words(x) for x in picked]):
             continue
+        # the same fact in other words ("1Password says it was hacked in a recent data breach" under a headline and dek
+        # that hold the breach): the content stems of the headline, dek and earlier picks together give it away
+        mine = _stems(s)
+        if mine and s not in dek and len(mine & _stems(" ".join([_head(post), post.get("dek") or "", *picked]))) / len(mine) >= 0.8:
+            continue
         # a sentence must stand on its own, and a body sentence must share a word with the headline: an unrelated
         # line about Latvian fighter jets once went out under a headline about Zelenskyy
         if not _standalone(s) or (s not in dek and not (_stems(s) & topic)):

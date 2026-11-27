@@ -484,7 +484,7 @@ def sources_slide(story, outlets, cta=False, brand=BRAND):
                    f'<span class="num" style="color:{GREY};width:44px">{i:02d}</span><span>{e(n)}</span></li>'
                    for i, n in enumerate(shown, 1))
     more = f'<div style="margin-top:20px;font-size:28px;color:{GREY}">and {len(names) - 8} more</div>' if len(names) > 8 else ""
-    ask = ("Comment SOURCE and we send the links to your DMs." if cta else
+    ask = ("Comment SOURCE and we'll DM the links." if cta else
            f"Every link is on the article at {domain()}.")
     head_ = f"Reported by {len(names)} newsrooms" if len(names) > 1 else f"Reported by {names[0]}"
     # one newsroom is named in the heading; a list of one would say it twice
