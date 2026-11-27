@@ -413,6 +413,8 @@ class FrontBuilt(Features):
         h = self.read("index.html")
         rows = re.findall(r'<div class="sects" style="--n:(\d+)">', h)
         self.assertEqual(rows, [])  # sections reflow with auto-fit columns: no counts, no empty slots
+        # twenty articles: Top 5 and Latest take their share, the rest of the day fills the section blocks
+        h = views.front([fake(f"Story number {i} of the day", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"s{i}", published=f"2026-11-26T{22 - i // 2:02d}:{(i % 2) * 30:02d}:00+00:00") for i in range(20)], {}, None)
         self.assertGreaterEqual(h.count('<section class="sect">'), 1)
         for sect in re.findall(r'<section class="sect">(.*?)</section>', h, re.S):
             self.assertIn("<article", sect)  # a section head always has an article under it

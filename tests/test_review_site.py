@@ -28,21 +28,26 @@ class Ranking(unittest.TestCase):
         self.assertIn("Altria explores", html)
 
     def test_the_front_has_a_top_five_list_after_the_lead_with_ages_and_no_pictures(self):
-        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(8)]
+        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(14)]
         html = views.front(rows, {}, None)
         block = re.search(r'<section class="top5".*?</section>', html, re.S).group(0)
-        self.assertEqual(block.count("<li>"), 5)
-        self.assertEqual(block.count("data-age"), 5)
+        self.assertEqual(block.count("<li"), 7)  # the phone shows the first five, the desktop the last five: two articles are the rail's
+        self.assertEqual(len(re.findall(r'<li class="ds">|<li class="ds ', block)), 2)
+        self.assertEqual(block.count('class="pm"'), 2)
+        self.assertEqual(block.count("data-age"), 7)
+        latest = re.search(r'<section class="latest".*?</section>', html, re.S).group(0)
+        for href in re.findall(r'/s/([^/"]+)/', block):
+            self.assertNotIn(f"/s/{href}/", latest)  # an article already in Top 5 is not in Latest too
         self.assertNotIn("<img", block)
         self.assertLess(html.index('class="lead"'), html.index('class="top5"'))
         self.assertIn(".front .lead .rates", (site.ASSETS / "views.css").read_text())
 
-    def test_todays_puzzles_link_every_live_game_in_the_rail_and_under_the_top_stories(self):
-        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(8)]
+    def test_todays_puzzles_link_every_live_game_under_the_top_stories_and_in_a_row_below_the_sections(self):
+        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(14)]
         from aidaily import play
         with mock.patch.object(site, "SHIPPED", {"play"}):
             html = views.front(rows, {}, None)
-        self.assertEqual(html.count('class="puzzles inrail"'), 1)
+        self.assertEqual(html.count('class="puzzles inrow"'), 1)  # a full-width row at the end, no longer in the rail
         self.assertEqual(html.count('class="puzzles inlead"'), 1)
         for slug, title, _, _ in play.live():
             self.assertEqual(html.count(f'href="/play/{slug}/"'), 2)

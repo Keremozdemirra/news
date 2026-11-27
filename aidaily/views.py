@@ -139,8 +139,13 @@ def puzzles_block(cls=""):
 
 
 def top5_list(ranked, n=5):
-    """The phone's scan list right after the lead: the next five headlines with their age, no pictures. The desktop has the rail."""
-    items = "".join(f'<li><a href="{S.href(p)}"><span>{E(p["headlines"][0])}</span>{rel_time(p)}</a></li>' for p in ranked[1:1 + n])
+    """Top 5: five headlines with their age, no pictures. The phone shows ranked[1:6] right after the lead (the rail's two pictured
+    articles are in it); the desktop shows ranked[3:8], under the lead, beside the rail that already carries ranked[1:3]."""
+    rows = ranked[1:n + 3]
+    items = ""
+    for i, p in enumerate(rows):
+        cls = " ".join(c for c, on in (("ds", i < 2), ("pm", i >= n)) if on)  # ds: not on the desktop, pm: not on the phone
+        items += f'<li{f" class=\"{cls}\"" if cls else ""}><a href="{S.href(p)}"><span>{E(p["headlines"][0])}</span>{rel_time(p)}</a></li>'
     return f'<section class="top5" aria-label="Top 5"><h2 class="sh">Top 5</h2><ol>{items}</ol></section>' if items else ""
 
 
@@ -154,6 +159,7 @@ def front(shown, cos, m, sport=()):
     seconds = [p for p in ranked[1:] if p["id"] not in used][:2]
     used |= {p["id"] for p in seconds}
     newest = S.dt(shown[0]["published"]) if shown else None
+    used |= {p["id"] for p in ranked[1:8]}  # Top 5 (phone: ranked[1:6], desktop: ranked[3:8]): each article is placed once on the page
     latest_rows = [p for p in shown if p["id"] not in used][:8]
     used |= {p["id"] for p in latest_rows}
     seen = set()
@@ -177,8 +183,9 @@ def front(shown, cos, m, sport=()):
         photo = img(p, "3/2") + photo_cap(p) if ph(p) else ""
         return (f'<article class="second"><a href="{S.href(p)}">{photo}<span class="kick">{E(S.topic(p))}</span><h3>{E(p["headlines"][0])}</h3></a>'
                 f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
-    latest = '<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2>' + latest_list(latest_rows) + "</section>"
-    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + puzzles_block("inrail") + "</div>"
+    latest = ('<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2>' + latest_list(latest_rows)
+              + f'<p class="sportmore"><a href="{S.BASE}/latest/">All latest</a></p></section>') if latest_rows else ""
+    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + "</div>"
 
     blocks = ""
     for t in S.NEWS_ORDER:
@@ -192,7 +199,7 @@ def front(shown, cos, m, sport=()):
                    f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
                    + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
     return (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else "")
-            + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph))
+            + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph) + puzzles_block("inrow"))
 
 
 def sport_block(rows, ph, n=4):
