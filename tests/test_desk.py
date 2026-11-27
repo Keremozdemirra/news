@@ -1513,11 +1513,13 @@ class Formats(Tmp):
         self.assertIn("Today's<br>top 3.", out["top5"])
         self.assertNotIn("Yesterday headline", out["top5"])
 
-    def test_in_the_news_today_is_a_grid_of_six_to_nine_logos(self):
+    def test_in_the_news_today_is_a_grid_of_four_six_or_nine_logos(self):
         w = _at(3, 16)
         for i in range(5):
             self.pub(f"c{i}", f"Company {i} news", w, 1 + i % 3, company=f"Co{i}", logo=True)
-        self.assertEqual(self.run_at(w, "today"), {})
+        out = self.run_at(w, "today")
+        self.assertEqual(out["today"].count("<img"), 4)  # five logos: the full 2x2 rows, never a lone tile
+        (desk.QUEUE / "2026-11-26-today").rename(desk.QUEUE / "2026-11-26-today-old")
         self.pub("c5", "Company 5 news", w, 1, company="Co5", logo=True)
         self.pub("dup", "Co5 again", w, 1, company="Co5", logo=True)
         self.pub("nologo", "No logo news", w, 1, company="CoX")
@@ -1525,6 +1527,23 @@ class Formats(Tmp):
         self.assertEqual(list(out), ["today"])
         self.assertEqual(out["today"].count("<img"), 6)
         self.assertIn("In the news<br>today.", out["today"])
+
+    def test_the_afternoon_slot_still_carries_a_story_when_few_posts_have_logos(self):
+        """2026-11-27, a Friday: 3 of the day's posts had a logo, "today" built nothing, and nothing else was due
+        between 16:00 and 19:30, so Instagram had no story all afternoon. It now carries the last 12 hours, without
+        what the morning frame showed."""
+        w = _at(4, 16)
+        for i in range(3):
+            self.pub(f"m{i}", f"Morning story {i}", w, 9, score=20)
+        for i in range(4):
+            self.pub(f"a{i}", f"Afternoon story {i}", w, 1 + i, company=f"Co{i}", logo=i < 2)
+        self.write_post("2026-11-27-last12", kind="story", status="published", story="story.jpg", urls=[],
+                        refs=["2026-11-2x-m0", "2026-11-2x-m1", "2026-11-2x-m2"], created=(w - timedelta(hours=9)).isoformat())
+        out = self.run_at(w, "today")
+        self.assertEqual(list(out), ["today"])
+        self.assertIn("Last 12<br>hours.", out["today"])
+        self.assertIn("Afternoon story 0", out["today"])
+        self.assertNotIn("Morning story", out["today"])
 
     def test_most_shared_and_saved_need_three_posts_with_numbers(self):
         w = _at(6, 13)  # Sunday

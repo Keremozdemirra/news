@@ -1056,12 +1056,12 @@ def _quiz_pair(day, slot, question, answer, title, **extra):
     return [q, a]
 
 
-def _s_last12(day, label):
-    top = _mixed(sorted(_published(12), key=lambda p: -_score(p)), 3)
+def _s_last12(day, label, pid=None, skip=()):
+    top = _mixed(sorted((p for p in _published(12) if p["id"] not in skip), key=lambda p: -_score(p)), 3)
     if len(top) < 3:
         return []
     lead = _lead(top)
-    return [_queue_story(f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label, kicker="Last 12 hours", **lead), "Last 12 hours",
+    return [_queue_story(pid or f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label, kicker="Last 12 hours", **lead), "Last 12 hours",
                          refs=[p["id"] for p in top], **_photo_of(top, lead))]
 
 
@@ -1348,9 +1348,13 @@ def _s_today(day, label):
         if key and key not in seen and _logo(p):
             seen.add(key)
             tiles.append(_logo(p))
-    if len(tiles) < 6:
-        return []
-    return [_queue_story(f"{day}-today", R.T.story_today(tiles[:9], label), "In the news today")]
+    if len(tiles) >= 4:  # the grid takes 4, 6 or 9 tiles (templates.story_today)
+        return [_queue_story(f"{day}-today", R.T.story_today(tiles[:9], label), "In the news today")]
+    # too few logos (many of the day's posts name no company): the afternoon slot carries the last 12 hours instead,
+    # without the stories the morning frame already showed. On 2026-11-27 this slot found 3 logos and the Friday
+    # timetable had nothing else between 16:00 and 19:30, so Instagram went without a story all afternoon.
+    shown = {r for q in _story_posts("last12", 1) for r in q.get("refs", [])}
+    return _s_last12(day, label, pid=f"{day}-today", skip=shown)
 
 
 def _s_ranked(day, slot, label):
@@ -1659,7 +1663,11 @@ def scheduled_stories():
         # a different minute each day, so the stories do not keep one clock
         start += timedelta(minutes=jitter(f"{day}-{slot}", CONFIG.get("story_jitter_minutes", 0)))
         if start <= t < start + timedelta(hours=CONFIG.get("story_grace_hours", 3)):
-            made += build(day, slot, _story_label(slot, t))
+            got = build(day, slot, _story_label(slot, t))
+            # said in the run log: a slot that builds nothing used to leave no trace, and a day without stories
+            # could only be explained by re-running the scheduler by hand
+            print(f"story {slot}: queued {len(got)}" if got else f"story {slot}: nothing built (too little data)")
+            made += got
     return made
 
 
