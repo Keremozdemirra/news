@@ -1030,6 +1030,12 @@ class Formats(Tmp):
         for text in ("Markets close.", "EUR/USD", "EUR/GBP", "EUR/TRY", "47.2510", "US 2-year", "US 10-year", "Brent", "WTI",
                      "▲ 0.0016", "▼ 0.03", "unchanged", "▲ 0.60 (0.7%)", "20 Nov", "Source: ECB, U.S. Treasury, U.S. EIA."):
             self.assertIn(text, h)
+        from aidaily import templates as T
+        moves = re.findall(r'data-move style="[^"]*color:(#[0-9a-f]+)">([^<]*)<', h)
+        self.assertEqual(len(moves), 7)
+        for color, text in moves:  # green up, red down, grey unchanged: arrow and number in one coloured span
+            self.assertEqual(color, T.UP if text.startswith("▲") else T.DOWN if text.startswith("▼") else T.FLAT, text)
+        self.assertEqual({c for c, _ in moves}, {T.UP, T.DOWN, T.FLAT})
         self.assertEqual(h.count("23 Nov"), 1)  # the date label only: today's prints carry no date of their own
         for licensed in ("Gold", "S&amp;P", "Bitcoin", "DAX", "calculated"):  # monthly averages, indices, crypto, crosses: none
             self.assertNotIn(licensed, h)
@@ -1059,6 +1065,8 @@ class Formats(Tmp):
             out = self.run_at(_at(6, 15, 10), "chart")
         self.assertIn("Brent", out["chart"])
         self.assertIn("Up ", out["chart"])
+        from aidaily import templates as T
+        self.assertIn(f"color:{T.UP}", out["chart"])
         self.assertIn("<polyline", out["chart"])
         flat = self._markets(move=0.0)
         flat["series"] = {k: [[d, 1.0] for d, _ in v] for k, v in flat["series"].items()}

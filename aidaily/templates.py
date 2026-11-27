@@ -792,6 +792,16 @@ def story_today(logo_uris, label):
     return _frame(body, "Today", label, CTA_ARTICLES)
 
 
+# Market moves are the one place green and red appear (brand rule): the site's dark-theme --up/--down/--soft
+# (assets-site/site.css), each above 7:1 on the #121212 story ground. The arrow or the word carries the direction too.
+UP, DOWN, FLAT = "#4cc38a", "#ff8a80", "#a0a0a0"
+
+
+def _move_color(move):
+    m = (move or "").lstrip()
+    return UP if m.startswith(("▲", "Up")) else DOWN if m.startswith(("▼", "Down")) else FLAT
+
+
 def story_markets(rows, label, source):
     """Markets close: official prints only, one row each. A row is (name, value, move, date); the move is against the
     previous print, set with an arrow, never colour; the date is shown only when the print is not today's."""
@@ -799,7 +809,7 @@ def story_markets(rows, label, source):
                     f'<div><div style="font-size:50px;font-weight:800;letter-spacing:-0.025em;line-height:1.05">{e(n)}</div>'
                     + (f'<div style="margin-top:4px;font-size:34px;font-weight:600;color:{MUTE}">{e(d)}</div>' if d else "")
                     + f'</div><div style="text-align:right;white-space:nowrap"><div style="font-size:62px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
-                    f'<div style="margin-top:4px;font-size:34px;font-weight:700;color:{DIM}">{e(c)}</div></div></div>'
+                    f'<div data-move style="margin-top:4px;font-size:34px;font-weight:700;color:{_move_color(c)}">{e(c)}</div></div></div>'
                     for i, (n, v, c, d) in enumerate(rows))
     body = (f'{_story_head("Markets close.", 104)}<div style="flex:1;min-height:40px"></div>{items}'
             f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE};white-space:nowrap">{e(source)}</div>')
@@ -825,7 +835,7 @@ def story_chart(name, pts, first, last, move, span, label, source):
     """One series over its last months, from the official prints: the name, the move in words a reader can check
     against the line, the first and last values with their dates under the ends of the line."""
     body = (f'{_h(e(name), 120, lh=0.92, track=-0.04)}'
-            f'{_h(e(move), 64, color=DIM, top=24, lh=1.05, track=-0.03)}'
+            f'{_h(e(move), 64, color=_move_color(move), top=24, lh=1.05, track=-0.03)}'
             f'<div style="flex:1;min-height:40px"></div>{_chart_svg(pts)}'
             f'<div style="margin-top:28px;display:flex;justify-content:space-between;font-size:34px;font-weight:700;color:{DIM}">'
             f'<span>{e(first)}</span><span style="color:{INK}">{e(last)}</span></div>'
