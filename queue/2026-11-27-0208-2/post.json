@@ -56,5 +56,20 @@
  "credit_file": "João Silas 2015 (Unsplash).jpg",
  "status": "web",
  "published": "2026-11-27T02:08:06+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "threads": {
+   "id": "18035876738885022",
+   "url": "https://www.threads.com/@boardread/post/DgOkziEkT7x",
+   "at": "2026-11-27T02:11:06+00:00",
+   "reply": {
+    "id": "18161935225446581"
+   }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3b4djlroo25",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3b4djlroo25",
+   "at": "2026-11-27T02:11:12+00:00"
+  }
+ }
 }
