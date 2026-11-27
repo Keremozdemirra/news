@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0242-3",
+ "batch": "2026-11-27-0242",
+ "n": 3,
+ "created": "2026-11-27T02:42:42+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Duterte's ICC trial set to start as families of slain Filipinos seek justice\n\nRodrigo Duterte · World\n\nIt is one of the highest-profile cases to come before the court in its more than two decades of existence.\n\nReported by The Japan Times; The Straits Times.\n\nSend this to whoever on your team tracks global risk.\n\n#worldnews #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/duterte-icc-trial-families/"
+ ],
+ "links": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/duterte-icc-trial-families/",
+  "https://www.straitstimes.com/asia/families-of-slain-filipinos-seek-justice-as-dutertes-icc-trial-set-to-start",
+  "https://www.straitstimes.com/asia/se-asia/victims-families-await-justice-ahead-of-ex-philippine-president-dutertes-icc-trial"
+ ],
+ "headlines": [
+  "Duterte's ICC trial set to start as families of slain Filipinos seek justice"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "World",
+ "photo_file": "President Rodrigo Duterte portrait (half-body crop).jpg",
+ "photo_kind": "person",
+ "photo_alt": "",
+ "score": 8.618,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Rodrigo Duterte",
+ "logo_names": [],
+ "dek": "It is one of the highest-profile cases to come before the court in its more than two decades of existence.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Japan Times",
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/duterte-icc-trial-families/",
+  "https://www.straitstimes.com/asia/families-of-slain-filipinos-seek-justice-as-dutertes-icc-trial-set-to-start",
+  "https://www.straitstimes.com/asia/se-asia/victims-families-await-justice-ahead-of-ex-philippine-president-dutertes-icc-trial"
+ ],
+ "credit": "Photo: Government of the Philippines, Public domain, via Wikimedia Commons",
+ "credit_file": "President Rodrigo Duterte portrait (half-body crop).jpg",
+ "status": "web",
+ "published": "2026-11-27T02:42:42+00:00",
+ "story": ""
+}

@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0242-2",
+ "batch": "2026-11-27-0242",
+ "n": 2,
+ "created": "2026-11-27T02:42:41+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Australia's One Nation set for historic gains in state election\n\nLed by Pauline Hanson, the party has moved to center stage this year after decades on the political fringe.\n\nReported by The Japan Times; Bloomberg.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/australia-far-right-party/"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-26/far-right-australian-party-set-for-historic-result-in-state-poll",
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/australia-far-right-party/"
+ ],
+ "headlines": [
+  "Australia's One Nation set for historic gains in state election"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "Example voting booth.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A mechanical voting booth",
+ "score": 8.928,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Led by Pauline Hanson, the party has moved to center stage this year after decades on the political fringe.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Japan Times",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/australia-far-right-party/",
+  "https://www.bloomberg.com/news/articles/2026-11-26/far-right-australian-party-set-for-historic-result-in-state-poll"
+ ],
+ "credit": "Photo: Kenneth C. Zirkel, CC0, via Wikimedia Commons",
+ "credit_file": "Example voting booth.jpg",
+ "status": "web",
+ "published": "2026-11-27T02:42:41+00:00",
+ "story": ""
+}

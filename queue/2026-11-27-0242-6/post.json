@@ -1,0 +1,51 @@
+{
+ "id": "2026-11-27-0242-6",
+ "batch": "2026-11-27-0242",
+ "n": 6,
+ "created": "2026-11-27T02:42:46+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Mahanadi Coalfields set for Mumbai debut after $969 million IPO\n\nThe unit of state-owned Coal India lists Friday, the first IPO since the regulator barred gray-market price publication. Trading is set to start Friday. Source: Bloomberg\n\nReported by Bloomberg.\n\nSend this to whoever on your team covers Mahanadi Coalfields.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/mahanadi-coalfields-set-for-mumbai-debut-after-969-million-ipo"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/mahanadi-coalfields-set-for-mumbai-debut-after-969-million-ipo"
+ ],
+ "headlines": [
+  "Mahanadi Coalfields set for Mumbai debut after $969 million IPO"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Markets",
+ "photo_file": "Stockmarket.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A wall of stock prices in green and red",
+ "score": 8.189,
+ "figure": "$969M",
+ "company": "Mahanadi Coalfields",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The unit of state-owned Coal India lists Friday, the first IPO since the regulator barred gray-market price publication.",
+ "body": "Trading is set to start Friday. Source: Bloomberg",
+ "so_what": "",
+ "sources": [
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/mahanadi-coalfields-set-for-mumbai-debut-after-969-million-ipo"
+ ],
+ "credit": "Photo: AhmadArdity, CC0, via Wikimedia Commons",
+ "credit_file": "Stockmarket.jpg",
+ "status": "held",
+ "story": "",
+ "held": [
+  "the source line ran into the report"
+ ]
+}

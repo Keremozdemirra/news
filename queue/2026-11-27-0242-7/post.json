@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0242-7",
+ "batch": "2026-11-27-0242",
+ "n": 7,
+ "created": "2026-11-27T02:42:47+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Japan's JERA enters talks with Anthropic and Meta on data centers, Nikkei says\n\nJERA is also in discussions with Amazon, Microsoft and Google.\n\nReported by The Straits Times; CNA.\n\nSend this to whoever on your team covers JERA.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/asia/east-asia/japans-jera-enters-talks-with-anthropic-meta-to-build-data-centres-nikkei-reports"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/business/japans-jera-enters-talks-anthropic-meta-build-data-centres-nikkei-reports-6586021",
+  "https://www.straitstimes.com/asia/east-asia/japans-jera-enters-talks-with-anthropic-meta-to-build-data-centres-nikkei-reports"
+ ],
+ "headlines": [
+  "Japan's JERA enters talks with Anthropic and Meta on data centers, Nikkei says"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "An empty boardroom with a long table",
+ "score": 8.161,
+ "figure": "",
+ "company": "JERA",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "JERA is also in discussions with Amazon, Microsoft and Google.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Straits Times",
+  "CNA"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/asia/east-asia/japans-jera-enters-talks-with-anthropic-meta-to-build-data-centres-nikkei-reports",
+  "https://www.channelnewsasia.com/business/japans-jera-enters-talks-anthropic-meta-build-data-centres-nikkei-reports-6586021"
+ ],
+ "credit": "Photo: NOIRLab/NSF/AURA/T. Slovinský, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+ "status": "web",
+ "published": "2026-11-27T02:42:47+00:00",
+ "story": ""
+}

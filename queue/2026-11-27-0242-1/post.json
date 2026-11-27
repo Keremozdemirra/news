@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0242-1",
+ "batch": "2026-11-27-0242",
+ "n": 1,
+ "created": "2026-11-27T02:42:57+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Eagles beat Cowboys 39-38 on Jake Elliott's 59-yard field goal\n\nPhiladelphia Eagles · Sport\n\nElliott's kick came with two seconds left to finish a 21-point Philadelphia comeback on Thanksgiving.\n\nReported by Sky Sports; The Guardian.\n\nSend this to whoever on your team watches the markets.\n\n#news",
+ "source_cta": false,
+ "urls": [
+  "https://www.skysports.com/nfl/news/12040/13617043/nfl-philadelphia-eagles-stun-dallas-cowboys-with-historic-21-point-comeback-victory-after-jake-elliotts-field-goal-in-final-two-seconds"
+ ],
+ "links": [
+  "https://www.skysports.com/nfl/news/12040/13617043/nfl-philadelphia-eagles-stun-dallas-cowboys-with-historic-21-point-comeback-victory-after-jake-elliotts-field-goal-in-final-two-seconds",
+  "https://www.theguardian.com/sport/2026/nov/26/nfl-roundup-thanksgiving-scores-bears-lions-eagles-cowboys-chiefs-bills"
+ ],
+ "headlines": [
+  "Eagles beat Cowboys 39-38 on Jake Elliott's 59-yard field goal"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "One Direction - Lincoln Financial Field (14890362356).jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 9.532,
+ "figure": "59-yard",
+ "company": "Philadelphia Eagles",
+ "ticker": null,
+ "person": "Jake Elliott",
+ "logo_names": [],
+ "dek": "Elliott's kick came with two seconds left to finish a 21-point Philadelphia comeback on Thanksgiving.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Sky Sports",
+  "The Guardian"
+ ],
+ "source_urls": [
+  "https://www.skysports.com/nfl/news/12040/13617043/nfl-philadelphia-eagles-stun-dallas-cowboys-with-historic-21-point-comeback-victory-after-jake-elliotts-field-goal-in-final-two-seconds",
+  "https://www.theguardian.com/sport/2026/nov/26/nfl-roundup-thanksgiving-scores-bears-lions-eagles-cowboys-chiefs-bills"
+ ],
+ "credit": "Photo: Ianthebush, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "One Direction - Lincoln Financial Field (14890362356).jpg",
+ "status": "web",
+ "published": "2026-11-27T02:42:57+00:00",
+ "story": ""
+}
