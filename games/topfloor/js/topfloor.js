@@ -1,5 +1,5 @@
 import { createWorld, paletteAt, MAXF } from "./world.js";
-import { buildDial, buildCar, angleFor } from "./parts.js";
+import { buildDial, buildCar, score, play } from "./parts.js";
 import * as snd from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -37,8 +37,12 @@ function fit() {
   S = Math.max(0.62, Math.min(1.3, Math.min(w / 390, h / 844)));
   app.style.setProperty("--vh", h + "px");
   app.style.setProperty("--s", S.toFixed(4));
-  const car = $("car").getBoundingClientRect();
-  world.layout(S, car.top + 148 * S, h, w);
+  // The gauge and the car stand as low as the open card allows, so the street meets the card and the sky gets the room.
+  const sat = parseFloat(getComputedStyle(app).getPropertyValue("--sat")) || 0;
+  const natural = sat + (44 + 232 + 156) * S, cardTop = card.getBoundingClientRect().top;
+  const drop = Math.max(0, Math.min(h * 0.3, cardTop - 14 * S - natural));
+  app.style.setProperty("--drop", drop.toFixed(1) + "px");
+  world.layout(S, natural + drop - 8 * S, h, w);
 }
 
 // ---- odometer
@@ -60,10 +64,9 @@ function ascendTo(f, done) {
   const delta = Math.abs(f - floor);
   const ms = REDUCED ? 1 : Math.round(Math.min(2300, 1150 + delta * 60));
   setLiftMs(ms);
-  needle.style.transitionDuration = REDUCED ? "1ms" : ms + 380 + "ms";
-  needle.style.transitionTimingFunction = "cubic-bezier(0.3, 1.32, 0.5, 1)";
   floor = f;
-  needle.style.transform = `rotate(${angleFor(f)}deg)`;
+  needle.to(f, ms, REDUCED);
+  carScore([[0, 0], [130, 3, "out"], [300, -2, "inOut"], [520, 0, "inOut"]], 520);          // the car sinks on its cable, then is taken up
   setOdometer(f);
   world.setFloor(f, false);
   applyPalette(f / MAXF);
@@ -73,11 +76,17 @@ function ascendTo(f, done) {
   setTimeout(done, ms + 120);
 }
 
-// ---- doors
-const doorEls = () => doors;
-function setDoors(open, ms = 0) {
-  for (const [g, sgn] of [[doors.l, -1], [doors.r, 1]]) { g.style.transition = ms ? `transform ${ms}ms var(--ease-out)` : "none"; g.style.transform = `translateX(${(sgn * 42 * open).toFixed(2)}px)`; }
+// ---- the car's own movement inside the frame: authored offsets in px, never a CSS curve
+let carStop = null;
+function carScore(keys, dur, axis = "Y") {
+  carStop?.();
+  if (REDUCED) return;
+  const el = $("car");
+  carStop = play(score(keys), dur, (v) => { el.style.transform = `translate${axis}(${(v * S).toFixed(2)}px)`; }, () => { el.style.transform = ""; });
 }
+
+// ---- doors
+function setDoors(open, ms = 0, onContact) { doors.doors(open, REDUCED ? 0 : ms, onContact); }
 
 // ---- screens
 function show(name) {
@@ -85,6 +94,7 @@ function show(name) {
   card.querySelectorAll(".screen").forEach((s) => { s.hidden = s.dataset.s !== name; });
   card.scrollTop = 0;
   app.dataset.phase = name;
+  if (world) requestAnimationFrame(fit);
 }
 function pipsRender() {
   $("pips").innerHTML = "";
@@ -187,13 +197,13 @@ function success(entryIdx) {
   pipsRender();
   arrived = false;
   const F = Math.min(MAXF, Math.round(total / 7));
-  setTimeout(() => { setDoors(0, REDUCED ? 0 : 300); }, 120);
+  setTimeout(() => { setDoors(0, 300, () => carScore([[0, 0], [40, 1.5, "out"], [120, 0, "inOut"]], 120, "X")); }, 120);
   setTimeout(() => { snd.thunk(); }, REDUCED ? 0 : 420);
   setTimeout(() => {
     ascendTo(F, () => {
       arrived = true;
       snd.ding(tier);
-      const car = $("car"); car.classList.remove("bump"); void car.offsetWidth; car.classList.add("bump");
+      carScore([[0, 0], [90, -4, "out"], [210, 2.5, "inOut"], [330, -1, "inOut"], [430, 0, "inOut"]], 430);   // arrival: over the sill, back, rest
       revealNext();
     });
   }, REDUCED ? 0 : 520);
@@ -321,7 +331,7 @@ function renderEnd(rec) {
   $("share-text").textContent = shareText(rec);
   $("credit").textContent = data.credit;
   // dial and world for restored games
-  if (floor !== F) { total = rec.total; floor = F; setLiftMs(1); applyPalette(F / MAXF); world.setFloor(F, true); world.setProgress(total / 700); world.setLitFloors(F); setOdometer(F); needle.style.transitionDuration = "1ms"; needle.style.transform = `rotate(${angleFor(F)}deg)`; }
+  if (floor !== F) { total = rec.total; floor = F; setLiftMs(1); applyPalette(F / MAXF); world.setFloor(F, true); world.setProgress(total / 700); world.setLitFloors(F); setOdometer(F); needle.set(F); }
   setDoors(0);
   answers = rec.ans.map((a) => ({ label: a[0], tier: a[1], pts: a[2] }));
   pipsRender();
@@ -361,8 +371,8 @@ async function boot() {
   maps = data.prompts.map((p) => { const m = new Map(); p.entries.forEach((e, i) => e[3].forEach((k) => { if (!m.has(k)) m.set(k, i); })); return m; });
 
   world = createWorld($("world"));
-  needle = buildDial($("dial-svg"));
-  doors = buildCar($("car-svg"));
+  needle = buildDial($("dial-svg"), $("needle"));
+  doors = buildCar($("car-art"), $("alarm"));
   buildOdometer();
   setDoors(0);
   applyPalette(0);

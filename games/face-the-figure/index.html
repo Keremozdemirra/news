@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Face the Figure | Boardread</title>
+<meta name="description" content="A daily higher-or-lower game on real business figures. Ten rounds, one shared set a day, every number sourced.">
+<meta name="theme-color" content="#e9e7df">
+<link rel="preload" href="assets/fonts/bigshouldersdisplay-900-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/barlow-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/ftf.css">
+</head>
+<body>
+<div class="app" id="app" data-phase="loading">
+  <div class="stage" id="stage">
+    <header class="top">
+      <a class="brand" href="./" aria-label="Face the Figure, start page">Face the Figure</a>
+      <button class="icon-btn" id="sound" type="button" aria-pressed="false" aria-label="Sound off">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path class="spk" d="M3.5 9.5h3.6L12 5.6v12.8l-4.9-3.9H3.5z" fill="currentColor"/>
+          <path class="wave" d="M15.4 9.2a4 4 0 0 1 0 5.6M17.9 6.7a7.5 7.5 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+          <path class="mute" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="status" id="status">
+      <span class="stat">Streak <b id="streak">0</b></span>
+      <ol class="pips" id="pips" aria-label="Rounds"></ol>
+      <span class="stat r">Score <b id="score">0</b></span>
+    </div>
+
+    <section class="ask" id="ask" aria-live="polite">
+      <p class="kind" id="kind">Annual revenue</p>
+      <h2 class="q" id="q" tabindex="-1">Is B higher or lower than A?</h2>
+    </section>
+
+    <section class="scale" id="scale" aria-label="The balance">
+      <img class="art plate" id="art-plate" src="assets/art/plate.webp" alt="" decoding="async">
+      <canvas class="art back" id="art-back" aria-hidden="true"></canvas>
+      <article class="ticket" id="pa" aria-label="Figure A">
+        <span class="tag" aria-hidden="true">A</span>
+        <p class="subj"></p>
+        <p class="what"></p>
+        <div class="fig"></div>
+        <p class="src"></p>
+        <p class="head"></p>
+      </article>
+      <article class="ticket" id="pb" aria-label="Figure B">
+        <span class="tag" aria-hidden="true">B</span>
+        <p class="subj"></p>
+        <p class="what"></p>
+        <div class="fig"></div>
+        <i class="tape" aria-hidden="true"></i>
+        <p class="src"></p>
+        <p class="head"></p>
+      </article>
+      <canvas class="art front" id="art-front" aria-hidden="true"></canvas>
+    </section>
+
+    <section class="panel" id="panel" data-s="intro">
+
+      <div class="screen" data-s="intro" aria-labelledby="t-intro">
+        <p class="eyebrow" id="issue">Daily puzzle</p>
+        <h1 class="title" id="t-intro">Face the Figure</h1>
+        <p class="lede">Two real business figures on a balance. The first is printed, the second is sealed. Will it weigh higher or lower? Ten rounds; every right call in a row is worth one more point.</p>
+        <button class="btn" id="start" type="button"><span>Open the ledger</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4"/></svg></button>
+        <p class="fine" id="intro-fine">Everyone gets the same ten each UTC day. Every figure is sourced.</p>
+        <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
+      </div>
+
+      <div class="screen keys" data-s="play" hidden>
+        <button class="key" id="k-up" type="button" aria-keyshortcuts="ArrowUp H"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 14H3z"/></svg><span class="kl">Higher</span><span class="ks" id="ks-up">more</span><kbd aria-hidden="true">&uarr;</kbd></button>
+        <button class="key" id="k-down" type="button" aria-keyshortcuts="ArrowDown L"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20L3 6h18z"/></svg><span class="kl">Lower</span><span class="ks" id="ks-down">less</span><kbd aria-hidden="true">&darr;</kbd></button>
+      </div>
+
+      <div class="screen verdict" data-s="result" aria-live="polite" hidden>
+        <div class="v-top">
+          <p class="v-word" id="v-word">Correct</p>
+          <p class="v-pts" id="v-pts">+3</p>
+        </div>
+        <p class="v-line" id="v-line"></p>
+        <button class="btn" id="next" type="button"><span id="next-label">Next figure</span><kbd aria-hidden="true">Enter</kbd></button>
+      </div>
+
+      <div class="screen endcard" data-s="end" aria-labelledby="e-score" hidden>
+        <div class="e-head">
+          <p class="eyebrow" id="e-issue">Face the Figure</p>
+          <h2 class="e-score" id="e-score" tabindex="-1">0/10</h2>
+          <p class="e-rank" id="e-rank">Apprentice</p>
+          <p class="e-line" id="e-line"></p>
+        </div>
+        <ol class="e-best" id="e-best" aria-label="Closest calls"></ol>
+        <ol class="e-rows" id="e-rows" aria-label="All ten rounds"></ol>
+        <dl class="stats" id="stats"></dl>
+        <div class="share">
+          <pre class="share-text" id="share-text" aria-label="Share text"></pre>
+          <button class="btn" id="share" type="button"><span id="share-label">Share your result</span></button>
+          <p class="next-in">Next ten in <b class="mono" id="countdown">00:00:00</b></p>
+        </div>
+        <p class="credit" id="credit"></p>
+        <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+<noscript><p style="padding:2rem;font:16px system-ui">Face the Figure needs JavaScript.</p></noscript>
+<script type="module" src="js/ftf.js"></script>
+</body>
+</html>
