@@ -273,7 +273,8 @@ class Health(Tmp):
     def test_renewed_token_clears_the_alarm_at_once(self):
         self.broken_threads()
         self.assertEqual([k for k, _ in status.problems(status.snapshot())], ["auth-threads"])
-        self.post("p2", platforms={"threads": {"id": "t1", "url": "https://t/1", "at": (desk.now() + timedelta(minutes=1)).isoformat()}})
+        self.post("p2", headlines=["A second story"],
+                  platforms={"threads": {"id": "t1", "url": "https://t/1", "at": (desk.now() + timedelta(minutes=1)).isoformat()}})
         self.assertEqual(status.problems(status.snapshot()), [])
 
     def test_numbers_in_a_body_are_not_auth_errors(self):

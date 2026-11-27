@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from html import escape as E
 from pathlib import Path
 
-from . import desk, github
+from . import desk, github, liveness
 
 WORKFLOWS = ("tick", "daily", "publish", "engage", "weekly", "site", "crosspost", "ci")
 DESK_WORKFLOWS = ("daily", "publish", "engage", "weekly", "site", "crosspost")
@@ -252,7 +252,8 @@ def problems(snap, live_site=None):
         out.append(("ig-failed", f"{len(failed)} Instagram post(s) failed in 24 hours: "
                     + ", ".join(f"{e['post']} ({e['summary']})" for e in failed[:5]) + "."))
     for name, w in snap["workflows"].items():
-        if name in DESK_WORKFLOWS and (w["failure_streak"] >= 3 or w["failures_6h"] >= 4):
+        # two in a row: a workflow runs every five or ten minutes, so two reds in a row is already ten minutes of nothing
+        if name in DESK_WORKFLOWS and (w["failure_streak"] >= 2 or w["failures_6h"] >= 4):
             out.append((f"wf-{name}", f"The {name} workflow failed {max(w['failure_streak'], w['failures_6h'])} times "
                         f"recently ([latest run]({w['last_url']}))."))
     tick = snap["workflows"].get("tick")
@@ -263,7 +264,9 @@ def problems(snap, live_site=None):
         made = desk._stamp(live_site.get("generated", "")) if isinstance(live_site, dict) else None
         if made and t - made > timedelta(hours=STALE_SITE_HOURS):
             out.append(("site", f"The site has not been rebuilt since {made:%Y-%m-%d %H:%M} UTC."))
-    # token dates are not repeated here: the Monday run already opens one reminder issue per token (desk.py)
+    # silence: a platform, the stories or the Shorts that stopped sending, and one headline sent twice
+    # (liveness.py); the recorded token expiry dates are in there too, so a date inside two weeks shows daily, not on Mondays only
+    out += liveness.problems(t)
     return out
 
 
@@ -299,6 +302,8 @@ def health(snap=None, live_site=None, gh=github):
     since = {k: state["since"].get(k, iso(t)) for k, _ in found}
     held = [(k, m) for k, m in found if t - desk._stamp(since[k]) >= timedelta(minutes=HOLD_MINUTES)]
     state["since"] = since
+    # what is wrong now, in words: state/health.json is the machine-readable copy of the issue
+    state["active"] = {k: m for k, m in found}
     keys = sorted(k for k, _ in held)
     if not gh.enabled():
         for _, m in found:
