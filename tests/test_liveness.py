@@ -187,6 +187,57 @@ class Tokens(Base):
             self.assertEqual([k for k, _ in liveness.token_dates(T.date())], ["token-threads"])
 
 
+class Withdrawn(Base):
+    def corrections(self, *ids):
+        (desk.HERE / "corrections.json").write_text(json.dumps(
+            [{"id": i, "time": "2026-11-27T10:00:00+00:00", "right": "Wrong.", "withdrawn": True} for i in ids]
+            + [{"id": "p-fixed", "time": "2026-11-27T10:00:00+00:00", "wrong": "a", "right": "b"}]))
+
+    def test_a_withdrawn_article_leaves_every_selector_through_posts(self):
+        a = self.post(published=ago(hours=2), platforms={"threads": {"id": "1", "at": ago(hours=2)}})
+        b = self.post(published=ago(hours=1))
+        self.corrections(a["id"])
+        rows = {p["id"]: p for p, _ in desk.posts()}
+        self.assertEqual(rows[a["id"]]["status"], "deleted")
+        self.assertEqual(rows[a["id"]]["status_was"], "published")
+        self.assertEqual(rows[b["id"]]["status"], "published")
+        from aidaily import site
+        self.assertEqual([p["id"] for p in site.published()], [b["id"]])
+        # the file itself is untouched: withdrawing is a record, not a rewrite
+        self.assertEqual(json.loads((desk.QUEUE / a["id"] / "post.json").read_text())["status"], "published")
+
+    def test_a_correction_that_is_not_a_withdrawal_leaves_the_post_alone(self):
+        a = self.post(published=ago(hours=2))
+        (desk.HERE / "corrections.json").write_text(json.dumps([{"id": a["id"], "time": "2026-11-27T10:00:00+00:00", "wrong": "x", "right": "y"}]))
+        self.assertEqual({p["id"]: p["status"] for p, _ in desk.posts()}[a["id"]], "published")
+
+    def test_a_post_can_carry_its_own_withdrawn_flag(self):
+        a = self.post(published=ago(hours=2), withdrawn=True)
+        self.assertEqual({p["id"]: p["status"] for p, _ in desk.posts()}[a["id"]], "deleted")
+
+    def test_a_broken_corrections_file_withdraws_nothing(self):
+        a = self.post(published=ago(hours=2))
+        (desk.HERE / "corrections.json").write_text("{not json")
+        self.assertEqual({p["id"]: p["status"] for p, _ in desk.posts()}[a["id"]], "published")
+
+    def test_a_withdrawn_article_still_up_elsewhere_is_named_until_it_is_removed(self):
+        a = self.post(published=ago(hours=2), platforms={"threads": {"id": "1", "at": ago(hours=2)},
+                                                          "bluesky": {"id": "2", "at": ago(hours=2), "removed": True}})
+        self.corrections(a["id"])
+        got = liveness.withdrawn_live([p for p, _ in desk.posts()], {"attempted": {a["id"]: {"video_id": "v"}}})
+        self.assertEqual([k for k, _ in got], [f"withdrawn-{a['id']}"])
+        self.assertIn("threads, instagram, youtube", got[0][1])
+        self.assertNotIn("bluesky", got[0][1])
+
+    def test_an_instagram_delete_clears_instagram_but_not_the_other_platforms(self):
+        a = self.post(published=ago(hours=2), deleted=ago(hours=1), platforms={"threads": {"id": "1", "at": ago(hours=2)}})
+        self.corrections(a["id"])
+        a["status"] = "deleted"  # what `aidaily delete` writes
+        (desk.QUEUE / a["id"] / "post.json").write_text(json.dumps(a))
+        got = liveness.withdrawn_live([p for p, _ in desk.posts()])
+        self.assertIn("still up on threads:", got[0][1])
+
+
 class InHealth(Base):
     def snap(self, **w):
         return {"paused": False, "platforms": {}, "errors": [], "queue": {"oldest_due": None}, "instagram": {"cooldown_until": None},

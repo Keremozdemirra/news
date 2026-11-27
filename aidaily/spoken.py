@@ -117,8 +117,96 @@ def names(text):
     return out
 
 
-def gate(script, facts, published):
-    """The problems with a script, empty when it may be voiced. published: every word the script may stand on."""
+UNITS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
+                                    "fifteen sixteen seventeen eighteen nineteen".split())}
+TENS = {w: 10 * i for i, w in enumerate("_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()) if w != "_"}
+BIG = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12}
+DIGIT_SCALE = {"thousand": 1e3, "k": 1e3, "million": 1e6, "m": 1e6, "mn": 1e6, "billion": 1e9, "bn": 1e9, "b": 1e9,
+               "trillion": 1e12, "tn": 1e12, "t": 1e12}
+DIGITS = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s?(thousand|million|billion|trillion|bn|mn|tn|k|m|b|t)?\b", re.I)
+TOLERANCE = 0.15  # "nearly three percent" for 2.7: a rounded number is fine, a different one is not
+
+
+def spoken_numbers(text):
+    """[(value, phrase)] for the numbers a script says in words that a listener takes as a claim: a percent, a decimal, or
+    anything with hundred, thousand, million, billion or trillion. A bare "three" or a year is a count or a date, not a claim."""
+    toks = re.findall(r"[a-z]+|\d+", (text or "").lower().replace("-", " "))
+    out, i, n = [], 0, len(toks)
+    numeric = lambda k: k < n and (toks[k] in UNITS or toks[k] in TENS or toks[k] == "hundred" or toks[k] in BIG)  # noqa: E731
+    while i < n:
+        a_big = toks[i] == "a" and i + 1 < n and (toks[i + 1] == "hundred" or toks[i + 1] in BIG)
+        if not (toks[i] in UNITS or toks[i] in TENS or a_big):
+            i += 1
+            continue
+        start, j, cur, total, claim = i, i + (1 if a_big else 0), 1 if a_big else 0, 0.0, False
+        while j < n:
+            w = toks[j]
+            if w in UNITS:
+                cur += UNITS[w]
+            elif w in TENS:
+                cur += TENS[w]
+            elif w == "hundred":
+                cur, claim = (cur or 1) * 100, True
+            elif w in BIG:
+                total, cur, claim = total + (cur or 1) * BIG[w], 0, True
+            elif w == "and" and toks[j + 1:j + 3] == ["a", "half"]:
+                cur += 0.5
+                j += 2
+            elif w == "and" and numeric(j + 1) and toks[j + 1] not in BIG and total + cur:
+                pass
+            else:
+                break
+            j += 1
+        value = total + cur
+        if toks[j:j + 1] == ["point"] and toks[j + 1:j + 2] and toks[j + 1] in UNITS:
+            k, frac = j + 1, ""
+            while k < n and toks[k] in UNITS and UNITS[toks[k]] < 10:
+                frac += str(UNITS[toks[k]])
+                k += 1
+            value += float("0." + frac)
+            claim, j = True, k
+            if toks[j:j + 1] and toks[j] in BIG:  # "two point five billion"
+                value *= BIG[toks[j]]
+                j += 1
+        if toks[j:j + 1] in (["percent"], ["percentage"]):
+            claim, j = True, j + 1
+        elif toks[j:j + 2] == ["per", "cent"]:
+            claim, j = True, j + 2
+        if claim:
+            out.append((value, " ".join(toks[start:j])))
+        i = max(j, i + 1)
+    return out
+
+
+def published_values(text):
+    """Every number the published copy states, as a value: digits with their scale word, and numbers written as words."""
+    vals = set()
+    for m in DIGITS.finditer(text or ""):
+        try:
+            v = float(m.group(1).replace(",", ""))
+        except ValueError:
+            continue
+        vals.add(v)
+        if m.group(2):
+            vals.add(v * DIGIT_SCALE[m.group(2).lower()])
+    vals |= {v for v, _ in spoken_numbers(text)}
+    return vals
+
+
+def number_gaps(script, published, extra=""):
+    """The numbers the script says that the published copy (or today's conversions of its sums) does not state, allowing
+    the rounding of speech. Empty when every claim-sized number is stated."""
+    known = published_values(published) | published_values(extra)
+    gaps = []
+    for value, phrase in spoken_numbers(script):
+        if not any(abs(value - k) <= max(TOLERANCE * abs(k), 0.05) for k in known):
+            gaps.append(phrase)
+    return gaps
+
+
+def gate(script, facts, published, extra=""):
+    """The problems with a script, empty when it may be voiced. published: every word the script may stand on.
+    extra: text whose numbers the script may use too (the conversions of the published sums)."""
     problems = []
     low = " " + _norm(script) + " "
     words = script.split()
@@ -157,6 +245,8 @@ def gate(script, facts, published):
     for name in sorted(names(script)):
         if name.lower() not in pub:
             problems.append(f"name not in the published copy: {name}")
+    for phrase in number_gaps(script, published, extra):
+        problems.append(f"number not in the published copy: {phrase!r}")
     if not facts:
         problems.append("no facts quoted")
     for f in facts:
@@ -217,7 +307,7 @@ def write(post, ask=None, tries=3):
         except ValueError:
             got = {}
         script, facts = (got.get("script") or "").strip(), got.get("facts") or []
-        problems = gate(script, facts, published_text(post))
+        problems = gate(script, facts, published_text(post), extra=conversions(published_text(post)))
         if not problems:
             return script, []
         prompt += "\nYour last draft failed these checks; write it again:\n- " + "\n- ".join(problems) + "\n"

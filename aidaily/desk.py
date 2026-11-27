@@ -56,8 +56,28 @@ def _save(p, data):
     p.write_text(redact.scrub(text, patterns=False))
 
 
+def withdrawn_ids():
+    """Article ids that corrections.json marks withdrawn. A missing or broken file is none, never a failed run."""
+    try:
+        rows = json.loads((HERE / "corrections.json").read_text())
+    except (OSError, ValueError):
+        return set()
+    return {c["id"] for c in rows if isinstance(c, dict) and c.get("withdrawn") and c.get("id")} if isinstance(rows, list) else set()
+
+
 def posts():
-    return [(_load(p, {}), p) for p in sorted(QUEUE.glob("*/post.json"))]
+    """Every post in the queue. A withdrawn one (a post's own "withdrawn": true, or a withdrawal in corrections.json)
+    comes back with status "deleted", whatever its file says: every selector in the desk keeps to published, queued and
+    web posts, so a withdrawn article drops out of cross-posts, stories, Shorts, reels, digests and the site's lists
+    from this one place. The status it had stays in "status_was" for the health check."""
+    rows = [(_load(p, {}), p) for p in sorted(QUEUE.glob("*/post.json"))]
+    gone = withdrawn_ids()
+    for post, _ in rows:
+        if post.get("withdrawn") or post.get("id") in gone:
+            if post.get("status") != "deleted":
+                post.update(status_was=post.get("status"), status="deleted")
+            post["withdrawn"] = True
+    return rows
 
 
 def media_url(post_id, name):

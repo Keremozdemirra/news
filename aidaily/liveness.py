@@ -170,8 +170,28 @@ def token_dates(today=None):
     return out
 
 
+def withdrawn_live(rows, shorts=None):
+    """[(key, message)] for a withdrawn article that is still up somewhere the desk cannot take it down. Instagram has
+    `aidaily delete`; the other platforms and YouTube are deleted by hand, then the slot gets "removed": true."""
+    out = []
+    shorts = (shorts or {}).get("attempted") or {}
+    for p in rows:
+        if not p.get("withdrawn"):
+            continue
+        where = [n for n, s in (p.get("platforms") or {}).items() if s.get("id") and not s.get("removed")]
+        if p.get("status_was") == "published" and p.get("media_id") and not p.get("deleted") and not p.get("removed"):
+            where.append("instagram")
+        if (shorts.get(p["id"]) or {}).get("video_id") and not (shorts[p["id"]] or {}).get("removed"):
+            where.append("youtube")
+        if where:
+            out.append((f"withdrawn-{p['id']}", f"Withdrawn article {p['id']} is still up on {', '.join(where)}: delete it there "
+                        "(`aidaily delete` takes it off Instagram), then set \"removed\": true on its slot."))
+    return out
+
+
 def problems(t=None, rows=None):
     """Every silence alarm now: [(key, message)]."""
     t = t or desk.now()
     rows = rows if rows is not None else [p for p, _ in desk.posts()]
-    return (silent_platforms(rows, t) + silent_stories(rows, t) + silent_shorts(t) + duplicates(rows, t) + token_dates(t.date()))
+    return (silent_platforms(rows, t) + silent_stories(rows, t) + silent_shorts(t) + duplicates(rows, t) + token_dates(t.date())
+            + withdrawn_live(rows, desk._load(desk.STATE / "shorts.json", {})))
