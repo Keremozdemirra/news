@@ -54,6 +54,8 @@ class Tmp(unittest.TestCase):
                         mock.patch.object(desk, "PAUSED", root / "PAUSED"), mock.patch.object(desk, "HERE", root),
                         mock.patch.object(desk, "MEDIA", root / "media"),
                         mock.patch.dict("os.environ", {"GITHUB_TOKEN": "", "DESK_MEDIA_BASE": "https://raw.example/r/main"}),
+                        # no test ever reaches ElevenLabs: the local keychain may hold the real key
+                        mock.patch("aidaily.voice.api_key", return_value=""),
                         mock.patch.dict(desk.CONFIG, {"story_concepts": True, "ig_gap_minutes": 0, "slot_jitter_minutes": 0,
                                                         "story_jitter_minutes": 0, "story_spacing_minutes": 0,
                                                         "mirror_delay_minutes": {}})]  # InstagramGap and test_ig_mix test these

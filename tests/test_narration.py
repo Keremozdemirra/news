@@ -142,5 +142,25 @@ class KeysStayPut(unittest.TestCase):
         self.assertNotIn("YT_REFRESH_TOKEN", env)
 
 
+class Timed(unittest.TestCase):
+    def test_each_sentence_appears_as_it_is_spoken(self):
+        from aidaily import shortforms as SF
+        script = "France has slid into recession. Its economy shrank by zero point two percent. That's two quarters in a row."
+        spoken_text = VO.deliver(VO.spoken(script), "eleven_v4")
+        timed_chars = [(c, i * 0.05) for i, c in enumerate(spoken_text)]  # one character every 50 ms
+        starts = VO.sentence_starts(SF_sents := __import__("aidaily.spoken", fromlist=["x"]).sentences(script), timed_chars)
+        self.assertEqual(starts[0], 0.0)
+        self.assertTrue(all(b > a for a, b in zip(starts, starts[1:])))
+        story = {"headline": "France enters recession", "title": "France enters recession", "topic": "Economy", "source": "Le Monde",
+                 "published": "2026-11-27T08:00:00+00:00", "_assets": {"credit": "", "kind": "scene"}}
+        plan = SF.narrated_timeline(story, "plain", list(zip(SF_sents, starts)), 6.0)
+        pages, total = plan
+        texts = [p for p in pages if p[3] == "text"]
+        self.assertEqual(texts[0][1], 0.0)  # the headline from the first frame
+        self.assertAlmostEqual(texts[2][1], starts[1], places=2)  # the second sentence when it is said
+        self.assertEqual(pages[-1][3], "end")
+        self.assertAlmostEqual(pages[-1][1], 6.5, places=2)
+
+
 if __name__ == "__main__":
     unittest.main()

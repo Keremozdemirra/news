@@ -253,9 +253,11 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
                 text, problems = (script, []) if script else spoken.write(post)
                 if problems:
                     raise ValueError("script failed its gate: " + "; ".join(problems)[:200])
-                f, secs = nar.say(text)
-                plan = SF.stretch(plan, secs + 0.6 + SF.END_SECONDS)
-                voice_cues = [(0.3, f)]
+                f, secs, timed = nar.say_timed(text)
+                # the screen follows the voice: each spoken sentence appears as it is said (word timings from
+                # ElevenLabs), the headline holds while the first one is spoken
+                plan = SF.narrated_timeline(story, layout, timed, secs + 0.15)
+                voice_cues = [(0.15, f)]
             except Exception as e:  # noqa: BLE001
                 print(f"shorts: narration skipped, silent Short: {str(e)[:200]}")
                 nar = None
@@ -269,8 +271,11 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             # the visual gate refused a frame: the same Short set on black, its timing kept for the voice
             print(f"shorts: gate failed in {layout} ({str(e)[:160]}); set on black instead")
             layout = "plain"
-            again = SF.post_timeline(structure, post, story, layout, facts(post, 3), outlets_line(post))
-            plan = SF.stretch(again, plan[1]) if again else plan
+            if voice_cues:
+                plan = SF.narrated_timeline(story, layout, timed, secs + 0.15)
+            else:
+                again = SF.post_timeline(structure, post, story, layout, facts(post, 3), outlets_line(post))
+                plan = SF.stretch(again, plan[1]) if again else plan
             CV.build_sequence(out_mp4, plan[0], plan[1], RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy),
                               footage=footage, voice=voice_cues)
         total = plan[1]
@@ -312,12 +317,22 @@ def _clean(s):
     return re.sub(r"[<>]", "", s or "").strip()
 
 
+TITLE_TARGET = 60  # characters: the whole title shows under a Short on a phone; the news, never a teaser
+CLAUSE = re.compile(r",\s|;\s|\s(?:as|after|amid|while|despite|with|over|following|ahead of|before)\s", re.I)
+PHRASE = re.compile(r"\s(?:to|in|for|on|at|by|from|into|against)\s", re.I)
+
+
 def title(post):
-    """The headline, at most 100 characters, cut at a word."""
+    """The headline as the title, at most TITLE_TARGET characters: when it is longer, the main clause before a trailing
+    "as ...", "after ...", ", ..." (what happened, without the context); failing that, cut at a word."""
     t = _clean(post["headlines"][0])
-    if len(t) <= TITLE_MAX:
+    if len(t) <= TITLE_TARGET:
         return t
-    return t[:TITLE_MAX - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    for pattern in (CLAUSE, PHRASE):  # a whole clause first, else stop before a trailing phrase
+        cuts = [m.start() for m in pattern.finditer(t) if 20 <= m.start() <= TITLE_TARGET]
+        if cuts:
+            return t[:max(cuts)].rstrip(",;: ")
+    return t[:TITLE_TARGET - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
 def hashtags(post):

@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from . import reelcard as RC
 from . import templates as T
 
-MIN_SECONDS, MAX_SECONDS = 20.0, 45.0
+MIN_SECONDS, MAX_SECONDS = 15.0, 45.0  # tighter since 2026-11-27: a beat holds as long as it takes to read
 END_SECONDS = 2.6
 # a post's structures, tried in this order after the one the last Short used; brief and data once a day each
 ORDER = ("quote", "know", "figure", "story", "data", "brief")
@@ -50,9 +50,9 @@ def big(text, room=330):
     return RC._fit(text, 300, 110, 1, room, 0.95, track="-0.04em", extra="margin-bottom:24px")
 
 
-def read_seconds(text, lo=3.5, hi=7.0):
-    """About as long as it takes to read twice at a phone's pace."""
-    return round(min(max(len(text.split()) / 2.6 + 1.2, lo), hi), 2)
+def read_seconds(text, lo=3.0, hi=6.0):
+    """About as long as it takes to read once at a phone's pace, with a beat to take it in."""
+    return round(min(max(len(text.split()) / 3.2 + 0.9, lo), hi), 2)
 
 
 # what a post can carry
@@ -119,7 +119,7 @@ class Plan(tuple):
 def timeline(base, beats, end, say=None, end_said=""):
     """beats: [([html, ...], seconds)] or [([html, ...], seconds, spoken line)]. With `say` (a spoken line -> its
     length in seconds) each beat holds at least as long as its line plus a breath. Then trailing beats are dropped
-    past MAX_SECONDS and short ones stretched up to 1.35x to reach MIN_SECONDS; None when even stretched it is too
+    past MAX_SECONDS and short ones stretched up to 1.15x to reach MIN_SECONDS; None when even stretched it is too
     short (the structure is then not used)."""
     beats = [(b[0], b[1], b[2] if len(b) > 2 else "") for b in beats]
     end_len = END_SECONDS
@@ -133,7 +133,7 @@ def timeline(base, beats, end, say=None, end_said=""):
     t = sum(d for _, d, _ in beats)
     need = MIN_SECONDS - end_len
     if t < need:
-        if t * 1.35 < need:
+        if t * 1.15 < need:
             return None
         beats = [(h, math.ceil(d * need / t * 100) / 100, w) for h, d, w in beats]  # up, so the total reaches the floor
     pages, cues, t = [(base, 0.0, None, "base")], [], 0.0
@@ -164,10 +164,28 @@ def stretch(plan, total):
     return new
 
 
+def narrated_timeline(story, layout, timed, secs):
+    """The Short as its narration says it: the headline and meta line on screen from the first frame while the first
+    sentence is spoken, then each later sentence set on screen as it starts, and the end frame half a second after
+    the voice stops. timed: [(sentence, start seconds)] from voice.Narrator.say_timed."""
+    room = RC.room(layout)
+    end_at = round(secs + 0.5, 2)
+    starts = [round(t, 2) for _, t in timed] + [end_at]
+    pages = [(RC.layer(story, layout, "base"), 0.0, None, "base")]
+    first_out = starts[1] if len(timed) > 1 else end_at
+    pages += [(RC.layer(story, layout, "meta"), 0.0, first_out, "text"), (RC.layer(story, layout, "head"), 0.0, first_out, "text")]
+    for (sent, _), a, b in zip(timed[1:], starts[1:-1], starts[2:]):
+        pages.append((RC.page(layout, line(sent, 84, 700, 6, room)), a, max(b, a + 1.2), "text"))
+    pages.append((RC.layer(story, layout, "end"), end_at, None, "end"))
+    plan = Plan((pages, round(end_at + END_SECONDS, 2)))
+    plan.cues = []
+    return plan
+
+
 def post_timeline(name, post, story, layout, facts, outlets, say=None):
     """The beats of a post-based structure on layout `layout`; `say` sizes the beats to a narration of the same words."""
     room = RC.room(layout)
-    head = ([RC.layer(story, layout, "meta"), RC.layer(story, layout, "head")], 5.0, story["headline"])
+    head = ([RC.layer(story, layout, "meta"), RC.layer(story, layout, "head")], 4.0, story["headline"])
     src = ([RC.page(layout, line(f"Reported by {outlets}", 84, room=room))], 2.8, f"Reported by {outlets}.") if outlets else None
     fact_beats = [([RC.page(layout, line(f, room=room))], read_seconds(f), f) for f in facts]
     # a structure without its material is refused (build() then falls back to story), never shown half empty
@@ -216,7 +234,7 @@ def brief_timeline(posts, outlets_of, markets=False, say=None):
         inner = (label(f"{i} of 3 · {p.get('topic') or 'News'}") + line(h, 104, 800, 5, room - 260, 60)
                  + (f'<div style="margin-top:36px;font-size:34px;color:{GREY}">Reported by {T.e(who)}</div>' if who else ""))
         beats.append(([RC.page("plain", inner)], read_seconds(h, 5.0, 7.0), h))
-    story = {"end_line": "Full stories on"}
+    story = {"end_line": "Full stories:"}
     return title, timeline(RC.layer(story, "plain", "base"), beats, RC.layer(story, "plain", "end"), say,
                            "Full stories on boardread.news.")
 
@@ -310,6 +328,6 @@ def data_timeline(m, key, why, n=90, say=None):
                        + f'<div style="margin-top:20px;font-size:34px;color:{GREY}">Low {M.fmt(key, lo)} · High {M.fmt(key, hi)}</div>')], 6.0,
               f"Over the last {len(pts)} readings, the low was {M.fmt(key, lo)} and the high {M.fmt(key, hi)}."),
              ([RC.page("plain", line(src, 84))], 3.0, src + ".")]
-    story = {"end_line": "More numbers on"}
+    story = {"end_line": "More numbers:"}
     return title, caption, src, timeline(RC.layer(story, "plain", "base"), beats, RC.layer(story, "plain", "end"), say,
                                          "More numbers on boardread.news.")

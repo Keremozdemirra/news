@@ -108,6 +108,47 @@ def settings(model):
     return {"stability": 0.35, "similarity_boost": 0.75, "style": 0.3, "use_speaker_boost": True}
 
 
+TIMED = "https://api.elevenlabs.io/v1/text-to-speech/{voice}/with-timestamps?output_format=mp3_44100_128"
+
+
+def speak_timed(text, out_mp3, key, voice=None, model=None, post=_post):
+    """speak(), with the time each character is spoken (the with-timestamps endpoint): returns (path, [(char, start
+    seconds)]), so the screen can show each sentence as it is said."""
+    import base64
+    voice = voice or cfg("shorts_voice_id", "")
+    model = model or cfg("shorts_voice_model", "eleven_v4")
+    body = json.dumps({"text": deliver(spoken(text), model), "model_id": model, "voice_settings": settings(model)}).encode()
+    code, raw = post(TIMED.format(voice=voice), {"xi-api-key": key, "Content-Type": "application/json"}, body)
+    try:
+        got = json.loads(raw or b"{}")
+    except ValueError:
+        got = {}
+    if code != 200 or not got.get("audio_base64"):
+        detail = got.get("detail")
+        raise VoiceError(f"text-to-speech refused ({code}): {detail.get('status') if isinstance(detail, dict) else str(detail)[:80]}")
+    Path(out_mp3).write_bytes(base64.b64decode(got["audio_base64"]))
+    al = got.get("alignment") or got.get("normalized_alignment") or {}
+    return Path(out_mp3), list(zip(al.get("characters") or [], al.get("character_start_times_seconds") or []))
+
+
+def sentence_starts(sentences, timed):
+    """When each sentence starts being spoken, from the character timings. Each is found in order by its first
+    words, so delivery tags in the spoken text ("[short pause]") do not throw the match off; a sentence not found
+    gets None and the caller spaces it evenly."""
+    chars = "".join(c for c, _ in timed).lower()
+    times = [t for _, t in timed]
+    out, pos = [], 0
+    for sent in sentences:
+        key = re.sub(r"\s+", " ", spoken(sent).lower())[:18]
+        i = chars.find(key, pos)
+        if i < 0:
+            out.append(None)
+            continue
+        out.append(times[i])
+        pos = i + len(key)
+    return out
+
+
 def duration(path):
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
                          capture_output=True, text=True).stdout
@@ -174,6 +215,21 @@ class Narrator:
         """One file for the whole script: (file, seconds)."""
         f = self.speak_fn(text, self.folder / "script.mp3", self.key, self.voice)
         return f, duration(f)
+
+    def say_timed(self, text, timed_fn=None):
+        """(file, seconds, [(sentence, start)]): the script as one file and when each sentence begins."""
+        from . import spoken as SP
+        f, chars = (timed_fn or speak_timed)(text, self.folder / "script.mp3", self.key, self.voice)
+        secs = duration(f)
+        sents = SP.sentences(text)
+        starts = sentence_starts(sents, chars)
+        # a sentence the timings did not place gets an even share of what is left
+        for i, st in enumerate(starts):
+            if st is None:
+                prev = starts[i - 1] if i else 0.0
+                nxt = next((x for x in starts[i + 1:] if x is not None), secs)
+                starts[i] = prev + (nxt - prev) / 2
+        return f, secs, list(zip(sents, starts))
 
     def cues(self, timed):
         """[(t, file)] for [(t, text)]."""

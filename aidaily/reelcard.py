@@ -196,7 +196,7 @@ def plan(story):
     big, line = fact(story)
     src = source_line(story)
     head = HEAD_SECONDS if line else HEAD_ALONE
-    out, t = [("base", 0.0, None), ("meta", 0.0, head), ("head", 0.08, head)], head
+    out, t = [("base", 0.0, None), ("meta", 0.0, head), ("head", 0.0, head)], head
     if line:
         d = round(min(max(len(line.split()) / 3.0 + (1.2 if big else 0.8), 3.0), 4.6), 2)
         out.append(("fact", t, t + d))
@@ -267,7 +267,7 @@ def layer(story, name, part):
             # empty band deeper than the gate allows (gate.DEAD, 15% of the height)
             inner += (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
                       f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;bottom:{H - SAFE_BOTTOM}px;'
-                      f'font-size:34px;font-weight:500;color:#9aa0a8">{T.e(story.get("end_line", "Full story on"))} '
+                      f'font-size:34px;font-weight:500;color:#9aa0a8">{T.e(story.get("end_line", "Full story:"))} '
                       f'<span style="color:{T.WHITE};font-weight:700">{T.e(T.domain())}</span></div>')
         elif "credit" in g:  # the band layouts: the wordmark row where the foot goes, the credit as a caption by the photo
             inner += f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
@@ -299,7 +299,7 @@ def layer(story, name, part):
                  f'justify-content:center;padding:0 {W - RIGHT}px 180px {LEFT}px">'
                  f'<div style="font-size:150px;font-weight:800;letter-spacing:-6px;line-height:1">{T.e(T.BRAND["name"])}</div>'
                  f'<div style="margin-top:56px;font-size:60px;font-weight:700;letter-spacing:-1.5px;line-height:1.15">'
-                 f'<span style="color:#9aa0a8;font-weight:500">{T.e(story.get("end_line", "Full story on"))}</span><br>'
+                 f'<span style="color:#9aa0a8;font-weight:500">{T.e(story.get("end_line", "Full story:"))}</span><br>'
                  f'{T.e(T.domain())}</div></div>')
     else:
         raise ValueError(part)

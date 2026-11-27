@@ -376,6 +376,11 @@ def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5),
         for i, (_, t_in, t_out, kind) in enumerate(pages, start=1):
             if kind == "base":
                 f, y = "format=rgba", "0"
+            elif t_in <= 0.01:
+                # the first beat is on screen in the first frame, no fade or rise: the claim lands at once, and the
+                # first frame is what the feed shows before the video plays
+                f = "format=rgba" + (f",fade=t=out:st={t_out - RC.FADE_OUT:.2f}:d={RC.FADE_OUT}:alpha=1" if t_out is not None else "")
+                y = "0"
             else:
                 f = f"format=rgba,fade=t=in:st={t_in:.2f}:d={RC.FADE_IN}:alpha=1"
                 if t_out is not None:

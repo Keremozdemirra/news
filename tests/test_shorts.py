@@ -228,8 +228,9 @@ class Render(Tmp):
         render.subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=1600x1200",
                                "-frames:v", "1", str(d / "photo.jpg")], check=True)
         info = {}
-        out, credit = SH.build(post(), Path(self.tmp.name) / "s.mp4", fetch=False, info=info)
-        self.assertGreaterEqual(info["seconds"], 20)
+        out, credit = SH.build(post(), Path(self.tmp.name) / "s.mp4", fetch=False, info=info, narrate=False)
+        from aidaily import shortforms as SF
+        self.assertGreaterEqual(info["seconds"], SF.MIN_SECONDS)
         self.assertEqual(credit, CREDIT)
         self.assertEqual(CV.audit_file(out, "reel"), [])
 
