@@ -143,6 +143,12 @@
     tick(); setInterval(tick, 60000);
   }
 
+  // "Updated 12:29 UTC" is the build time; past three hours the page says the desk is behind, so a quiet front page is not read as a quiet day
+  document.querySelectorAll(".upd[data-built]").forEach(function (u) {
+    var late = Date.now() - Date.parse(u.getAttribute("data-built")) > 3 * 36e5;
+    if (late) { u.textContent += ". The next update is late."; u.classList.add("late"); }
+  });
+
   // quiz: the answer is in the page (inside a details element, so it works without this script); a click only marks the choice
   var quiz = document.querySelector("[data-quiz]");
   if (quiz) {

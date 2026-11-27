@@ -111,6 +111,12 @@ def today():
     return desk.now().strftime("%Y-%m-%d")
 
 
+def updated_line():
+    """"Updated 12:29 UTC" from the time of this build, not of the cache. data-built lets the script say when the build is late."""
+    built = desk.now()
+    return f'<p class="upd" data-built="{built.strftime("%Y-%m-%dT%H:%M:%SZ")}">Updated {stamp(built.isoformat())}</p>'
+
+
 def stamp(iso, utc=True, ref=None):
     """The one way a time is written in a list: "11:17 UTC" for an article of the day being built, "26 Nov, 11:17 UTC" for any other
     day, so yesterday and today never read alike. utc=False for the narrow places where the footer's "All times UTC" says it."""
@@ -1111,7 +1117,7 @@ def build(out=desk.HERE / "_site"):
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Business, newest first. Sport has its own page."), "latest", aside(news), sm)
+    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Business, newest first. Sport has its own page.") + updated_line(), "latest", aside(news), sm)
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
         paged(out, topic_path(t), rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,

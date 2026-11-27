@@ -24,6 +24,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .sec a.more,.sec .dm{font:500 var(--t-meta) var(--f);color:var(--soft)}
 .btn{display:inline-block;padding:12px 20px;min-height:44px;background:var(--ink);color:var(--paper);font:600 15px var(--f);border:1px solid var(--ink)}
 .btn.alt{background:transparent;color:var(--ink)}.btn:hover{opacity:.85;color:var(--paper)}.btn.alt:hover{color:var(--ink)}
+.upd{font:500 var(--t-meta)/1.4 var(--f);color:var(--soft);margin:var(--s2) 0 0}.upd.late{color:var(--ink);font-weight:700}
 .since{font:500 14px var(--f);margin:var(--s2) 0 0;padding:var(--s1) 0;border-bottom:1px solid var(--rule)}
 
 /* ---- masthead: one 76 px bar (menu and search left, wordmark centred, theme and marks right), sections, markets strip ---- */

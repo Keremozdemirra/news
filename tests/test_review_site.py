@@ -237,6 +237,11 @@ class Built(Features):
                 self.assertNotIn("Yesterday&#x27;s<br>paper", h)
                 self.assertRegex(re.search(r"<title>(.*?)</title>", h).group(1), r"^The paper, \d+ \w+ \d{4}")
 
+    def test_front_and_latest_say_when_they_were_built(self):
+        for page in ("index.html", "latest/index.html"):
+            self.assertRegex(self.read(page), r'<p class="upd" data-built="\d{4}-\d\d-\d\dT[\d:]+Z">Updated (\d+ \w+, )?\d\d:\d\d UTC</p>')
+        self.assertIn("3 * 36e5", (site.ASSETS / "site.js").read_text())
+
     def test_the_404_page_links_are_a_list_of_big_targets(self):
         self.assertIn('class="gl"', self.read("404.html"))
 
