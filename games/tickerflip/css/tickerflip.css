@@ -247,3 +247,4 @@ button { font: inherit; color: inherit; }
 .home { margin-top: 10px; font-family: var(--plate); font-weight: 800; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: #8f7a52; }
 .home a { color: #b99a5d; text-underline-offset: 3px; }
 .home a:hover { color: var(--amber-hi); }
+.brand-logo { width: 30px; height: 30px; flex: none; border: 2px solid var(--brass); }

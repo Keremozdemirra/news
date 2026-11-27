@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- The Topfloor lockup: key art for the /play/ hub and the share image. Open at 1200 x 630 and capture.
+     ?mark=1 gives the square mark (512 x 512): the dial. Skyline and dial are the game's own. -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../css/topfloor.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  .app { position: absolute; inset: 0; height: 100%; --s: 1.25; }
+  .dialbox { position: absolute; left: 50%; top: 40px; width: 380px; height: 380px; margin-left: -190px; z-index: 3; }
+  .dialbox > * { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .dialbox .digits { inset: auto; left: 37.25%; top: 65.55%; width: 25.5%; height: 10.7%; display: grid; grid-template-columns: repeat(3, 1fr); place-items: center; font: 400 30px / 1 "Limelight", serif; color: #f2e9d3; }
+  .mark-only .dialbox .digits { font-size: 38px; }
+  .word { position: absolute; z-index: 4; left: 50%; bottom: 44px; transform: translateX(-50%); background: #111b21; border: 5px solid #c7a25e; padding: 14px 44px 16px; text-align: center; white-space: nowrap; }
+  .word b { display: block; font: 400 118px / 1 "Limelight", Georgia, serif; letter-spacing: 0.02em; color: #f2e9d3; }
+  .word i { display: block; margin-top: 6px; font: 600 18px / 1 "Jost", sans-serif; font-style: normal; letter-spacing: 0.3em; text-indent: 0.3em; text-transform: uppercase; color: #ecd49c; }
+  .mark-only .word, .mark-only .world, .mark-only .grain { display: none; }
+  .mark-only .app { background: #111b21; }
+  .mark-only .dialbox { top: 16px; width: 480px; height: 480px; margin-left: -240px; }
+</style>
+<body>
+<div class="app" id="app">
+  <div class="world" id="world"></div>
+  <div class="grain"></div>
+  <div class="dialbox">
+    <img src="../assets/art/dial-base.webp" alt="">
+    <svg viewBox="0 0 240 240" id="dial-svg"></svg>
+    <img id="needle" style="transform-origin:50% 50%" src="../assets/art/dial-needle.webp" alt="">
+    <img src="../assets/art/dial-cap.webp" alt="">
+    <div class="digits"><span>0</span><span>7</span><span>2</span></div>
+  </div>
+  <div class="word"><b>Topfloor</b><i>The rare answer rides highest · Boardread</i></div>
+</div>
+<script type="module">
+  import { createWorld, paletteAt } from "../js/world.js";
+  import { buildDial } from "../js/parts.js";
+  const app = document.getElementById("app");
+  if (new URLSearchParams(location.search).has("mark")) document.body.classList.add("mark-only");
+  const p = paletteAt(0.18); for (const k in p) app.style.setProperty(k, p[k]);
+  const w = createWorld(document.getElementById("world"));
+  w.layout(1.25, 400, innerHeight, innerWidth); w.setFloor(14, true); w.setProgress(0.6); w.setLitFloors(14);
+  buildDial(document.getElementById("dial-svg"), document.getElementById("needle")).set(72);
+</script>
+</body>

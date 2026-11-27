@@ -167,9 +167,17 @@ def threads_tag(post):
 
 
 def bluesky_text(post):
-    """Headline and dek within 300 graphemes. No link and no facets: the link card carries the URL.
-    len() counts code points, which is never fewer than graphemes, so the cap holds."""
-    return _with_ticker(post, _fit(_head(post), post.get("dek", ""), "", 300), 300)
+    """Headline, then one sentence the link card does not already show, within 300 graphemes. The card under the
+    post carries the headline as its title and the dek as its description, so the text adds the next fact rather
+    than saying the dek twice. No link and no facets: the card carries the URL. len() counts code points, which is
+    never fewer than graphemes, so the cap holds. Alt text: app.bsky.embed.external has no alt field (only an
+    image embed does, and a post holds one embed), so the card's title and description are the text alternative."""
+    dek = post.get("dek") or ""
+    extra = [x for x in why_it_matters(post) if not _same_line(x, dek)][:1]
+    text = _fit(_head(post), " ".join(extra), "", 300)
+    if not text.startswith(_head(post)) and len(_head(post)) <= 300:
+        text = _head(post)  # the sentence gives way whole before a word of the headline does
+    return _with_ticker(post, text, 300)
 
 
 def bluesky_description(post):
@@ -184,11 +192,18 @@ def is_breaking(post):
     return (post.get("score") or 0) >= desk.CONFIG["breaking_score"]
 
 
+def _h(text):
+    import html
+    return html.escape(text or "", quote=True)
+
+
 def digest_text(posts):
-    lines = ["Today on Boardread", ""]
+    """The evening digest for Telegram (parse_mode HTML): a bold title, then one numbered line per article with the
+    headline as the link, so a list of ten reads as ten lines, not twenty."""
+    lines = ["<b>Today on Boardread</b>", ""]
     for i, p in enumerate(posts, 1):
-        lines += [f"{i}. {_head(p)}", story_page(p, "telegram"), ""]
-    return "\n".join(lines + cross_links("telegram")).rstrip()
+        lines.append(f'{i}. <a href="{_h(story_page(p, "telegram"))}">{_h(_head(p))}</a>')
+    return "\n".join(lines + [""] + [_h(x) for x in cross_links("telegram")]).rstrip()
 
 
 def cross_links(here):
@@ -213,15 +228,39 @@ def facebook_skip(post):
     return ""
 
 
+def _visible(text):
+    """Length as Telegram counts a caption: after the HTML entities are parsed."""
+    import html
+    return len(html.unescape(re.sub(r"<[^>]+>", "", text)))
+
+
 def telegram_caption(post):
+    """A channel post in the house style of news channels (parse_mode HTML): the headline in bold, two sentences
+    at most, then one quiet line with the sources link and the topic hashtag (Telegram's post search
+    finds channel posts by hashtag). 1024 characters as Telegram counts them, after the markup."""
+    link = f'<a href="{_h(story_page(post, "telegram"))}">Sources</a>'
     tag = telegram_tag(post)
-    if not tag:
-        return _long_text(post, 1024, "telegram")  # sendPhoto and InputMediaPhoto: 0-1024 characters
-    return _long_text(post, 1024 - len(tag) - 2, "telegram") + "\n\n" + tag
+    foot = " · ".join(x for x in (link, tag) if x)
+    head = _with_ticker(post, _head(post), 300)
+    sentences = why_it_matters(post, 2) or _sentences(post.get("dek"))[:1]
+    while True:
+        text = "\n\n".join(x for x in (f"<b>{_h(head)}</b>", _h(" ".join(sentences)), foot) if x)
+        if _visible(text) <= 1024 or not sentences:
+            break
+        sentences = sentences[:-1]
+    if _visible(text) > 1024:  # a headline no newsroom would write; cut it rather than lose the foot
+        room = 1024 - _visible(foot) - 4
+        text = f"<b>{_h(head[:room - 1].rsplit(' ', 1)[0])}…</b>\n\n{foot}"
+    return text
 
 
 def facebook_text(post):
-    return _long_text(post, 2000, "facebook")  # no documented cap; kept to a short report like the other platforms
+    """A short Page post above the link preview: the headline, one or two sentences, then the
+    sources address. No hashtags: they do nothing on a Page. The preview (title, image) comes from the article
+    page's Open Graph tags, so the text does not repeat the dek the preview shows."""
+    dek = post.get("dek") or ""
+    extra = [x for x in why_it_matters(post, 2) if not _same_line(x, dek)] or _sentences(dek)[:1]
+    return _with_ticker(post, _fit(_head(post), " ".join(extra), _tail(post, story_page(post, "facebook")), 700), 700)
 
 
 def _images(post):
@@ -426,13 +465,11 @@ class Facebook(Client):
         return {"expires": at("expires_at"), "data_access": at("data_access_expires_at")}
 
     def post(self, post):
+        """A link post: the message and the article address; Facebook builds the preview card from the page's Open
+        Graph tags (POST /{page-id}/feed with message and link, developers.facebook.com/docs/pages-api/posts)."""
         self.page_token()
         page = self.env["FB_PAGE_ID"]
-        photos = [self.call(f"{page}/photos", {"url": u, "published": "false"})["id"] for u in _images(post)[:10]]
-        params = {"message": facebook_text(post)}
-        for i, p in enumerate(photos):
-            params[f"attached_media[{i}]"] = json.dumps({"media_fbid": p})
-        pid = self.call(f"{page}/feed", params)["id"]
+        pid = self.call(f"{page}/feed", {"message": facebook_text(post), "link": story_page(post, "facebook")})["id"]
         return {"id": pid, "url": f"https://www.facebook.com/{pid}"}
 
 
@@ -482,7 +519,13 @@ class Bluesky(Client):
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         jwt, did = sess["accessJwt"], sess["did"]
         card = {"uri": story_page(post, "bluesky"), "title": _head(post), "description": bluesky_description(post)}
-        data = self.fetch(_images(post)[0])
+        # Bluesky crops a link-card thumb to about 1.91:1, which cut the 4:5 card through its headline. The article's
+        # own 1200x630 share image (the og:image every other link preview shows) fits; until the site has built it,
+        # the card is the fallback.
+        try:
+            data = self.fetch(f"{desk.CONFIG['site_url']}/og/{post['id']}.jpg")
+        except PlatformError:
+            data = self.fetch(_images(post)[0])
         # a link card without a thumbnail still works, so an oversize card is skipped rather than failing the post
         if len(data) <= self.MAX_BYTES:
             card["thumb"] = self.xrpc("com.atproto.repo.uploadBlob", None, jwt, raw=data, mime="image/jpeg")["blob"]
@@ -527,10 +570,10 @@ class Telegram(Client):
         # routine posts are silent; only a breaking story (score at the desk's breaking bar) notifies subscribers
         silent = {"disable_notification": not is_breaking(post)}
         if len(urls) == 1:
-            first = self.call("sendPhoto", {"chat_id": chat, "photo": urls[0], "caption": caption, **silent})
+            first = self.call("sendPhoto", {"chat_id": chat, "photo": urls[0], "caption": caption, "parse_mode": "HTML", **silent})
         else:
             media = [{"type": "photo", "media": u} for u in urls]
-            media[0]["caption"] = caption  # an album shows the caption of its first photo
+            media[0].update(caption=caption, parse_mode="HTML")  # an album shows the caption of its first photo
             first = self.call("sendMediaGroup", {"chat_id": chat, "media": media, **silent})[0]
         username = (first.get("chat") or {}).get("username") or (chat.lstrip("@") if chat.startswith("@") else "")
         return {"id": str(first["message_id"]), "url": f"https://t.me/{username}/{first['message_id']}" if username else ""}
@@ -546,7 +589,7 @@ class Telegram(Client):
 
     def digest(self, posts):
         """The evening digest: one silent text message, links not expanded."""
-        got = self.call("sendMessage", {"chat_id": self.env["TG_CHANNEL"], "text": digest_text(posts),
+        got = self.call("sendMessage", {"chat_id": self.env["TG_CHANNEL"], "text": digest_text(posts), "parse_mode": "HTML",
                                         "disable_notification": True, "disable_web_page_preview": True,
                                         "link_preview_options": {"is_disabled": True}})
         return {"id": str(got["message_id"])}

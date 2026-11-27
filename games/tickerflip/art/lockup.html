@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- The Tickerflip lockup: key art for the /play/ hub and the share image. Open at 1200 x 630 and capture.
+     ?mark=1 gives the square mark (512 x 512): one lit flap. The cells are the game's own Tile. -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../css/tickerflip.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #140d0a; }
+  .wall { position: absolute; inset: 0; background: #140d0a url("../assets/art/hall-wide.png") center 18% / cover no-repeat; }
+  .sign { position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%); }
+  .sign .frame { width: auto; border-width: 22px; border-image-width: 22px; padding: 18px 18px 20px; }
+  .sign .cells { display: flex; gap: 8px; }
+  .sign .tile { --tw: 88px; --th: 132px; }
+  .sub { margin-top: 16px; display: flex; justify-content: space-between; font: 800 21px / 1 "Big Shoulders Display", Impact, sans-serif; letter-spacing: 0.22em; text-transform: uppercase; color: #c9a05a; }
+  .sub b { color: #f6b73c; font-weight: 800; }
+  .mark-only .sub { display: none; }
+  .mark-only .sign .tile { --tw: 250px; --th: 330px; }
+  .mark-only .sign .frame { padding: 14px; }
+</style>
+<body>
+<div class="wall"></div>
+<div class="sign"><div class="frame"><div class="cells" id="cells"></div><p class="sub"><span>Departures</span><b>One word a day</b><span>Boardread</span></p></div></div>
+<script type="module">
+  import { Tile } from "../js/flap.js";
+  const mark = new URLSearchParams(location.search).has("mark");
+  if (mark) document.body.classList.add("mark-only");
+  for (const ch of mark ? "T" : "TICKERFLIP") { const t = new Tile(true); t.set(ch, "correct"); t.el.dataset.done = "1"; document.getElementById("cells").appendChild(t.el); }
+</script>
+</body>

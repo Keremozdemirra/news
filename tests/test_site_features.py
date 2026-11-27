@@ -112,7 +112,7 @@ class Features(Tmp):
         h = self.read("quiz/index.html")
         self.assertIn("Fill the number", h)
         self.assertIn("SAP explores at least ___ job cuts", h)
-        self.assertEqual(h.count('class="opt"'), 4)
+        self.assertEqual(h.count('class="opt"'), 8)  # fill the number, and SAP against its software peers
         self.assertRegex(h, r'data-answer="\d"')
         self.assertIn("/s/2026-11-26-0900-1/", h)
         self.assertIn("https://www.cnbc.com/a", h)
@@ -124,7 +124,7 @@ class Features(Tmp):
         for p in self.rows():  # the quiz reads the figure the page shows
             p["_hires"] = False
         types = {q["type"] for q in sitepages.quiz_questions(self.rows())}
-        self.assertEqual(types, {"fill"})  # fewer than four companies, no money figures, no portraits
+        self.assertEqual(types, {"fill", "company"})  # SAP has peers; no money figures, no portraits
 
     def test_company_page_needs_two_stories_and_story_pages_link_to_it(self):
         page = self.read("c/sap/index.html")
@@ -406,6 +406,20 @@ class Play(Features):
             self.assertTrue((self.out / "play" / slug / "index.html").exists(), slug)
         self.assertNotIn("Coming soon", h)
 
+    def test_the_hub_shows_each_game_by_its_own_key_art(self):
+        h = self.read("play/index.html")
+        for slug in ("topfloor", "tickerflip", "face-the-figure"):
+            self.assertIn(f'src="{site.BASE}/play/{slug}/assets/share.jpg"', h)
+            self.assertTrue((self.out / "play" / slug / "assets" / "mark.webp").exists(), slug)
+            self.assertIn('src="assets/mark.webp"', (self.out / "play" / slug / "index.html").read_text(), slug)   # the game page wears its mark
+            self.assertFalse((self.out / "play" / slug / "art" / "lockup.html").exists(), slug)
+
+    def test_topfloor_ships_its_answer_lists_and_not_the_hand_list(self):
+        d = self.out / "play" / "topfloor"
+        self.assertGreaterEqual(len(list((d / "assets" / "data" / "lists").glob("*.json"))), 12)
+        self.assertFalse((d / "extras.json").exists())
+        self.assertTrue((self.out / "play" / "tickerflip" / "assets" / "data" / "words-more.txt").exists())
+
     def test_a_game_with_the_flag_off_shows_as_coming_soon_and_copies_nothing(self):
         from aidaily import play
         with mock.patch.object(play, "GAMES", [("topfloor", "Topfloor", "x", True), ("tickerflip", "Tickerflip", "", False)]):
@@ -433,6 +447,12 @@ class Play(Features):
             css = "".join(f.read_text() for f in (d / "css").glob("*.css"))
             for ref in re.findall(r'url\("\.\./([^"]+)"\)', css):          # and every file its stylesheet names
                 self.assertTrue((d / ref).exists(), f"{slug}: {ref}")
+            u = f"{site.SITE}/play/{slug}/"                                 # the same head the site's own pages carry
+            for tag in (f'<link rel="canonical" href="{u}">', f'property="og:url" content="{u}"', 'property="og:title"', 'property="og:description"',
+                        f'property="og:image" content="{u}assets/share.jpg"', 'name="twitter:card" content="summary_large_image"', 'name="twitter:image"', '<meta name="description"'):
+                self.assertIn(tag, html, f"{slug}: {tag}")
+            self.assertEqual(html.count("<h1"), 1, slug)
+            self.assertTrue((d / "assets" / "share.jpg").exists(), slug)
             self.assertIn('href="/play/"', html, slug)                     # a way back to the hub and to Boardread
             self.assertIn('href="/"', html, slug)
 

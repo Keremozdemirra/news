@@ -109,6 +109,8 @@
     "person": "13:30",
     "shared": "13:30",
     "saved": "15:00",
+    "rates": "16:30",
+    "chart": "15:00",
     "today": "16:00",
     "follow": "18:00",
     "top5": "19:30"
@@ -216,5 +218,6 @@
   ],
   "sport_min_score": 7.0,
   "sport_per_run": 4,
-  "sport_daily_max": 12
+  "sport_daily_max": 12,
+  "sport_social_min_score": 14
 }

@@ -510,6 +510,20 @@ class Engage(Tmp):
         self.assertEqual(desk.engage(client=ig, ask=lambda p: "x"), 0)  # already judged
 
 
+def _boxes(html, js):
+    """Element boxes measured in headless Chrome: the page writes them into the DOM, --dump-dom reads them back."""
+    import subprocess
+    import tempfile
+    from aidaily import render as R
+    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
+        f.write(html.replace("</body>", f"<script>document.body.setAttribute('data-b',{js})</script></body>"))
+    out = subprocess.run([R.CHROME, "--headless=new", "--disable-gpu", "--window-size=1080,1920", "--virtual-time-budget=3000",
+                          "--dump-dom", f"file://{f.name}"], capture_output=True, text=True, timeout=60).stdout
+    Path(f.name).unlink()
+    import html as H
+    return json.loads(H.unescape(re.search(r"data-b=\"([^\"]*)\"", out).group(1)))
+
+
 class Formats(Tmp):
     def test_listicles_are_dropped_and_boards_are_not_sources(self):
         rows = [story(1), story(2, headline="Read the pitch decks of 23 startups"), story(3)]
@@ -802,9 +816,9 @@ def _at(day, hh, mm=40):
     return datetime(2026, 11, 23 + day, hh, mm, tzinfo=timezone.utc)
 
 
-OPT = re.compile(r'color:#9aa0a8">([ABCD])</span><span[^>]*>([^<]*)</span>')
+OPT = re.compile(r'data-opt="([ABCD])"(?:(?!data-opt).)*?<span data-t[^>]*>([^<]*)</span>', re.S)
 ANS_LETTER = re.compile(r"Answer ([ABCD])<")
-LIT = re.compile(r'background:#f2f2f0;color:#111214"><div[^>]*><span[^>]*>([ABCD])</span><span[^>]*>([^<]*)</span>')
+LIT = re.compile(r'data-opt="([ABCD])" data-on(?:(?!data-opt).)*?<span data-t[^>]*>([^<]*)</span>', re.S)
 
 
 def answer_of(html):
@@ -877,6 +891,9 @@ class Formats(Tmp):
         self.assertEqual(desk._qualifier({"figure": "40%", "headlines": ["Costs rise more than 40% in a year"]}), "More than")
         self.assertEqual(desk._qualifier({"figure": "40%", "headlines": ["Costs rise 40%, over 1 year"]}), "")
 
+    def test_number_takes_job_cuts_as_a_unit(self):
+        self.assertEqual(desk._meaningful({"figure": "10,000", "headlines": ["SAP explores at least 10,000 job cuts"]}), ("10,000", "job cuts"))
+
     def test_number_skips_a_figure_with_no_digit(self):
         self.pub("a", "Policy lasts five-year", _at(3, 8), figure="five-year")
         self.assertEqual(self.run_at(_at(3, 8, 36), "number"), {})
@@ -894,17 +911,150 @@ class Formats(Tmp):
         letter, value = answer_of(out["quiz-a"])
         self.assertEqual(dict(opts)[letter], value)
         self.assertEqual(value, "ElevenLabs")
-        self.assertIn("Tap for the answer", out["quiz"])
+        self.assertIn("Answer in the next story", out["quiz"])
         q, a = (json.loads((desk.QUEUE / f"2026-11-24-{k}" / "post.json").read_text()) for k in ("quiz", "quiz-a"))
         self.assertGreater(a["publish_after"], q["publish_after"])
         self.assertEqual(a["after"], q["id"])
         self.assertNotIn("after", q)
 
-    def test_company_quiz_needs_four_companies(self):
+    def test_company_quiz_needs_a_company_with_known_peers(self):
         w = _at(1, 11)
-        self.pub("a", "ElevenLabs raises $33B", w, 5, company="ElevenLabs", figure="$33B")
-        self.pub("b", "Nvidia news", w, 5, company="Nvidia")
-        self.assertEqual(self.run_at(w, "quiz"), {})
+        self.pub("a", "Acme Widgets raises $33B", w, 5, company="Acme Widgets", figure="$33B")
+        for i, co in enumerate(["Nvidia", "Norse Atlantic", "Altria"]):
+            self.pub(f"o{i}", f"{co} makes news today", w, 20 + i, company=co, score=1)
+        self.assertEqual(self.run_at(w, "quiz"), {})  # no peer group: no fair options
+
+    def test_company_quiz_options_are_peers_never_an_event_an_alias_or_a_name_in_the_post(self):
+        from aidaily import peers
+        w = _at(1, 11)
+        self.pub("a", "SAP explores at least 1,000 job cuts", w, 5, company="SAP", figure="1,000", score=9,
+                 dek="Rival Oracle cut jobs last month.")
+        self.pub("s", "Australian Open sets prize money record", w, 6, company="Australian Open", topic="Sport", score=20)
+        self.pub("o", "1Password raises funding", w, 7, company="1Password", score=1)
+        with mock.patch.object(desk, "now", return_value=w):
+            q = desk.pick_company("2026-11-24", desk._published(48), desk._published(24 * 7))
+        self.assertEqual(q["options"][q["answer"]], "SAP")
+        wrong = [o for o in q["options"] if o != "SAP"]
+        self.assertEqual(len(wrong), 3)
+        for o in wrong:
+            self.assertIn("enterprise software", peers.groups_of(o))
+        self.assertNotIn("Oracle", wrong)  # the dek names it
+        self.assertNotIn("Australian Open", wrong)
+        self.assertEqual(peers.peers("Alphabet").count("Google"), 0)
+        self.assertNotIn("Instagram", peers.peers("Meta"))
+        self.assertFalse(peers.groups_of("Australian Open"))
+
+    def test_an_exceptional_sport_item_joins_a_mixed_list_but_never_makes_a_sport_board(self):
+        w = _at(1, 19, 40)
+        big = desk.CONFIG["sport_social_min_score"] + 2
+        self.pub("x", "Club sold for a record $6B", w, 1, topic="Sport", score=big + 1)
+        for i in range(4):
+            self.pub(f"s{i}", f"Arsenal match report {i}", w, 2 + i, topic="Sport", score=big)
+        self.pub("m", "Fed holds rates", w, 2, topic="Markets", score=9)
+        self.pub("n", "Nvidia halts chip shipments", w, 3, topic="Tech", score=8)
+        out = self.run_at(w, "top5")
+        self.assertIn("Club sold for a record $6B", out["top5"])
+        self.assertIn("Fed holds rates", out["top5"])
+        self.assertNotIn("Arsenal match report", out["top5"])  # one exceptional sport item, never a sport list
+        self.assertEqual(self.run_at(_at(1, 13, 40), "board"), {})  # five big sport items, still no Sport board
+
+    def test_a_photo_leads_one_story_a_day_and_never_a_share_alike_one(self):
+        w = _at(1, 6, 20)
+        self.pub("a", "Nvidia halts chip shipments", w, 2, score=12, photo=True, credit="Photo: A, CC BY 4.0, via Wikimedia Commons")
+        self.pub("b", "Fed holds rates", w, 3, score=9, photo=True, credit="Photo: B, CC BY-SA 4.0, via Wikimedia Commons")
+        self.pub("c", "ECB picks president", w, 4, score=8)
+        out = self.run_at(w, "last12")
+        self.assertIn("data-bleed", out["last12"])  # the lead's photo, full width
+        self.assertIn("CC BY 4.0", out["last12"])
+        self.assertEqual(json.loads((desk.QUEUE / "2026-11-24-last12" / "post.json").read_text())["photo_of"], "2026-11-2x-a")
+        out = self.run_at(_at(1, 19, 40), "top5")
+        self.assertNotIn("data-bleed", out["top5"])  # the same photo does not lead a second story that day
+        with mock.patch.object(desk, "now", return_value=w):
+            self.assertEqual(desk._photo(json.loads((desk.QUEUE / "2026-11-2x-b" / "post.json").read_text())), ("", ""))
+
+    def test_person_story_needs_a_portrait_named_after_the_person(self):
+        w = _at(1, 13, 40)
+        self.pub("a", "Thariq Shihipar joins OpenAI", w, 2, person="Thariq Shihipar", photo=True,
+                 photo_file="Conference room at NOIRLab.jpg", credit="Photo: X, CC BY 4.0, via Wikimedia Commons")
+        self.assertEqual(self.run_at(w, "person"), {})
+        self.pub("b", "Lisa Su says AMD will double output", w, 3, person="Lisa Su", photo=True,
+                 photo_file="Lisa Su 2024 (cropped).jpg", credit="Photo: Y, CC BY 4.0, via Wikimedia Commons")
+        self.assertIn("Lisa Su", self.run_at(w, "person")["person"])
+
+    def test_every_quiz_answer_keeps_the_question_layout(self):
+        """Swiping from question to answer lights one option in place: every option box, the title, prompt and foot
+        slots sit at the same coordinates in both frames (rendered in Chrome and measured)."""
+        from aidaily import render as R
+        from aidaily import templates as T
+        if not Path(R.CHROME).exists():
+            self.skipTest("no Chrome")
+        js = ("JSON.stringify([...document.querySelectorAll('[data-box],[data-slot]')].map(e=>{const r=e.getBoundingClientRect();"
+              "return [e.dataset.opt||e.dataset.slot,Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]}))")
+        pairs = [T.quiz_pair("Guess the<br>company.", ["SAP", "Oracle", "Workday", "Salesforce"], 3, "l",
+                             hint="___ explores at least 10,000 job cuts", headline="Salesforce explores at least 10,000 job cuts in a long restructuring",
+                             mark="Salesforce", logo_uri="file:///nonexistent.svg"),
+                 T.quiz_pair("Fill the<br>number.", ["20%", "40%", "60%", "80%"], 1, "l", hint="Astra limits hit ___ faster", headline="Astra limits hit 40% faster", mark="40%"),
+                 T.quiz_pair("Which is<br>bigger?", ["ElevenLabs", "Mistral"], 0, "l", kind="bigger", kinds=["valuation"] * 2,
+                             figs=["$33B", "$12B"], subs=["ElevenLabs in talks to raise at a $33B valuation", "Mistral valued at $12B"]),
+                 T.quiz_pair("Who is this?", ["Kathy Hochul", "Jared Kushner", "Thariq Shihipar", "Donald Trump"], 0, "l", kind="photo",
+                             photo="file:///nonexistent.jpg", headline="New York bans sale of AI chatbot toys for five years", mark="Kathy Hochul",
+                             q_credit="Photo: X", a_credit="Photo: X, public domain")]
+        for q, a in pairs:
+            boxes = [_boxes(html, js) for html in (q, a)]
+            self.assertEqual(boxes[0], boxes[1])
+            self.assertIn("data-on", a)
+            self.assertNotIn("data-on", q)
+
+    def _markets(self, days=70, move=0.3):
+        from datetime import date as D
+        start = D(2026, 11, 24) - timedelta(days=days)
+        pts = lambda base, step: [[(start + timedelta(days=i)).isoformat(), round(base + step * i, 4)] for i in range(days + 1)]  # noqa: E731
+        return {"series": {"eurusd": pts(1.15, -0.0005), "usdjpy": pts(150, 0.1), "ust10": pts(4.5, 0.005), "ust2": pts(4.2, 0.001),
+                           "brent": pts(70, move), "wti": pts(66, 0.2)}}
+
+    def test_rates_story_shows_each_print_with_its_date_and_source(self):
+        from aidaily import markets
+        with mock.patch.object(markets, "load", return_value=self._markets()):
+            out = self.run_at(_at(0, 16, 40), "rates")
+        h = out["rates"]
+        for text in ("EUR/USD", "US 10-year", "Brent", "24 Nov 2026", "Source: ECB, U.S. Treasury, U.S. Energy Information Administration."):
+            self.assertIn(text, h)
+        self.assertNotIn("S&amp;P", h)  # no index levels: licensed data
+        with mock.patch.object(markets, "load", return_value={"series": {}}):
+            self.assertEqual(self.run_at(_at(2, 16, 40), "rates"), {})
+
+    def test_chart_story_picks_the_biggest_mover_and_skips_a_flat_quarter(self):
+        from aidaily import markets
+        with mock.patch.object(markets, "load", return_value=self._markets()):
+            out = self.run_at(_at(3, 15, 10), "chart")
+        self.assertIn("Brent", out["chart"])
+        self.assertIn("Up ", out["chart"])
+        self.assertIn("<polyline", out["chart"])
+        flat = self._markets(move=0.0)
+        flat["series"] = {k: [[d, 1.0] for d, _ in v] for k, v in flat["series"].items()}
+        with mock.patch.object(markets, "load", return_value=flat):
+            self.assertEqual(self.run_at(_at(5, 15, 10), "chart"), {})
+
+    def test_breaking_label_only_at_the_breaking_score(self):
+        from aidaily import templates as T
+        s = {"title": "Fed cuts rates", "headline": "Fed cuts rates", "topic": "Economy", "published": desk.now().isoformat(),
+             "source": "X", "outlets": ["X"], "_assets": {"logo": "", "backer": "", "logos": [], "photo": "", "credit": "", "file": ""}}
+        self.assertNotIn("data-breaking", T.card(dict(s, score=desk.CONFIG["breaking_score"] - 1)))
+        self.assertIn(">Breaking<", T.card(dict(s, score=desk.CONFIG["breaking_score"])))
+
+    def test_sport_reaches_no_story_format(self):
+        w = _at(1, 19)  # Tuesday evening: last12, board, top5 and the quiz pools all see these posts
+        sport = ["Arsenal beat Chelsea 3-1 in derby", "Australian Open sets $90M prize money", "Lakers sign star for $200M",
+                 "Ferrari wins Abu Dhabi Grand Prix", "Alcaraz takes ATP Finals title"]
+        for i, h in enumerate(sport):
+            self.pub(f"sp{i}", h, w, 1 + i, topic="Sport", company="Australian Open" if i == 1 else "", figure="$90M" if i == 1 else "",
+                     score=12, person="Carlos Alcaraz" if i == 4 else "", photo=True)
+        with mock.patch.object(desk, "now", return_value=w):
+            self.assertEqual(desk._published(24 * 7), [])
+        for when in (_at(1, 6, 20), _at(1, 8, 40), _at(1, 11), _at(1, 13, 40), _at(1, 19, 40), _at(6, 11), _at(6, 13, 40)):
+            out = self.run_at(when)
+            self.assertEqual({k: v for k, v in out.items() if not k.endswith("follow")}, {}, when)
+        self.assertIsNone(desk.pick_company("2026-11-24", desk._published(48), desk._published(48)))
 
     def test_fill_the_number_blanks_the_figure_and_keeps_it_as_one_option(self):
         w = _at(2, 11)  # Wednesday
@@ -1026,13 +1176,13 @@ class Formats(Tmp):
         out = self.run_at(w, "bigger")
         self.assertEqual(sorted(out), ["bigger", "bigger-a"])
         q = out["bigger"]
-        for text in ("ElevenLabs valuation", "Mistral valuation"):
+        for text in ("ElevenLabs", "Mistral"):
             self.assertIn(text, q)
         for hidden in ("$33B", "$12B", "ElevenLabs in talks", "5.25"):
             self.assertNotIn(hidden, q)
-        self.assertEqual(q.count("<img"), 1)  # only ElevenLabs has a logo
+        self.assertEqual(q.count("<img"), 0)  # the names are the type; a logo beside the same name said it twice
         letter, value = answer_of(out["bigger-a"])
-        self.assertEqual(value, "ElevenLabs valuation")
+        self.assertEqual(value, "ElevenLabs")
         self.assertEqual(letter, "A" if q.index("ElevenLabs") < q.index("Mistral") else "B")
         for shown in ("$33B", "$12B", "ElevenLabs in talks to raise", "Mistral valued"):
             self.assertIn(shown, out["bigger-a"])
@@ -1042,8 +1192,8 @@ class Formats(Tmp):
         self.pub("a", "Anthropic closes $4B funding round", w, 3, figure="$4B", company="Anthropic")
         self.pub("b", "Mistral raises $1B", w, 3, figure="$1B", company="Mistral")
         out = self.run_at(w, "bigger")
-        self.assertIn("Anthropic funding round", out["bigger"])
-        self.assertIn("Mistral funding round", out["bigger"])
+        for co in ("Anthropic", "Mistral"):  # the name, then the kind under it
+            self.assertRegex(out["bigger"], rf">{co}</span></div><div[^>]*>funding round<")
         self.assertNotIn("$4B", out["bigger"])
 
     def test_bigger_never_mixes_kinds_or_currencies_or_percentages(self):
@@ -1239,7 +1389,7 @@ class Formats(Tmp):
             text = re.sub(r"<[^>]+>", " ", html).lower()
             self.assertNotIn("stories", text)
             self.assertNotRegex(text, r"\bai\b|as it breaks|right here|all day")
-        self.assertIn("Tap for the answer", out["fill"])
+        self.assertIn("Answer in the next story", out["fill"])
 
 
 class ScheduledStories(Tmp):

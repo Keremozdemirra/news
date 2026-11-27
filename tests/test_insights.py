@@ -382,8 +382,8 @@ class ChannelText(unittest.TestCase):
 
     def test_telegram_caption_ends_with_the_topic_hashtag_within_1024(self):
         c = platforms.telegram_caption(self.p())
-        self.assertTrue(c.endswith("\n\n#markets"))
-        self.assertLessEqual(len(c), 1024)
+        self.assertTrue(c.endswith(" · #markets"))
+        self.assertLessEqual(platforms._visible(c), 1024)
 
     def test_digest_closes_with_cross_links(self):
         t = platforms.digest_text([self.p()])

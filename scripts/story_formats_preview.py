@@ -4,10 +4,11 @@ each image for the phone rules (text and pictures inside Instagram's safe zone, 
 writes nothing to queue/ or media/, and never touches desk.json.
   python3 scripts/story_formats_preview.py
 
-The real posts predate the copy step's figure and company fields, so the preview fills them in memory, from the
-headline alone, the way the copy step would have. A format the real posts cannot feed (a quiz needs four
-companies, a board four posts of one topic) is rendered a second time from a few made-up posts and its file name
-ends in -fixture: layout only, never a statement about news.
+The pool is every post the desk let through (published, web or queued), each treated as published, with its
+real headline, topic, company, person, photo and credit; the builders run unchanged on it, Sport filter
+included. Posts older than the copy step's figure field get it filled in memory from the headline alone. A format
+the real posts still cannot feed is rendered from a few made-up posts and its file name ends in -fixture: layout
+only, never a statement about news.
 """
 import json
 import re
@@ -26,7 +27,7 @@ from aidaily import templates as T  # noqa: E402
 
 OUT = desk.HERE / "brand" / "preview" / "formats"
 CACHE = desk.HERE / "assets" / "cache"
-NOW = datetime(2026, 11, 26, 20, 40, tzinfo=timezone.utc)  # a Thursday, after every real post was published
+NOW = datetime(2026, 11, 26, 23, 55, tzinfo=timezone.utc)  # a Thursday; a post due later counts as published just before
 MEASURE = """<script>
 (()=>{const o={top:1e9,bottom:0,left:1e9,right:0,small:[]};
 const w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
@@ -34,8 +35,8 @@ while(w.nextNode()){const n=w.currentNode;if(!n.nodeValue.trim())continue;
 const r=document.createRange();r.selectNodeContents(n);const b=r.getBoundingClientRect();if(!b.width)continue;
 const fs=parseFloat(getComputedStyle(n.parentElement).fontSize);
 o.top=Math.min(o.top,b.top);o.bottom=Math.max(o.bottom,b.bottom);o.left=Math.min(o.left,b.left);o.right=Math.max(o.right,b.right);
-if(fs<34)o.small.push([Math.round(fs),n.nodeValue.trim().slice(0,28)]);}
-for(const i of document.images){const b=i.getBoundingClientRect();if(!b.width)continue;
+if(fs<34&&!n.parentElement.closest('[data-credit]'))o.small.push([Math.round(fs),n.nodeValue.trim().slice(0,28)]);}
+for(const i of document.images){if(i.hasAttribute('data-bleed'))continue;const b=i.getBoundingClientRect();if(!b.width)continue;
 o.top=Math.min(o.top,b.top);o.bottom=Math.max(o.bottom,b.bottom);}
 document.body.setAttribute('data-m',JSON.stringify(o));})();
 </script>"""
@@ -85,13 +86,14 @@ def enrich(p):
 def real_pool(media):
     pool = []
     for p, _ in desk.posts():
-        if p.get("status") in ("published", "web") and p.get("kind") != "story" and not p["id"].split("-")[2].startswith("about"):
-            q = enrich(dict(p, status="published", published=p.get("published") or NOW.isoformat()))
+        if p.get("status") in ("published", "web", "queued") and p.get("kind") != "story" and not p["id"].split("-")[2].startswith("about"):
+            when = min(p.get("published") or p.get("publish_after") or NOW.isoformat(), (NOW - desk.timedelta(minutes=5)).isoformat())
+            q = enrich(dict(p, status="published", published=when))
             pool.append(q)
             d = media / q["id"]
             d.mkdir(parents=True, exist_ok=True)
             src = desk.MEDIA / q["id"]
-            if (src / "photo.jpg").exists() and p.get("status") == "published":
+            if (src / "photo.jpg").exists():
                 (d / "photo.jpg").symlink_to((src / "photo.jpg").resolve())
             lg = logo_file(q.get("company") or "")
             if lg:
@@ -141,15 +143,14 @@ def main():
         R.jpeg(png)
         png.unlink()
         seen.append((name, title, measure(html)))
+        # the story joins the day, as it would in queue/: later formats see what it showed (photo_of, person)
+        for p in (real, both):
+            p.append(dict(extra, id=pid, kind="story", created=NOW.isoformat(), headlines=[title]))
         return OUT / f"{name}.jpg"
 
-    def published(hours):
-        cut = (NOW - desk.timedelta(hours=hours)).isoformat()
-        return [p for p in pool["now"] if p["published"] > cut]
-
+    # the real _published runs on the pool, so the Sport filter and every other rule of the builders apply
     patches = [mock.patch.object(desk, "now", return_value=NOW), mock.patch.object(desk, "MEDIA", media),
-               mock.patch.object(desk, "_published", published), mock.patch.object(desk, "_queue_story", queue_story),
-               mock.patch.object(desk, "_story_posts", lambda *a, **k: [])]
+               mock.patch.object(desk, "posts", lambda: [(p, None) for p in pool["now"]]), mock.patch.object(desk, "_queue_story", queue_story)]
     for p in patches:
         p.start()
     for slot, (_, build) in desk.STORY_SLOTS.items():
@@ -158,6 +159,20 @@ def main():
                 break
     for p in patches:
         p.stop()
+    # flip check: question, answer, and the two laid over each other with difference blending. Where the frames agree
+    # the overlay is black, so only the reveal (the lit option, the title, the filled-in headline) shows.
+    for q in sorted(OUT.glob("*.jpg")):
+        a = OUT / q.name.replace(q.stem.split("-fixture")[0], q.stem.split("-fixture")[0] + "-a", 1)
+        if q.stem.split("-fixture")[0].endswith("-a") or not a.exists():
+            continue
+        img = lambda f, extra="": f'<img src="file://{f}" style="position:absolute;top:0;width:1080px;height:1920px;{extra}">'  # noqa: E731
+        html = ('<html><body style="margin:0;background:#777"><div style="position:relative;width:3300px;height:1920px">'
+                + img(q, "left:0") + img(a, "left:1110px")
+                + f'<div style="position:absolute;left:2220px;top:0;width:1080px;height:1920px;isolation:isolate">{img(q)}{img(a, "mix-blend-mode:difference")}</div>'
+                + '</div></body></html>')
+        R.shoot(html, OUT / f"flip-{q.stem}.png", 3300, 1920)
+        R.jpeg(OUT / f"flip-{q.stem}.png")
+        (OUT / f"flip-{q.stem}.png").unlink()
     bad = 0
     for name, title, m in sorted(seen):
         notes = []

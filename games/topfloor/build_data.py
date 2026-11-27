@@ -2,7 +2,8 @@
 """Build the daily Topfloor puzzle: assets/data/today.json.
 
 Seven prompts per UTC day, deterministic from the date:
-  six from a Wikidata pool (instance-of classes) + one "company in today's Boardread".
+  six from the committed answer lists (assets/data/lists/, built by build_lists.py) + one "company in today's
+  Boardread", which is the only part that asks Wikidata at build time.
 Rarity comes from Wikipedia sitelink counts, as percentiles inside each prompt
 (statement count breaks ties). No player data is involved; this is an offline
 familiarity score, not a measured player rarity.
@@ -26,21 +27,9 @@ try:
 except Exception:
     CTX = ssl.create_default_context()
 
-# id, prompt text, Wikidata class, min size to keep the prompt
-POOL = [
-    ("central-bank", "Name a central bank", "Q66344"),
-    ("carmaker", "Name a carmaker", "Q786820"),
-    ("airline", "Name an airline", "Q46970"),
-    ("exchange", "Name a stock exchange", "Q11691"),
-    ("currency", "Name a currency", "Q8142"),
-    ("bank", "Name a bank", "Q22687"),
-    ("crypto", "Name a cryptocurrency", "Q13479982"),
-    ("supermarket", "Name a supermarket chain", "Q18043413"),
-    ("index", "Name a stock market index", "Q223371"),
-    ("fast-food", "Name a fast food chain", "Q18509232"),
-    ("publisher", "Name a video game publisher", "Q1137109"),
-    ("brewery", "Name a brewery", "Q131734"),
-]
+from names import variants, spaced, core, norm, LEGAL, STOP, GENERIC, FUZZ_MIN
+from build_lists import POOL
+
 MIN_WIKI = 40       # drop a pool prompt thinner than this
 MIN_BOARDREAD = 6   # drop the Boardread prompt thinner than this
 TIER_CUTS = [0.10, 0.30, 0.60, 0.85]  # share of entries more familiar than this one, per tier edge
@@ -51,32 +40,6 @@ TIERS = [
     {"id": "penthouse", "name": "Penthouse", "pts": 85},
     {"id": "helipad", "name": "Helipad", "pts": 100},
 ]
-
-_MAP = str.maketrans({"ø": "o", "đ": "d", "ł": "l", "æ": "ae", "œ": "oe", "ı": "i", "þ": "th", "ð": "d", "ß": "ss"})
-SUFFIX = re.compile(r"\s(inc|incorporated|ltd|limited|plc|llc|corp|corporation|co|company|ag|sa|se|nv|spa|gmbh|group|holdings|holding|ab|oyj|asa|bv)$")
-
-
-def norm(s: str) -> str:
-    """Case, diacritics and punctuation folded. Must match norm() in js/match.js."""
-    s = unicodedata.normalize("NFKD", s.lower().translate(_MAP))
-    s = "".join(c for c in s if not unicodedata.combining(c))
-    s = s.replace("&", " and ")
-    s = re.sub(r"[^\w]+|_", " ", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return re.sub(r"^the ", "", s)
-
-
-def keys_for(label: str, aliases) -> list:
-    out = []
-    for name in [label, *aliases]:
-        k = norm(name)
-        if not k or len(k) < 2:
-            continue
-        for v in (k, SUFFIX.sub("", k)):
-            if len(v) >= 2 and v not in out:
-                out.append(v)
-    return out
-
 
 def http(url, retries=3):
     for i in range(retries):
@@ -100,53 +63,28 @@ def sparql(query, cache_key):
     return data
 
 
-def fetch_class(qid):
-    q = f"""SELECT ?x ?l ?s ?st (GROUP_CONCAT(DISTINCT ?al; SEPARATOR="|") AS ?als) WHERE {{
-      ?x wdt:P31 wd:{qid}. ?x wikibase:sitelinks ?s. ?x wikibase:statements ?st.
-      FILTER(?s >= 3)
-      FILTER NOT EXISTS {{ ?x wdt:P576 [] }}
-      FILTER NOT EXISTS {{ ?x wdt:P582 [] }}
-      FILTER EXISTS {{ ?a schema:about ?x; schema:isPartOf <https://en.wikipedia.org/> }}
-      ?x rdfs:label ?l. FILTER(lang(?l) = "en")
-      OPTIONAL {{ ?x skos:altLabel ?al. FILTER(lang(?al) = "en") }}
-    }} GROUP BY ?x ?l ?s ?st LIMIT 3500"""
-    rows = []
-    for b in sparql(q, qid):
-        label = b["l"]["value"]
-        if re.fullmatch(r"Q\d+", label) or label.lower().startswith("list of"):
-            continue
-        als = [a for a in b.get("als", {}).get("value", "").split("|") if a]
-        rows.append({"id": b["x"]["value"].rsplit("/", 1)[1], "label": label, "sl": int(b["s"]["value"]),
-                     "st": int(b["st"]["value"]), "aliases": als})
-    return rows
-
-
-def assign_tiers(rows):
-    """Tier by familiarity rank inside the prompt. Fewer sitelinks (then fewer statements) = rarer."""
-    order = sorted(rows, key=lambda r: (-r["sl"], -r["st"], r["label"]))
-    n = len(order)
-    for i, r in enumerate(order):
-        share = i / n  # share of entries more familiar than this one
-        r["rank"] = i
-        r["tier"] = sum(share >= c for c in TIER_CUTS)
-    return order
+def load_list(pid):
+    f = HERE / "assets" / "data" / "lists" / f"{pid}.json"
+    return json.loads(f.read_text()) if f.exists() else None
 
 
 def pack(rows, extra=None):
-    """Entries sorted most familiar first; one key owns one entry (the more familiar wins ties)."""
-    order = assign_tiers(rows)
-    seen, entries = {}, []
-    for r in order:
-        ks = [k for k in keys_for(r["label"], r["aliases"]) if k not in seen]
+    """The Boardread prompt, in the same shape as a list: most familiar first, one key owns one entry."""
+    order = sorted(rows, key=lambda r: (-r["sl"], -r["st"], r["label"]))
+    n, seen, entries = len(order), {}, []
+    for i, r in enumerate(order):
+        tier = sum(i / n >= c for c in TIER_CUTS)
+        names = [r["label"], *r["aliases"]]
+        ks = [k for nm in names for k in variants(nm) if k not in seen]
+        ks = list(dict.fromkeys(ks))
         if not ks:
             continue
-        idx = len(entries)
         for k in ks:
-            seen[k] = idx
-        e = [r["label"], r["sl"], r["tier"], ks]
-        if extra and r["id"] in extra:
-            e.append(extra[r["id"]])
-        entries.append(e)
+            seen[k] = len(entries)
+        cores = list(dict.fromkeys(c for nm in names for sp in spaced(nm) if (c := core(sp, "boardread"))))
+        entries.append([r["label"], r["sl"], tier, ks, cores, (extra or {}).get(r["id"], "")])
+    for e in entries:
+        e[4] = [c for c in e[4] if c not in seen]
     return entries
 
 
@@ -206,17 +144,21 @@ def build(date: dt.date, queue: Path):
     order = POOL[:]
     rng.shuffle(order)
     prompts, report = [], []
+    def from_list(pid):
+        d = load_list(pid)
+        if not d or d["n"] < MIN_WIKI:
+            report.append(f"dropped {pid}: no list or too thin")
+            return None
+        e = d["entries"]
+        report.append(f"kept {pid}: {d['n']} answers")
+        return {"id": pid, "text": d["text"], "src": d["src"], "n": d["n"], "rare": pick_rare(e), "easy": [x[0] for x in e[:2]],
+                "list": f"assets/data/lists/{pid}.json", "generic": GENERIC.get(pid, "").split()}
     for pid, text, qid in order:
         if len(prompts) == 6:
             break
-        rows = fetch_class(qid)
-        if len(rows) < MIN_WIKI:
-            report.append(f"dropped {pid}: {len(rows)} answers")
-            continue
-        entries = pack(rows)
-        prompts.append({"id": pid, "text": text, "src": f"wikidata:{qid}", "n": len(entries),
-                        "rare": pick_rare(entries), "easy": [e[0] for e in entries[:2]], "entries": entries})
-        report.append(f"kept {pid}: {len(entries)} answers")
+        p = from_list(pid)
+        if p:
+            prompts.append(p)
 
     # today's Boardread: widen the window one day at a time until there are enough companies
     names, span = {}, 0
@@ -236,25 +178,23 @@ def build(date: dt.date, queue: Path):
         entries = pack(rows, heads)
         prompts.append({"id": "boardread", "text": "Name a company in today’s Boardread", "src": "boardread",
                         "n": len(entries), "rare": pick_rare(entries), "easy": [e[0] for e in entries[:2]],
-                        "entries": entries})
+                        "generic": [], "entries": entries})
         report.append(f"kept boardread: {len(entries)} companies (window {span} d)")
     else:
         report.append(f"dropped boardread: {len(rows)} companies")
-        extra = [p for p in order if p[0] not in {x['id'] for x in prompts}]
-        for pid, text, qid in extra:
-            rows = fetch_class(qid)
-            if len(rows) >= MIN_WIKI:
-                entries = pack(rows)
-                prompts.append({"id": pid, "text": text, "src": f"wikidata:{qid}", "n": len(entries),
-                                "rare": pick_rare(entries), "easy": [e[0] for e in entries[:2]], "entries": entries})
+        for pid, text, qid in [p for p in order if p[0] not in {x['id'] for x in prompts}]:
+            p = from_list(pid)
+            if p:
+                prompts.append(p)
                 report.append(f"filled with {pid}")
                 break
     # Boardread closes the round when present
     prompts.sort(key=lambda p: p["id"] == "boardread")
-    return {"v": 1, "date": date.isoformat(), "no": (date - LAUNCH).days + 1,
+    return {"v": 2, "date": date.isoformat(), "no": (date - LAUNCH).days + 1,
+            "match": {"legal": LEGAL, "stop": sorted(STOP), "fuzz": FUZZ_MIN},
             "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "seconds": 25, "tiers": TIERS, "prompts": prompts,
-            "credit": "Answer lists: Wikidata (CC0). Rarity: Wikipedia sitelink percentile per prompt."}, report
+            "credit": "Answer lists: Wikidata (CC0), every instance of the class and its subclasses with a Wikipedia article. Rarity: Wikipedia sitelink percentile per prompt."}, report
 
 
 def main():

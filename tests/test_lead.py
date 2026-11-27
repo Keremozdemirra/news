@@ -108,8 +108,8 @@ class Lead(Tmp):
                 desk.lead_social(self.fact)
         self.assertEqual(self.only("facebook"), ["f0", "f1"])
 
-    def test_sport_never_goes_out(self):
-        p = self.post("sport", 20.0, topic="Sport")
+    def test_ordinary_sport_never_goes_out(self):
+        p = self.post("sport", desk.CONFIG["sport_social_min_score"] - 0.5, topic="Sport")
         self.assertEqual(desk.lead_social(self.fact), 0)
         self.assertEqual(self.sent, [])
         self.assertNotIn("platforms", self.load(p))

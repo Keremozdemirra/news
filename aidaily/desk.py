@@ -19,7 +19,7 @@ import os
 import re
 import urllib.parse
 import zlib
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -100,14 +100,19 @@ SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
 FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 
-# Sport is a website section only. No tier, queue, cross-post, digest or reel may carry a post on one of these topics:
-# the social channels stay business news. Every social path asks social_allowed() before it touches a post.
+# Sport is a website section. The social channels stay business news, except for a sport item big enough to beat it:
+# one at or above desk.json sport_social_min_score (unset or null: never). Every social path (tiers, queue, cross-posts,
+# digests, reels, stories) asks social_allowed() before it touches a post, so the rule lives here alone.
 NO_SOCIAL_TOPICS = frozenset({"Sport"})
 
 
 def social_allowed(item):
-    """False for a post or story whose topic is website-only."""
-    return (item or {}).get("topic") not in NO_SOCIAL_TOPICS
+    """False for a post or story on a website-only topic, unless it scores at the exceptional-sport bar."""
+    item = item or {}
+    if item.get("topic") not in NO_SOCIAL_TOPICS:
+        return True
+    bar = CONFIG.get("sport_social_min_score")
+    return bar is not None and (item.get("score") or 0) >= bar
 
 
 def _recent_posts(days):
@@ -566,8 +571,9 @@ def story_frame(img, kicker="New post"):
 
 def _published(hours):
     cut = (now() - timedelta(hours=hours)).isoformat()
+    # Sport is website-only: no story format may carry it, so every builder reads its posts through here
     return [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
-            and p.get("published", "") > cut]
+            and p.get("published", "") > cut and social_allowed(p)]
 
 
 def _queue_story(pid, html, title, delay=0, **extra):
@@ -711,6 +717,49 @@ def _logo(p):
     return _media(p, "logo.svg", "logo.png", "logo.jpg")
 
 
+def _mixed(rows, n):
+    """The first n rows with at most one website-only-topic item: an exceptional sport item may join a business
+    list, never fill it."""
+    out, extra = [], 0
+    for p in rows:
+        if p.get("topic") in NO_SOCIAL_TOPICS:
+            if extra:
+                continue
+            extra = 1
+        out.append(p)
+        if len(out) == n:
+            break
+    return out
+
+
+def _photos_today():
+    """Posts whose photo a story already carried today: one photo leads at most one story a day."""
+    day = now().strftime("%Y-%m-%d")
+    return {q.get("photo_of") for q, _ in posts() if q.get("kind") == "story" and q.get("created", "")[:10] == day} - {None}
+
+
+def _photo(p, fresh=False):
+    """(uri, credit) of the post's licensed photo, or ("", ""): a photo goes on a story only with its credit.
+    fresh: not when another story showed that photo today."""
+    if fresh and p and p["id"] in _photos_today():
+        return ("", "")
+    uri = _media(p, "photo.jpg") if p else ""
+    credit = (p or {}).get("credit", "")
+    # a share-alike licence would reach the whole story image; cards refuse CC BY-SA and so do stories
+    return (uri, credit) if uri and credit and not re.search(r"\bBY-SA\b", credit, re.I) else ("", "")
+
+
+def _lead(rows):
+    """story_list keywords for a list whose first post has a photo nobody showed today."""
+    uri, credit = _photo(rows[0], fresh=True) if rows else ("", "")
+    return {"lead_photo": uri, "lead_credit": credit}
+
+
+def _photo_of(rows, used):
+    """The photo_of mark for a story whose lead photo came from rows[0]."""
+    return {"photo_of": rows[0]["id"]} if used.get("lead_photo") else {}
+
+
 def _head(p):
     return p["headlines"][0]
 
@@ -746,18 +795,19 @@ def _quiz_pair(day, slot, question, answer, title, **extra):
 
 
 def _s_last12(day, label):
-    top = sorted(_published(12), key=lambda p: -_score(p))[:3]
+    top = _mixed(sorted(_published(12), key=lambda p: -_score(p)), 3)
     if len(top) < 3:
         return []
-    return [_queue_story(f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label), "Last 12 hours",
-                         refs=[p["id"] for p in top])]
+    lead = _lead(top)
+    return [_queue_story(f"{day}-last12", R.T.story_list("Last 12<br>hours.", [_head(p) for p in top], label, kicker="Last 12 hours", **lead), "Last 12 hours",
+                         refs=[p["id"] for p in top], **_photo_of(top, lead))]
 
 
 # Words that make a bare quantity mean something on their own, when one follows the number in the headline.
 # "42 state AGs" or "14 trading partners" is a count, not a figure: it is not in this list and is never used.
 UNIT_WORDS = """people jobs workers employees staff users customers subscribers members satellites units vehicles cars
 trucks barrels tons tonnes megawatts gigawatts chips gpus servers aircraft planes flights homes houses patients visitors
-stores acres miles kilometers""".split()
+stores acres miles kilometers layoffs""".split() + ["job cuts", "jobs cuts"]
 SCALE = {"B": 10**9, "bn": 10**9, "billion": 10**9, "M": 10**6, "million": 10**6, "K": 10**3, "T": 10**12, "trillion": 10**12}
 
 
@@ -794,23 +844,34 @@ def _number(day, slot, label):
     if not nums:
         return []
     p, (fig, unit) = max(nums, key=lambda x: _score(x[0]))
-    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit, _qualifier(p)), "Number", refs=[p["id"]])]
+    ph = _photo(p, fresh=True)
+    return [_queue_story(f"{day}-{slot}", R.T.story_number(fig, _head(p), label, unit, _qualifier(p), *ph), "Number", refs=[p["id"]],
+                         **({"photo_of": p["id"]} if ph[0] else {}))]
 
 
 def pick_company(day, recent, week):
-    """Guess the company: the headline with the company blanked and four companies from our own recent posts.
-    Pure selection, shared by the Instagram story and the quiz page: returns None when there is no honest question."""
-    cands = [p for p in recent if p.get("company") and p.get("figure") and p["company"] in _head(p)]
-    if not cands:
-        return None
-    p = max(cands, key=_score)
-    hint = _head(p).replace(p["company"], "___")
-    others = sorted({q["company"] for q in week if q.get("company") and q["company"] != p["company"]})
-    options = _order(day, [p["company"]] + _order(day, others)[:3])
-    if p["company"] in hint or len(options) < 4:
-        return None
-    return {"type": "company", "title": "Guess the company", "question": hint, "options": options,
-            "answer": options.index(p["company"]), "posts": [p]}
+    """Guess the company: the headline with the company blanked and four companies as options. Pure selection,
+    shared by the Instagram story and the quiz page: returns None when there is no honest question.
+    The three wrong options are the company's peers (aidaily/peers.py: same sector, same order of size), never a
+    company under the same owner and never one the post itself names, so exactly one option fits. Peers that were
+    in our own news this week come first, then the rest of the group."""
+    from . import peers
+    cands = [p for p in recent if social_allowed(p) and p.get("company") and p.get("figure") and p["company"] in _head(p)
+             and peers.peers(p["company"])]
+    for p in sorted(cands, key=lambda p: -_score(p)):
+        hint = _head(p).replace(p["company"], "___")
+        text = " ".join([_head(p), p.get("dek") if isinstance(p.get("dek"), str) else "", p.get("body") or ""]).lower()
+        named = [n for n in [p.get("person") or ""] + list(p.get("orgs") or []) + list(p.get("logo_names") or []) if n]
+        fair = [c for c in peers.peers(p["company"])
+                if not re.search(rf"(?<!\w){re.escape(c.lower())}(?!\w)", text) and not any(peers.related(c, n) for n in named)]
+        ours = {peers.norm(q.get("company") or "") for q in week if social_allowed(q)}
+        ranked = [c for c in fair if peers.norm(c) in ours] + _order(day, [c for c in fair if peers.norm(c) not in ours])
+        if p["company"] in hint or len(ranked) < 3:
+            continue
+        options = _order(day, [p["company"]] + ranked[:3])
+        return {"type": "company", "title": "Guess the company", "question": hint, "options": options,
+                "answer": options.index(p["company"]), "posts": [p]}
+    return None
 
 
 def _s_quiz(day, label):
@@ -818,14 +879,14 @@ def _s_quiz(day, label):
     if not q:
         return []
     p = q["posts"][0]
-    return _quiz_pair(day, "quiz", R.T.story_quiz(q["question"], label, q["options"]),
-                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["company"], logo_uri=_logo(p)),
+    return _quiz_pair(day, "quiz", *R.T.quiz_pair("Guess the<br>company.", q["options"], q["answer"], label, hint=q["question"],
+                                                  headline=_head(p), mark=p["company"], logo_uri=_logo(p)),
                       "Guess the company", refs=[p["id"]])
 
 
 def pick_fill(day, recent):
     """Fill the number: the headline with its figure blanked, the figure and three plausible others as options."""
-    for p in sorted(recent, key=lambda p: -_score(p)):
+    for p in sorted(filter(social_allowed, recent), key=lambda p: -_score(p)):
         fig, head_ = (p.get("figure") or "").strip(), _head(p)
         wrong = distractors(fig) if fig and _in_text(fig, head_) else []
         hint = _blank(fig, head_) if wrong else ""
@@ -841,8 +902,8 @@ def _s_fill(day, label):
     if not q:
         return []
     p = q["posts"][0]
-    return _quiz_pair(day, "fill", R.T.story_quiz(q["question"], label, q["options"], "Fill the<br>number."),
-                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), q["options"][q["answer"]]), "Fill the number",
+    return _quiz_pair(day, "fill", *R.T.quiz_pair("Fill the<br>number.", q["options"], q["answer"], label, hint=q["question"],
+                                                  headline=_head(p), mark=q["options"][q["answer"]]), "Fill the number",
                       refs=[p["id"]])
 
 
@@ -862,8 +923,8 @@ def _s_complete(day, label):
             if len(re.findall(rf"\b{re.escape(w)}\b", head_)) != 1:
                 continue
             hint = re.sub(rf"\b{re.escape(w)}\b", "___", head_)
-            return _quiz_pair(day, "complete", R.T.story_quiz(hint, label, options, "Complete the<br>headline."),
-                              R.T.story_answer("ABCD"[options.index(w)], options, label, head_, w), "Complete the headline", refs=[p["id"]])
+            return _quiz_pair(day, "complete", *R.T.quiz_pair("Complete the<br>headline.", options, options.index(w), label, hint=hint,
+                                                              headline=head_, mark=w), "Complete the headline", refs=[p["id"]])
     return []
 
 
@@ -899,7 +960,7 @@ def _money(p):
 def pick_bigger(day, week):
     """Which is bigger?: two different companies' money figures of the same kind (valuation, raise or revenue) and
     currency from posts of the last 7 days. The question names the companies and the kind and shows no figure."""
-    best, rows = None, [(p, m) for p in week if (m := _money(p))]
+    best, rows = None, [(p, m) for p in week if social_allowed(p) and (m := _money(p))]
     for i, (a, ma) in enumerate(rows):
         for b, mb in rows[i + 1:]:
             lo, hi = sorted((ma[3], mb[3]))
@@ -921,19 +982,21 @@ def _s_bigger(day, label):
     if not q:
         return []
     (first, mf), (second, ms) = q["first"], q["second"]
-    return _quiz_pair(day, "bigger", R.T.story_bigger(q["kind"], (mf[0], _logo(first)), (ms[0], _logo(second)), label),
-                      R.T.story_answer("AB"[q["answer"]], [(f"{m[0]} {q['kind']}", p["figure"].strip(), _head(p)) for p, m in ((first, mf), (second, ms))],
-                                       label),
+    pair = ((first, mf), (second, ms))
+    return _quiz_pair(day, "bigger", *R.T.quiz_pair("Which is<br>bigger?", [mf[0], ms[0]], q["answer"], label, kind="bigger",
+                                                    kinds=[q["kind"]] * 2, figs=[p["figure"].strip() for p, _ in pair],
+                                                    subs=[_head(p) for p, _ in pair]),
                       "Which is bigger", refs=[first["id"], second["id"]])
 
 
-def _people(pool, has_photo=lambda p: _media(p, "photo.jpg")):
+def _people(pool, has_photo=lambda p: _photo(p)[0]):
     """Posts about a person we hold a licensed portrait of; the portrait's file name must carry the name."""
     return [p for p in pool if p.get("person") and has_photo(p) and _name_in(p["person"], p.get("photo_file", ""))]
 
 
-def pick_whois(day, week, recent, has_photo=lambda p: _media(p, "photo.jpg")):
+def pick_whois(day, week, recent, has_photo=lambda p: _photo(p, fresh=True)[0]):
     """Who is this?: the portrait without its name, four names from our own recent posts."""
+    week, recent = list(filter(social_allowed, week)), list(filter(social_allowed, recent))
     named = sorted({p["person"] for p in week if p.get("person")})
     cands = _people(recent, has_photo)
     if len(named) < 4 or not cands:
@@ -942,7 +1005,10 @@ def pick_whois(day, week, recent, has_photo=lambda p: _media(p, "photo.jpg")):
     others = [n for n in named if n != p["person"] and n.split()[-1] != p["person"].split()[-1]]
     if len(others) < 3:
         return None
-    options = _order(day, [p["person"]] + _order(day, others)[:3])
+    # people from the same beat first: a central banker is guessed against central bankers and ministers, not a CEO
+    beat = {q["person"]: q.get("topic") for q in week if q.get("person")}
+    same = _order(day, [n for n in others if beat.get(n) == p.get("topic")])
+    options = _order(day, [p["person"]] + (same + _order(day, [n for n in others if n not in same]))[:3])
     credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
     return {"type": "whois", "title": "Who is this", "options": options, "answer": options.index(p["person"]), "posts": [p],
             "credit": credit}
@@ -953,20 +1019,21 @@ def _s_whois(day, label):
     if not q:
         return []
     p, photo = q["posts"][0], _media(q["posts"][0], "photo.jpg")
-    return _quiz_pair(day, "whois", R.T.story_whois(photo, label, q["options"], q["credit"]),
-                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["person"], photo_uri=photo,
-                                       credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"])
+    return _quiz_pair(day, "whois", *R.T.quiz_pair("Who is this?", q["options"], q["answer"], label, kind="photo", photo=photo,
+                                                   headline=_head(p), mark=p["person"], q_credit=q["credit"], a_credit=p.get("credit", "")),
+                      "Who is this", refs=[p["id"]], person=p["person"], photo_of=p["id"])
 
 
 def _s_person(day, label):
     cut_day = [p for p in _published(24) if p.get("published", "")[:10] == day]
     quizzed = {q.get("person") for q in _story_posts("whois", 1)}
-    people = [p for p in cut_day if p.get("person") and _media(p, "photo.jpg") and p["person"] not in quizzed]
+    # a portrait only: the file must carry the person's name (a scene photo of their company is not them)
+    people = [p for p in _people(cut_day, lambda p: _photo(p, fresh=True)[0]) if p["person"] not in quizzed]
     if not people:
         return []
     p = max(people, key=_score)
     return [_queue_story(f"{day}-person", R.T.story_person(_media(p, "photo.jpg"), p["person"], _head(p), p.get("credit", ""), label),
-                         f"In the news: {p['person']}", refs=[p["id"]])]
+                         f"In the news: {p['person']}", refs=[p["id"]], photo_of=p["id"])]
 
 
 def _s_company(day, label):
@@ -981,15 +1048,16 @@ def _s_company(day, label):
         return []
     _, _, name, items = max(rows)
     last = sorted(items, key=lambda q: q["published"], reverse=True)[:3]
-    return [_queue_story(f"{day}-company", R.T.story_company(_logo(last[0]), name, [(_date(q), _head(q)) for q in last], label),
-                         f"Company file: {name}", refs=[q["id"] for q in last], company=name)]
+    shot = next((q for q in last if _photo(q, fresh=True)[0]), None)
+    return [_queue_story(f"{day}-company", R.T.story_company(_logo(last[0]), name, [(_date(q), _head(q)) for q in last], label, *_photo(shot)),
+                         f"Company file: {name}", refs=[q["id"] for q in last], company=name, **({"photo_of": shot["id"]} if shot else {}))]
 
 
 def _s_board(day, label):
     """Topic board: four headlines of the week's busiest topic, never the topic of the last board."""
     by = {}
     for p in _published(24 * 7):
-        if p.get("topic") in TOPICS:
+        if p.get("topic") in TOPICS and p["topic"] not in NO_SOCIAL_TOPICS:  # a sport item may join a mixed list, never lead a board
             by.setdefault(p["topic"], []).append(p)
     last = (_story_posts("board", 7) or [{}])[0].get("topic")
     rows = [(len(v), sum(map(_score, v)), t) for t, v in by.items() if len(v) >= 4 and t != last]
@@ -997,16 +1065,18 @@ def _s_board(day, label):
         return []
     topic = max(rows)[2]
     top = sorted(by[topic], key=lambda p: -_score(p))[:4]
-    return [_queue_story(f"{day}-board", R.T.story_list(f"{topic}<br>this week.", [_head(p) for p in top], label),
-                         f"{topic} this week", refs=[p["id"] for p in top], topic=topic)]
+    lead = _lead(top)
+    return [_queue_story(f"{day}-board", R.T.story_list(f"{topic}<br>this week.", [_head(p) for p in top], label, kicker=topic, **lead),
+                         f"{topic} this week", refs=[p["id"] for p in top], topic=topic, **_photo_of(top, lead))]
 
 
 def _s_top5(day, slot, label):
-    top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p))[:5]
+    top = _mixed(sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p)), 5)
     if len(top) < 3:
         return []
-    return [_queue_story(f"{day}-{slot}", R.T.story_list(f"Today's<br>top {len(top)}.", [_head(p) for p in top], label),
-                         f"Today's top {len(top)}", refs=[p["id"] for p in top])]
+    lead = _lead(top)
+    return [_queue_story(f"{day}-{slot}", R.T.story_list(f"Today's<br>top {len(top)}.", [_head(p) for p in top], label, kicker=f"Top {len(top)}", **lead),
+                         f"Today's top {len(top)}", refs=[p["id"] for p in top], **_photo_of(top, lead))]
 
 
 def _s_today(day, label):
@@ -1026,19 +1096,80 @@ def _s_ranked(day, slot, label):
     metric = "shares" if slot == "shared" else "saved"
     rows = sorted([p for p in _published(24 * 7) if ((p.get("insights") or {}).get(metric) or 0) > 0],
                   key=lambda p: (-p["insights"][metric], -_score(p)))
+    rows = _mixed(rows, 3)
     if len(rows) < 3:
         return []
     title = f"Most {'shared' if metric == 'shares' else 'saved'}<br>this week."
-    return [_queue_story(f"{day}-{slot}", R.T.story_list(title, [_head(p) for p in rows[:3]], label),
-                         f"Most {metric if metric == 'saved' else 'shared'} this week", refs=[p["id"] for p in rows[:3]])]
+    lead = _lead(rows[:3])
+    return [_queue_story(f"{day}-{slot}", R.T.story_list(title, [_head(p) for p in rows[:3]], label, kicker=f"Most {'shared' if metric == 'shares' else 'saved'}", **lead),
+                         f"Most {metric if metric == 'saved' else 'shared'} this week", refs=[p["id"] for p in rows[:3]], **_photo_of(rows[:3], lead))]
 
 
 def _s_numbers(day, label):
-    figs = sorted([(p, m) for p in _published(24 * 7) if (m := _meaningful(p))], key=lambda x: -_score(x[0]))[:5]
+    figs = sorted([(p, m) for p in _mixed(sorted(_published(24 * 7), key=lambda p: -_score(p)), 99) if (m := _meaningful(p))],
+                  key=lambda x: -_score(x[0]))[:5]
     if len(figs) < 3:
         return []
     return [_queue_story(f"{day}-numbers", R.T.story_numbers([(m[0], _head(q), m[1], _qualifier(q)) for q, m in figs], label),
                          "The week in numbers", refs=[q["id"] for q, _ in figs])]
+
+
+# Data stories from the official series the site already shows (aidaily/markets.py: ECB, US Treasury, EIA). No index
+# level or share price appears: those are licensed data. Each value carries its own date and its publisher.
+RATE_KEYS = ("eurusd", "usdjpy", "ust10", "ust2", "brent", "wti")
+CHART_KEYS = ("brent", "wti", "ust10", "ust2", "eurusd", "usdjpy", "henryhub")
+
+
+def _market_source(keys):
+    from . import markets
+    names = {"ecb": "ECB", "calc": "ECB", "ust": "U.S. Treasury", "eia": "U.S. Energy Information Administration"}
+    pubs = list(dict.fromkeys(names[markets.SERIES[k][3]] for k in keys))
+    return "Source: " + ", ".join(pubs) + "." + (" USD/JPY calculated from ECB reference rates." if "usdjpy" in keys else "")
+
+
+def _s_rates(day, label):
+    from . import markets
+    m = markets.load(live=False)
+    rows, keys = [], []
+    for k in RATE_KEYS:
+        st = markets.stat(m, k)
+        if not st or (now().date() - date.fromisoformat(st[2])).days > 10:  # a stale series is left out, never shown as today's
+            continue
+        name, v, d, ch, pct, _ = st
+        nd = markets.SERIES[k][2]
+        move = "unchanged" if not ch else f"{markets.sign_arrow(ch)} {abs(ch):.{nd}f}" + ("" if markets.SERIES[k][1] == "%" or pct is None else f" ({abs(pct):.{2 if abs(pct) < 0.1 else 1}f}%)")
+        rows.append((name, markets.fmt(k, v), move, markets.dmy(d)))
+        keys.append(k)
+    if len(rows) < 4:
+        return []
+    return [_queue_story(f"{day}-rates", R.T.story_rates(rows, label, _market_source(keys)), "Rates and oil")]
+
+
+def _s_chart(day, label, span=66):
+    """The series that moved most over its last ~3 months (66 prints), as a line, when it moved enough to say so."""
+    from . import markets
+    m = markets.load(live=False)
+    best = None
+    for k in CHART_KEYS:
+        pts = ((m or {}).get("series") or {}).get(k) or []
+        pts = pts[-span:]
+        if len(pts) < 40 or (now().date() - date.fromisoformat(pts[-1][0])).days > 10:
+            continue
+        a, b = pts[0][1], pts[-1][1]
+        pct = (b - a) / a * 100 if a else 0
+        score = abs(b - a) * 20 if markets.SERIES[k][1] == "%" else abs(pct)  # 0.25 points of yield ranks with a 5% price move
+        if best is None or score > best[0]:
+            best = (score, k, pts, a, b, pct)
+    if not best or best[0] < 3:
+        return []
+    _, k, pts, a, b, pct = best
+    name, unit, nd = markets.SERIES[k][0], markets.SERIES[k][1], markets.SERIES[k][2]
+    since = markets.dmy(pts[0][0])
+    word = "Up" if b > a else "Down"
+    move = (f"{word} {abs(b - a):.2f} percentage points since {since}" if unit == "%" else f"{word} {abs(pct):.1f}% since {since}")
+    first, last = f"{markets.fmt(k, a)} · {markets.dmy(pts[0][0])}", f"{markets.fmt(k, b)} · {markets.dmy(pts[-1][0])}"
+    return [_queue_story(f"{day}-chart", R.T.story_chart(name, pts, first, last, move, "3 months", label, _market_source([k])),
+                         f"Chart: {name}", series=k)]
 
 
 def _s_follow(day, label):
@@ -1067,6 +1198,10 @@ STORY_SLOTS = {
     "numbers": (SUN, lambda d, s, l: _s_numbers(d, l)),
     "shared": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     "saved": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
+    # data stories: rates on Monday and Wednesday, the chart on Thursday and Saturday, the days without the follow story,
+    # so no weekday passes eight stories
+    "rates": ((0, 2), lambda d, s, l: _s_rates(d, l)),
+    "chart": ((3, 5), lambda d, s, l: _s_chart(d, l)),
     "today": (ALL, lambda d, s, l: _s_today(d, l)),
     "follow": ((1, 4), lambda d, s, l: _s_follow(d, l)),
     "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),
