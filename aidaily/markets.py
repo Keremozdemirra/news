@@ -98,12 +98,15 @@ SERIES = {
     "ust10": ("US 10-year", "%", 2, "ust", "The yield on US government debt due in ten years, a base for borrowing costs.", ""),
     "ust2": ("US 2-year", "%", 2, "ust", "The yield on two-year US government debt, sensitive to expected interest rates.", ""),
 }
-RAIL = ("eurusd", "usdjpy", "gbpusd", "brent", "wti", "gasoline", "ust10")
+# One order of importance for every list of daily series on the site, so the strip, the front-page block and /numbers/
+# never disagree: the euro-dollar, oil, the US 10-year, the other majors, US crude and gas, the yuan, then the rest.
+IMPORTANCE = ("eurusd", "brent", "ust10", "usdjpy", "gbpusd", "wti", "henryhub", "usdcny", "ust2", "eurgbp", "eurtry", "gasoline")
+RAIL = IMPORTANCE[:7]  # the front-page block; the yuan stays on the strip and /numbers/
 METALS = ("gold", "silver", "platinum", "copper", "aluminium", "nickel", "zinc", "lead", "tin", "ironore")
 # most watched first: the euro-dollar, oil, the US 10-year, then the other majors and gas. Daily series only: gold was
 # here as the World Bank's monthly average ($4,105 for October) while spot traded near $3,600 (2026-11-27); next to
 # daily prices a monthly average reads as today's price whatever its label, so the metals stay on /numbers/
-STRIP = ("eurusd", "brent", "ust10", "usdjpy", "gbpusd", "henryhub", "wti", "usdcny")
+STRIP = IMPORTANCE[:8]
 SOURCE_NAME = {"ecb": "ECB reference rate", "calc": CALC, "eia": "EIA", "ust": "US Treasury par yield", "wb": "World Bank Pink Sheet, monthly average"}
 HISTORY = 100  # observations kept per series
 
@@ -604,7 +607,7 @@ def chart(pts, w=360, h=120, n=90, monthly=False):
             f'<text x="{w - right}" y="{h - 5}" font-size="11" text-anchor="end" fill="currentColor" stroke="none" opacity=".75">{D(pts[-1][0])}</text></svg>')
 
 
-MARKET_CARDS = ("brent", "wti", "gasoline", "henryhub", "eurusd", "usdjpy", "gbpusd", "usdcny", "ust10", "ust2")
+MARKET_CARDS = IMPORTANCE
 
 
 def cards(m, keys=MARKET_CARDS):

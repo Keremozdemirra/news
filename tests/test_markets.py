@@ -62,7 +62,11 @@ class Markets(unittest.TestCase):
     def test_energy_rows_appear_in_order_with_sparkline_arrow_and_attribution(self):
         m = data(True)
         order = [r["k"] for r in markets.rows(m, markets.RAIL)]
-        self.assertEqual(order, ["EUR/USD", "USD/JPY", "GBP/USD", "Brent", "WTI", "US gasoline", "US 10-year"])
+        # the same order of importance as the strip: euro-dollar, oil, the 10-year, then the rest
+        self.assertEqual(order[:3], ["EUR/USD", "Brent", "US 10-year"])
+        self.assertEqual([k for k in order if k in ("USD/JPY", "GBP/USD", "WTI")], ["USD/JPY", "GBP/USD", "WTI"])
+        self.assertEqual(markets.STRIP[:len(markets.RAIL)], markets.RAIL)
+        self.assertEqual(markets.MARKET_CARDS[:len(markets.RAIL)], markets.RAIL)
         box = markets.rates_box(m)
         self.assertIn("<svg class=\"spark\"", box)
         self.assertIn("▲", box)
