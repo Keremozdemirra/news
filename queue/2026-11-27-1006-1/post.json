@@ -49,10 +49,14 @@
  "status": "web",
  "published": "2026-11-27T10:06:52+00:00",
  "story": "",
- "rewritten": {
-  "at": "2026-11-27T10:52:02.400216+00:00",
-  "why": "report too thin (1 sentences, 8 words beyond the dek)",
-  "dek": "Both presidential and parliamentary votes are pushed back, delaying the promised return to civilian rule.",
-  "body": "The new date for the votes is 2028."
+ "platforms": {
+  "threads": {
+   "id": "18138314434806048",
+   "url": "https://www.threads.com/@boardread/post/DgPgT6Bm55a",
+   "at": "2026-11-27T10:51:27+00:00",
+   "reply": {
+    "id": "17869543866676183"
+   }
+  }
  }
 }
