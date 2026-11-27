@@ -274,14 +274,15 @@ class Gate(unittest.TestCase):
         self.assertEqual(desk.audit(self.post()), [])
         self.assertIn("no photo", desk.audit(self.post(photo_file="", credit="", photo_kind="")))
 
-    def test_the_front_page_shows_a_sport_scene_but_not_a_stand_in_under_other_news(self):
-        # site excellence, item 8 (2026-11-27): a container port under "Global stocks rally" is a stand-in, it stays on the article page
+    def test_the_front_page_shows_an_archive_scene_with_its_caption(self):
+        # Kerem, 2026-11-27: a related archive photo is fine under a headline; the caption says what it is
         p = dict(id="x", headlines=["Global stocks rally"], dek="", topic="Markets", sources=["A", "B"], score=9, _thumb=True,
                  published="2026-11-26T12:00:00+00:00", photo_file="HH Hafen Kontainerbruecken.JPG", photo_kind="scene")
-        self.assertFalse(views.photo_ok(p))
+        self.assertTrue(views.photo_ok(p))
+        self.assertIn("Archive photo, not from this event.", views.photo_cap(p))
         sport = {**p, "topic": "Sport", "headlines": ["Cricket Australia widens probe"], "photo_file": "Adelaide Oval.jpg"}
-        self.assertTrue(views.photo_ok(sport))  # a sport scene says what it is in its label and keeps its place
-        self.assertFalse(views.photo_ok({**p, "photo_kind": ""}))
+        self.assertTrue(views.photo_ok(sport))
+        self.assertFalse(views.photo_ok({**p, "photo_file": "", "_thumb": False}))
         other = {**p, "photo_file": "Bremerhaven - Containerterminal 02.jpg"}
         self.assertNotEqual(views.photo_subject(p), views.photo_subject(other))
 

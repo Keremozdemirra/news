@@ -487,15 +487,15 @@ def photo_img(p, thumb=True, ratio="3/2", alt="", load="lazy", box=True, fixed=F
 
 def generic_photo(p):
     """True when the picture is a stand-in for the subject (a cash register under an inflation story, an office block under a
-    whistleblower), not a picture of the person or company the article names. The desk marks those photo_kind "scene"; a sport
-    scene is shown as "Archive photo of the sport", so it keeps its place. Such a photo is for the article page, never for a card."""
+    whistleblower), not a picture of the person or company the article names. The desk marks those photo_kind "scene". Cards and the
+    article carry it with its "Archive photo, not from this event." caption; only the search crops (structured data) leave it out."""
     return p.get("photo_kind") == "scene" and topic(p) != "Sport"
 
 
-def pic(p, thumb=False, eager=False, ratio="3/2", alt="", keep=False):
+def pic(p, thumb=False, eager=False, ratio="3/2", alt=""):
     """The photo in a box of the given shape (3:2 unless a page asks for another). The wrapper holds the shape, the image
-    fills it, so the page does not shift as photos arrive. keep: the article's own figure, which says what it is in its caption."""
-    if not p.get("_thumb") or (generic_photo(p) and not keep):
+    fills it, so the page does not shift as photos arrive."""
+    if not p.get("_thumb"):
         return ""
     ratio = fit(p, thumb, ratio)[2]
     return f'<span class="pic" style="aspect-ratio:{ratio}">{photo_img(p, thumb, ratio, alt=alt, load="eager" if eager else "lazy", box=False)}</span>'
@@ -973,7 +973,7 @@ def story(p, rows, cos=None, counts=None):
     insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = photo_alt(p)
-    fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt, keep=True)}'
+    fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
            f'<figcaption class="meta">{credit_html(p)}</figcaption></figure>') if p.get("_hires") else ""
     # Older and Newer stay inside the article's own section: a step to the next story is a step to a story of the same kind
     same = [o for o in rows if topic(o) == topic(p)]

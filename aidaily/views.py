@@ -94,8 +94,8 @@ def photo_ok(p):
     """A photo goes on the front page only if it shows what the article names: the person, the company, or another capitalised name
     from the headline or summary appears in the photo's file name. A server corridor under an OpenAI article or a globe under a
     satellite item says nothing, so those articles run as text. (The photo is still on the article's own page.)"""
-    if not p.get("_thumb") or not (p.get("photo_file") or "").strip() or S.generic_photo(p):
-        return False  # a stand-in photo (photo_kind "scene") belongs on the article's own page, with its caption, not on a card
+    if not p.get("_thumb") or not (p.get("photo_file") or "").strip():
+        return False
     return photo_subject(p) is not None
 
 

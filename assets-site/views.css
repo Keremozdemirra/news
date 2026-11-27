@@ -55,6 +55,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 @media(prefers-reduced-motion:no-preference){.mstrip ul{animation:tape 70s linear infinite}.mstrip:hover ul,.mstrip:focus-within ul,.mstrip.paused ul{animation-play-state:paused}}
 @media(prefers-reduced-motion:reduce){.mstrip .mtrack{overflow-x:auto;scrollbar-width:none}.mstrip .mtrack::-webkit-scrollbar{display:none}.mstrip li.dup{display:none}.mstrip .mpause{display:none}}
 .mstrip .mpause{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink)}
+@media(prefers-reduced-motion:reduce){.mstrip .mpause{display:none}}  /* after the rule above: the button is not shown when nothing moves */
 .mstrip .mpause:hover{text-decoration:underline}.mstrip .mpause:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
 .mstrip .mpause .pl,.mstrip .mpause[aria-pressed=true] .pa{display:none}.mstrip .mpause[aria-pressed=true] .pl{display:block}
 .mstrip .mtrack:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}

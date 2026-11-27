@@ -8,6 +8,8 @@
 }
 :root{color-scheme:light}
 :root[data-theme=dark]{color-scheme:dark;--paper:#121212;--ink:#ededed;--soft:#a0a0a0;--faint:#a0a0a0;--rule:#2b2b2b;--wash:#1b1b1b;--accent:#ededed;--up:#4cc38a;--down:#ff8a80}
+/* without the script nothing sets data-theme: the device's own choice decides */
+@media(prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--paper:#121212;--ink:#ededed;--soft:#a0a0a0;--faint:#a0a0a0;--rule:#2b2b2b;--wash:#1b1b1b;--accent:#ededed;--up:#4cc38a;--down:#ff8a80}}
 
 *{box-sizing:border-box}
 html{background:var(--paper);-webkit-text-size-adjust:100%;scroll-padding-top:64px}
