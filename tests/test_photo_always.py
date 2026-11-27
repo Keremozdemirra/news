@@ -172,7 +172,9 @@ class SceneData(unittest.TestCase):
         lists = scenes.entries("Maltese-flagged tanker capsizes off Ibiza", "World", self.data)
         self.assertEqual(lists[0], next(r["files"] for r in self.data["rules"] if r["id"] == "shipping"))
         self.assertEqual(lists[1], self.data["topics"]["World"])
-        self.assertEqual(scenes.entries("A quiet day", "Culture", self.data)[0], self.data["topics"]["Culture"])
+        # a landmark (the Vasconcelos library) only goes on an article about its place
+        self.assertEqual(scenes.entries("A quiet day", "Culture", self.data)[0],
+                         [i for i in self.data["topics"]["Culture"] if scenes.fits(i, "A quiet day")])
 
 
 class SportScenes(unittest.TestCase):

@@ -506,6 +506,20 @@ def audit(post):
     if post.get("photo_file") and not post.get("credit"):
         problems.append("photo without a credit line")
     # the credit line must be the card photo's own: a second lookup once paired one photo with another's credit
+    # a scene must still be on the vetted list and fit the article: a place-named scene only on an article about
+    # that place, a ballot box only on an election (scenes.fits)
+    if pf and post.get("photo_kind") == "scene":
+        from . import scenes
+        data = scenes.load()
+        items = [i for r in data["rules"] + data["sport"] for i in r["files"]] + [i for t in data["topics"].values() for i in t]
+        item = next((i for i in items if i["file"] == pf), None)
+        text = " ".join([head_, post.get("dek", ""), post.get("body", "")])
+        if pf in data.get("retired", []):
+            problems.append(f"scene {pf!r} was taken off the vetted list")
+        elif item is not None and not scenes.fits(item, text):
+            problems.append(f"scene {pf!r} does not fit the article (place or subject)")
+        elif item is not None and item.get("sport") and scenes.sport_of(text, data) != item["sport"]:
+            problems.append(f"scene {pf!r} shows {item['sport']}, not this article's sport")
     if pf and post.get("credit_file") and post["credit_file"] != pf:
         problems.append(f"credit belongs to {post['credit_file']!r}, the card shows {pf!r}")
     # a company photo shows the company's own premises, sign or (for an airline or planemaker) its own aircraft

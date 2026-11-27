@@ -6,7 +6,8 @@
    "files": [
     {
      "file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg",
-     "alt": "An empty pit straight at a racing circuit"
+     "alt": "An empty pit straight at a racing circuit",
+     "sport": "f1"
     }
    ]
   },
@@ -16,7 +17,8 @@
    "files": [
     {
      "file": "Inter&Co Stadium gridiron football configuration.jpg",
-     "alt": "An American football stadium"
+     "alt": "An American football stadium",
+     "sport": "nfl"
     }
    ]
   },
@@ -26,7 +28,8 @@
    "files": [
     {
      "file": "OAKA Basketball Arena in December 2024.jpg",
-     "alt": "A basketball arena"
+     "alt": "A basketball arena",
+     "sport": "nba"
     }
    ]
   },
@@ -36,7 +39,8 @@
    "files": [
     {
      "file": "Tennis line markings (Unsplash).jpg",
-     "alt": "Line markings on a clay tennis court"
+     "alt": "Line markings on a clay tennis court",
+     "sport": "tennis"
     }
    ]
   },
@@ -46,7 +50,8 @@
    "files": [
     {
      "file": "Adelaide Oval (23183793744).jpg",
-     "alt": "A cricket oval"
+     "alt": "A cricket oval",
+     "sport": "cricket"
     }
    ]
   },
@@ -56,7 +61,8 @@
    "files": [
     {
      "file": "Putting green at the Royal Canberra Golf Club 4.JPG",
-     "alt": "A putting green and bunker seen from above"
+     "alt": "A putting green and bunker seen from above",
+     "sport": "golf"
     }
    ]
   },
@@ -66,7 +72,8 @@
    "files": [
     {
      "file": "Boxing ring, MGM Grand.jpg",
-     "alt": "A boxing ring"
+     "alt": "A boxing ring",
+     "sport": "boxing"
     }
    ]
   },
@@ -76,7 +83,8 @@
    "files": [
     {
      "file": "The Olympic Rings in Tokyo 04.jpg",
-     "alt": "The Olympic rings"
+     "alt": "The Olympic rings",
+     "sport": "olympics"
     }
    ]
   },
@@ -86,7 +94,8 @@
    "files": [
     {
      "file": "Hinchliffe Stadium (Paterson, NJ).jpg",
-     "alt": "A football stadium seen from above"
+     "alt": "A football stadium seen from above",
+     "sport": "football"
     }
    ]
   }
@@ -109,8 +118,8 @@
      "alt": "A server room with empty racks"
     },
     {
-     "file": "Old Chinese Lock (B&W) 2.jpg",
-     "alt": "A rusty padlock on a chain"
+     "file": "Code on computer monitor (Unsplash).jpg",
+     "alt": "Lines of code on a computer monitor"
     }
    ]
   },
@@ -154,11 +163,17 @@
     },
     {
      "file": "Hut 8 Medicine Hat aerial 1.jpg",
-     "alt": "Rows of mining containers seen from above"
+     "alt": "Rows of mining containers seen from above",
+     "place": [
+      "Hut 8"
+     ]
     },
     {
      "file": "Hut 8 Medicine Hat aerial 2.jpg",
-     "alt": "A grid of mining containers from directly above"
+     "alt": "A grid of mining containers from directly above",
+     "place": [
+      "Hut 8"
+     ]
     }
    ]
   },
@@ -211,10 +226,6 @@
    "match": "\\b(oil|crude|opec|brent|gas|lng|petrol|gasoline|diesel|fuel|refiner\\w*|pipelines?|drilling|energy prices?)\\b",
    "files": [
     {
-     "file": "Holstein at Dusk.jpg",
-     "alt": "Offshore oil platform lit at dusk"
-    },
-    {
      "file": "Oil pumpjack in the Permian Basin.jpg",
      "alt": "An oil pumpjack in a dry desert landscape"
     },
@@ -225,6 +236,10 @@
     {
      "file": "Caspian Sea nefteplatforma.jpg",
      "alt": "Offshore oil platforms seen from the air"
+    },
+    {
+     "file": "Colorful Old Oil Barrels.jpg",
+     "alt": "Weathered oil barrels stacked together"
     }
    ]
   },
@@ -286,19 +301,83 @@
    "files": [
     {
      "file": "EURO Cash Money Banknote (49643807026).jpg",
-     "alt": "Euro banknotes in close-up"
+     "alt": "Euro banknotes in close-up",
+     "place": [
+      "euro",
+      "eurozone",
+      "euro area",
+      "ECB",
+      "European Central Bank",
+      "Lagarde",
+      "EU",
+      "European Union",
+      "Europe",
+      "European"
+     ]
     },
     {
      "file": "Pile of Euro Notes (5856649637).jpg",
-     "alt": "A pile of euro banknotes"
+     "alt": "A pile of euro banknotes",
+     "place": [
+      "euro",
+      "eurozone",
+      "euro area",
+      "ECB",
+      "European Central Bank",
+      "Lagarde",
+      "EU",
+      "European Union",
+      "Europe",
+      "European"
+     ]
     },
     {
      "file": "US Dollar banknotes I.jpg",
-     "alt": "A fan of US dollar banknotes on a table"
+     "alt": "A fan of US dollar banknotes on a table",
+     "place": [
+      "United States",
+      "U.S.",
+      "US",
+      "USA",
+      "American",
+      "Americans",
+      "Washington",
+      "White House",
+      "New York",
+      "Wall Street",
+      "Fed",
+      "Federal Reserve",
+      "Nasdaq",
+      "Dow",
+      "S&P 500",
+      "Trump",
+      "Congress",
+      "Senate"
+     ]
     },
     {
      "file": "US Dollar banknotes II.jpg",
-     "alt": "Stacks of US dollar banknotes"
+     "alt": "Stacks of US dollar banknotes",
+     "place": [
+      "United States",
+      "U.S.",
+      "US",
+      "USA",
+      "American",
+      "Americans",
+      "Washington",
+      "White House",
+      "New York",
+      "Wall Street",
+      "Fed",
+      "Federal Reserve",
+      "Nasdaq",
+      "Dow",
+      "S&P 500",
+      "Trump",
+      "Congress",
+      "Senate"
+     ]
     }
    ]
   },
@@ -372,32 +451,116 @@
     },
     {
      "file": "Open Plan Office of Editors in Seznam cz.jpg",
-     "alt": "Rows of desks in an open-plan office"
+     "alt": "Rows of desks in an open-plan office",
+     "place": [
+      "Seznam"
+     ]
     },
     {
      "file": "Coworking space 2026-09-27.jpg",
      "alt": "Quiet work booths in a coworking space"
     }
-   ]
+   ],
+   "skip": "\\b(garment\\w*|factor(?:y|ies)|plants?|mines?|miners?|strikes?|striking|clash\\w*|protest\\w*|unions?|farm\\w*)\\b"
   }
  ],
  "topics": {
   "Markets": [
    {
     "file": "Manhattan skyline from Upper New York Bay, 20231001 1041 0889.jpg",
-    "alt": "The Lower Manhattan skyline seen from the water"
+    "alt": "The Lower Manhattan skyline seen from the water",
+    "place": [
+     "United States",
+     "U.S.",
+     "US",
+     "USA",
+     "American",
+     "Americans",
+     "Washington",
+     "White House",
+     "New York",
+     "Wall Street",
+     "Fed",
+     "Federal Reserve",
+     "Nasdaq",
+     "Dow",
+     "S&P 500",
+     "Trump",
+     "Congress",
+     "Senate"
+    ]
    },
    {
     "file": "Manhattan Bridge and Lower Manhattan from East River, 20231005 1103 2197.jpg",
-    "alt": "Lower Manhattan and a bridge across the river"
+    "alt": "Lower Manhattan and a bridge across the river",
+    "place": [
+     "United States",
+     "U.S.",
+     "US",
+     "USA",
+     "American",
+     "Americans",
+     "Washington",
+     "White House",
+     "New York",
+     "Wall Street",
+     "Fed",
+     "Federal Reserve",
+     "Nasdaq",
+     "Dow",
+     "S&P 500",
+     "Trump",
+     "Congress",
+     "Senate"
+    ]
    },
    {
     "file": "Financial District East Skyline, 2025.jpg",
-    "alt": "A financial district skyline above autumn trees"
+    "alt": "A financial district skyline above autumn trees",
+    "place": [
+     "United States",
+     "U.S.",
+     "US",
+     "USA",
+     "American",
+     "Americans",
+     "Washington",
+     "White House",
+     "New York",
+     "Wall Street",
+     "Fed",
+     "Federal Reserve",
+     "Nasdaq",
+     "Dow",
+     "S&P 500",
+     "Trump",
+     "Congress",
+     "Senate"
+    ]
    },
    {
     "file": "Buildings in Financial District, Manhattan.jpg",
-    "alt": "Office towers in a financial district"
+    "alt": "Office towers in a financial district",
+    "place": [
+     "United States",
+     "U.S.",
+     "US",
+     "USA",
+     "American",
+     "Americans",
+     "Washington",
+     "White House",
+     "New York",
+     "Wall Street",
+     "Fed",
+     "Federal Reserve",
+     "Nasdaq",
+     "Dow",
+     "S&P 500",
+     "Trump",
+     "Congress",
+     "Senate"
+    ]
    },
    {
     "file": "Stockmarket.jpg",
@@ -407,11 +570,32 @@
   "Economy": [
    {
     "file": "Washington State Ferry with Port of Seattle cranes from Kerry Park, June 2026.jpg",
-    "alt": "Container cranes above a harbour at sunset"
+    "alt": "Container cranes above a harbour at sunset",
+    "place": [
+     "United States",
+     "U.S.",
+     "US",
+     "USA",
+     "American",
+     "Americans",
+     "Washington",
+     "White House",
+     "New York",
+     "Wall Street",
+     "Fed",
+     "Federal Reserve",
+     "Nasdaq",
+     "Dow",
+     "S&P 500",
+     "Trump",
+     "Congress",
+     "Senate"
+    ]
    },
    {
     "file": "Corn combine harvest with grain cart-2.jpg",
-    "alt": "A combine harvester and grain cart at work in a field"
+    "alt": "A combine harvester and grain cart at work in a field",
+    "needs": "\\b(farm\\w*|harvest|crops?|grain|corn|wheat|soy\\w*|agricultur\\w*)\\b"
    },
    {
     "file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
@@ -425,27 +609,52 @@
   "Politics": [
    {
     "file": "Säynätsalo Town Hall council chamber ballot box.jpg",
-    "alt": "A carved wooden ballot box on a council table"
+    "alt": "A carved wooden ballot box on a council table",
+    "place": [
+     "Finland",
+     "Finnish",
+     "Helsinki"
+    ],
+    "needs": "\\b(elections?|votes?|voting|voters?|ballots?|referendum|polls?)\\b"
    },
    {
     "file": "2023 Polish parliamentary election and referendum. October 2023. Ballot box in Tomaszów Mazowiecki, Sikorskiego Street 6A.jpg",
-    "alt": "A transparent ballot box full of ballot papers"
+    "alt": "A transparent ballot box full of ballot papers",
+    "place": [
+     "Poland",
+     "Polish",
+     "Warsaw"
+    ],
+    "needs": "\\b(elections?|votes?|voting|voters?|ballots?|referendum|polls?)\\b"
    },
    {
     "file": "Example voting booth.jpg",
-    "alt": "A mechanical voting booth"
+    "alt": "A mechanical voting booth",
+    "needs": "\\b(elections?|votes?|voting|voters?|ballots?|referendum|polls?)\\b"
    },
    {
     "file": "Eusko Legebiltzarra, Euskal Herria.jpg",
-    "alt": "A parliament chamber with empty seats"
+    "alt": "A parliament chamber with empty seats",
+    "place": [
+     "Basque"
+    ],
+    "needs": "\\b(parliament|lawmakers?|legislat\\w+|MPs?|assembly)\\b"
    },
    {
     "file": "P20230324AS-3442 (52881292698).jpg",
-    "alt": "A wooden lectern with microphones and a red folder"
+    "alt": "A wooden lectern with microphones and a red folder",
+    "place": [
+     "White House",
+     "Biden"
+    ]
    },
    {
     "file": "Bermuda (UK) image number 282 courtroom.jpg",
-    "alt": "An empty courtroom with wooden benches"
+    "alt": "An empty courtroom with wooden benches",
+    "place": [
+     "Bermuda"
+    ],
+    "needs": "\\b(courts?|judges?|trial|ruling|ruled|lawsuit|sued?|verdict)\\b"
    }
   ],
   "Tech": [
@@ -477,7 +686,10 @@
    },
    {
     "file": "BESM-6 (London Science Museum).jpg",
-    "alt": "A large mainframe computer console"
+    "alt": "A large mainframe computer console",
+    "place": [
+     "BESM"
+    ]
    },
    {
     "file": "Data center roof.jpg",
@@ -499,7 +711,16 @@
    },
    {
     "file": "AUS Melbourne, Central Business District, Skyline 001.jpg",
-    "alt": "A business district skyline under clouds"
+    "alt": "A business district skyline under clouds",
+    "place": [
+     "Australia",
+     "Australian",
+     "Sydney",
+     "Melbourne",
+     "Canberra",
+     "Perth",
+     "Adelaide"
+    ]
    }
   ],
   "World": [
@@ -535,7 +756,12 @@
    },
    {
     "file": "Estantería de la Biblioteca Vasconcelos.jpg",
-    "alt": "A library with towering shelves seen from above"
+    "alt": "A library with towering shelves seen from above",
+    "place": [
+     "Mexico",
+     "Mexican",
+     "Mexico City"
+    ]
    },
    {
     "file": "Asikkala Library interior 5.jpg",
@@ -545,40 +771,54 @@
   "Sport": [
    {
     "file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg",
-    "alt": "An empty pit straight at a racing circuit"
+    "alt": "An empty pit straight at a racing circuit",
+    "sport": "f1"
    },
    {
     "file": "Inter&Co Stadium gridiron football configuration.jpg",
-    "alt": "An American football stadium"
+    "alt": "An American football stadium",
+    "sport": "nfl"
    },
    {
     "file": "OAKA Basketball Arena in December 2024.jpg",
-    "alt": "A basketball arena"
+    "alt": "A basketball arena",
+    "sport": "nba"
    },
    {
     "file": "Tennis line markings (Unsplash).jpg",
-    "alt": "Line markings on a clay tennis court"
+    "alt": "Line markings on a clay tennis court",
+    "sport": "tennis"
    },
    {
     "file": "Adelaide Oval (23183793744).jpg",
-    "alt": "A cricket oval"
+    "alt": "A cricket oval",
+    "sport": "cricket"
    },
    {
     "file": "Putting green at the Royal Canberra Golf Club 4.JPG",
-    "alt": "A putting green and bunker seen from above"
+    "alt": "A putting green and bunker seen from above",
+    "sport": "golf"
    },
    {
     "file": "Boxing ring, MGM Grand.jpg",
-    "alt": "A boxing ring"
+    "alt": "A boxing ring",
+    "sport": "boxing"
    },
    {
     "file": "The Olympic Rings in Tokyo 04.jpg",
-    "alt": "The Olympic rings"
+    "alt": "The Olympic rings",
+    "sport": "olympics"
    },
    {
     "file": "Hinchliffe Stadium (Paterson, NJ).jpg",
-    "alt": "A football stadium seen from above"
+    "alt": "A football stadium seen from above",
+    "sport": "football"
    }
   ]
- }
+ },
+ "_fields": "place: names one of which the article must carry, on a file whose picture itself names a place (a skyline, a parliament, a ballot box, a currency, a landmark) or another organisation; needs: a pattern the article must match (a ballot box needs an election); skip on a rule: a pattern that keeps the rule off the article; sport: the sport a Sport-topic file shows; retired: files taken off the lists, which audit holds wherever they still are",
+ "retired": [
+  "Holstein at Dusk.jpg",
+  "Old Chinese Lock (B&W) 2.jpg"
+ ]
 }

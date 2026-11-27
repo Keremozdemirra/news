@@ -83,12 +83,12 @@ LAST = {}  # file -> when a post last used it, for the scene photos' least-recen
 
 
 def pick_photo(story, head_, co, fetch=True, sport=False):
-    """(path, credit, Commons file, kind, alt) of the photo a story carries; kind is person, company, name or scene.
+    """(path, credit, Commons file, kind, alt) of the photo a story carries; kind is person, company or scene.
 
-    Every story gets a picture, from the nearest to the story outward: the named person, the company's own photos
-    (its aircraft, its headquarters), another proper name the headline carries (a place, an organisation), and last
-    a hand-vetted scene for the topic. A search that guessed at a topic once put a stranger's wall on a story, so the
-    scenes are a fixed list and the rest only use files whose own title names the subject."""
+    Every story gets a picture: the named person, else the company's own photos (its aircraft, its headquarters),
+    else a hand-vetted scene that fits the article (scenes.fits). Searching Commons for the other proper names in a
+    headline was dropped on 2026-11-27: it gave a Ford car museum for Ontario's premier Doug Ford, an Ebola
+    symptoms diagram, Trump at a UFC fight and a satellite view of Russia."""
     allow = head_ + " " + (co or "")
     title = story.get("headline") or story.get("title") or ""
     ph, credit, file_, kind, alt = None, "", "", "", ""
@@ -103,14 +103,6 @@ def pick_photo(story, head_, co, fetch=True, sport=False):
         if file_:
             kind = tag
             break
-    if not file_ and fetch and not sport:
-        for name in entities.headline_names(title, skip=[story.get("person", ""), co]):
-            if entities.is_human(name):
-                continue
-            ph, credit, file_ = entities.fresh_photo([(name, False)], USED, fetch=fetch, allow=allow, strict=True)
-            if file_:
-                kind = "name"
-                break
     if not file_ and fetch:
         text = title + " " + story.get("summary", "")
         ph, credit, file_, alt = scenes.photo(text, story.get("topic", ""), USED, LAST, fetch=fetch, sport=sport)
