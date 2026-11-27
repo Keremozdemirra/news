@@ -1,0 +1,65 @@
+{
+ "id": "2026-11-27-2037-1",
+ "batch": "2026-11-27-2037",
+ "n": 1,
+ "created": "2026-11-27T20:37:06+00:00",
+ "layout": "type",
+ "photos": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Uganda says it will withdraw troops from DR Congo town of Lubero\n\nArmy chief Muhoozi Kainerugaba, son of President Yoweri Museveni, had threatened days earlier to take control of Walikale. Uganda's army announced the withdrawal plan on Friday. Lubero and Walikale are both in North Kivu, and the threat led to a diplomatic spat between the neighboring countries.\n\nReported by France 24; BBC; Africanews.\n\nSend this to a colleague who tracks global risk.\n\n#worldnews\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.france24.com/en/africa/20261127-uganda-withdraw-troops-dr-congo-town-after-army-chief-threat-row"
+ ],
+ "links": [
+  "http://www.africanews.com/2026/11/27/uganda-to-withdraw-troops-from-eastern-dr-congo-town-amid-diplomatic-spat/",
+  "https://www.bbc.co.uk/news/articles/cq4gnj2ldkyzo?at_medium=RSS&at_campaign=rss",
+  "https://www.france24.com/en/africa/20261127-uganda-withdraw-troops-dr-congo-town-after-army-chief-threat-row"
+ ],
+ "headlines": [
+  "Uganda says it will withdraw troops from DR Congo town of Lubero"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "World",
+ "photo_file": "Alley of flags UNO Geneva.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "National flags along the approach to the UN in Geneva",
+ "score": 8.587,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "military trucks",
+ "orgs": [
+  "Ugandan army"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Army chief Muhoozi Kainerugaba, son of President Yoweri Museveni, had threatened days earlier to take control of Walikale.",
+ "body": "Uganda's army announced the withdrawal plan on Friday. Lubero and Walikale are both in North Kivu, and the threat led to a diplomatic spat between the neighboring countries.",
+ "supported": "84b4672958a6",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "France 24",
+  "BBC",
+  "Africanews"
+ ],
+ "source_urls": [
+  "https://www.france24.com/en/africa/20261127-uganda-withdraw-troops-dr-congo-town-after-army-chief-threat-row",
+  "http://www.africanews.com/2026/11/27/uganda-to-withdraw-troops-from-eastern-dr-congo-town-amid-diplomatic-spat/",
+  "https://www.bbc.co.uk/news/articles/cq4gnj2ldkyzo?at_medium=RSS&at_campaign=rss"
+ ],
+ "credit": "Photo: Tinux, CC0, via Wikimedia Commons",
+ "credit_file": "Alley of flags UNO Geneva.jpg",
+ "status": "web",
+ "published": "2026-11-27T20:37:06+00:00",
+ "story": ""
+}
