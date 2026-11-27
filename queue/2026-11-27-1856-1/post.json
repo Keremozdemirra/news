@@ -91,6 +91,15 @@
    "url": "https://t.me/boardread/39",
    "at": "2026-11-27T21:20:16+00:00",
    "format": "photo"
+  },
+  "threads": {
+   "id": "17895964269621936",
+   "url": "https://www.threads.com/@boardread/post/DgQpje1naOl",
+   "at": "2026-11-27T21:31:28+00:00",
+   "format": "text",
+   "reply": {
+    "id": "17997817460848614"
+   }
   }
  }
 }
