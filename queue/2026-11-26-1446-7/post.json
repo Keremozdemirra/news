@@ -25,7 +25,7 @@
   "news"
  ],
  "topic": "Tech",
- "photo_file": "Graphics Processing Unit.JPG",
+ "photo_file": "ESP32 SH1106 Power-Meter 01.jpg",
  "score": 7.93,
  "dek": "The halt follows a new U.S. rule requiring licenses for companies in those countries to buy advanced A.I. chips.",
  "body": "Nvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries.",
@@ -39,7 +39,7 @@
   "https://the-decoder.com/nvidia-halts-server-shipments-to-malaysia-singapore-thailand-and-indonesia-after-tighter-us-export-controls/",
   "https://www.ft.com/content/7838a715-07d4-4605-aa60-21f5af2b2370?syn-25a6b1a6=1"
  ],
- "credit": "Photo: Raimond Spekking, CC BY-SA 4.0, via Wikimedia Commons",
+ "credit": "Photo: King of Pwnt, CC0, via Wikimedia Commons",
  "issue": 2,
  "story": "story.jpg",
  "published": "2026-11-26T15:32:59+00:00",
@@ -51,5 +51,8 @@
   "why": "a sentence restated the dek",
   "dek": "The halt follows a new U.S. rule requiring licenses for companies in those countries to buy advanced A.I. chips.",
   "body": "Nvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries. It follows a new U.S. rule that would require licenses for companies in those countries to buy advanced A.I. chips."
- }
+ },
+ "credit_file": "ESP32 SH1106 Power-Meter 01.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A microcontroller board on a breadboard"
 }

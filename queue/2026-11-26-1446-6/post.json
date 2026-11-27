@@ -25,7 +25,7 @@
   "funding"
  ],
  "topic": "Business",
- "photo_file": "Norse Atlantic Airways Boeing 787 LN-FND Oslo Gardermoen 2024 (01).jpg",
+ "photo_file": "GIB Bags New.JPG",
  "score": 10.39,
  "dek": "The carrier is seeking urgent funding and will file for bankruptcy without a financial lifeline.",
  "body": "Norse Atlantic has suspended all flights as it faces potential collapse. The carrier is looking for urgent funding. It will file for bankruptcy without a financial lifeline.",
@@ -39,7 +39,7 @@
   "https://www.cnbc.com/2026/11/26/norse-airline-finance-business.html",
   "https://www.theguardian.com/business/2026/nov/26/norse-atlantic-airways-suspends-all-flights-urgent-funding-plea"
  ],
- "credit": "Photo: Bahnfrend, CC BY-SA 4.0, via Wikimedia Commons",
+ "credit": "Photo: MKY661, Public domain, via Wikimedia Commons",
  "story": "",
  "published": "2026-11-26T15:19:48+00:00",
  "media_id": "18123750487965132",
@@ -61,5 +61,8 @@
    "at": "2026-11-26T17:41:33+00:00"
   }
  },
- "score_before": 10.397
+ "score_before": 10.397,
+ "credit_file": "GIB Bags New.JPG",
+ "photo_kind": "scene",
+ "photo_alt": "A baggage carousel in an arrivals hall"
 }
