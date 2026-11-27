@@ -198,3 +198,30 @@ class CardVideoFit(Tmp):
                                  "kind": "person", "logos": []})
         with mock.patch.object(T, "layout", return_value="photo"):
             self.assertIn("font-size:22px!important", CV.layer_html(s, "card", "base"))
+
+
+class Gated(unittest.TestCase):
+    def test_a_reel_that_fails_the_gate_is_set_on_black_then_given_up(self):
+        calls = []
+
+        def build(story, out, shape="card", seconds=8, footage=None, layout=None):
+            calls.append(layout)
+            if layout != "plain":
+                raise CV.GateFail("text in the app's zone")
+            return Path(out)
+        with mock.patch.object(CV, "build", side_effect=build):
+            self.assertEqual(CV.build_gated({}, "x.mp4", "reel", layout="lower")[1], "plain")
+        self.assertEqual(calls, ["lower", "plain"])
+        with mock.patch.object(CV, "build", side_effect=CV.GateFail("still bad")), self.assertRaises(CV.GateFail):
+            CV.build_gated({}, "x.mp4", "reel", layout="plain")
+
+    @unittest.skipUnless(HAVE, "needs ffmpeg and Chrome")
+    def test_text_under_the_buttons_or_on_the_wordmark_fails(self):
+        s = dict(STORY, headline="Short headline", published="2026-11-27T08:00:00+00:00",
+                 _assets={"photo": "", "credit": "Photo: K. Zirkel, CC BY 4.0, via Wikimedia Commons", "file": "P.jpg",
+                          "kind": "person", "logos": []})
+        base = RC.layer(s, "lower", "base")
+        low = RC._wrap('<div style="position:absolute;left:120px;top:1700px;font-size:60px">Under the caption</div>')
+        with self.assertRaises(CV.GateFail):
+            CV.gate_pages([(base, 0, None, "base"), (low, 0, 3, "text")])
+        CV.gate_pages([(base, 0, None, "base"), (RC.layer(s, "lower", "head"), 0, 3, "text")])  # the real headline passes

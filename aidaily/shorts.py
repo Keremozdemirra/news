@@ -259,10 +259,21 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             except Exception as e:  # noqa: BLE001
                 print(f"shorts: narration skipped, silent Short: {str(e)[:200]}")
                 nar = None
-        pages, total = plan
         fx, fy = CV.reel_focus(story)[:2] if not footage else (0.5, 0.5)
-        CV.build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy), footage=footage,
-                          voice=voice_cues)
+        try:
+            CV.build_sequence(out_mp4, plan[0], plan[1], RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy),
+                              footage=footage, voice=voice_cues)
+        except CV.GateFail as e:
+            if layout == "plain":
+                raise
+            # the visual gate refused a frame: the same Short set on black, its timing kept for the voice
+            print(f"shorts: gate failed in {layout} ({str(e)[:160]}); set on black instead")
+            layout = "plain"
+            again = SF.post_timeline(structure, post, story, layout, facts(post, 3), outlets_line(post))
+            plan = SF.stretch(again, plan[1]) if again else plan
+            CV.build_sequence(out_mp4, plan[0], plan[1], RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy),
+                              footage=footage, voice=voice_cues)
+        total = plan[1]
     if info is not None:
         info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar),
                     **({"voice": nar.name} if nar and nar.name else {}))

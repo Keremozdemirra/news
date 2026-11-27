@@ -656,15 +656,15 @@ def make_video(s, img, post_id, clip=None, shape=None):
                     src = broll.fetch(clip, Path(tmp) / "clip.mp4", seconds)
                     fs = CV.with_footage(s, clip)
                     layout = CV.reel_layout(fs, post_id, footage=True, avoid=last_reel_layout()) if reels else None
-                    mp4 = CV.build(fs, img / "video.mp4", shape, seconds=seconds, footage=src, layout=layout)
+                    mp4, layout = CV.build_gated(fs, img / "video.mp4", shape, seconds=seconds, footage=src, layout=layout)
                 footage = {"id": clip["id"], "credit": broll.credit(clip), "page": clip["page"], "licence": clip["licence"]}
             except Exception as e:  # noqa: BLE001  footage that will not fetch or render: the photo moves instead
                 print(f"{post_id}: footage {clip['id']} failed, moving photo instead: {str(e)[:200]}")
                 layout = CV.reel_layout(s, post_id, avoid=last_reel_layout()) if reels else None
-                mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
+                mp4, layout = CV.build_gated(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
         else:
             layout = CV.reel_layout(s, post_id, avoid=last_reel_layout()) if reels else None
-            mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
+            mp4, layout = CV.build_gated(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
         CV.cover(mp4, img / "cover.jpg")
     except Exception as e:  # noqa: BLE001  a render failure costs the video, never the post
         print(f"{post_id}: video render failed, stills only: {str(e)[:300]}")

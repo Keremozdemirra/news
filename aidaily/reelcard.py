@@ -49,7 +49,7 @@ GEO = {
     "photo-top": {"band": (0, 760), "box": (880, 1390, "start"), "foot": ("bottom", SAFE_BOTTOM), "credit": 776},
     "photo-bottom": {"band": (990, 1610), "box": (320, 890, "start"), "foot": ("top", SAFE_TOP), "credit": 904},
     # no picture: type on black (the Short's data and brief structures); never picked for a photo
-    "plain": {"band": (0, 0), "box": (400, 1420, "center"), "foot": ("top", SAFE_TOP), "credit": None},
+    "plain": {"band": (0, 0), "box": (330, 1400, "center"), "foot": ("top", SAFE_TOP), "credit": None},
 }
 SCRIM = {  # the card's own gradient (templates.card, tall), the same turned over, and the same as a band
     "bottom": "rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.84) 58%,rgba(0,0,0,.94) 100%",
@@ -260,14 +260,19 @@ def layer(story, name, part):
         side, y = g["foot"]
         pos = f"bottom:{H - y}px" if side == "bottom" else f"top:{y}px"
         credit = _credit_text(story) if name != "plain" else ""
-        cred = (f'<div style="margin-top:10px;font-size:{CREDIT_PX}px;line-height:1.3;color:{T.GREY_DARK}">{credit}</div>'
+        cred = (f'<div data-credit style="margin-top:10px;font-size:{CREDIT_PX}px;line-height:1.3;color:{T.GREY_DARK}">{credit}</div>'
                 if credit else "")
         if name == "plain":
-            inner += f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
+            # type on black: the wordmark row on top and the way to the full story at the foot, so the frame has no
+            # empty band deeper than the gate allows (gate.DEAD, 15% of the height)
+            inner += (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
+                      f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;bottom:{H - SAFE_BOTTOM}px;'
+                      f'font-size:34px;font-weight:500;color:#9aa0a8">{T.e(story.get("end_line", "Full story on"))} '
+                      f'<span style="color:{T.WHITE};font-weight:700">{T.e(T.domain())}</span></div>')
         elif "credit" in g:  # the band layouts: the wordmark row where the foot goes, the credit as a caption by the photo
             inner += f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
             if credit:
-                inner += (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:{g["credit"]}px;'
+                inner += (f'<div data-credit style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:{g["credit"]}px;'
                           f'font-size:{CREDIT_PX}px;line-height:1.3;color:{T.GREY_DARK}">{credit}</div>')
         else:
             inner += f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}{cred}</div>'
@@ -276,17 +281,19 @@ def layer(story, name, part):
         meta = (f'<div style="font-size:30px;color:#D6D6D6;margin-bottom:24px;{"visibility:hidden" if part == "head" else ""}">'
                 f'{T._breaking(story, True)}{T._meta_html(T._meta_card(story), T.WHITE)}</div>')
         # "pretty" fills each line and only keeps a last word from standing alone; "balance" would narrow every line
-        head = _fit(story.get("headline") or story["title"], 136, 60, 4, room - 80, 1.02, wrap="pretty",
-                    extra="visibility:hidden" if part == "meta" else "")
+        big_type = name == "plain"  # no picture: the type fills the frame
+        head = _fit(story.get("headline") or story["title"], 190 if big_type else 136, 60, 6 if big_type else 4, room - 80,
+                    1.02, wrap="pretty", extra="visibility:hidden" if part == "meta" else "")
         inner = f'<div style="{box}">{meta}{head}</div>'
     elif part == "fact":
         big, line = fact(story)
         parts = _fit(big, 300, 120, 1, 330, 0.95, track="-0.04em", extra="margin-bottom:24px") if big else ""
-        parts += _fit(line, 72 if big else 88, 44, 5 if big else 6, room - (360 if big else 0), 1.14,
+        parts += _fit(line, (72 if big else 88) + (24 if name == "plain" else 0), 44, 6 if big else 7, room - (360 if big else 0), 1.14,
                       weight=500 if big else 700, track="-0.01em", wrap="pretty")
         inner = f'<div style="{box}">{parts}</div>'
     elif part == "source":
-        inner = f'<div style="{box}">' + _fit(source_line(story), 84, 48, 4, room, 1.1, weight=700, track="-0.015em", wrap="pretty") + "</div>"
+        inner = f'<div style="{box}">' + _fit(source_line(story), 110 if name == "plain" else 84, 48, 5, room, 1.1, weight=700,
+                                              track="-0.015em", wrap="pretty") + "</div>"
     elif part == "end":
         inner = (f'<div style="position:absolute;inset:0;background:{T.STORY_BG};display:flex;flex-direction:column;'
                  f'justify-content:center;padding:0 {W - RIGHT}px 180px {LEFT}px">'

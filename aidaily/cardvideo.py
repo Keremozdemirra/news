@@ -263,6 +263,18 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=No
     return out_mp4
 
 
+def build_gated(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=None):
+    """build(), and for a Reel whose frames fail the visual gate, the same Reel set on black ("plain"); a Reel that
+    fails that too raises GateFail and the post goes out as stills. Returns (path, layout used)."""
+    try:
+        return build(story, out_mp4, shape, seconds=seconds, footage=footage, layout=layout), layout
+    except GateFail as e:
+        if shape != "reel" or not layout or layout == "plain":
+            raise
+        print(f"reel gate failed in {layout} ({str(e)[:160]}); set on black instead")
+        return build(story, out_mp4, shape, seconds=seconds, footage=footage, layout="plain"), "plain"
+
+
 def build_reel(story, out_mp4, layout, footage=None):
     """The sequenced Reel (reelcard): the picture fills its layout's band (the rest black), and the layers come and go
     on the plan's clock: headline, fact, who reported it, end frame."""
@@ -275,7 +287,46 @@ def build_reel(story, out_mp4, layout, footage=None):
                           footage=footage)
 
 
-def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5), footage=None, voice=None):
+class GateFail(ValueError):
+    """A frame failed the shared visual gate (gate.py): the caller falls back to a plainer layout or no video."""
+
+
+def gate_pages(pages):
+    """The shared visual gate (gate.py, fmt "reel") on every text page laid over the base page, so a headline that
+    runs into the wordmark or the credit on the base is caught, as are text outside x 120-880 / y 250-1500, clipped
+    text and credits under 22 px. Raises GateFail with the problems; the end frame is checked on its own."""
+    from . import gate as G
+    base = next((h for h, *_, k in pages if k == "base"), None)
+    bm = G.measure(base, "reel") if base else {"text": [], "chips": [], "credits": [], "clipped": []}
+    problems = list(G.layout_problems(bm, "reel"))
+    for html_, *_, kind in pages:
+        if kind == "base":
+            continue
+        m = G.measure(html_, "reel")
+        if kind == "end":
+            problems += G.layout_problems(m, "reel")
+            continue
+        off = len(bm["text"])
+        merged = {"text": [dict(t) for t in bm["text"]] + [dict(t, nest=[j + off for j in t.get("nest", [])]) for t in m["text"]],
+                  "chips": bm["chips"] + m["chips"], "credits": [], "clipped": m["clipped"]}
+        problems += [p for p in G.layout_problems(merged, "reel") if p not in problems]
+    if problems:
+        raise GateFail("; ".join(dict.fromkeys(problems))[:500])
+
+
+def gate_frame(mp4, at=1.6):
+    """Dead space on one composed frame, once the headline is in (gate.dead_space measures y 250-1500 only)."""
+    from . import gate as G
+    with tempfile.TemporaryDirectory() as tmp:
+        png = Path(tmp) / "f.png"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", str(at), "-i", str(mp4), "-frames:v", "1", str(png)],
+                       check=True, capture_output=True, timeout=60)
+        d = G.dead_space(png, "reel")
+    if d > G.DEAD:
+        raise GateFail(f"empty band {d:.0%} of the frame deep")
+
+
+def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5), footage=None, voice=None, gate=True):
     """A 1080x1920 video of transparent pages over a picture: footage (a clip, held on its last frame when short), else
     the photo with the camera move, else plain black. The picture fills `band` (y0, y1), black around it.
     pages: (html, t_in, t_out, kind); kind "base" is on screen throughout, "text" fades in rising and fades out,
@@ -288,6 +339,8 @@ def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5),
     bh = y1 - y0
     out_mp4 = Path(out_mp4)
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
+    if gate:
+        gate_pages(pages)
     with tempfile.TemporaryDirectory() as tmp:
         pngs = []
         for i, (html_, *_rest) in enumerate(pages):
@@ -335,6 +388,8 @@ def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5),
         cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(pages) + 1}:a",
                 "-t", f"{total}", "-r", str(FPS)] + ENCODE + [str(out_mp4)]
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=900)
+    if gate:
+        gate_frame(out_mp4)
     return out_mp4
 
 
