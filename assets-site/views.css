@@ -135,26 +135,24 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .cvbig{color:var(--ink);margin-top:var(--s2);max-width:760px}.curve{width:100%;height:auto;display:block}
 
 /* ---- article ---- */
-.art{display:block;grid-template-columns:none;max-width:760px;margin:0 auto;padding:var(--s4) 0 0;gap:0}
+.art{display:block;grid-template-columns:none;max-width:680px;margin:0 auto;padding:var(--s4) 0 0;gap:0}
 .art-head .kick{margin-bottom:var(--s1)}
 .art h1{font:600 var(--t-h1)/1.15 var(--serif);letter-spacing:0;text-wrap:balance;margin:0 0 var(--s2)}
 .art .dek{font:400 var(--t-dek)/1.45 var(--serif);color:var(--soft);margin:0 0 var(--s2);max-width:none}
-.byline{display:flex;flex-wrap:wrap;gap:4px var(--s2);font:500 14px/1.45 var(--f);color:var(--ink);padding:12px 0 0;border-top:1px solid var(--rule)}
 .byline a{text-decoration:underline;text-underline-offset:3px}.byline a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .corr{margin:var(--s2) 0 0;padding:var(--s1) var(--s2);border-left:3px solid var(--ink);font:500 15px/1.5 var(--f)}
-.srcs{margin:0;padding:var(--s1) 0 0;font:500 14px/1.45 var(--f);display:flex;flex-wrap:wrap;gap:0 var(--s1);align-items:baseline}
+.srcs{margin:0;padding:0 0 var(--s2);border-bottom:1px solid var(--rule);margin-bottom:var(--s2);font:500 14px/1.45 var(--f);display:flex;flex-wrap:wrap;gap:0 var(--s1);align-items:baseline}
 .srcs a{text-decoration:underline;text-underline-offset:3px}
 .srcs .tag{border:1px solid var(--ink);padding:0 6px;font:600 12px/1.6 var(--f)}
-.byline span+span::before{content:"\00b7";margin-right:var(--s2);color:var(--soft)}
-.art-meta{display:flex;flex-wrap:wrap;gap:4px var(--s2);padding:var(--s1) 0 var(--s2);margin-bottom:var(--s2);border-bottom:1px solid var(--rule)}
+.art-meta{display:flex;flex-wrap:wrap;gap:4px var(--s2);padding:var(--s1) 0 var(--s1);margin:0}
 .art-meta span+span::before{content:"\00b7";margin-right:var(--s2)}
 .art figure{margin:0 0 var(--s4)}.art figure img{width:100%;aspect-ratio:16/9;object-fit:cover;object-position:50% 25%}
 .art .pic{aspect-ratio:16/9;display:block;background:var(--wash)}
 .art figcaption{margin-top:var(--s1)}
-.art-body,.body{max-width:640px}
+.art-body,.body{max-width:none}
 .happened .lab{display:none}
 .body p{font:400 var(--t-body)/1.62 var(--serif);margin:0 0 1em}
-.disclose{font:400 14px/1.5 var(--f);color:var(--soft);margin:var(--s3) 0;padding-top:var(--s2);border-top:1px solid var(--rule)}
+.disclose{max-width:none;font:400 14px/1.5 var(--f);color:var(--soft);margin:var(--s3) 0;padding-top:var(--s2);border-top:1px solid var(--rule)}
 .disclose a,.reported a{text-decoration:underline;text-underline-offset:3px}
 .reported{font:400 15px/1.5 var(--f);margin:0 0 var(--s1)}
 .share{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 var(--s2);margin:var(--s3) 0;font:500 14.5px/1.4 var(--f)}
@@ -166,7 +164,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .numbox h2{font:700 15px/1.3 var(--f);margin:0 0 var(--s1)}
 .numbox .big{font:600 56px/1 var(--serif);margin:0 0 var(--s1)}.numbox .ncap{font:400 16px/1.45 var(--serif);color:var(--soft)}
 .cxb{margin:var(--s4) 0}.cxb h2{font:700 15px/1.3 var(--f);border-top:2px solid var(--ink);padding-top:var(--s1);margin:0 0 var(--s1)}
-.made{margin:var(--s4) 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.made{max-width:none;margin:var(--s4) 0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
 .made summary{font:600 15px/1.3 var(--f);padding:12px 0;min-height:44px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
 .made summary::-webkit-details-marker{display:none}.made summary::after{content:"+";font-weight:400}.made[open] summary::after{content:"\2212"}
 .made-body{font:400 15px/1.55 var(--f);color:var(--soft);padding-bottom:var(--s2)}
@@ -326,7 +324,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 /* rows carry no image (v2); the lead of a listing is 16:9 */
 .listing .row{grid-template-columns:minmax(0,1fr)}.listing .row .pic,.row:not(.dep) .pic{display:none}
 .leadrow .pic{aspect-ratio:16/9}
-@media(max-width:720px){.byline{flex-direction:column;align-items:flex-start;gap:2px}.byline span+span::before{content:none}.art-meta span+span::before{margin-right:var(--s1)}}
+@media(max-width:720px){.art-meta span+span::before{margin-right:var(--s1)}}
 .bside .rtgrid{grid-template-columns:1fr}.bside .rt{grid-template-columns:1fr auto}.bside .rt .rs{display:none}.bside .rt .rc{grid-column:2}
 
 /* ---- touch: a link that stands alone is at least 44 px to hit. The padding is cancelled by an equal negative margin, so the page does not move. ---- */

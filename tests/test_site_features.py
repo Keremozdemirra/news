@@ -65,7 +65,7 @@ class Features(Tmp):
     def test_coverage_meter_counts_newsrooms_without_the_aggregator(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
         self.assertIn("2 newsrooms", h)
-        self.assertIn("<b>Sources</b>", h)  # the outlet names, as text, under the byline
+        self.assertIn("<b>Sources:</b>", h)  # the outlet names, as text, under the date line
         self.assertNotIn('class="mtr"', h)  # no box meters
         self.assertIn("2 newsrooms", self.read("index.html"))
 
@@ -407,7 +407,7 @@ class FrontBuilt(Features):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)
         self.assertNotIn('href="/quiz/"', h)
-        self.assertIn("Boardread desk, written by AI", self.read("s/2026-11-26-0900-1/index.html"))
+        self.assertNotIn("Boardread desk, written by AI", self.read("s/2026-11-26-0900-1/index.html"))  # said once, in the end note
 
     def test_front_rates_block_has_one_source_line_and_no_chart(self):
         h = self.read("index.html")

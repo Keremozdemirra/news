@@ -393,11 +393,13 @@ class Built(Features):
             self.assertRegex(self.read(page), r'<p class="upd" data-built="\d{4}-\d\d-\d\dT[\d:]+Z">Updated (\d+ \w+, )?\d\d:\d\d UTC</p>')
         self.assertIn("3 * 36e5", (site.ASSETS / "site.js").read_text())
 
-    def test_sources_sit_under_the_byline_one_newsroom_is_called_single_source_and_ld_cites_them(self):
+    def test_sources_sit_under_the_date_line_one_newsroom_is_called_single_source_and_ld_cites_them(self):
         h = self.read("s/2026-11-26-0900-1/index.html")  # CNBC and the Financial Times (Techmeme is an aggregator)
-        self.assertRegex(h, r'<p class="srcs"><b>Sources</b> <span><a href="https://www.cnbc.com/a"[^>]*>CNBC</a> and <a href="https://www.ft.com/b"[^>]*>Financial Times</a></span></p>')
+        self.assertRegex(h, r'<p class="srcs"><b>Sources:</b> <span><a href="https://www.cnbc.com/a"[^>]*>CNBC</a> and <a href="https://www.ft.com/b"[^>]*>Financial Times</a></span></p>')
         self.assertNotIn("Single source", h)
-        self.assertLess(h.index('class="byline"'), h.index('class="srcs"'))
+        self.assertLess(h.index('class="mt art-meta"'), h.index('class="srcs"'))  # the date line, then the sources
+        self.assertNotIn('class="byline"', h)
+        self.assertEqual(h.count("written by AI") + h.count("Written by AI"), 2, "said once in the end note, once in the footer")
         ld = json.loads(re.findall(r'<script type="application/ld\+json">(.*?)</script>', h)[0])
         self.assertEqual([c["name"] for c in ld["citation"]], ["CNBC", "Financial Times"])
         self.assertEqual(ld["citation"][0]["url"], "https://www.cnbc.com/a")
