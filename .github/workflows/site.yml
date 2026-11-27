@@ -1,12 +1,17 @@
 name: site
 # Rebuilds the news site (the address is desk.json site_url) when what the pages are made from changed. Publish runs finish hundreds of times
-# a day; the live site carries a fingerprint of its inputs (built-from.txt), and a run whose fingerprint matches
+# a day; workflow_run alone stopped firing for them on 2026-11-27 (no run after 00:47 UTC, the site went 7 hours
+# stale), so the tick also starts this every ten minutes with auto=yes. The live site carries a fingerprint of its inputs (built-from.txt), and a run whose fingerprint matches
 # stops there. Static files only.
 on:
   workflow_run:
     workflows: [daily, publish, weekly]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      auto:
+        description: "yes when the tick starts it: build only if the inputs changed, like a workflow_run"
+        default: "no"
 permissions:
   contents: read
   pages: write
@@ -40,7 +45,7 @@ jobs:
           try: print(int((d.datetime.now(d.timezone.utc) - d.datetime.fromisoformat(json.load(sys.stdin)["generated"])).total_seconds() // 60))
           except Exception: print(9999)')
           echo "want=$want" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$want" != "$live" ] || [ "$age" -ge 60 ]; then
+          if { [ "${{ github.event_name }}" = workflow_dispatch ] && [ "${{ inputs.auto }}" != yes ]; } || [ "$want" != "$live" ] || [ "$age" -ge 60 ]; then
             echo "build=yes" >> "$GITHUB_OUTPUT"
           else
             echo "build=no" >> "$GITHUB_OUTPUT"; echo "site already up to date"

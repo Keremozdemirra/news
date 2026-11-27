@@ -52,6 +52,11 @@ jobs:
             else
               fails=$((fails + 1)); echo "$(date -u +%H:%M) $next not started ($fails in a row)"
             fi
+            # workflow_run from the publish runs stopped firing (2026-11-27, the site went 7 hours stale): start the site
+            # check every ten minutes as well; with auto=yes it builds only when its inputs changed
+            if [ $(( $(date +%s) / 300 % 2 )) = 1 ]; then
+              gh workflow run site.yml --ref main -f auto=yes >/dev/null 2>&1 || echo "$(date -u +%H:%M) site.yml not started"
+            fi
             # A GitHub outage fails every dispatch; quitting early only turned each outage into a red run (an e-mail)
             # every 100 minutes. The loop rides it out, and the run turns red once, at the end, if it never recovered.
             [ "$fails" -gt "$worst" ] && worst=$fails
