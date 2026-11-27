@@ -201,8 +201,8 @@ class Copy(unittest.TestCase):
 
     def test_report_never_repeats_the_dek_and_a_lone_headline_repeat_goes(self):
         # site QA, 2026-11-27: the SAP article printed the dek, then the same sentence as its body
-        s = {"title": "SAP explores at least 10,000 job cuts", "summary": "The European software group is the latest to "
-             "restructure as AI hits the software sector. Talks are at an early stage.", "source": "FT"}
+        s = {"title": "SAP explores at least 10,000 job cuts", "summary": "SAP is the latest European software group to "
+             "restructure, as AI cuts into the software sector. Talks are at an early stage.", "source": "FT"}
         rows = [{"id": 0, "headline": "SAP explores at least 10,000 job cuts",
                  "dek": "The European software group is the latest to restructure as AI hits the software sector.", "x_post": "",
                  "linkedin_post": "The European software group is the latest to restructure as AI hits the software sector. "

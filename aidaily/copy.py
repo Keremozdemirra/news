@@ -98,14 +98,18 @@ Fields:
 - figure: the single key figure as written in the source, digits only, like "$36M", "40%" or "77,000" ("" if
   none, if it is a word like "a quarter", or if the source qualifies it with "more than", "up to", "about")
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
-- linkedin_post: the report, printed under the headline and the dek: 2 to 4 short sentences, each a fact that
-  is in neither of them (a sentence that says the headline or the dek again is deleted). Draw on every report
-  listed: who, what, how much, when, where, what was said, what happens next as the source states it. The first
-  sentence names its subject: never open with "It", "This", "They", "These", "Together" or "also". Every sentence is
-  about the story the headline names: nothing from another story ("Separately, ..."), nothing about the source
-  article itself ("named in the report's headline"). Each sentence
-  complete and grammatical, never a source phrase pasted into another sentence. If the sources hold no fact beyond
-  the headline and dek, write only the Source line. End with the line "Source: <outlet>"
+- linkedin_post: the report, printed under the headline and the dek. Two sentences when one newsroom reported the
+  story (nothing under "also reported"); three to five when two or more newsrooms each add a fact the others lack.
+  Every sentence is a fact that is in neither the headline nor the dek (a sentence that says either again is
+  deleted). Use every such fact the listed reports hold: who, what, how much, when, where, what was said, what
+  happens next as the sources state it; no fact that only one sentence of a source half-states. Say each fact in
+  your own words: never copy a run of seven words or more from a source, and quote at most one statement in the
+  whole post, under 15 words, with its speaker. The dek and these sentences together stay under 600 characters.
+  The first sentence names its subject: never open with "It", "This", "They", "These", "Together" or "also".
+  Every sentence is about the story the headline names: nothing from another story ("Separately, ..."), nothing
+  about the source article itself ("named in the report's headline"). Each sentence complete and grammatical,
+  never a source phrase pasted into another sentence. If the sources hold no fact beyond the headline and dek,
+  write only the Source line. End with the line "Source: <outlet>"
 - fits_category: false if the story does not match its slot, e.g. a profile or retrospective in a funding
   slot, an opinion piece in a breaking slot; true otherwise{extra_fields}
 
@@ -448,12 +452,15 @@ def source_text(story):
                     + [f"{r.get('title', '')} {r.get('summary', '')}" for r in story.get("reports") or []])
 
 
+SUMMARY_CAP = 600  # what the feeds keep (feeds.clean); the writer used to see only 500 and 400 of it
+
+
 def block(stories):
     out = []
     for i, s in enumerate(stories):
         s["id"] = i
-        also = "".join(f"\n- {r['outlet']}: {r['title']}. {r['summary'][:400]}" for r in s.get("reports") or [])
-        out.append(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
+        also = "".join(f"\n- {r['outlet']}: {r['title']}. {r['summary'][:SUMMARY_CAP]}" for r in s.get("reports") or [])
+        out.append(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:SUMMARY_CAP]}"
                    + (f"\nalso reported:{also}" if also else ""))
     return "\n\n".join(out)
 
@@ -601,6 +608,73 @@ META = re.compile(r"\b(?:the (?:report|article|story|source)['’]s (?:headline|
                   r"gives|offers|provides|includes|relies|is based|draws|attributes|did not|didn['’]t|does not|doesn['’]t)|"
                   r"according to the (?:report|article|story|piece))\b", re.I)
 OFFTOPIC = re.compile(r"^(?:Separately|In other news|Elsewhere|In a separate (?:development|story|move))\b", re.I)
+
+
+VERBATIM_WORDS = 8     # a run this long, word for word from a source, is copied, not reported (the prompt asks for under 7)
+QUOTE_WORDS = 15       # the longest statement the post may quote, once
+QUOTE = re.compile(r"[\"“]([^\"”]{1,500})[\"”]")
+MAX_REPORT = 600       # dek and report together: what the detail slide can set without shrinking past 38 px
+
+
+def _words(text):
+    return re.findall(r"[a-z0-9]+(?:['’][a-z]+)?", _fold(text).lower())
+
+
+def copied_run(sentence, source, n=VERBATIM_WORDS):
+    """The first run of `n` words the sentence takes word for word from the source, or "". Quoted statements are
+    judged apart (see strip_copied); the rest must be the writer's own words (the EU press publishers' right allows
+    very short extracts only)."""
+    words, src = _words(QUOTE.sub(" ", sentence)), _words(source)
+    grams = {tuple(src[i:i + n]) for i in range(len(src) - n + 1)}
+    for i in range(len(words) - n + 1):
+        if tuple(words[i:i + n]) in grams:
+            return " ".join(words[i:i + n])
+    return ""
+
+
+def strip_copied(story, c):
+    """Cuts the sentences that copy a source and the quotes past the first short one; the story keeps its other
+    facts. A quote is a quoted statement of four words or more ("underhanded" is a term, not a quote). Returns the
+    sentences cut."""
+    src = source_text(story)
+    cut, quoted = [], False
+    for field in ("dek", "linkedin_post", "x_post"):
+        text = c.get(field)
+        if not isinstance(text, str) or not text:
+            continue
+        lines = []
+        for line in text.split("\n"):
+            if line.startswith("Source:") or not line.strip():
+                lines.append(line)
+                continue
+            kept = []
+            for sent in sentences(line):
+                quotes = [q for q in QUOTE.findall(sent) if len(q.split()) >= 4]
+                too_long = any(len(q.split()) > QUOTE_WORDS for q in quotes)
+                if too_long or (quotes and quoted and field != "x_post") or copied_run(sent, src):
+                    cut.append(sent)
+                    continue
+                if quotes and field != "x_post":
+                    quoted = True
+                kept.append(sent)
+            if kept:
+                lines.append(" ".join(kept))
+        c[field] = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    if not c.get("x_post"):
+        c["x_post"] = c.get("headline", "")
+    return cut
+
+
+def cap_report(dek, post, limit=MAX_REPORT):
+    """The report without its last sentences while dek and report together run past what the detail slide holds; the
+    two sentences an article needs always stay."""
+    lines = (post or "").split("\n")
+    tail = [l for l in lines if l.startswith("Source:")]
+    sents = sentences(body_of(post))
+    while len(sents) > MIN_SENTENCES and len(dek or "") + len(" ".join(sents)) > limit:
+        sents.pop()
+    body = " ".join(sents)
+    return (body + ("\n\n" + "\n".join(tail) if tail else "")).strip() if body else "\n".join(tail)
 
 
 ALIAS_NAMES = {"FT": "Financial Times", "WSJ": "The Wall Street Journal", "NYT": "The New York Times"}
@@ -925,6 +999,7 @@ def apply(stories, reply_rows):
             strip_attributions(s, c)
             fix_conversions(c)
             strip_ungrounded(s, c)
+            strip_copied(s, c)
             trim_periods(s, c)
             # hype the source used ("massive revision") is still hype in our voice: the intensifier goes, the fact stays
             for f in ("headline", "dek", "x_post", "linkedin_post"):
@@ -966,6 +1041,7 @@ def apply(stories, reply_rows):
                 if first and len(first[0]) <= 160 and not repeats(first[0], s["headline"], share=0.6) and not LEANS.search(first[0]):
                     s["dek"] = first[0]
                     s["linkedin_post"] = drop_repeats(s["linkedin_post"], [s["dek"]], s["headline"])
+            s["linkedin_post"] = cap_report(s.get("dek", ""), s["linkedin_post"])
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what") and s.get("lane") != "sport":

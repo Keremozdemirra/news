@@ -28,9 +28,9 @@ class HeadlineSupport(unittest.TestCase):
         rows = [row(headline="Zelenskyy compares Trump calling Putin a friend to befriending Hitler in WW2",
                     dek="Ukraine's president calls the comments strange and urges Washington to increase pressure on Moscow.",
                     x_post="Zelenskyy compares Trump calling Putin a friend to befriending Hitler in WW2",
-                    linkedin_post="Overnight, Nato fighter jets and an interceptor drone were scrambled in Latvia after a "
-                                  "drone briefly entered its airspace near the Russian border. Several countries have "
-                                  "reported drone and missile incursions since February 2022.\n\nSource: Kyiv Independent")]
+                    linkedin_post="Nato jets and an interceptor drone were scrambled over Latvia after a drone crossed into "
+                                  "its airspace near the Russian border. Several countries have reported drone and missile "
+                                  "incursions since February 2022.\n\nSource: Kyiv Independent")]
         rejected = copy.apply([s], rows)
         self.assertEqual(s["copy_status"], "fallback")
         self.assertEqual(len(rejected), 1)
@@ -274,6 +274,76 @@ class CompanyTag(unittest.TestCase):
         rows = [row(headline="Nvidia raises $40 billion", dek="", x_post="x", linkedin_post="")]
         copy.apply([s], rows)
         self.assertEqual(s["company"], "")
+
+
+SRC_A = ("Official results were published on Friday for this month's election, showing the right-leaning ruling bloc "
+         "led by the National Party two seats short of a majority.")
+SRC_B = "Prime Minister Christopher Luxon needs the centrist Opportunity Party's support to remain in power, officials said."
+
+
+class Depth(unittest.TestCase):
+    def two_outlets(self):
+        return story("New Zealand's ruling coalition falls just short of majority in final count", SRC_A, source="RNZ",
+                     reports=[{"outlet": "Reuters", "title": "Luxon needs a third partner", "summary": SRC_B},
+                              {"outlet": "AP", "title": "NZ count ends", "summary": "Turnout was 82 percent."}])
+
+    def test_the_prompt_asks_for_two_sentences_from_one_newsroom_and_three_to_five_from_more(self):
+        text = copy.prompt("id: 0")
+        self.assertIn("Two sentences when one newsroom reported", text)
+        self.assertIn("three to five when two or more newsrooms", text)
+        self.assertIn("under 600 characters", text)
+
+    def test_the_writer_sees_the_whole_summary_the_feeds_kept(self):
+        long = "x " * 295 + "end600"
+        s = story("T", long)
+        s["reports"] = [{"outlet": "AP", "title": "t", "summary": long}]
+        self.assertEqual(copy.block([s]).count("end600"), 2)
+
+    def test_a_copied_sentence_is_cut_and_the_other_facts_stay(self):
+        s = self.two_outlets()
+        rows = [row(headline="New Zealand's ruling coalition falls just short of majority", dek="Luxon needs a third partner.",
+                    x_post="x", linkedin_post="Official results were published on Friday for this month's election, showing the "
+                                              "right-leaning ruling bloc led by the National Party. Turnout was 82 percent. "
+                                              "The count ended with the bloc two seats short.\n\nSource: RNZ")]
+        copy.apply([s], rows)
+        self.assertNotIn("Official results were published", s["linkedin_post"])
+        self.assertIn("Turnout was 82 percent", s["linkedin_post"])
+
+    def test_own_words_pass(self):
+        self.assertEqual(copy.copied_run("The final tally left the National Party-led bloc two seats shy of a majority.", SRC_A), "")
+        self.assertTrue(copy.copied_run("Results were published on Friday for this month's election, showing the right-leaning ruling bloc.", SRC_A))
+
+    def test_one_short_quote_is_allowed_and_a_second_or_long_one_is_cut(self):
+        s = story("Minister vows reform", "The minister told parliament the budget will protect schools and hospitals. "
+                  "She also said taxes would not rise this year for any household.", source="BBC")
+        c = {"dek": "", "x_post": "", "headline": "h", "linkedin_post":
+             'She said "the budget will protect schools and hospitals". She added "taxes would not rise this year for any household".\n\n'
+             'Source: BBC'}
+        cut = copy.strip_copied(s, c)
+        self.assertEqual(len(cut), 1)
+        self.assertIn("protect schools", c["linkedin_post"])
+        c = {"dek": "", "x_post": "", "headline": "h", "linkedin_post":
+             'She said "we will protect schools and hospitals and keep taxes flat for every single household in the whole country".'}
+        self.assertEqual(len(copy.strip_copied(s, c)), 1)
+
+    def test_a_term_in_quote_marks_is_not_a_quote(self):
+        s = story("Court rules", "The ruling is a landmark.")
+        c = {"dek": "", "x_post": "", "headline": "h", "linkedin_post": 'The court called the move "underhanded". It also called it "unlawful".'}
+        self.assertEqual(copy.strip_copied(s, c), [])
+
+    def test_the_report_is_capped_to_what_the_slide_holds_but_keeps_two_sentences(self):
+        sents = ["A fact number %d states something specific about the story in about twenty words, with names and places." % i
+                 for i in range(1, 6)]
+        post = " ".join(sents) + "\n\nSource: RNZ"
+        out = copy.cap_report("A dek of some length.", post)
+        self.assertLessEqual(len("A dek of some length.") + len(copy.body_of(out)), copy.MAX_REPORT)
+        self.assertEqual(len(copy.sentences(copy.body_of(out))), 5 if len(" ".join(sents)) + 21 <= copy.MAX_REPORT else len(copy.sentences(copy.body_of(out))))
+        self.assertTrue(out.endswith("Source: RNZ"))
+        two = copy.cap_report("D" * 590, sents[0] + " " + sents[1])
+        self.assertEqual(len(copy.sentences(two)), 2)
+
+    def test_a_single_source_story_is_still_thin_below_two_sentences(self):
+        self.assertIn("too thin", copy.thin({"dek": "A fact.", "linkedin_post": "One sentence only here.\n\nSource: RNZ"}))
 
 
 if __name__ == "__main__":
