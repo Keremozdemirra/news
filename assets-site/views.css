@@ -327,3 +327,14 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
   .kbd-hint{display:none}
 }
 .kbd-hint{min-height:44px;padding:0 var(--s1)}
+
+/* ---- phone front page: after the lead, a list of headlines to scan; the markets tiles repeat the ticker, and the rail's two pictured stories are in the list ---- */
+.top5{display:none}
+@media(max-width:900px){
+  .top5{display:block;margin-top:var(--s3)}
+  .top5 ol{list-style:none;margin:0;padding:0}
+  .top5 li{border-bottom:1px solid var(--rule)}
+  .top5 a{display:flex;justify-content:space-between;gap:var(--s2);align-items:baseline;padding:14px 0;min-height:44px;font:600 var(--t-row)/1.25 var(--serif);color:var(--ink)}
+  .top5 time{flex:none;font:500 var(--t-meta) var(--f);color:var(--soft)}
+  .front .lead .rates,.toprail .second{display:none}
+}

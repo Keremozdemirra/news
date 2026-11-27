@@ -117,6 +117,12 @@ def section_rows(rows, newest, n=4):
     return (top + [p for p in rows if id(p) not in day])[:n]
 
 
+def top5_list(ranked, n=5):
+    """The phone's scan list right after the lead: the next five headlines with their age, no pictures. The desktop has the rail."""
+    items = "".join(f'<li><a href="{S.href(p)}"><span>{E(p["headlines"][0])}</span>{rel_time(p)}</a></li>' for p in ranked[1:1 + n])
+    return f'<section class="top5" aria-label="Top stories"><h2 class="sh">Top stories</h2><ol>{items}</ol></section>' if items else ""
+
+
 def front(shown, cos, m, sport=()):
     """The front page: the lead (8 columns) and the rail (4: two seconds, the markets block, Latest), then the sections.
     Each article appears once; the lead and the seconds come from the news-value ranking above."""
@@ -144,7 +150,7 @@ def front(shown, cos, m, sport=()):
     lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}{S.topic_path(S.topic(lead))}">{E(S.topic(lead))}</a>'
                  f'<h2 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h2><p class="dk">{E(lead.get("dek", ""))}</p>'
                  f'<div class="mt">{rel_time(lead)} &middot; {nroom(lead)}</div>{fig}'
-                 f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{markets.rates_box(m, S.BASE)}</div>')
+                 f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{top5_list(ranked)}{markets.rates_box(m, S.BASE)}</div>')
 
     def second(p):
         photo = img(p, "3/2") if ph(p) else ""

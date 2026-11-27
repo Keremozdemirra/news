@@ -26,6 +26,16 @@ class Ranking(unittest.TestCase):
         html = views.front([*small, big], {}, None)
         self.assertIn("Altria explores", html)
 
+    def test_the_front_has_a_top_five_list_after_the_lead_with_ages_and_no_pictures(self):
+        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(8)]
+        html = views.front(rows, {}, None)
+        block = re.search(r'<section class="top5".*?</section>', html, re.S).group(0)
+        self.assertEqual(block.count("<li>"), 5)
+        self.assertEqual(block.count("data-age"), 5)
+        self.assertNotIn("<img", block)
+        self.assertLess(html.index('class="lead"'), html.index('class="top5"'))
+        self.assertIn(".front .lead .rates", (site.ASSETS / "views.css").read_text())
+
     def test_section_rows_pads_a_quiet_section_with_older_articles(self):
         rows = [fake("a", "New one", "Tech", hours=1), fake("b", "Old one", "Tech", hours=40)]
         got = views.section_rows(rows, site.dt(rows[0]["published"]))
