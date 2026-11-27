@@ -1160,7 +1160,7 @@ def privacy_page():
 <p>Boardread writes a few small items to your browser's local storage. None of it is a cookie, none of it is ever sent anywhere, and I cannot read it. Clear your site data and it is gone.</p>
 <ul>
 <li><b>br:theme</b>: "light" or "dark", after you press the theme button.</li>
-<li><b>br:visit</b>: two timestamps, this visit and the one before, so the page can mark what is new since you last came.</li>
+
 <li><b>tickerflip:v1, topfloor:v1, ftf:v1</b>: your results and streak in each daily game.</li>
 <li><b>tickerflip:misses, topfloor:misses</b>: your last wrong guesses (up to 200), so the game can say which ones you got wrong before.</li>
 <li><b>tickerflip:sound, topfloor:sound, ftf:sound, tickerflip:hc</b>: sound on or off, and high-contrast colours in Tickerflip, after you set them.</li>

@@ -162,7 +162,7 @@ class SitePages(SiteMeta):
         self.assertIn('href="/privacy/"', h)
         self.assertNotIn("keremozdemir.de/privacy", h)
         priv = (out / "privacy" / "index.html").read_text()
-        for s in ("br:visit", "SOURCE", "BayLDA", "Art. 77", "GitHub Pages", "Anthropic"):
+        for s in ("SOURCE", "BayLDA", "Art. 77", "GitHub Pages", "Anthropic"):
             self.assertIn(s, priv)
         self.assertIn("/privacy/</loc>", (out / "sitemap.xml").read_text())
         imp = (out / "impressum" / "index.html").read_text()

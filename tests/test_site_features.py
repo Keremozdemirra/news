@@ -156,11 +156,12 @@ class Features(Tmp):
 
     def test_front_page_carries_the_hooks_the_script_uses(self):
         h = self.read("index.html")
-        self.assertIn('id="since"', h)
+        self.assertNotIn('id="since"', h)  # no visit tracking on the device (§ 25 TDDDG)
         self.assertIn("data-keys", h)
         js = self.read("assets/site.js")
-        for token in ("br:visit", "keydown", "data-quiz", "localStorage"):
+        for token in ("keydown", "data-quiz"):
             self.assertIn(token, js)
+        self.assertNotIn('localStorage.setItem("br:visit"', js)
         self.assertNotIn("document.cookie", js)
 
     def test_channel_marks_are_inline_svg_with_accessible_names(self):
@@ -474,7 +475,7 @@ class FrontBuilt(Features):
         h = views.front(rows, {}, None)
         self.assertTrue(h.startswith('<div class="frontgrid"><div class="panelbox"><div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">'))
         self.assertEqual(h.count('class="newspanel"'), 1)
-        for part in ('class="topstories"', 'class="leadrow"', 'id="since"'):
+        for part in ('class="topstories"', 'class="leadrow"', 'class="upd"'):
             self.assertIn(part, h)
         css = (site.ASSETS / "views.css").read_text()
         self.assertIn("--ph:max(360px,72vh)", css)  # a fallback, then the dynamic viewport unit

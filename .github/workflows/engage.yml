@@ -28,6 +28,7 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          REPLY_STATE_KEY: ${{ secrets.REPLY_STATE_KEY }}
         run: python3 -m aidaily engage
       - name: Commit
         if: always()

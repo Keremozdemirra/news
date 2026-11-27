@@ -35,40 +35,9 @@
     document.addEventListener("click", function (e) { if (menu.open && !menu.contains(e.target)) menu.open = false; });
   }
 
-  // new since your last visit: two timestamps. A "visit" is a page load more than 30 minutes after the previous one.
-  var KEY = "br:visit", GAP = 30 * 60 * 1000, prev = null;
-  try {
-    var st = JSON.parse(localStorage.getItem(KEY) || "null"), t = Date.now();
-    if (st && t - st.last > GAP) st = { prev: st.last, last: t };
-    else if (st) st.last = t;
-    else st = { prev: null, last: t };
-    localStorage.setItem(KEY, JSON.stringify(st));
-    prev = st.prev;
-  } catch (e) { prev = null; }
-  if (prev) {
-    // one count for the page, and in Latest one line where the stories you have seen begin. A tag on every new story
-    // marked half the page after any night away and said nothing the count did not.
-    var seen = {}, count = 0;
-    document.querySelectorAll("a[href*='/s/']").forEach(function (a) {
-      var tm = a.querySelector("time[datetime]");
-      if (!tm || Date.parse(tm.getAttribute("datetime")) <= prev) return;
-      if (!seen[a.getAttribute("href")]) { seen[a.getAttribute("href")] = 1; count++; }
-    });
-    var rows = document.querySelectorAll(".latest li"), fresh = 0;
-    for (var i = 0; i < rows.length; i++) {
-      var t = rows[i].querySelector("time[datetime]");
-      if (!t) continue;
-      if (Date.parse(t.getAttribute("datetime")) > prev) { fresh++; continue; }
-      if (fresh) {
-        var mark = document.createElement("li");
-        mark.className = "seen"; mark.textContent = "Before your last visit";
-        rows[i].parentNode.insertBefore(mark, rows[i]);
-      }
-      break;
-    }
-    var since = document.getElementById("since");
-    if (since && count) { since.textContent = " \u00b7 " + count + " new since your last visit"; since.hidden = false; }
-  }
+  // "new since your last visit" was removed (2026-11-27): storing a visit time on the reader's device needs consent under
+  // § 25 TDDDG unless it is strictly necessary, and it is not. Clear the old value from browsers that still hold it.
+  try { localStorage.removeItem("br:visit"); } catch (e) { /* storage blocked */ }
 
   // keyboard: j and k step through the stories on the page (on a story, to the older and newer one), o opens, / searches, ? helps
   var panel = null;

@@ -409,7 +409,7 @@ class Built(Features):
     def test_front_and_latest_say_when_they_were_built(self):
         for page in ("index.html", "latest/index.html"):
             self.assertRegex(self.read(page), r'<p class="upd" data-built="\d{4}-\d\d-\d\dT[\d:]+Z">Updated (\d+ \w+, )?\d\d:\d\d UTC(<span id="since" role="status" hidden></span>)?</p>')
-        self.assertEqual(self.read("index.html").count('id="since"'), 1)  # one status line: the time, then the reader's own count
+        self.assertEqual(self.read("index.html").count('id="since"'), 0)  # no per-reader count: it needed a visit time on the device
         self.assertNotIn('class="since"', self.read("index.html"))
         self.assertIn("3 * 36e5", (site.ASSETS / "site.js").read_text())
 

@@ -145,7 +145,7 @@ def front(shown, cos, m, sport=()):
                  f'<h2 class="h-xl">{E(lead["headlines"][0])}</h2><p class="dek">{E(lead.get("dek", ""))}</p>'
                  f'{S.meta(S.row_time(lead), S.cover(lead))}{shot}{photo_cap(lead) if shot else ""}</a></div>')
     rows = f'<ol>{"".join(S.listing_row(p) for p in top[1:])}</ol>' if top[1:] else ""
-    inner = (S.updated_line(since=True) + f'<div class="topstories">{lead_html}{rows}'
+    inner = (S.updated_line() + f'<div class="topstories">{lead_html}{rows}'
              f'<p class="earlier"><a href="{S.BASE}/latest/">All latest</a></p></div>')
     return f'<div class="frontgrid">{panel(inner)}{rail(shown)}</div>' + puzzles_block("inrow")
 
