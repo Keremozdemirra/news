@@ -777,8 +777,8 @@ def _s_quiz(day, label):
     if not q:
         return []
     p = q["posts"][0]
-    return _quiz_pair(day, "quiz", R.T.story_quiz(q["question"], label, q["options"]),
-                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["company"], logo_uri=_logo(p)),
+    return _quiz_pair(day, "quiz", *R.T.quiz_pair("Guess the<br>company.", q["options"], q["answer"], label, hint=q["question"],
+                                                  headline=_head(p), mark=p["company"], logo_uri=_logo(p)),
                       "Guess the company", refs=[p["id"]])
 
 
@@ -800,8 +800,8 @@ def _s_fill(day, label):
     if not q:
         return []
     p = q["posts"][0]
-    return _quiz_pair(day, "fill", R.T.story_quiz(q["question"], label, q["options"], "Fill the<br>number."),
-                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), q["options"][q["answer"]]), "Fill the number",
+    return _quiz_pair(day, "fill", *R.T.quiz_pair("Fill the<br>number.", q["options"], q["answer"], label, hint=q["question"],
+                                                  headline=_head(p), mark=q["options"][q["answer"]]), "Fill the number",
                       refs=[p["id"]])
 
 
@@ -821,8 +821,8 @@ def _s_complete(day, label):
             if len(re.findall(rf"\b{re.escape(w)}\b", head_)) != 1:
                 continue
             hint = re.sub(rf"\b{re.escape(w)}\b", "___", head_)
-            return _quiz_pair(day, "complete", R.T.story_quiz(hint, label, options, "Complete the<br>headline."),
-                              R.T.story_answer("ABCD"[options.index(w)], options, label, head_, w), "Complete the headline", refs=[p["id"]])
+            return _quiz_pair(day, "complete", *R.T.quiz_pair("Complete the<br>headline.", options, options.index(w), label, hint=hint,
+                                                              headline=head_, mark=w), "Complete the headline", refs=[p["id"]])
     return []
 
 
@@ -880,9 +880,10 @@ def _s_bigger(day, label):
     if not q:
         return []
     (first, mf), (second, ms) = q["first"], q["second"]
-    return _quiz_pair(day, "bigger", R.T.story_bigger(q["kind"], (mf[0], _logo(first)), (ms[0], _logo(second)), label),
-                      R.T.story_answer("AB"[q["answer"]], [(f"{m[0]} {q['kind']}", p["figure"].strip(), _head(p)) for p, m in ((first, mf), (second, ms))],
-                                       label),
+    pair = ((first, mf), (second, ms))
+    return _quiz_pair(day, "bigger", *R.T.quiz_pair("Which is<br>bigger?", [mf[0], ms[0]], q["answer"], label, kind="bigger",
+                                                    kinds=[q["kind"]] * 2, figs=[p["figure"].strip() for p, _ in pair],
+                                                    subs=[_head(p) for p, _ in pair]),
                       "Which is bigger", refs=[first["id"], second["id"]])
 
 
@@ -916,9 +917,9 @@ def _s_whois(day, label):
     if not q:
         return []
     p, photo = q["posts"][0], _media(q["posts"][0], "photo.jpg")
-    return _quiz_pair(day, "whois", R.T.story_whois(photo, label, q["options"], q["credit"]),
-                      R.T.story_answer("ABCD"[q["answer"]], q["options"], label, _head(p), p["person"], photo_uri=photo,
-                                       credit=p.get("credit", "")), "Who is this", refs=[p["id"]], person=p["person"], photo_of=p["id"])
+    return _quiz_pair(day, "whois", *R.T.quiz_pair("Who is this?", q["options"], q["answer"], label, kind="photo", photo=photo,
+                                                   headline=_head(p), mark=p["person"], q_credit=q["credit"], a_credit=p.get("credit", "")),
+                      "Who is this", refs=[p["id"]], person=p["person"], photo_of=p["id"])
 
 
 def _s_person(day, label):

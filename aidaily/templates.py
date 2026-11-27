@@ -474,38 +474,6 @@ def _options(options, size=56, cols=1):
 BLANK = f'<span style="display:inline-block;min-width:220px;border-bottom:12px solid {INK}">&nbsp;</span>'
 
 
-def story_quiz(hint, label, options=(), title="Guess the<br>company."):
-    """A headline with one gap and lettered options; the answer is the next story. Guess the company and Fill the
-    number use it."""
-    hint_html = e(hint).replace("___", BLANK)
-    size = _scale(hint, ((50, 76), (75, 66), (999, 58)))
-    long_opt = max((len(o) for o in options), default=0) > 10
-    body = (f'{_story_head(title, 140)}<div style="flex:1;min-height:40px"></div>'
-            f'{_h(hint_html, size, lh=1.14, track=-0.025)}'
-            f'<div style="margin-top:64px">{_options(options, 52 if long_opt else 60, 1 if long_opt else 2)}</div>')
-    return _frame(body, "Quiz", label, CTA_ANSWER)
-
-
-def story_whois(photo_uri, label, options, credit=""):
-    """Who is this?: a licensed portrait, full frame, no name, four names. The answer is the next story."""
-    body = (f'{_story_head("Who is this?", 132)}{_credit(credit)}'
-            f'<div style="margin-top:44px">{_options(options, 46, 1 if max(map(len, options)) > 13 else 2)}</div>')
-    return _frame(body, "Quiz", label, CTA_ANSWER, photo_uri, portrait=True, depth=1000)
-
-
-def story_bigger(kind, a, b, label):
-    """Which is bigger?: two companies and the kind of figure compared, each with its logo when there is one. No figure."""
-    def side(letter, co):
-        return (f'<div data-opt="{letter}" style="padding:44px 40px;border:3px solid {RULE};border-radius:22px">'
-                f'<div style="font-size:64px;font-weight:800;color:{MUTE};line-height:1">{letter}</div>'
-                f'<div style="margin-top:24px"><span data-t style="font-size:{_scale(co[0], ((12, 92), (20, 76), (999, 64)))}px;font-weight:800;'
-                f'line-height:1;letter-spacing:-0.035em">{e(co[0])}</span></div>'
-                f'<div style="margin-top:10px;font-size:44px;font-weight:700;color:{DIM}">{e(kind)}</div></div>')
-    body = (f'{_story_head("Which is<br>bigger?", 150)}<div style="flex:1;min-height:40px"></div>'
-            f'{side("A", a)}<div style="margin:22px 0;text-align:center;font-size:44px;font-weight:800;color:{MUTE}">or</div>{side("B", b)}')
-    return _frame(body, "Quiz", label, CTA_ANSWER)
-
-
 def _marked(headline, mark):
     """The headline as markup with the filled-in value picked out: the one place the answer sits in the sentence."""
     m = re.search(rf"(?<![\w.,$€£]){re.escape(mark)}(?!\w)", headline, re.I) if mark else None
@@ -515,35 +483,126 @@ def _marked(headline, mark):
             f'box-decoration-break:clone;-webkit-box-decoration-break:clone">{e(m.group(0))}</span>{e(headline[m.end():])}')
 
 
-def story_answer(letter, options, label, headline="", mark="", logo_uri="", photo_uri="", credit=""):
-    """The answer to a quiz: "Answer D", the full headline with the filled-in value picked out, and the options again
-    with the right one lit and the rest dimmed. An option is a string or (text, figure, source headline); the figure
-    and headline show beside and under it, which is how Which is bigger? reveals its two numbers. A portrait, when
-    the question showed one, fills the frame again."""
-    right = "ABCD".index(letter)
-    rows = ""
-    # beside a portrait the names go two by two, so the face keeps the top of the frame
-    pair = bool(photo_uri) and all(isinstance(o, str) and len(o) <= 14 for o in options) and len(options) == 4
+# Quiz pairs. The answer is the very next story, so swiping from the question must look like one option lighting up
+# in place: both frames come from _qa with the same slots. Every block sits at a fixed position, the options have a
+# fixed height and one font size for the pair, so neither a longer title nor the filled-in headline can move them.
+QA_TITLE_TOP, QA_TITLE_H = 330, 280          # two lines at 140 px
+QA_PROMPT_GAP, QA_OPT_GAP, QA_FOOT_TOP = 40, 18, 1558
+QA_CELL_H = {"bigger": 350, "photo": 104, "text": 116}
+
+
+def _fit_px(texts, width, base, floor=34, em=0.6):
+    """One font size for every text in the set: the largest that sets the longest on one line in `width` px."""
+    n = max((len(t) for t in texts), default=1) or 1
+    return max(floor, min(base, int(width / (em * n))))
+
+
+def _qa_slots(options, kind, photo):
+    cols = 1 if kind == "bigger" or max((len(o) for o in options), default=0) > (13 if photo else 10) else 2
+    cell_h = QA_CELL_H["bigger" if kind == "bigger" else "photo" if photo else "text"]
+    rows = -(-len(options) // cols)
+    opt_h = rows * cell_h + (rows - 1) * QA_OPT_GAP
+    opt_top = QA_FOOT_TOP - 56 - opt_h
+    return cols, cell_h, opt_top
+
+
+def _qa(options, label, *, title, prompt="", prompt_size=60, kind="text", photo="", credit="", chip="",
+        right=None, figs=(), subs=(), kinds=(), cta=CTA_ANSWER, text_px=None):
+    """One frame of a quiz pair. right=None is the question; an index is the answer with that option lit."""
+    cols, cell_h, opt_top = _qa_slots(options, kind, photo)
+    cell_w = (936 - (cols - 1) * 20) // cols
+    px = text_px or _fit_px(options, cell_w - 64 - 90, 92 if kind == "bigger" else 58 if cols == 1 else 56)
+    cells = ""
     for i, o in enumerate(options):
-        text, fig, sub = (o, "", "") if isinstance(o, str) else (tuple(o) + ("", ""))[:3]
-        on = i == right
-        size = (44 if pair else 50 if photo_uri else 56) if len(options) > 2 else 60
-        fig_html = f'<span style="margin-left:auto;font-size:{size + 8}px;font-weight:800;letter-spacing:-0.03em">{e(fig)}</span>' if fig else ""
-        sub_html = (f'<div style="margin-top:10px;font-size:34px;font-weight:600;line-height:1.2;color:{"#3a3a3a" if on else MUTE}">{e(sub)}</div>'
-                    if sub else "")
-        look = f"background:{INK};color:{STORY_BG};border:3px solid {INK}" if on else f"border:3px solid {RULE};color:{MUTE}"
-        rows += (f'<div data-opt="{"ABCD"[i]}"{" data-on" if on else ""} style="margin-top:{0 if pair or not i else 18}px;padding:26px 36px;border-radius:18px;{look}">'
-                 f'<div style="display:flex;gap:28px;align-items:baseline"><span style="font-size:{size - 6}px;font-weight:800">{"ABCD"[i]}</span>'
-                 f'<span data-t style="font-size:{size}px;font-weight:800;letter-spacing:-0.025em;line-height:1.04">{e(text)}</span>{fig_html}</div>{sub_html}</div>')
-    chip = f'<div style="margin-top:40px">{_logo_chip(logo_uri, 72, "20px 30px")}</div>' if logo_uri else ""
-    head_html = (f'<span style="font-size:{150 if photo_uri else 180}px;font-weight:800;letter-spacing:-0.045em;line-height:.9;white-space:nowrap">'
-                 f'Answer {e(letter)}</span>{chip}')
-    big = 0 if photo_uri else 8
-    text = (_h(_marked(headline, mark), _scale(headline, ((50, 64 + big), (75, 58 + big), (999, 52 + big))), color=DIM, top=48, lh=1.2, track=-0.02)
-            if headline else "")
-    spacer = "" if photo_uri else '<div style="flex:1;min-height:40px"></div>'
-    body = f'{head_html}{spacer}{text}{_credit(credit) if photo_uri else ""}<div style="margin-top:56px;{'display:grid;grid-template-columns:1fr 1fr;gap:18px' if pair else ''}">{rows}</div>'
-    return _frame(body, "Quiz", label, CTA_ARTICLE, photo_uri, portrait=True, depth=760)
+        on = right == i
+        look = (f"background:{INK};color:{STORY_BG};border-color:{INK}" if on else
+                f"color:{MUTE if right is not None else INK}")
+        x, y = (i % cols) * (cell_w + 20), (i // cols) * (cell_h + QA_OPT_GAP)
+        fig = (f'<span style="position:absolute;right:32px;top:30px;font-size:72px;font-weight:800;letter-spacing:-0.03em">{e(figs[i])}</span>'
+               if right is not None and i < len(figs) and figs[i] else "")
+        sub_c = "#3a3a3a" if on else MUTE
+        sub = (f'<div style="position:absolute;left:32px;right:32px;bottom:26px;font-size:34px;font-weight:600;line-height:1.2;color:{sub_c};'
+               f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{e(subs[i])}</div>' if right is not None and i < len(subs) and subs[i] else "")
+        kind_l = (f'<div style="margin-top:12px;font-size:44px;font-weight:700;color:{sub_c if on else DIM}">{e(kinds[i])}</div>'
+                  if i < len(kinds) and kinds[i] else "")
+        if kind == "bigger":
+            inner = (f'<div style="font-size:64px;font-weight:800;line-height:1;color:{STORY_BG if on else MUTE}">{"AB"[i]}</div>'
+                     f'<div style="margin-top:22px;white-space:nowrap"><span data-t style="font-size:{px}px;font-weight:800;line-height:1;letter-spacing:-0.035em">{e(o)}</span></div>'
+                     f'{kind_l}{fig}{sub}')
+            pad = "28px 32px"
+        else:
+            inner = (f'<span style="font-size:{px - 6}px;font-weight:800;width:62px;flex:none;color:{STORY_BG if on else MUTE}">{"ABCD"[i]}</span>'
+                     f'<span data-t style="font-size:{px}px;font-weight:800;letter-spacing:-0.025em;white-space:nowrap">{e(o)}</span>')
+            pad = "0 32px"
+        flex = "" if kind == "bigger" else "display:flex;align-items:center;gap:20px;"
+        cells += (f'<div data-opt="{"ABCD"[i]}"{" data-on" if on else ""} data-box style="position:absolute;left:{x}px;top:{y}px;width:{cell_w}px;'
+                  f'height:{cell_h}px;{flex}padding:{pad};border:3px solid {RULE};border-radius:18px;{look}">{inner}</div>')
+    bg = ""
+    if photo:
+        depth = opt_top - 150
+        pos = _story_pos(photo, 1080, depth, True)
+        bg = (f'<img data-bleed src="{photo}" style="position:absolute;left:0;top:0;width:1080px;height:{depth}px;object-fit:cover;object-position:{pos}">'
+              f'<div style="position:absolute;left:0;top:0;width:1080px;height:{depth + 2}px;background:linear-gradient(180deg,'
+              f'rgba(18,18,18,.72) 0px,rgba(18,18,18,.35) 300px,rgba(18,18,18,0) 460px,rgba(18,18,18,0) {depth - 520}px,'
+              f'rgba(18,18,18,.9) {depth - 160}px,{STORY_BG} {depth}px)"></div>')
+    # with a portrait the title and the prompt sit low, over the fade, so the face keeps the top of the frame
+    # one line of title and a short prompt slot (two lines and the credit) beside a portrait
+    title_h = 140 if photo else QA_TITLE_H
+    title_top = opt_top - 44 - 210 - QA_PROMPT_GAP - title_h if photo else QA_TITLE_TOP
+    title_html = (f'<div data-slot="title" style="position:absolute;left:{SIDE}px;right:{SIDE}px;top:{title_top}px;height:{title_h}px;'
+                  f'display:flex;align-items:flex-end;justify-content:space-between;gap:24px">'
+                  f'<div style="font-size:{132 if photo else 140}px;font-weight:800;line-height:.9;letter-spacing:-0.045em">{title}</div>{chip}</div>')
+    p_top = title_top + title_h + QA_PROMPT_GAP
+    prompt_html = (f'<div data-slot="prompt" style="position:absolute;left:{SIDE}px;right:{SIDE}px;top:{p_top}px;height:{opt_top - 44 - p_top}px;'
+                   f'display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden">'
+                   f'<div style="font-size:{prompt_size}px;font-weight:800;line-height:1.14;letter-spacing:-0.025em;color:{INK if right is None else DIM};'
+                   f'text-wrap:balance">{prompt}</div>{_credit(credit)}</div>')
+    return head() + f"""
+<div style="position:relative;width:1080px;height:1920px;background:{STORY_BG};color:{INK};font-family:'Libre Franklin',sans-serif;overflow:hidden">
+{bg}{_kicker("Quiz", label, bool(photo))}{title_html}{prompt_html}
+<div data-slot="options" style="position:absolute;left:{SIDE}px;top:{opt_top}px;width:936px">{cells}</div>
+<div data-slot="foot" style="position:absolute;left:{SIDE}px;right:{SIDE}px;top:{QA_FOOT_TOP}px">{_foot_row(cta).replace('margin-top:56px;', '')}</div>
+</div></body></html>"""
+
+
+def quiz_pair(title, options, right, label, *, hint="", headline="", mark="", kind="text", photo="", q_credit="", a_credit="",
+              logo_uri="", figs=(), subs=(), kinds=()):
+    """(question, answer) for one quiz, from one set of slots. hint is the question's headline with ___ for the gap;
+    headline and mark are the answer's full headline and the value picked out in it."""
+    size = (44 if photo else _scale(max(hint, headline, key=len), ((50, 72), (75, 64), (999, 56)))) if (hint or headline) else 60
+    cols, cell_h, _ = _qa_slots(options, kind, photo)
+    px = _fit_px(options, (936 - (cols - 1) * 20) // cols - 64 - 90, 92 if kind == "bigger" else 58 if cols == 1 else 56)
+    common = dict(prompt_size=size, kind=kind, photo=photo, figs=figs, subs=subs, kinds=kinds, text_px=px)
+    q = _qa(options, label, title=title, prompt=e(hint).replace("___", BLANK), credit=q_credit, **common)
+    chip = _logo_chip(logo_uri, 64, "18px 28px") if logo_uri else ""
+    a = _qa(options, label, title=f'<span style="white-space:nowrap">Answer {"ABCD"[right]}</span>', prompt=_marked(headline, mark),
+            credit=a_credit, chip=chip, right=right, cta=CTA_ARTICLE, **common)
+    return q, a
+
+
+def story_quiz(hint, label, options=(), title="Guess the<br>company."):
+    """The question side of a quiz pair (Guess the company, Fill the number)."""
+    return quiz_pair(title, list(options), 0, label, hint=hint)[0]
+
+
+def story_whois(photo_uri, label, options, credit=""):
+    """The question side of Who is this?: the portrait, no name, four names."""
+    return quiz_pair("Who is this?", list(options), 0, label, kind="photo", photo=photo_uri, q_credit=credit)[0]
+
+
+def story_bigger(kind, a, b, label):
+    """The question side of Which is bigger?: two companies and the kind of figure compared. No figure."""
+    return quiz_pair("Which is<br>bigger?", [a[0], b[0]], 0, label, kind="bigger", kinds=[kind, kind])[0]
+
+
+def story_answer(letter, options, label, headline="", mark="", logo_uri="", photo_uri="", credit=""):
+    """The answer side alone, for callers that have no question; the desk builds both sides with quiz_pair."""
+    texts = [o if isinstance(o, str) else o[0] for o in options]
+    figs = [("" if isinstance(o, str) else (tuple(o) + ("", ""))[1]) for o in options]
+    subs = [("" if isinstance(o, str) else (tuple(o) + ("", ""))[2]) for o in options]
+    kind = "bigger" if any(figs) else "photo" if photo_uri else "text"
+    return quiz_pair("", texts, "ABCD".index(letter), label, headline=headline, mark=mark, kind=kind, photo=photo_uri,
+                     a_credit=credit, logo_uri=logo_uri, figs=figs, subs=subs)[1]
 
 
 def story_numbers(rows, label):

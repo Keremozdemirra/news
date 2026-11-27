@@ -509,6 +509,20 @@ class Engage(Tmp):
         self.assertEqual(desk.engage(client=ig, ask=lambda p: "x"), 0)  # already judged
 
 
+def _boxes(html, js):
+    """Element boxes measured in headless Chrome: the page writes them into the DOM, --dump-dom reads them back."""
+    import subprocess
+    import tempfile
+    from aidaily import render as R
+    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
+        f.write(html.replace("</body>", f"<script>document.body.setAttribute('data-b',{js})</script></body>"))
+    out = subprocess.run([R.CHROME, "--headless=new", "--disable-gpu", "--window-size=1080,1920", "--virtual-time-budget=3000",
+                          "--dump-dom", f"file://{f.name}"], capture_output=True, text=True, timeout=60).stdout
+    Path(f.name).unlink()
+    import html as H
+    return json.loads(H.unescape(re.search(r"data-b=\"([^\"]*)\"", out).group(1)))
+
+
 class Formats(Tmp):
     def test_listicles_are_dropped_and_boards_are_not_sources(self):
         rows = [story(1), story(2, headline="Read the pitch decks of 23 startups"), story(3)]
@@ -966,6 +980,30 @@ class Formats(Tmp):
                  photo_file="Lisa Su 2024 (cropped).jpg", credit="Photo: Y, CC BY 4.0, via Wikimedia Commons")
         self.assertIn("Lisa Su", self.run_at(w, "person")["person"])
 
+    def test_every_quiz_answer_keeps_the_question_layout(self):
+        """Swiping from question to answer lights one option in place: every option box, the title, prompt and foot
+        slots sit at the same coordinates in both frames (rendered in Chrome and measured)."""
+        from aidaily import render as R
+        from aidaily import templates as T
+        if not Path(R.CHROME).exists():
+            self.skipTest("no Chrome")
+        js = ("JSON.stringify([...document.querySelectorAll('[data-box],[data-slot]')].map(e=>{const r=e.getBoundingClientRect();"
+              "return [e.dataset.opt||e.dataset.slot,Math.round(r.x),Math.round(r.y),Math.round(r.width),Math.round(r.height)]}))")
+        pairs = [T.quiz_pair("Guess the<br>company.", ["SAP", "Oracle", "Workday", "Salesforce"], 3, "l",
+                             hint="___ explores at least 10,000 job cuts", headline="Salesforce explores at least 10,000 job cuts in a long restructuring",
+                             mark="Salesforce", logo_uri="file:///nonexistent.svg"),
+                 T.quiz_pair("Fill the<br>number.", ["20%", "40%", "60%", "80%"], 1, "l", hint="Astra limits hit ___ faster", headline="Astra limits hit 40% faster", mark="40%"),
+                 T.quiz_pair("Which is<br>bigger?", ["ElevenLabs", "Mistral"], 0, "l", kind="bigger", kinds=["valuation"] * 2,
+                             figs=["$33B", "$12B"], subs=["ElevenLabs in talks to raise at a $33B valuation", "Mistral valued at $12B"]),
+                 T.quiz_pair("Who is this?", ["Kathy Hochul", "Jared Kushner", "Thariq Shihipar", "Donald Trump"], 0, "l", kind="photo",
+                             photo="file:///nonexistent.jpg", headline="New York bans sale of AI chatbot toys for five years", mark="Kathy Hochul",
+                             q_credit="Photo: X", a_credit="Photo: X, public domain")]
+        for q, a in pairs:
+            boxes = [_boxes(html, js) for html in (q, a)]
+            self.assertEqual(boxes[0], boxes[1])
+            self.assertIn("data-on", a)
+            self.assertNotIn("data-on", q)
+
     def test_sport_reaches_no_story_format(self):
         w = _at(1, 19)  # Tuesday evening: last12, board, top5 and the quiz pools all see these posts
         sport = ["Arsenal beat Chelsea 3-1 in derby", "Australian Open sets $90M prize money", "Lakers sign star for $200M",
@@ -1106,7 +1144,7 @@ class Formats(Tmp):
             self.assertNotIn(hidden, q)
         self.assertEqual(q.count("<img"), 0)  # the names are the type; a logo beside the same name said it twice
         letter, value = answer_of(out["bigger-a"])
-        self.assertEqual(value, "ElevenLabs valuation")
+        self.assertEqual(value, "ElevenLabs")
         self.assertEqual(letter, "A" if q.index("ElevenLabs") < q.index("Mistral") else "B")
         for shown in ("$33B", "$12B", "ElevenLabs in talks to raise", "Mistral valued"):
             self.assertIn(shown, out["bigger-a"])

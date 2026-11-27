@@ -159,6 +159,20 @@ def main():
                 break
     for p in patches:
         p.stop()
+    # flip check: question, answer, and the two laid over each other with difference blending. Where the frames agree
+    # the overlay is black, so only the reveal (the lit option, the title, the filled-in headline) shows.
+    for q in sorted(OUT.glob("*.jpg")):
+        a = OUT / q.name.replace(q.stem.split("-fixture")[0], q.stem.split("-fixture")[0] + "-a", 1)
+        if q.stem.split("-fixture")[0].endswith("-a") or not a.exists():
+            continue
+        img = lambda f, extra="": f'<img src="file://{f}" style="position:absolute;top:0;width:1080px;height:1920px;{extra}">'  # noqa: E731
+        html = ('<html><body style="margin:0;background:#777"><div style="position:relative;width:3300px;height:1920px">'
+                + img(q, "left:0") + img(a, "left:1110px")
+                + f'<div style="position:absolute;left:2220px;top:0;width:1080px;height:1920px;isolation:isolate">{img(q)}{img(a, "mix-blend-mode:difference")}</div>'
+                + '</div></body></html>')
+        R.shoot(html, OUT / f"flip-{q.stem}.png", 3300, 1920)
+        R.jpeg(OUT / f"flip-{q.stem}.png")
+        (OUT / f"flip-{q.stem}.png").unlink()
     bad = 0
     for name, title, m in sorted(seen):
         notes = []
