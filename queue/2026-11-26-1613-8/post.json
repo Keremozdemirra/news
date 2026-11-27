@@ -50,12 +50,13 @@
  "photo_kind": "scene",
  "photo_alt": "An empty boardroom with a long table",
  "tier": "web",
- "published": "2026-11-27T04:30:14+00:00",
+ "published": "2026-11-26T16:13:56+00:00",
  "score_before": 8.438,
  "rewritten": {
   "at": "2026-11-27T10:24:03.413997+00:00",
   "why": "a sentence restated the dek",
   "dek": "He says he felt he could 'personally contribute the most' to bringing AI to the world at OpenAI.",
   "body": "Thariq Shihipar has joined OpenAI after leaving Anthropic in October. He says he felt he could 'personally contribute the most' to bringing AI to the world at OpenAI. He added that he is proud of his time at Anthropic and will keep rooting for his former colleagues."
- }
+ },
+ "web_at": "2026-11-27T04:30:14+00:00"
 }

@@ -2049,7 +2049,9 @@ def expire_stale():
             if post.get("attempted"):
                 post["status"] = "expired"
             else:
-                post.update(status="web", tier="web", published=now().isoformat(timespec="seconds"), story="")
+                # dated when the desk wrote it: stamped with the hour it dropped, a story from yesterday afternoon
+                # led the brief dated today (2026-11-27)
+                post.update(status="web", tier="web", published=post["created"], story="", web_at=now().isoformat(timespec="seconds"))
             _save(path, post)
             print(f"{post['id']}: older than {CONFIG['max_publish_age_hours']}h, {post['status']}")
             _close_if_done(post.get("issue"))

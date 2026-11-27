@@ -1740,6 +1740,8 @@ class Hardening(Tmp):
         ig = FakeIG()
         self.assertEqual(desk.publish(client=ig), 1)
         self.assertEqual(json.loads(stale.read_text())["status"], "web")  # too old for Instagram, still news for the site
+        # dated when the desk wrote it, not when it dropped to the site: yesterday's story never reads as today's
+        self.assertEqual(json.loads(stale.read_text())["published"], old)
         self.assertEqual(json.loads(fresh.read_text())["status"], "published")
         self.assertEqual(len(ig.posted), 1)
         self.assertEqual(desk.published_last_24h(), 1)

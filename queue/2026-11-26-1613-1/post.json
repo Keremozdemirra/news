@@ -61,11 +61,12 @@
  },
  "lead_published": "2026-11-26T23:51:53+00:00",
  "tier": "web",
- "published": "2026-11-27T04:30:14+00:00",
+ "published": "2026-11-26T16:13:35+00:00",
  "rewritten": {
   "at": "2026-11-27T10:24:03.413463+00:00",
   "why": "a sentence restated the dek",
   "dek": "The launch came on the same day Anthropic entered the public market.",
   "body": "Grand Theft Auto VI became one of the most successful entertainment launches of all time. The video game was described as painstakingly human. Its launch came on the same day Anthropic entered the public market."
- }
+ },
+ "web_at": "2026-11-27T04:30:14+00:00"
 }

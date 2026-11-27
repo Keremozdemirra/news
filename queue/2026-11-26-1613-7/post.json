@@ -51,12 +51,13 @@
  "photo_kind": "company",
  "photo_alt": "",
  "tier": "web",
- "published": "2026-11-27T04:30:14+00:00",
+ "published": "2026-11-26T16:13:53+00:00",
  "score_before": 8.459,
  "rewritten": {
   "at": "2026-11-27T10:24:03.413842+00:00",
   "why": "a sentence restated the dek",
   "dek": "The sides are stuck on ad revenue and control of search results; Amazon's ad business generates $68.6 billion a year.",
   "body": "Amazon and Meta are in talks to bring back Muse, Meta's AI shopping agent that Amazon kicked off its platform in September. The two sides are stuck on ad revenue and who controls search results. Amazon's ad business generates $68.6 billion a year, and Muse commands 51 percent of all agentic shopping orders."
- }
+ },
+ "web_at": "2026-11-27T04:30:14+00:00"
 }
