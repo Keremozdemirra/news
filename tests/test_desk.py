@@ -929,6 +929,20 @@ class Formats(Tmp):
         self.assertNotIn("Instagram", peers.peers("Meta"))
         self.assertFalse(peers.groups_of("Australian Open"))
 
+    def test_an_exceptional_sport_item_joins_a_mixed_list_but_never_makes_a_sport_board(self):
+        w = _at(1, 19, 40)
+        big = desk.CONFIG["sport_social_min_score"] + 2
+        self.pub("x", "Club sold for a record $6B", w, 1, topic="Sport", score=big + 1)
+        for i in range(4):
+            self.pub(f"s{i}", f"Arsenal match report {i}", w, 2 + i, topic="Sport", score=big)
+        self.pub("m", "Fed holds rates", w, 2, topic="Markets", score=9)
+        self.pub("n", "Nvidia halts chip shipments", w, 3, topic="Tech", score=8)
+        out = self.run_at(w, "top5")
+        self.assertIn("Club sold for a record $6B", out["top5"])
+        self.assertIn("Fed holds rates", out["top5"])
+        self.assertNotIn("Arsenal match report", out["top5"])  # one exceptional sport item, never a sport list
+        self.assertEqual(self.run_at(_at(1, 13, 40), "board"), {})  # five big sport items, still no Sport board
+
     def test_a_photo_leads_one_story_a_day_and_never_a_share_alike_one(self):
         w = _at(1, 6, 20)
         self.pub("a", "Nvidia halts chip shipments", w, 2, score=12, photo=True, credit="Photo: A, CC BY 4.0, via Wikimedia Commons")
@@ -958,7 +972,7 @@ class Formats(Tmp):
                  "Ferrari wins Abu Dhabi Grand Prix", "Alcaraz takes ATP Finals title"]
         for i, h in enumerate(sport):
             self.pub(f"sp{i}", h, w, 1 + i, topic="Sport", company="Australian Open" if i == 1 else "", figure="$90M" if i == 1 else "",
-                     score=30, person="Carlos Alcaraz" if i == 4 else "", photo=True)
+                     score=12, person="Carlos Alcaraz" if i == 4 else "", photo=True)
         with mock.patch.object(desk, "now", return_value=w):
             self.assertEqual(desk._published(24 * 7), [])
         for when in (_at(1, 6, 20), _at(1, 8, 40), _at(1, 11), _at(1, 13, 40), _at(1, 19, 40), _at(6, 11), _at(6, 13, 40)):

@@ -142,11 +142,15 @@ class Lane(Tmp):
         (d / "digest.json").write_text(json.dumps({"final": {"top": [s]}}))
         return d
 
-    def test_sport_is_web_tier_even_with_instagram_room_and_a_top_score(self):
-        (path,) = desk.queue(self.day(20.0, "Sport"), batch="b", render=False)
+    def test_ordinary_sport_is_web_tier_even_with_instagram_room(self):
+        (path,) = desk.queue(self.day(desk.CONFIG["sport_social_min_score"] - 0.5, "Sport"), batch="b", render=False)
         post = json.loads(path.read_text())
         self.assertEqual((post["tier"], post["status"], post["topic"]), ("web", "web", "Sport"))
         self.assertNotIn("publish_after", post)
+
+    def test_exceptional_sport_takes_the_instagram_room(self):
+        (path,) = desk.queue(self.day(desk.CONFIG["sport_social_min_score"] + 1, "Sport"), batch="b", render=False)
+        self.assertEqual(json.loads(path.read_text())["tier"], "instagram")
 
     def test_the_same_story_as_business_takes_the_instagram_room(self):
         (path,) = desk.queue(self.day(20.0, "Business"), batch="b", render=False)
@@ -182,23 +186,34 @@ class NoSocial(Tmp):
                 return {"id": "x"}
         self.fact = {n: (lambda n=n: Fake(n, self.sent)) for n in platforms.NAMES}
 
-    def test_topic_is_excluded_in_code(self):
+    def test_topic_is_excluded_below_the_exceptional_sport_bar(self):
+        bar = desk.CONFIG["sport_social_min_score"]
         self.assertIn("Sport", desk.NO_SOCIAL_TOPICS)
         self.assertFalse(desk.social_allowed({"topic": "Sport"}))
+        self.assertFalse(desk.social_allowed({"topic": "Sport", "score": bar - 0.1}))
+        self.assertTrue(desk.social_allowed({"topic": "Sport", "score": bar}))
         self.assertTrue(desk.social_allowed({"topic": "Markets"}))
+        with mock.patch.dict(desk.CONFIG, {"sport_social_min_score": None}):
+            self.assertFalse(desk.social_allowed({"topic": "Sport", "score": 99}))  # unset: never
 
-    def test_web_social_skips_sport_however_high_it_scores(self):
-        self.write_post("a", status="web", tier="web", topic="Sport", score=99, published=stamp(minutes=5), urls=["a"], headlines=["Final"])
+    def test_web_social_skips_ordinary_sport(self):
+        self.write_post("a", status="web", tier="web", topic="Sport", score=9, published=stamp(minutes=5), urls=["a"], headlines=["Final"])
         self.assertEqual(desk.web_social(self.fact), 0)
         self.assertEqual(self.sent, [])
+
+    def test_web_social_sends_exceptional_sport(self):
+        self.write_post("a", status="web", tier="web", topic="Sport", score=desk.CONFIG["sport_social_min_score"] + 1,
+                        published=stamp(minutes=5), urls=["a"], headlines=["Final"])
+        self.assertEqual(desk.web_social(self.fact), 1)
+        self.assertTrue(self.sent)
 
     def test_web_social_still_sends_business(self):
         self.write_post("b", status="web", tier="web", topic="Markets", score=99, published=stamp(minutes=5), urls=["b"], headlines=["Rates"])
         self.assertEqual(desk.web_social(self.fact), 1)
         self.assertTrue(self.sent)
 
-    def test_cross_post_sends_nothing_for_sport(self):
-        path = self.write_post("c", status="published", topic="Sport", published=stamp(minutes=5))
+    def test_cross_post_sends_nothing_for_ordinary_sport(self):
+        path = self.write_post("c", status="published", topic="Sport", published=stamp(minutes=5), score=9)
         desk.cross_post(json.loads(path.read_text()), path, self.fact)
         self.assertEqual(self.sent, [])
 
@@ -210,8 +225,8 @@ class NoSocial(Tmp):
         client.assert_not_called()
         self.assertFalse(client.method_calls)
 
-    def test_reel_and_digest_leave_sport_out(self):
-        self.write_post("e", status="published", topic="Sport", published=stamp(minutes=5), score=50)
+    def test_reel_and_digest_leave_ordinary_sport_out(self):
+        self.write_post("e", status="published", topic="Sport", published=stamp(minutes=5), score=12)
         self.write_post("f", status="published", topic="Markets", published=stamp(minutes=5), score=1)
         with mock.patch.object(reel, "today", return_value=stamp(minutes=5)[:10]):
             self.assertEqual([p["id"] for p in reel.top_posts()], ["f"])

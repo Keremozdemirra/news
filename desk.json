@@ -214,5 +214,6 @@
   ],
   "sport_min_score": 7.0,
   "sport_per_run": 4,
-  "sport_daily_max": 12
+  "sport_daily_max": 12,
+  "sport_social_min_score": 14
 }

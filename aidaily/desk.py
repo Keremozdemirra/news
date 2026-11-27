@@ -100,14 +100,19 @@ SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
 FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
 
 
-# Sport is a website section only. No tier, queue, cross-post, digest or reel may carry a post on one of these topics:
-# the social channels stay business news. Every social path asks social_allowed() before it touches a post.
+# Sport is a website section. The social channels stay business news, except for a sport item big enough to beat it:
+# one at or above desk.json sport_social_min_score (unset or null: never). Every social path (tiers, queue, cross-posts,
+# digests, reels, stories) asks social_allowed() before it touches a post, so the rule lives here alone.
 NO_SOCIAL_TOPICS = frozenset({"Sport"})
 
 
 def social_allowed(item):
-    """False for a post or story whose topic is website-only."""
-    return (item or {}).get("topic") not in NO_SOCIAL_TOPICS
+    """False for a post or story on a website-only topic, unless it scores at the exceptional-sport bar."""
+    item = item or {}
+    if item.get("topic") not in NO_SOCIAL_TOPICS:
+        return True
+    bar = CONFIG.get("sport_social_min_score")
+    return bar is not None and (item.get("score") or 0) >= bar
 
 
 def _recent_posts(days):
@@ -610,6 +615,21 @@ def _logo(p):
     return _media(p, "logo.svg", "logo.png", "logo.jpg")
 
 
+def _mixed(rows, n):
+    """The first n rows with at most one website-only-topic item: an exceptional sport item may join a business
+    list, never fill it."""
+    out, extra = [], 0
+    for p in rows:
+        if p.get("topic") in NO_SOCIAL_TOPICS:
+            if extra:
+                continue
+            extra = 1
+        out.append(p)
+        if len(out) == n:
+            break
+    return out
+
+
 def _photos_today():
     """Posts whose photo a story already carried today: one photo leads at most one story a day."""
     day = now().strftime("%Y-%m-%d")
@@ -673,7 +693,7 @@ def _quiz_pair(day, slot, question, answer, title, **extra):
 
 
 def _s_last12(day, label):
-    top = sorted(_published(12), key=lambda p: -_score(p))[:3]
+    top = _mixed(sorted(_published(12), key=lambda p: -_score(p)), 3)
     if len(top) < 3:
         return []
     lead = _lead(top)
@@ -934,7 +954,7 @@ def _s_board(day, label):
     """Topic board: four headlines of the week's busiest topic, never the topic of the last board."""
     by = {}
     for p in _published(24 * 7):
-        if p.get("topic") in TOPICS:
+        if p.get("topic") in TOPICS and p["topic"] not in NO_SOCIAL_TOPICS:  # a sport item may join a mixed list, never lead a board
             by.setdefault(p["topic"], []).append(p)
     last = (_story_posts("board", 7) or [{}])[0].get("topic")
     rows = [(len(v), sum(map(_score, v)), t) for t, v in by.items() if len(v) >= 4 and t != last]
@@ -948,7 +968,7 @@ def _s_board(day, label):
 
 
 def _s_top5(day, slot, label):
-    top = sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p))[:5]
+    top = _mixed(sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p)), 5)
     if len(top) < 3:
         return []
     lead = _lead(top)
@@ -973,6 +993,7 @@ def _s_ranked(day, slot, label):
     metric = "shares" if slot == "shared" else "saved"
     rows = sorted([p for p in _published(24 * 7) if ((p.get("insights") or {}).get(metric) or 0) > 0],
                   key=lambda p: (-p["insights"][metric], -_score(p)))
+    rows = _mixed(rows, 3)
     if len(rows) < 3:
         return []
     title = f"Most {'shared' if metric == 'shares' else 'saved'}<br>this week."
@@ -982,7 +1003,8 @@ def _s_ranked(day, slot, label):
 
 
 def _s_numbers(day, label):
-    figs = sorted([(p, m) for p in _published(24 * 7) if (m := _meaningful(p))], key=lambda x: -_score(x[0]))[:5]
+    figs = sorted([(p, m) for p in _mixed(sorted(_published(24 * 7), key=lambda p: -_score(p)), 99) if (m := _meaningful(p))],
+                  key=lambda x: -_score(x[0]))[:5]
     if len(figs) < 3:
         return []
     return [_queue_story(f"{day}-numbers", R.T.story_numbers([(m[0], _head(q), m[1], _qualifier(q)) for q, m in figs], label),
