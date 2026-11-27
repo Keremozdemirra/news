@@ -107,7 +107,8 @@ def story_page(post, channel=None):
 
 
 def _tail(post, link):
-    return f"Sources: {link}"
+    """The sources address, then the AI line when it is on: the tail never gives way to the text (_fit)."""
+    return "\n".join(x for x in (f"Sources: {link}", desk.ai_line()) if x)
 
 
 def _head(post):
@@ -176,10 +177,10 @@ def why_it_matters(post, count=3):
 
 
 def threads_text(post):
-    """Headline, a short why-it-matters, no disclosure line. No link: Threads shows links poorly in the main post,
+    """Headline, a short why-it-matters, then the AI line when it is on. No link: Threads shows links poorly in the main post,
     so the story page goes in a reply. 500 characters, emoji counted by UTF-8 bytes; the topic goes in
     topic_tag, not as a hashtag in the text."""
-    head, tail = _head(post), ""
+    head, tail = _head(post), desk.ai_line()
     sentences = why_it_matters(post) or [x for x in _sentences(post.get("dek"))[:1] if _standalone(x)]
     while sentences:  # whole sentences give way before any word is cut
         text = "\n\n".join(x for x in (head, " ".join(sentences), tail) if x)
@@ -314,6 +315,8 @@ def telegram_caption(post):
     link = f'<a href="{_h(story_page(post, "telegram"))}">Sources</a>'
     tag = telegram_tag(post)
     foot = " · ".join(x for x in (link, tag) if x)
+    if desk.ai_line():
+        foot += f"\n{_h(desk.ai_line())}"
     head = _with_ticker(post, _head(post), 300)
     sentences = why_it_matters(post, 2) or [x for x in _sentences(post.get("dek"))[:1] if _standalone(x)]
     while True:
@@ -695,6 +698,29 @@ class Bluesky(Client):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         return f"logged in as @{sess.get('handle')}"
+
+    def ensure_bot_label(self):
+        """The account's own "bot" self-label on its profile record (atproto.com/guides/bot-tutorial, read 2026-11-27):
+        Bluesky's disclosure for automated accounts, in place of a line in every post. The profile is read first and
+        written back whole, with swapRecord, so the name, bio and avatar stay and a concurrent edit is never lost.
+        Returns "set" or "already"."""
+        sess = self.xrpc("com.atproto.server.createSession",
+                         {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
+        jwt, did = sess["accessJwt"], sess["did"]
+        req = urllib.request.Request(f"{self.host}/xrpc/com.atproto.repo.getRecord?" + urllib.parse.urlencode(
+            {"repo": did, "collection": "app.bsky.actor.profile", "rkey": "self"}), headers={"Authorization": f"Bearer {jwt}"})
+        got = json.loads(self._open(req, "bluesky getRecord"))
+        record = got.get("value") or {"$type": "app.bsky.actor.profile"}
+        labels = record.get("labels") or {"$type": "com.atproto.label.defs#selfLabels", "values": []}
+        if any(v.get("val") == "bot" for v in labels.get("values", [])):
+            return "already"
+        labels["values"] = list(labels.get("values", [])) + [{"val": "bot"}]
+        record["labels"] = labels
+        body = {"repo": did, "collection": "app.bsky.actor.profile", "rkey": "self", "record": record}
+        if got.get("cid"):
+            body["swapRecord"] = got["cid"]
+        self.xrpc("com.atproto.repo.putRecord", body, jwt=jwt)
+        return "set"
 
     APPVIEW = os.environ.get("BSKY_APPVIEW", "https://public.api.bsky.app")
 

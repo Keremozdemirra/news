@@ -99,6 +99,12 @@ class Env(unittest.TestCase):
 
 
 class Text(Env):
+    def setUp(self):  # the text rules below are read with the AI line off; its own tests switch it on
+        super().setUp()
+        p = mock.patch.dict(desk.CONFIG, {"growth": {**desk.CONFIG.get("growth", {}), "caption_ai_line": False}})
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_threads_text_is_headline_and_why_it_matters_without_a_link_or_disclosure(self):
         t = platforms.threads_text(post())
         head, why = t.split("\n\n")
@@ -148,19 +154,38 @@ class Text(Env):
         t = platforms.threads_text(post(dek="\U0001F600" * 200, body=""))
         self.assertLessEqual(len(t.encode()), 500)
 
-    def test_no_platform_text_carries_an_ai_disclosure(self):
-        # the disclosure lives on the website and in the hand-set bios, not in posts
-        p = post(caption="x\n\nReported by CNBC. Written by AI.")  # a stale queued caption must not leak either
-        for text in (platforms.threads_text(p), platforms.bluesky_text(p)[0], platforms.telegram_caption(p),
-                     platforms.facebook_text(p), platforms.facebook_link_text(p), platforms.threads_reply_text(p)):
-            self.assertNotRegex(text, DISCLOSURE)
+    def test_the_ai_line_comes_only_from_the_switch_and_never_on_bluesky(self):
+        # since 2026-11-27 the switch (growth.caption_ai_line) decides; a stale queued caption never leaks into the text
+        p = post(caption="x\n\nReported by CNBC. Written by AI.")
+        with mock.patch.dict(desk.CONFIG, {"growth": {**desk.CONFIG.get("growth", {}), "caption_ai_line": False}}):
+            for text in (platforms.threads_text(p), platforms.bluesky_text(p)[0], platforms.telegram_caption(p),
+                         platforms.facebook_text(p), platforms.facebook_link_text(p), platforms.threads_reply_text(p)):
+                self.assertNotRegex(text, DISCLOSURE)
+        with mock.patch.dict(desk.CONFIG, {"growth": {**desk.CONFIG.get("growth", {}), "caption_ai_line": True}}):
+            self.assertNotRegex(platforms.bluesky_text(p)[0], DISCLOSURE)  # Bluesky: the bot label and the bio
+            self.assertEqual(platforms.telegram_caption(p).count("Written by AI"), 1)
 
-    def test_social_modules_hold_no_disclosure_line(self):
-        root = Path(__file__).resolve().parent.parent
-        for name in ("desk.py", "platforms.py", "templates.py", "video.py", "cardvideo.py", "reel.py", "distribution.py"):
-            src = (root / "aidaily" / name).read_text()
-            self.assertNotRegex(src, DISCLOSURE, name)
-        self.assertNotIn("ai_note", (root / "desk.json").read_text())
+    def test_every_caption_carries_the_ai_line_kerem_2026_11_27(self):
+        # Kerem, 2026-11-27: "Yes, every caption": Instagram, Threads, Telegram and Facebook; Bluesky uses its bot label
+        line = "Written by AI from named newsrooms."
+        with mock.patch.dict(desk.CONFIG, {"growth": {**desk.CONFIG.get("growth", {}), "caption_ai_line": True}}):
+            p = post(dek="word " * 300)
+            self.assertIn(line, platforms.threads_text(p))
+            self.assertLessEqual(platforms._utf8(platforms.threads_text(p)), 500)
+            self.assertIn(line, platforms.telegram_caption(p))
+            self.assertLessEqual(platforms._visible(platforms.telegram_caption(p)), 1024)
+            for fb in (platforms.facebook_text(p), platforms.facebook_link_text(p)):
+                self.assertTrue(fb.endswith(line))
+                self.assertLessEqual(len(fb), 700)
+            self.assertNotIn(line, platforms.bluesky_text(p)[0])
+            cap = desk.with_ai_line("Head\n\nLead.\n\nReported by Reuters.\n\nLink in bio.\n\n#markets")
+            self.assertEqual(cap.split("\n")[5], line)  # straight after the source line
+            self.assertEqual(desk.with_ai_line(cap), cap)  # never twice
+            long_ = desk.with_ai_line("Reported by Reuters.\n" + "#tag " * 500, limit=200)
+            self.assertIn(line, long_)
+            self.assertLessEqual(len(long_), 200)
+        with mock.patch.dict(desk.CONFIG, {"growth": {**desk.CONFIG.get("growth", {}), "caption_ai_line": False}}):
+            self.assertNotIn(line, platforms.threads_text(post()))
 
     def test_threads_one_tag_clean(self):
         self.assertEqual(platforms.threads_tag(post(topic="Markets")), "markets")

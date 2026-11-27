@@ -1,5 +1,6 @@
 """Every other channel gets the Instagram treatment (Kerem, 2026-11-27): staggered mirroring with per-platform pace,
 a format mix per platform, and text that does not repeat what the card already shows."""
+import json
 import os
 import urllib.parse
 from datetime import timedelta
@@ -126,3 +127,31 @@ class ShortsText(Tmp):
         d = SH.description(p, "")
         self.assertTrue(d.startswith("Full story and sources: https://"))
         self.assertTrue(d.endswith("#Shorts #WorldNews #BusinessNews"))
+
+
+class BlueskyLabel(Tmp):
+    def test_the_bot_label_is_added_once_and_the_profile_kept(self):
+        from aidaily import platforms
+        calls = []
+        profile = {"value": {"$type": "app.bsky.actor.profile", "displayName": "Boardread", "description": "Bio."}, "cid": "c1"}
+
+        class Fake(platforms.Bluesky):
+            def __init__(self):
+                self.env = {"BSKY_HANDLE": "h", "BSKY_APP_PASSWORD": "p"}
+
+            def xrpc(self, name, body, jwt=None, raw=None, mime=None):
+                calls.append((name, body))
+                return {"accessJwt": "j", "did": "did:x"} if name.endswith("createSession") else {}
+
+            def _open(self, req, label):
+                return json.dumps(profile).encode()
+        with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}, "growth": {"caption_ai_line": True}}):
+            self.assertEqual(desk.bluesky_bot_label({"bluesky": Fake}), "set")
+            put = [b for n, b in calls if n.endswith("putRecord")][0]
+            self.assertEqual(put["record"]["labels"]["values"], [{"val": "bot"}])
+            self.assertEqual((put["record"]["description"], put["swapRecord"]), ("Bio.", "c1"))
+            calls.clear()
+            self.assertIsNone(desk.bluesky_bot_label({"bluesky": Fake}))  # recorded: never written again
+            self.assertEqual(calls, [])
+            profile["value"]["labels"] = {"values": [{"val": "bot"}]}
+            self.assertEqual(Fake().ensure_bot_label(), "already")

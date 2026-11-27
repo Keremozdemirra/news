@@ -378,6 +378,27 @@ def keyword_line(headline, lead, s):
     return f"{', '.join(chosen)} · {topic}" if topic and topic.lower() not in opening else ", ".join(chosen)
 
 
+def ai_line():
+    """The disclosure every caption carries (Kerem, 2026-11-27: "Yes, every caption"), or "" when switched off."""
+    return CONFIG.get("ai_line", "Written by AI from named newsrooms.") if growth("caption_ai_line") else ""
+
+
+def with_ai_line(text, limit=2200):
+    """The caption with the AI line right after its "Reported by" line (else at the end). Within `limit` the
+    hashtags at the end give way first; a caption that already carries the line is returned as it is."""
+    line = ai_line()
+    if not line or line in (text or ""):
+        return text
+    rows = (text or "").split("\n")
+    at = next((i + 1 for i, r in enumerate(rows) if r.startswith("Reported by ")), len(rows))
+    rows.insert(at, line)
+    out = "\n".join(rows)
+    while len(out) > limit and len(rows) > at + 1:
+        rows.pop()
+        out = "\n".join(rows).rstrip()
+    return out
+
+
 def caption(m, s, cta=True):
     src = outlets(m, s)
     lead = report(s).replace("\n", " ")
@@ -393,7 +414,8 @@ def caption(m, s, cta=True):
     lines = head_lines + mid + [f"Reported by {reported_by(src)}.", "",
                                 CONFIG["source_line"] if cta else "", send_line(m, s), "", " ".join(hashtags(m, s))]
     text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
-    return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
+    text = text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
+    return with_ai_line(text)
 
 
 # video cards: the post's photo card with the photo moving behind the same text (cardvideo.py)
@@ -2593,6 +2615,32 @@ def _send_story(client, post):
     return client.story(url)
 
 
+def bluesky_bot_label(factories=None):
+    """Once: the Bluesky account's "bot" self-label (Kerem, 2026-11-27: Bluesky discloses by label and bio, not per
+    post). Recorded in state/bluesky-label.json when done, so it is never written again; a failure is tried once a day."""
+    from . import platforms
+    if not CONFIG.get("platforms", {}).get("bluesky") or not growth("caption_ai_line"):
+        return None
+    st = _load(STATE / "bluesky-label.json", {})
+    day = f"{now():%Y-%m-%d}"
+    if st.get("done") or st.get("tried") == day:
+        return None
+    try:
+        client = (factories or platforms.CLIENTS)["bluesky"]()
+    except platforms.Missing:
+        return None
+    st["tried"] = day
+    try:
+        st["done"] = client.ensure_bot_label()
+        st["at"] = now().isoformat(timespec="seconds")
+        print(f"bluesky: bot self-label {st['done']}")
+    except Exception as e:  # noqa: BLE001
+        st["error"] = str(e)[:200]
+        print(f"bluesky: bot self-label not set: {st['error']}")
+    _save(STATE / "bluesky-label.json", st)
+    return st.get("done")
+
+
 def publish(client=None, dry=False):
     """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0.
     Then one web-tier post goes to Bluesky and Threads. The evening digest follows, so it also goes out when nothing was due or Instagram is cooling down."""
@@ -2609,6 +2657,10 @@ def publish(client=None, dry=False):
             mirror_social()
         except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
             print(f"mirror posts crashed: {str(e)[:200]}")
+        try:
+            bluesky_bot_label()
+        except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
+            print(f"bluesky label crashed: {str(e)[:200]}")
         try:
             fb_stories()
         except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
@@ -2837,6 +2889,7 @@ def _publish(client, dry):
         if post["id"] not in checked:  # structural guard: nothing is posted without the duplicate check
             print(f"{post['id']}: not checked against the account's posts, skipped")
             continue
+        post["caption"] = with_ai_line(post["caption"])  # posts queued before the line existed get it too
         post["attempted"] = now().isoformat(timespec="seconds")
         _save(path, post)  # on disk before the call: a killed run still leaves the trace for the next check
         try:
