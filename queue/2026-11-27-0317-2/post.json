@@ -54,6 +54,14 @@
    "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bhzcifv725",
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bhzcifv725",
    "at": "2026-11-27T05:40:14+00:00"
+  },
+  "threads": {
+   "id": "18136996105749173",
+   "url": "https://www.threads.com/@boardread/post/DgPOAPqFg8s",
+   "at": "2026-11-27T08:11:28+00:00",
+   "reply": {
+    "id": "18082062908567316"
+   }
   }
  }
 }
