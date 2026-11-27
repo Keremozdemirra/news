@@ -26,8 +26,9 @@ def post(**kw):
 
 class Content(unittest.TestCase):
     def test_facts_skip_the_headline_repeat_and_long_sentences(self):
-        p = post(dek="Spain holds a snap election, its fifth general vote in over a decade.", body="x " * 150 + ". Short one here.")
-        self.assertEqual(SH.facts(p), ["Short one here."])
+        p = post(dek="Spain holds a snap election, its fifth general vote in over a decade.",
+                 body="x " * 150 + ". Spain votes on a Sunday for the fifth time since 2015.")
+        self.assertEqual(SH.facts(p), ["Spain votes on a Sunday for the fifth time since 2015."])
 
     def test_beats_stay_well_under_a_minute(self):
         names = [n for n, _ in SH.beats(post())]

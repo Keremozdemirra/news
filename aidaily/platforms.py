@@ -118,8 +118,36 @@ def _utf8(text):
     return len(text.encode("utf-8"))
 
 
+# a full stop after these is not the end of a sentence: "21 million U.S. users" was cut at "U.S." on Bluesky
+ABBREV = re.compile(r"(?:^|[\s(])(?:[A-Z](?:\.[A-Z])*|Mr|Mrs|Ms|Dr|Prof|Inc|Corp|Co|Ltd|St|No|Jr|Sr|vs|Gov|Sen|Rep|Gen|"
+                    r"Lt|Col|Capt|Sgt|Jan|Feb|Mar|Apr|Aug|Sept?|Oct|Nov|Dec)\.$")
+
+
 def _sentences(text):
-    return [x for x in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if x]
+    parts = [x for x in re.split(r"(?<=[.!?])\s+", (text or "").strip()) if x]
+    out = []
+    for x in parts:
+        if out and (ABBREV.search(out[-1]) or x[:1].islower()):
+            out[-1] += " " + x
+        else:
+            out.append(x)
+    return out
+
+
+# a sentence that leans on one the post does not carry: "She also discusses...", "...following those findings."
+DANGLING = re.compile(r"^(?:she|he|it|its|they|their|his|her|this|these|that|such|also|meanwhile|however|but|and|so|"
+                      r"both|the report|the statement|the move|the decision)\b|\bthose\b", re.I)
+CONTENT_STOP = set("""about after also among and are been being but can could for from had has have her his into its more
+most new not now one our out over said says she than that the their them then there these they this those two was
+were what when where which while who will with would year years week weeks you""".split())
+
+
+def _standalone(sentence):
+    return len(sentence.split()) >= 6 and not DANGLING.search(sentence.strip())
+
+
+def _stems(text):
+    return {w[:5] for w in re.findall(r"[a-z0-9]+", text.casefold()) if len(w) >= 3 and w not in CONTENT_STOP}  # ECB, IMF, Fed count
 
 
 def _words(text):
@@ -128,11 +156,18 @@ def _words(text):
 
 def why_it_matters(post, count=3):
     """Up to `count` sentences from the existing dek and body, without a model call. A sentence that mostly
-    repeats the headline or an earlier pick is dropped: the body usually opens by restating the headline."""
+    repeats the headline or an earlier pick is dropped (the body usually opens by restating the headline), and so is
+    one that points at something the post does not say or, from the body, shares no word with the headline."""
     head, picked = _words(_head(post)), []
-    for s in _sentences(post.get("dek")) + _sentences(post.get("body")):
+    topic = _stems(_head(post))
+    dek = _sentences(post.get("dek"))
+    for s in dek + _sentences(post.get("body")):
         w = _words(s)
         if not w or any(len(w & other) / len(w) >= 0.6 for other in [head] + [_words(x) for x in picked]):
+            continue
+        # a sentence must stand on its own, and a body sentence must share a word with the headline: an unrelated
+        # line about Latvian fighter jets once went out under a headline about Zelenskyy
+        if not _standalone(s) or (s not in dek and not (_stems(s) & topic)):
             continue
         picked.append(s)
         if len(picked) == count:
@@ -145,7 +180,7 @@ def threads_text(post):
     so the story page goes in a reply. 500 characters, emoji counted by UTF-8 bytes; the topic goes in
     topic_tag, not as a hashtag in the text."""
     head, tail = _head(post), ""
-    sentences = why_it_matters(post) or _sentences(post.get("dek"))[:1]
+    sentences = why_it_matters(post) or [x for x in _sentences(post.get("dek"))[:1] if _standalone(x)]
     while sentences:  # whole sentences give way before any word is cut
         text = "\n\n".join(x for x in (head, " ".join(sentences), tail) if x)
         if _utf8(text) <= 500:
@@ -187,10 +222,11 @@ def bluesky_video_text(post):
     url = story_page(post, "bluesky")
     tail = f"Sources: {url}"
     dek = post.get("dek") or ""
-    extra = (why_it_matters(post) or _sentences(dek))[:1]
+    extra = (why_it_matters(post) or [x for x in _sentences(dek) if _standalone(x)])[:1]
     text = _fit(_head(post), " ".join(extra), tail, 300)
     if not text.endswith(tail):
         text = _fit(_head(post), "", tail, 300)
+    text = _with_ticker(post, text, 300)  # the same headline as the image post; the facet is placed after it
     start = len(text.encode("utf-8")) - len(url.encode("utf-8"))
     facets = [{"index": {"byteStart": start, "byteEnd": start + len(url.encode("utf-8"))},
                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]}] if text.endswith(url) else []
@@ -259,7 +295,7 @@ def telegram_caption(post):
     tag = telegram_tag(post)
     foot = " · ".join(x for x in (link, tag) if x)
     head = _with_ticker(post, _head(post), 300)
-    sentences = why_it_matters(post, 2) or _sentences(post.get("dek"))[:1]
+    sentences = why_it_matters(post, 2) or [x for x in _sentences(post.get("dek"))[:1] if _standalone(x)]
     while True:
         text = "\n\n".join(x for x in (f"<b>{_h(head)}</b>", _h(" ".join(sentences)), foot) if x)
         if _visible(text) <= 1024 or not sentences:
@@ -276,7 +312,7 @@ def facebook_text(post):
     sources address. No hashtags: they do nothing on a Page. The preview (title, image) comes from the article
     page's Open Graph tags, so the text does not repeat the dek the preview shows."""
     dek = post.get("dek") or ""
-    extra = [x for x in why_it_matters(post, 2) if not _same_line(x, dek)] or _sentences(dek)[:1]
+    extra = [x for x in why_it_matters(post, 2) if not _same_line(x, dek)] or [x for x in _sentences(dek)[:1] if _standalone(x)]
     return _with_ticker(post, _fit(_head(post), " ".join(extra), _tail(post, story_page(post, "facebook")), 700), 700)
 
 
@@ -719,6 +755,37 @@ class Telegram(Client):
         if not got.get("ok"):
             raise PlatformError(self._scrub(f"telegram {method}: {json.dumps(got)[:300]}"))
         return got["result"]
+
+    PUBLIC = os.environ.get("TG_PUBLIC_HOST", "https://t.me")
+
+    def find(self, post):
+        """This story already in the channel. The Bot API cannot read a channel's history, but a public channel's
+        web preview (t.me/s/<name>) lists its recent posts without a login: a post that links the story page, or
+        whose first line is the headline, and is not older than the queue entry, is this story. Run before every
+        send, like the other platforms: a send whose status commit was lost posted the same story twice on
+        2026-11-26 (t.me/boardread/23 and /25)."""
+        import html as html_
+        chat = self.env["TG_CHANNEL"]
+        # the secret may hold the numeric chat id: the channel's public name comes from getChat then
+        name = chat.lstrip("@") if chat.startswith("@") else (self.call("getChat", {"chat_id": chat}).get("username") or "")
+        if not name:
+            raise PlatformError("telegram: a private channel cannot be checked for an earlier send")
+        page = self._open(urllib.request.Request(f"{self.PUBLIC}/s/{name}", headers={"User-Agent": "Mozilla/5.0"}),
+                          "telegram channel page").decode("utf-8", "replace")
+        url, head = story_page(post), _head(post)
+        born = desk._stamp(post.get("created", ""))
+        for block in page.split('data-post="')[1:]:
+            mid = block.split('"', 1)[0].rsplit("/", 1)[-1]
+            when = re.search(r'<time[^>]*datetime="([^"]+)"', block)
+            seen = desk._stamp(when.group(1)) if when else None
+            if born and seen and seen < born - timedelta(minutes=5):
+                continue
+            text = re.search(r'class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', block, re.S)
+            first = html_.unescape(re.sub(r"<br\s*/?>", "\n", text.group(1)) if text else "")
+            first = re.sub(r"<[^>]+>", "", first).strip().split("\n", 1)[0]
+            if url in block or _same_line(first, head) or _same_line(first, _with_ticker(post, head, 300)):
+                return {"id": mid, "url": f"https://t.me/{name}/{mid}"}
+        return None
 
     def check(self):
         """Reads the bot and the channel and posts nothing; fails if the bot cannot post there."""

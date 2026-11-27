@@ -111,10 +111,27 @@ class Text(Env):
         p = {"headlines": ["Pablo Hernandez de Cos wins race for ECB presidency"],
              "dek": "The Spanish economist is set to succeed Christine Lagarde.",
              "body": "Pablo Hernandez de Cos has won the race for the ECB presidency. The Spanish economist is set to succeed "
-                     "Christine Lagarde. The Dutch government ended its support for rival Klaas Knot. Markets barely moved."}
+                     "Christine Lagarde. ECB governors backed him after the Dutch government dropped rival Klaas Knot. "
+                     "The presidency starts in November next year at the bank in Frankfurt.",
+             }
         self.assertEqual(platforms.why_it_matters(p), ["The Spanish economist is set to succeed Christine Lagarde.",
-                                                       "The Dutch government ended its support for rival Klaas Knot.",
-                                                       "Markets barely moved."])
+                                                       "ECB governors backed him after the Dutch government dropped rival Klaas Knot.",
+                                                       "The presidency starts in November next year at the bank in Frankfurt."])
+
+    def test_why_it_matters_drops_dangling_short_and_off_topic_sentences(self):
+        p = {"headlines": ["India's election body fixes website flaw that exposed voter data"], "dek": "",
+             "body": "The flaw has been fixed following those findings. She also discusses the outlook for Iraq and more. "
+                     "Overnight, Nato fighter jets were scrambled in Latvia after a drone was seen. The report cites sources. "
+                     "Researchers found the website flaw exposed addresses of 2 million voters."}
+        self.assertEqual(platforms.why_it_matters(p), ["Researchers found the website flaw exposed addresses of 2 million voters."])
+
+    def test_sentences_do_not_end_at_abbreviations(self):
+        self.assertEqual(platforms._sentences("Chats of more than 21 million U.S. users leaked. Mr. Smith left. It is over."),
+                         ["Chats of more than 21 million U.S. users leaked.", "Mr. Smith left.", "It is over."])
+
+    def test_a_dangling_dek_is_not_the_fallback(self):
+        t = platforms.threads_text(post(dek="She also discusses risks to diesel supplies and the outlook for Iraq.", body=""))
+        self.assertNotIn("She also", t)
 
     def test_threads_drops_whole_sentences_before_cutting_words_and_stays_in_500_bytes(self):
         body = " ".join(f"Sentence number {i} says something quite different about topic{i}." for i in range(30))
