@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0532-4",
+ "batch": "2026-11-27-0532",
+ "n": 4,
+ "created": "2026-11-27T05:32:26+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Seoul repatriates six North Koreans found on drifting fishing boat\n\nThe boat first carried seven North Koreans and was found off South Korea's Ulleungdo island on Nov. 3.\n\nReported by The Japan Times; The Straits Times.\n\nSend this to whoever on your team tracks global risk.\n\n#worldnews #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/south-korea-north-fishing-boat/"
+ ],
+ "links": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/south-korea-north-fishing-boat/",
+  "https://www.straitstimes.com/asia/south-korea-repatriates-six-north-koreans-rescued-from-drifting-boat"
+ ],
+ "headlines": [
+  "Seoul repatriates six North Koreans found on drifting fishing boat"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "World",
+ "photo_file": "BlackMarble20161km.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "The Earth at night from space",
+ "score": 8.142,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The boat first carried seven North Koreans and was found off South Korea's Ulleungdo island on Nov. 3.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Japan Times",
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.japantimes.co.jp/news/2026/11/27/asia-pacific/south-korea-north-fishing-boat/",
+  "https://www.straitstimes.com/asia/south-korea-repatriates-six-north-koreans-rescued-from-drifting-boat"
+ ],
+ "credit": "Photo: NASA Earth Observatory images by Joshua Stevens, using Suomi NPP VIIRS data from Miguel Román, NASA's Goddard Space Flight Center, Public domain, via Wikimedia Commons",
+ "credit_file": "BlackMarble20161km.jpg",
+ "status": "web",
+ "published": "2026-11-27T05:32:26+00:00",
+ "story": ""
+}
