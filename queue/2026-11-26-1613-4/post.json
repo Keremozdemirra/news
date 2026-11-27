@@ -51,5 +51,12 @@
  "photo_kind": "company",
  "photo_alt": "",
  "tier": "web",
- "published": "2026-11-27T04:30:14+00:00"
+ "published": "2026-11-27T04:30:14+00:00",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bksqoesc25",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bksqoesc25",
+   "at": "2026-11-27T06:30:15+00:00"
+  }
+ }
 }
