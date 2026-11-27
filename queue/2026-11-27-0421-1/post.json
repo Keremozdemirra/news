@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0421-1",
+ "batch": "2026-11-27-0421",
+ "n": 1,
+ "created": "2026-11-27T04:21:53+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Asian stocks rise after earlier tech rout, New Zealand shares dip\n\nIndices in Japan, South Korea, Australia and Hong Kong gained, while New Zealand stocks fell on election uncertainty.\n\nReported by Al Jazeera; The Straits Times.\n\nSend this to whoever on your team watches the markets.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.aljazeera.com/economy/2026/11/27/asian-stock-markets-rise-after-earlier-tech-rout?traffic_source=rss"
+ ],
+ "links": [
+  "https://www.aljazeera.com/economy/2026/11/27/asian-stock-markets-rise-after-earlier-tech-rout?traffic_source=rss",
+  "https://www.straitstimes.com/business/asian-stocks-enjoy-another-bounce-as-tech-holds-court"
+ ],
+ "headlines": [
+  "Asian stocks rise after earlier tech rout, New Zealand shares dip"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "Stockmarket.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A wall of stock prices in green and red",
+ "score": 8.364,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Indices in Japan, South Korea, Australia and Hong Kong gained, while New Zealand stocks fell on election uncertainty.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Al Jazeera",
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.aljazeera.com/economy/2026/11/27/asian-stock-markets-rise-after-earlier-tech-rout?traffic_source=rss",
+  "https://www.straitstimes.com/business/asian-stocks-enjoy-another-bounce-as-tech-holds-court"
+ ],
+ "credit": "Photo: AhmadArdity, CC0, via Wikimedia Commons",
+ "credit_file": "Stockmarket.jpg",
+ "status": "web",
+ "published": "2026-11-27T04:21:53+00:00",
+ "story": ""
+}
