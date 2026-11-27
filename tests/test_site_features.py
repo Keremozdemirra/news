@@ -2,7 +2,7 @@ import os
 import json
 import xml.etree.ElementTree as ET
 import unittest
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 os.environ.setdefault("DESK_SITE_OFFLINE", "1")  # building a site in a test never fetches market data or rewrites state/markets.json
@@ -40,6 +40,10 @@ def post(self, pid, hours_ago, **kw):
 class Features(Tmp):
     def setUp(self):
         super().setUp()
+        # the fixtures are named for 25-26 November; a fixed clock keeps them on those days whenever the suite runs
+        clock = mock.patch.object(desk, "now", return_value=datetime(2026, 11, 26, 23, 0, tzinfo=timezone.utc))
+        clock.start()
+        self.addCleanup(clock.stop)
         post(self, "2026-11-26-0900-1", 1, headlines=["SAP explores at least 10,000 job cuts"], figure="10,000", company="SAP", logo_names=["SAP"],
              sources=["Techmeme", "CNBC", "Financial Times"], dek="The group restructures.")
         post(self, "2026-11-26-0800-1", 2, headlines=["SAP names a new chief"], company="SAP", sources=["CNBC"], topic="Tech")
