@@ -175,7 +175,8 @@ class SceneData(unittest.TestCase):
     def test_the_headline_picks_its_entry_then_the_topic(self):
         lists = scenes.entries("Maltese-flagged tanker capsizes off Ibiza", "World", self.data)
         self.assertEqual(lists[0], next(r["files"] for r in self.data["rules"] if r["id"] == "shipping"))
-        self.assertEqual(lists[1], self.data["topics"]["World"])
+        # the World topic, minus files that need their own subject (the Peace Palace for a world-court story)
+        self.assertEqual(lists[1], [i for i in self.data["topics"]["World"] if scenes.fits(i, "Maltese-flagged tanker capsizes off Ibiza")])
         # a landmark (the Vasconcelos library) only goes on an article about its place
         self.assertEqual(scenes.entries("A quiet day", "Culture", self.data)[0],
                          [i for i in self.data["topics"]["Culture"] if scenes.fits(i, "A quiet day")])

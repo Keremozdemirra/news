@@ -21,7 +21,9 @@ class Fit(unittest.TestCase):
         gb = files(scenes.entries("Guinea-Bissau's military rulers delay elections by two years", "Politics", DATA))
         self.assertNotIn("2023 Polish parliamentary election and referendum. October 2023. Ballot box in Tomaszów Mazowiecki, "
                          "Sikorskiego Street 6A.jpg", gb)
-        self.assertIn("Example voting booth.jpg", gb)
+        # the Connecticut voting machine (its ballot reads "Morris, Connecticut, 2006") is retired: a generic fallback instead
+        self.assertNotIn("Example voting booth.jpg", gb)
+        self.assertIn("Alley of flags UNO Geneva.jpg", gb)
         fed = files(scenes.entries("Fed is poised to raise rates despite stock turmoil", "Economy", DATA))
         self.assertIn("US Dollar banknotes I.jpg", fed)
         self.assertNotIn("Pile of Euro Notes (5856649637).jpg", fed)
@@ -57,7 +59,9 @@ class Sport(unittest.TestCase):
     def test_a_football_club_gets_a_football_ground_never_a_pit_lane(self):
         lists = scenes.entries("Bournemouth beat Celta Vigo 2-1 with 10 men", "Sport", DATA, sport=True)
         got = files(lists)
-        self.assertIn("Hinchliffe Stadium (Paterson, NJ).jpg", got)
+        # a football pitch or goal, never the one New Jersey stadium that ran on four posts in a batch (retired)
+        self.assertIn("Soccer goals in the south field in Brastad 3.jpg", got)
+        self.assertNotIn("Hinchliffe Stadium (Paterson, NJ).jpg", got)
         self.assertNotIn("Pit lane at Phillip Island GP Circuit (16232935133).jpg", got)
         self.assertNotIn("Boxing ring, MGM Grand.jpg", got)
 
@@ -68,7 +72,7 @@ class SportAudit(unittest.TestCase):
                 "caption": "x #news", "photo_file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg", "photo_kind": "scene",
                 "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
         self.assertTrue(any("not this article's sport" in p for p in desk.audit(post)))
-        post.update(photo_file="Hinchliffe Stadium (Paterson, NJ).jpg")
+        post.update(photo_file="Soccer goals in the south field in Brastad 3.jpg")
         self.assertFalse(any("sport" in p for p in desk.audit(post)))
 
 
@@ -86,3 +90,32 @@ class NoNameSearch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Retired(unittest.TestCase):
+    """Photo plan item 1: a retired file is in no list and no path picks it."""
+    BAD = ("Example voting booth.jpg", "Hinchliffe Stadium (Paterson, NJ).jpg", "Cranes in the Port of Algeciras and Gibraltar.jpg",
+           "Colorful Old Oil Barrels.jpg", "NOIRLab HQ Conference Room ( V8A4834-CC).jpg", "Globe with yellow background 1.jpg",
+           "Market stalls at Ljubljana Central Market.jpg", "Old port cranes at Port of Antwerp, pic-054.JPG")
+
+    def lists(self):
+        for r in DATA["rules"] + DATA["sport"]:
+            yield r["files"]
+        yield from DATA["topics"].values()
+
+    def test_no_list_names_a_retired_file(self):
+        gone = set(DATA["retired"])
+        self.assertTrue(set(self.BAD) <= gone)
+        self.assertEqual([i["file"] for items in self.lists() for i in items if i["file"] in gone], [])
+
+    def test_entries_and_the_name_search_skip_retired_files(self):
+        data = json.loads(json.dumps(DATA))
+        data["topics"]["Politics"].append({"file": "Example voting booth.jpg", "alt": "x"})
+        self.assertNotIn("Example voting booth.jpg", files(scenes.entries("Taiwan votes Saturday", "Politics", data)))
+        from aidaily import entities
+        self.assertIn("Hinchliffe Stadium (Paterson, NJ).jpg", entities.never_use())
+
+    def test_the_fallback_topics_always_have_a_picture(self):
+        # no text-only card (Kerem): Business and World, the topics every story falls back on, keep files any story may carry
+        for t in scenes.FALLBACK_TOPICS:
+            self.assertGreaterEqual(len([i for i in DATA["topics"][t] if not i.get("place") and not i.get("needs")]), 2, t)

@@ -93,8 +93,23 @@
    "match": "\\b(football|soccer|premier league|champions league|europa league|bundesliga|la liga|serie a|world cup|striker|goalkeeper|midfielder|manager|transfer|fc|united|city)\\b",
    "files": [
     {
-     "file": "Hinchliffe Stadium (Paterson, NJ).jpg",
-     "alt": "A football stadium seen from above",
+     "file": "Football (6869489634).jpg",
+     "alt": "A football on a grass pitch",
+     "sport": "football"
+    },
+    {
+     "file": "Soccer goals in the south field in Brastad 3.jpg",
+     "alt": "Football goals on a grass field",
+     "sport": "football"
+    },
+    {
+     "file": "Fence and soccer goal in the north field in Brastad 2.jpg",
+     "alt": "A football goal behind a wooden rail",
+     "sport": "football"
+    },
+    {
+     "file": "Soccer goal low angle.jpg",
+     "alt": "A football goal net seen from below",
      "sport": "football"
     }
    ]
@@ -216,8 +231,8 @@
      "alt": "A bulk carrier at a grain terminal seen from above"
     },
     {
-     "file": "Cement carrier 'Blue Ciment 2' (IMO 9577264), container ship 'Uni-Phoenix' (IMO 9202170), tanker 'Trans Chemica' (IMO 9314715) in Haifa Bay - 2023-11-28 (DSC4651-DSC4684; Hugin align & de-vignette 34 photos; G'MIC Median Blend).guetzli.jpg",
-     "alt": "Cargo ships at anchor off a coast"
+     "file": "Vancouver Container Port (11436902093).jpg",
+     "alt": "Cranes over a container port"
     }
    ]
   },
@@ -260,8 +275,8 @@
      "alt": "Offshore oil platforms seen from the air"
     },
     {
-     "file": "Colorful Old Oil Barrels.jpg",
-     "alt": "Weathered oil barrels stacked together"
+     "file": "Anacortes Refinery 31911.JPG",
+     "alt": "An oil refinery with smoking stacks"
     }
    ]
   },
@@ -438,10 +453,6 @@
      "alt": "Mannequins in a clothing shop window"
     },
     {
-     "file": "Market stalls at Ljubljana Central Market.jpg",
-     "alt": "Fruit and vegetable stalls at an open-air market"
-    },
-    {
      "file": "Mercado Artesanal en São Paulo 2.jpg",
      "alt": "Market stalls on a city street"
     },
@@ -450,12 +461,8 @@
      "alt": "An empty shopping street on a sunny day"
     },
     {
-     "file": "Carrots at Ljubljana Central Market.JPG",
-     "alt": "Fresh carrots on a market stall"
-    },
-    {
-     "file": "Grape tomatoes on the vine at Ljubljana Central Market.JPG",
-     "alt": "Ripe tomatoes on the vine"
+     "file": "Galeria shopping mall interior 12.jpg",
+     "alt": "Shops on the floors of a mall atrium"
     }
    ]
   },
@@ -468,14 +475,6 @@
      "alt": "An open office floor with a lounge area"
     },
     {
-     "file": "Lone office worker (Unsplash).jpg",
-     "alt": "A lone worker in a large dark office hall"
-    },
-    {
-     "file": "Neglected office plants (Unsplash).jpg",
-     "alt": "An empty office corner with a dried plant"
-    },
-    {
      "file": "Open Plan Office of Editors in Seznam cz.jpg",
      "alt": "Rows of desks in an open-plan office",
      "place": [
@@ -485,6 +484,10 @@
     {
      "file": "Coworking space 2026-09-27.jpg",
      "alt": "Quiet work booths in a coworking space"
+    },
+    {
+     "file": "Industrial production line operating in a large modern factory.jpg",
+     "alt": "A production line in a factory hall"
     }
    ],
    "skip": "\\b(garment\\w*|factor(?:y|ies)|plants?|mines?|miners?|strikes?|striking|clash\\w*|protest\\w*|unions?|farm\\w*)\\b"
@@ -624,12 +627,12 @@
     "needs": "\\b(farm\\w*|harvest|crops?|grain|corn|wheat|soy\\w*|agricultur\\w*)\\b"
    },
    {
-    "file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
-    "alt": "Container cranes across a bay"
+    "file": "Caja registradora - Cash Register (17012506459).jpg",
+    "alt": "The keys of a shop cash register"
    },
    {
-    "file": "Old port cranes at Port of Antwerp, pic-054.JPG",
-    "alt": "A harbour crane seen from below against a blue sky"
+    "file": "Cash register (3537693467).jpg",
+    "alt": "Number keys of an old cash register"
    }
   ],
   "Politics": [
@@ -651,11 +654,6 @@
      "Polish",
      "Warsaw"
     ],
-    "needs": "\\b(elections?|votes?|voting|voters?|ballots?|referendum|polls?)\\b"
-   },
-   {
-    "file": "Example voting booth.jpg",
-    "alt": "A mechanical voting booth",
     "needs": "\\b(elections?|votes?|voting|voters?|ballots?|referendum|polls?)\\b"
    },
    {
@@ -681,6 +679,16 @@
      "Bermuda"
     ],
     "needs": "\\b(courts?|judges?|trial|ruling|ruled|lawsuit|sued?|verdict)\\b"
+   },
+   {
+    "file": "Den Haag Peace Palace (1).jpg",
+    "alt": "The Peace Palace in The Hague, seat of the world court",
+    "needs": "\\b(international court|world court|icj|icc|hague|arbitration|genocide|war crimes?|tribunal)\\b"
+   },
+   {
+    "file": "Berlaymont building in Brussels.jpg",
+    "alt": "The European Commission's Berlaymont building in Brussels",
+    "needs": "\\b(european commission|european union|eu|brussels|eurozone|von der leyen)\\b"
    }
   ],
   "Tech": [
@@ -728,14 +736,6 @@
     "alt": "A glass office tower seen from below"
    },
    {
-    "file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
-    "alt": "An empty boardroom with a long table"
-   },
-   {
-    "file": "NOIRLab HQ Conference Room (6V6A0258-CC).jpg",
-    "alt": "A conference room with red chairs"
-   },
-   {
     "file": "AUS Melbourne, Central Business District, Skyline 001.jpg",
     "alt": "A business district skyline under clouds",
     "place": [
@@ -747,24 +747,34 @@
      "Perth",
      "Adelaide"
     ]
+   },
+   {
+    "file": "Office Building Off Old Street (215200145).jpeg",
+    "alt": "An office block lit at dusk"
+   },
+   {
+    "file": "Industrial production line operating in a large modern factory.jpg",
+    "alt": "A production line in a factory hall"
    }
   ],
   "World": [
    {
-    "file": "BlackMarble20161km.jpg",
-    "alt": "The Earth at night from space"
+    "file": "Alley of flags UNO Geneva.jpg",
+    "alt": "National flags along the approach to the UN in Geneva"
    },
    {
-    "file": "Globe with yellow background 1.jpg",
-    "alt": "A globe against a yellow wall"
+    "file": "Palais des Nations unies, à Genève.jpg",
+    "alt": "Flags in front of the Palais des Nations in Geneva"
    },
    {
-    "file": "João Silas 2015 (Unsplash).jpg",
-    "alt": "A shelf of old and new globes"
+    "file": "Den Haag Peace Palace (1).jpg",
+    "alt": "The Peace Palace in The Hague, seat of the world court",
+    "needs": "\\b(international court|world court|icj|icc|hague|arbitration|genocide|war crimes?|tribunal)\\b"
    },
    {
-    "file": "202408 The sea horizon was only two seabirds fishing at the distance in the morning.jpg",
-    "alt": "A calm sea under a pale sky"
+    "file": "Berlaymont building in Brussels.jpg",
+    "alt": "The European Commission's Berlaymont building in Brussels",
+    "needs": "\\b(european commission|european union|eu|brussels|eurozone|von der leyen)\\b"
    }
   ],
   "Culture": [
@@ -836,15 +846,32 @@
     "sport": "olympics"
    },
    {
-    "file": "Hinchliffe Stadium (Paterson, NJ).jpg",
-    "alt": "A football stadium seen from above",
+    "file": "Football (6869489634).jpg",
+    "alt": "A football on a grass pitch",
     "sport": "football"
    }
   ]
  },
  "_fields": "place: names one of which the article must carry, on a file whose picture itself names a place (a skyline, a parliament, a ballot box, a currency, a landmark) or another organisation; needs: a pattern the article must match (a ballot box needs an election); skip on a rule: a pattern that keeps the rule off the article; sport: the sport a Sport-topic file shows; retired: files taken off the lists, which audit holds wherever they still are",
  "retired": [
+  "202408 The sea horizon was only two seabirds fishing at the distance in the morning.jpg",
+  "BlackMarble20161km.jpg",
+  "Carrots at Ljubljana Central Market.JPG",
+  "Cement carrier 'Blue Ciment 2' (IMO 9577264), container ship 'Uni-Phoenix' (IMO 9202170), tanker 'Trans Chemica' (IMO 9314715) in Haifa Bay - 2023-11-28 (DSC4651-DSC4684; Hugin align & de-vignette 34 photos; G'MIC Median Blend).guetzli.jpg",
+  "Colorful Old Oil Barrels.jpg",
+  "Cranes in the Port of Algeciras and Gibraltar.jpg",
+  "Example voting booth.jpg",
+  "Globe with yellow background 1.jpg",
+  "Grape tomatoes on the vine at Ljubljana Central Market.JPG",
+  "Hinchliffe Stadium (Paterson, NJ).jpg",
   "Holstein at Dusk.jpg",
-  "Old Chinese Lock (B&W) 2.jpg"
+  "João Silas 2015 (Unsplash).jpg",
+  "Lone office worker (Unsplash).jpg",
+  "Market stalls at Ljubljana Central Market.jpg",
+  "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+  "NOIRLab HQ Conference Room (6V6A0258-CC).jpg",
+  "Neglected office plants (Unsplash).jpg",
+  "Old Chinese Lock (B&W) 2.jpg",
+  "Old port cranes at Port of Antwerp, pic-054.JPG"
  ]
 }

@@ -75,11 +75,14 @@ def entries(headline, topic, data=None, sport=False):
         same = [i for i in data["topics"].get("Sport", []) if kind and i.get("sport") == kind]
         if same:
             out.append(same)
-        return out
+        gone = set(data.get("retired", []))
+        return [[i for i in items if i["file"] not in gone] for items in out]
     for t in (topic,) + FALLBACK_TOPICS:
         if t in data["topics"] and data["topics"][t] not in out:
             out.append(data["topics"][t])
-    return [[i for i in items if fits(i, headline)] for items in out]
+    # a retired file is never picked, whichever list still names it (the audit holds one already on a post)
+    gone = set(data.get("retired", []))
+    return [[i for i in items if fits(i, headline) and i["file"] not in gone] for items in out]
 
 
 def order(items, used, last=None, seed=""):

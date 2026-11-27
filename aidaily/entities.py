@@ -768,6 +768,20 @@ def shows_person(filename, cats, named, depicted=None):
     return ""
 
 
+_NEVER = None
+
+
+def never_use():
+    """Files taken off the scene lists (scenes.json "retired"): no path may pick them, by name search or as a scene."""
+    global _NEVER
+    if _NEVER is None:
+        try:
+            _NEVER = frozenset(json.loads((Path(__file__).parent / "scenes.json").read_text()).get("retired", []))
+        except (OSError, ValueError):
+            _NEVER = frozenset()
+    return _NEVER
+
+
 def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False):
     """(path, credit, file) for the first reusable photo, across the subjects in order, that is not in `used`.
 
@@ -790,7 +804,7 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
         except Exception:  # noqa: BLE001  one failed lookup moves on to the next subject
             continue
         for f in names[:30]:
-            if f in used:
+            if f in used or f in never_use():
                 continue
             # strict (a place or organisation named in the headline): the title leads with the name, shows no people
             # doing things, and no longer gets the benefit of the doubt for naming other places or brands
