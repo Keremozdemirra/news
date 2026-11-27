@@ -462,7 +462,7 @@ class Play(Features):
 
     def test_masthead_menu_footer_and_sitemap_name_play(self):
         h = self.read("index.html")
-        self.assertEqual(h.count(f'href="{site.BASE}/play/"'), 2 + h.count('class="btn alt"'))  # menu and footer, plus the front-page button when shown
+        self.assertEqual(h.count(f'href="{site.BASE}/play/"'), 2 + h.count('class="btn alt"') + h.count('<section class="puzzles'))  # menu and footer, plus the front-page button and the heading of each puzzles block when shown
         sm = self.read("sitemap.xml")
         self.assertIn(f"{site.SITE}/play/</loc>", sm)
         for slug in ("topfloor", "tickerflip", "face-the-figure"):

@@ -130,7 +130,7 @@ def puzzles_block(cls=""):
 def top5_list(ranked, n=5):
     """The phone's scan list right after the lead: the next five headlines with their age, no pictures. The desktop has the rail."""
     items = "".join(f'<li><a href="{S.href(p)}"><span>{E(p["headlines"][0])}</span>{rel_time(p)}</a></li>' for p in ranked[1:1 + n])
-    return f'<section class="top5" aria-label="Top stories"><h2 class="sh">Top stories</h2><ol>{items}</ol></section>' if items else ""
+    return f'<section class="top5" aria-label="Top 5"><h2 class="sh">Top 5</h2><ol>{items}</ol></section>' if items else ""
 
 
 def front(shown, cos, m, sport=()):
