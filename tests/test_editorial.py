@@ -197,13 +197,31 @@ class Copy(unittest.TestCase):
         copy.strip_ungrounded(s, c)
         self.assertEqual(c["linkedin_post"], "EU leaders clashed over the budget.\n\nSource: France 24")
 
-    def test_a_report_that_restates_the_headline_gives_way_to_the_dek(self):
-        s = {"title": "Senate approves bill to suspend primaries in vote that is a boost for Milei", "summary": "", "source": "Buenos Aires Times"}
-        rows = [{"id": 0, "headline": "Argentina's Senate approves bill to suspend primaries",
-                 "dek": "The Buenos Aires Times reports the vote as a boost for Milei.", "x_post": "",
-                 "linkedin_post": "The Senate approved the bill to suspend primaries.\n\nSource: Buenos Aires Times", "figure": ""}]
+    def test_report_never_repeats_the_dek_and_a_lone_headline_repeat_goes(self):
+        # site QA, 2026-11-27: the SAP article printed the dek, then the same sentence as its body
+        s = {"title": "SAP explores at least 10,000 job cuts", "summary": "The European software group is the latest to "
+             "restructure as AI hits the software sector. Talks are at an early stage.", "source": "FT"}
+        rows = [{"id": 0, "headline": "SAP explores at least 10,000 job cuts",
+                 "dek": "The European software group is the latest to restructure as AI hits the software sector.", "x_post": "",
+                 "linkedin_post": "The European software group is the latest to restructure as AI hits the software sector. "
+                                  "Talks are at an early stage.\n\nSource: FT", "figure": ""}]
         copy.apply([s], rows)
-        self.assertTrue(s["linkedin_post"].startswith("The Buenos Aires Times reports"))
+        self.assertEqual(desk.body(s), "Talks are at an early stage.")
+        # nothing beyond the dek and the headline: the report is empty, the dek carries the post, no padding
+        t = {"title": "Senate approves bill to suspend primaries in a boost for Milei", "summary": "", "source": "BA Times"}
+        rows = [{"id": 0, "headline": "Argentina's Senate approves bill to suspend primaries",
+                 "dek": "The vote is a boost for Milei.", "x_post": "",
+                 "linkedin_post": "The Senate approved the bill to suspend primaries. The vote is a boost for Milei.\n\nSource: BA Times",
+                 "figure": ""}]
+        copy.apply([t], rows)
+        self.assertEqual(desk.body(t), "")
+        self.assertIn("The vote is a boost for Milei.", desk.caption({"headline": t["headline"], "source": "BA Times"}, t))
+
+    def test_a_spelled_out_quantity_is_never_the_number(self):
+        s = {"title": "Number of Neets in UK falls below a million", "summary": "", "source": "The Guardian"}
+        copy.apply([s], [{"id": 0, "headline": "UK Neet number falls below a million", "dek": "", "x_post": "",
+                          "linkedin_post": "", "figure": "a million"}])
+        self.assertEqual(s["figure"], "")
 
     def test_outlet_digits_are_not_a_claim(self):
         s = {"title": "Spain's De Cos chosen as next ECB president", "summary": "", "source": "France 24"}

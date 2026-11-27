@@ -386,6 +386,18 @@ def drop_restated_lead(post, headline):
     return " ".join(sents) + ("\n\n" + "\n".join(tail) if tail else "")
 
 
+def drop_repeats(post, deks, headline):
+    """The report without sentences that restate the dek, and without a lone sentence that restates the headline."""
+    lines = (post or "").split("\n")
+    tail = [l for l in lines if l.startswith("Source:")]
+    sents = sentences(" ".join(l for l in lines if l.strip() and not l.startswith("Source:")))
+    kept = [x for x in sents if not any(d and (repeats(x, d) or repeats(d, x, share=0.8)) for d in deks)]
+    if len(kept) == 1 and repeats(kept[0], headline, share=0.6):
+        kept = []
+    body = " ".join(kept)
+    return (body + ("\n\n" + "\n".join(tail) if tail else "")).strip() if body else "\n".join(tail)
+
+
 def apply(stories, reply_rows):
     """Merge the model's rows into the stories; numbers not in the source send a story back to its headline."""
     # the model sometimes quotes the id ("0"); a string id must still match its story
@@ -433,11 +445,10 @@ def apply(stories, reply_rows):
             # a dek that only says the headline again is no dek ("Congress passed the overhaul ... in its final vote")
             if s.get("dek") and repeats(s["dek"], s["headline"]):
                 s["dek"] = ""
-            # a report that only says the headline again gives way to the dek when the dek adds something
-            report = "\n".join(l for l in s["linkedin_post"].splitlines() if l.strip() and not l.startswith("Source:"))
-            if s.get("dek") and (not report or repeats(report, s["headline"], share=0.6)):
-                src_line = [l for l in s["linkedin_post"].splitlines() if l.startswith("Source:")]
-                s["linkedin_post"] = s["dek"] + ("\n\n" + src_line[0] if src_line else "")
+            # the report adds facts; it never says the dek again, and never only the headline. The site prints dek
+            # and report one under the other, so a repeat reads twice (SAP's job cuts, 2026-11-27). Sentences that
+            # repeat either are cut; when nothing is left the report is empty and the dek carries the post alone.
+            s["linkedin_post"] = drop_repeats(s["linkedin_post"], [s["dek"]] if s.get("dek") else [], s["headline"])
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what") and s.get("lane") != "sport":
