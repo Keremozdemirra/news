@@ -1,0 +1,55 @@
+{
+ "id": "2026-11-27-0347-1",
+ "batch": "2026-11-27-0347",
+ "n": 1,
+ "created": "2026-11-27T03:47:44+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Hong Kong home rents hit new highs as competing offers push prices up\n\nHabitat Property's Victoria Allan cites returning expatriates, increased bank hiring and more arrivals from mainland China. Together these factors are tightening housing supply.\n\nReported by Bloomberg; South China Morning Post; The Straits Times.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/what-s-driving-hong-kong-home-rents-to-new-highs-video"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/what-s-driving-hong-kong-home-rents-to-new-highs-video",
+  "https://www.scmp.com/business/markets/article/3375931/hong-kongs-home-prices-fall-october-rents-hit-record-high",
+  "https://www.straitstimes.com/asia/east-asia/bankers-pay-up-for-hong-kong-apartments-as-rents-hit-new-highs"
+ ],
+ "headlines": [
+  "Hong Kong home rents hit new highs as competing offers push prices up"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Economy",
+ "photo_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Container cranes across a bay",
+ "score": 8.986,
+ "figure": "",
+ "company": "Habitat Property",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Habitat Property's Victoria Allan cites returning expatriates, increased bank hiring and more arrivals from mainland China.",
+ "body": "Together these factors are tightening housing supply.",
+ "so_what": "",
+ "sources": [
+  "Bloomberg",
+  "South China Morning Post",
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/what-s-driving-hong-kong-home-rents-to-new-highs-video",
+  "https://www.scmp.com/business/markets/article/3375931/hong-kongs-home-prices-fall-october-rents-hit-record-high",
+  "https://www.straitstimes.com/asia/east-asia/bankers-pay-up-for-hong-kong-apartments-as-rents-hit-new-highs"
+ ],
+ "credit": "Photo: Wikipek, CC0, via Wikimedia Commons",
+ "credit_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:47:44+00:00",
+ "story": ""
+}

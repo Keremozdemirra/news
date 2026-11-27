@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-27-0347-5",
+ "batch": "2026-11-27-0347",
+ "n": 5,
+ "created": "2026-11-27T03:47:47+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "China hedge fund founder's AI startup to release OS kernel for AI agents\n\nThe startup's first product is the core of an operating system built for AI agents.\n\nReported by Bloomberg.\n\nSend this to whoever on your team builds with AI.\n\n#ai #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/china-hedge-fund-star-builds-operating-system-kernel-for-ai"
+ ],
+ "links": [
+  "https://news.google.com/rss/articles/CBMirwFBVV95cUxOUHVlelhta05EcHBmTDlESTJ3eERsREJpMWMtTTE2dUhkVklxVkZ1VDgzSTd1WVJKbFgxNzdOdEhpTW1Ud1dHNGN5dVdzZDVFMmJ6UVFUT3g1elF3Wm5lVnU4UkFFcjhnYWNYdFNtM1AwSGdRS09LRHJ5eThXaVVYNGRfMFpQZzZlanNscmV2UEhxSTdIYWIxTGZydTdGX05LQzNZcVE0UDZrVkN3ZUJj?oc=5",
+  "https://www.bloomberg.com/news/articles/2026-11-27/china-hedge-fund-star-builds-operating-system-kernel-for-ai"
+ ],
+ "headlines": [
+  "China hedge fund founder's AI startup to release OS kernel for AI agents"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "AI",
+ "photo_file": "Robots at Tepia (83269).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A tracked robot carrying a crate",
+ "score": 8.113,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The startup's first product is the core of an operating system built for AI agents.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/china-hedge-fund-star-builds-operating-system-kernel-for-ai"
+ ],
+ "credit": "Photo: Syced, CC0, via Wikimedia Commons",
+ "credit_file": "Robots at Tepia (83269).jpg",
+ "status": "web",
+ "published": "2026-11-27T03:47:47+00:00",
+ "story": ""
+}

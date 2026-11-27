@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0347-2",
+ "batch": "2026-11-27-0347",
+ "n": 2,
+ "created": "2026-11-27T03:47:45+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "India's main opposition party sues Meta and government over content removal\n\nCritics of Modi also face growing constraints on travel and speech, according to the report. It concerns the removal and blocking of political content.\n\nReported by The Straits Times; Bloomberg.\n\nSend this to whoever on your team covers Meta.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/asia/south-asia/modi-critics-face-growing-constraints-on-travel-speech-in-india"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/modi-critics-face-growing-constraints-on-travel-speech-in-india",
+  "https://www.straitstimes.com/asia/south-asia/modi-critics-face-growing-constraints-on-travel-speech-in-india"
+ ],
+ "headlines": [
+  "India's main opposition party sues Meta and government over content removal"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "Glass office tower seen from below, São Paulo.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A glass office tower seen from below",
+ "score": 8.611,
+ "figure": "",
+ "company": "Meta",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "Meta"
+ ],
+ "dek": "Critics of Modi also face growing constraints on travel and speech, according to the report.",
+ "body": "It concerns the removal and blocking of political content.",
+ "so_what": "",
+ "sources": [
+  "The Straits Times",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/asia/south-asia/modi-critics-face-growing-constraints-on-travel-speech-in-india",
+  "https://www.bloomberg.com/news/articles/2026-11-27/modi-critics-face-growing-constraints-on-travel-speech-in-india"
+ ],
+ "credit": "Photo: Wilfredor, CC0, via Wikimedia Commons",
+ "credit_file": "Glass office tower seen from below, São Paulo.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:47:45+00:00",
+ "story": ""
+}

@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0347-4",
+ "batch": "2026-11-27-0347",
+ "n": 4,
+ "created": "2026-11-27T03:47:46+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Macy's postpones Thanksgiving Day Parade for first time in its history\n\nThe retailer confirmed Wednesday that an impending nor'easter will keep the giant balloons grounded. The parade was expected to celebrate its 100th year with a record 100 inflatables.\n\nReported by Axios; The New York Times.\n\nSend this to whoever on your team covers Macy's.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.axios.com/2026/11/25/macys-thanksgiving-parade-2026-balloons-weather"
+ ],
+ "links": [
+  "https://www.axios.com/2026/11/25/macys-thanksgiving-parade-2026-balloons-weather",
+  "https://www.nytimes.com/2026/11/26/nyregion/macys-thanksgiving-parade-history-timeline.html"
+ ],
+ "headlines": [
+  "Macy's postpones Thanksgiving Day Parade for first time in its history"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "Macy's at Northfield, 355, Northern Facade - 01.09.2025.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.152,
+ "figure": "",
+ "company": "Macy's",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "Macy's"
+ ],
+ "dek": "The retailer confirmed Wednesday that an impending nor'easter will keep the giant balloons grounded.",
+ "body": "The parade was expected to celebrate its 100th year with a record 100 inflatables.",
+ "so_what": "",
+ "sources": [
+  "Axios",
+  "The New York Times"
+ ],
+ "source_urls": [
+  "https://www.axios.com/2026/11/25/macys-thanksgiving-parade-2026-balloons-weather",
+  "https://www.nytimes.com/2026/11/26/nyregion/macys-thanksgiving-parade-history-timeline.html"
+ ],
+ "credit": "Photo: Shinuinu, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "Macy's at Northfield, 355, Northern Facade - 01.09.2025.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:47:46+00:00",
+ "story": ""
+}
