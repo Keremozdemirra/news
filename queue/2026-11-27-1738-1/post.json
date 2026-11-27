@@ -16,7 +16,7 @@
   "card.jpg",
   "detail.jpg"
  ],
- "caption": "Canada's Supreme Court largely upholds Quebec's religious symbols ban\n\nThe 6-1 ruling found Quebec could shield Bill 21 from most court challenges. Groups including female Muslim, Sikh and Catholic teachers challenged the law, arguing it violated their fundamental rights. The law bars public sector workers in the province from wearing conspicuous religious symbols. The court released the decision on Friday morning.\n\nReported by BBC; Al Jazeera; The Guardian.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "caption": "Canada's Supreme Court largely upholds Quebec's religious symbols ban\n\nThe 6-1 ruling found Quebec could shield Bill 21 from most court challenges. Groups including female Muslim, Sikh and Catholic teachers challenged the law, arguing it violated their fundamental rights. The law bars public sector workers in the province from wearing conspicuous religious symbols. The court released the decision on Friday morning.\n\nReported by BBC; Al Jazeera; The Guardian.\nWritten by AI from named newsrooms.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
  "source_cta": false,
  "urls": [
   "https://www.bbc.co.uk/news/articles/cq3dgpy9lem3o?at_medium=RSS&at_campaign=rss"
@@ -63,22 +63,14 @@
  ],
  "credit": "Photo: Shixart1985, CC BY 2.0, via Wikimedia Commons",
  "credit_file": "Industrial production line operating in a large modern factory.jpg",
- "video": {
-  "shape": "card",
-  "file": "video.mp4",
-  "cover": "cover.jpg",
-  "spec": [],
-  "headline": "Canada's Supreme Court largely upholds Quebec's religious symbols ban",
-  "photo_file": "Industrial production line operating in a large modern factory.jpg",
-  "credit": "Photo: Shixart1985, CC BY 2.0, via Wikimedia Commons",
-  "focus": [
-   0.5,
-   0.5
-  ],
-  "seconds": 8.0
- },
- "status": "queued",
+ "status": "published",
  "publish_after": "2026-11-27T17:46:34+00:00",
  "story": "",
- "issue": 14
+ "issue": 14,
+ "attempted": "2026-11-27T18:00:17+00:00",
+ "video_error": "container 17873879409692173: ERROR",
+ "video_shape_tried": "card",
+ "published": "2026-11-27T18:01:11+00:00",
+ "media_id": "18111560807225743",
+ "permalink": "https://www.instagram.com/p/DgQRnQzDuTE/"
 }

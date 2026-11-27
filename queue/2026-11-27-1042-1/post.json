@@ -55,6 +55,15 @@
    "url": "https://bsky.app/profile/boardread.news/post/3n3cpoyilig25",
    "at": "2026-11-27T17:30:18+00:00",
    "format": "link"
+  },
+  "threads": {
+   "id": "18130841726490161",
+   "url": "https://www.threads.com/@boardread/post/DgQRoqcle0R",
+   "at": "2026-11-27T18:02:30+00:00",
+   "format": "photo",
+   "reply": {
+    "id": "18080511581740335"
+   }
   }
  }
 }
