@@ -335,6 +335,20 @@ class FrontPage(unittest.TestCase):
         self.assertIs(order[-1], pr)
         self.assertLess(views.front_score(pr), views.front_score(breach))
 
+    def test_a_stand_in_photo_never_runs_on_a_card_and_every_card_photo_has_a_caption(self):
+        stock = fake("France enters recession after GDP falls", "Economy", 3, 9, id="a1", photo_file="Cash register (3537693467).jpg", photo_kind="scene")
+        portrait = fake("Trump signals tariffs", "Economy", 4, 9, id="a2", photo_file="Official Presidential Portrait of Donald Trump.jpg", photo_kind="person")
+        sport = fake("Cricket Australia widens probe", "Sport", 2, 9, id="a3", photo_file="Adelaide Oval.jpg", photo_kind="scene")
+        self.assertTrue(site.generic_photo(stock))
+        self.assertFalse(site.generic_photo(portrait))
+        self.assertFalse(site.generic_photo(sport))  # a sport scene says so in its label and keeps its place
+        self.assertFalse(views.photo_ok(stock))  # not on the front, the feed or the cover
+        self.assertEqual(site.pic(stock, thumb=True), "")  # not on a section page or a list
+        self.assertIn("<img", site.pic(stock, keep=True))  # the article's own figure keeps it
+        self.assertIn("<img", site.pic(portrait, thumb=True))
+        self.assertIn("Archive photo, not from this event.", views.photo_cap(portrait))
+        self.assertIn("Archive photo of the sport, not from this event.", views.photo_cap(sport))
+
     def test_a_photo_runs_on_the_front_only_when_it_shows_the_named_subject(self):
         self.assertTrue(views.photo_ok(fake("Trump signals tariffs", "Economy", 4, 9, photo_file="Official Presidential Portrait of Donald Trump.jpg")))
         self.assertTrue(views.photo_ok(fake("Norse Atlantic suspends all flights", "Business", 3, 9, photo_file="Norse Atlantic Airways Boeing 787.jpg")))

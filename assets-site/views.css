@@ -351,3 +351,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
   .front .lead .rates,.toprail .second,.puzzles.inrail{display:none}
   .puzzles.inlead{display:block;margin-top:var(--s3)}
 }
+
+/* a picture on a card says what kind of photo it is, in one line */
+.second img,.slead img,.fcard img,.leadrow .pic{margin-bottom:0}
+.pcap{display:block;font:500 12.5px/1.4 var(--f);color:var(--soft);margin:6px 0 var(--s1)}

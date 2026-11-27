@@ -39,6 +39,12 @@ def img(p, ratio="3/2", thumb=True, fixed=False):
     return S.photo_img(p, thumb, ratio, fixed=fixed)
 
 
+def photo_cap(p):
+    """One short line under a picture on a card: what kind of photo it is. The same label the article's caption starts with."""
+    from . import entities
+    return f'<span class="pcap">{E(entities.archive_label(p.get("photo_kind", ""), p.get("topic", "")))}</span>'
+
+
 def paras(p):
     return "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
 
@@ -88,8 +94,8 @@ def photo_ok(p):
     """A photo goes on the front page only if it shows what the article names: the person, the company, or another capitalised name
     from the headline or summary appears in the photo's file name. A server corridor under an OpenAI article or a globe under a
     satellite item says nothing, so those articles run as text. (The photo is still on the article's own page.)"""
-    if not p.get("_thumb") or not (p.get("photo_file") or "").strip():
-        return False
+    if not p.get("_thumb") or not (p.get("photo_file") or "").strip() or S.generic_photo(p):
+        return False  # a stand-in photo (photo_kind "scene") belongs on the article's own page, with its caption, not on a card
     return photo_subject(p) is not None
 
 
@@ -168,7 +174,7 @@ def front(shown, cos, m, sport=()):
                  f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{top5_list(ranked)}{puzzles_block("inlead")}{markets.rates_box(m, S.BASE)}</div>')
 
     def second(p):
-        photo = img(p, "3/2") if ph(p) else ""
+        photo = img(p, "3/2") + photo_cap(p) if ph(p) else ""
         return (f'<article class="second"><a href="{S.href(p)}">{photo}<span class="kick">{E(S.topic(p))}</span><h3>{E(p["headlines"][0])}</h3></a>'
                 f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
     latest = '<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2>' + latest_list(latest_rows) + "</section>"
@@ -181,7 +187,7 @@ def front(shown, cos, m, sport=()):
             continue  # a section without articles leaves no head and no hole
         used.update(p["id"] for p in rows)
         top, rest = rows[0], rows[1:]
-        photo = img(top, "3/2") if ph(top) else ""
+        photo = img(top, "3/2") + photo_cap(top) if ph(top) else ""
         blocks += (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
                    f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
                    + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
@@ -195,7 +201,7 @@ def sport_block(rows, ph, n=4):
     rows = rows[:n]
     if not rows:
         return ""
-    cells = "".join(f'<article class="slead"><a href="{S.href(p)}">{img(p, "3/2") if ph(p) else ""}<h3>{E(p["headlines"][0])}</h3></a>'
+    cells = "".join(f'<article class="slead"><a href="{S.href(p)}">{img(p, "3/2") + photo_cap(p) if ph(p) else ""}<h3>{E(p["headlines"][0])}</h3></a>'
                     f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)}</div></article>' for p in rows)
     return (f'<section class="sportblk" aria-label="Sport"><h2 class="sh"><a href="{S.BASE}/sport/">Sport</a></h2><div class="sportgrid">{cells}</div>'
             f'<p class="sportmore"><a href="{S.BASE}/sport/">More sport</a></p></section>')
@@ -342,7 +348,7 @@ def board(shown, m):
 
 def fcard(p, first=False):
     """A feed card: the photo at 4:3 (when it shows its subject), the headline, the plain meta. Without a photo the card is text."""
-    media = img(p, "4/3", thumb=False) if photo_ok(p) else ""
+    media = img(p, "4/3", thumb=False) + photo_cap(p) if photo_ok(p) else ""
     return (f'<article class="fcard{" first" if first else ""}{"" if media else " textonly"}"><a href="{S.href(p)}">{media}'
             f'<div class="mt">{E(S.topic(p))} &middot; {S.stamp(p["published"])} &middot; {nroom(p)}</div><h2>{E(p["headlines"][0])}</h2></a>'
             f'<p>{E(p.get("dek", ""))}</p></article>')

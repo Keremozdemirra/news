@@ -474,10 +474,17 @@ def photo_img(p, thumb=True, ratio="3/2", alt="", load="lazy", box=True, fixed=F
     return f'<img src="{src}" width="{w}" height="{h}" alt="{E(alt)}" {lazy} style="{style}object-position:{pos}">'
 
 
-def pic(p, thumb=False, eager=False, ratio="3/2", alt=""):
+def generic_photo(p):
+    """True when the picture is a stand-in for the subject (a cash register under an inflation story, an office block under a
+    whistleblower), not a picture of the person or company the article names. The desk marks those photo_kind "scene"; a sport
+    scene is shown as "Archive photo of the sport", so it keeps its place. Such a photo is for the article page, never for a card."""
+    return p.get("photo_kind") == "scene" and topic(p) != "Sport"
+
+
+def pic(p, thumb=False, eager=False, ratio="3/2", alt="", keep=False):
     """The photo in a box of the given shape (3:2 unless a page asks for another). The wrapper holds the shape, the image
-    fills it, so the page does not shift as photos arrive."""
-    if not p.get("_thumb"):
+    fills it, so the page does not shift as photos arrive. keep: the article's own figure, which says what it is in its caption."""
+    if not p.get("_thumb") or (generic_photo(p) and not keep):
         return ""
     ratio = fit(p, thumb, ratio)[2]
     return f'<span class="pic" style="aspect-ratio:{ratio}">{photo_img(p, thumb, ratio, alt=alt, load="eager" if eager else "lazy", box=False)}</span>'
@@ -590,7 +597,7 @@ def listing(rows, path, n, total, aside=""):
     if not rows:
         return '<div class="empty">The first articles are on their way.</div>'
     first = rows[0] if n == 1 and rows[0].get("_hires") else None
-    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True, ratio="16/9")}<span class="kick">{E(topic(first))}</span>'
+    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True, ratio="16/9")}{views.photo_cap(first) if pic(first, ratio="16/9") else ""}<span class="kick">{E(topic(first))}</span>'
             f'<h2 class="h-xl">{E(first["headlines"][0])}</h2><p class="dek">{E(first.get("dek", ""))}</p>'
             f'{meta(t_tag(first), cover(first))}</a></div>') if first else ""
     body = lead + f'<ol>{"".join(listing_row(p) for p in rows if p is not first)}</ol>' + pager(path, n, total)
@@ -914,7 +921,7 @@ def story(p, rows, cos=None, counts=None):
     insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = photo_alt(p)
-    fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
+    fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt, keep=True)}'
            f'<figcaption class="meta">{credit_html(p)}</figcaption></figure>') if p.get("_hires") else ""
     # Older and Newer stay inside the article's own section: a step to the next story is a step to a story of the same kind
     same = [o for o in rows if topic(o) == topic(p)]
