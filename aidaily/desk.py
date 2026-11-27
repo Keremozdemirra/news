@@ -2202,7 +2202,7 @@ def evening_digest(factories=None):
         except Exception as e:  # noqa: BLE001
             print(f"evening digest not sent: the channel could not be checked ({str(e)[:160]})")
             return
-        if found:
+        if isinstance(found, dict) and found.get("id"):
             _save(STATE / "digest.json", {"date": today, "posts": [p["id"] for p in top], **found, "found_live": True})
             print(f"evening digest already in the channel ({found['url']}), recorded")
             return

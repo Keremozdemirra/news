@@ -669,38 +669,22 @@ class Digest(Env):
         # 2026-11-27: a dispatch run and a scheduled run both checked out the commit from before either recorded the
         # digest, and both sent it (t.me/boardread/36 and /37). The second run now finds the first in the channel.
         import shutil
-        import threading
         self.seed(5)
-        channel, lock, first_sent = [], threading.Lock(), threading.Event()
+        channel = []
 
         class TG:
             def find_digest(self_, since):
-                with lock:
-                    return {"id": channel[0], "url": f"https://t.me/boardread/{channel[0]}"} if channel else None
+                return {"id": channel[0], "url": f"https://t.me/boardread/{channel[0]}"} if channel else None
 
             def digest(self_, posts):
-                with lock:
-                    channel.append(str(36 + len(channel)))
-                    mid = channel[-1]
-                first_sent.set()
-                return {"id": mid}
-        stale = Path(self.tmp.name) / "stale-state"
+                channel.append(str(36 + len(channel)))
+                return {"id": channel[-1]}
+        stale = Path(self.tmp.name) / "stale-state"  # the second run's checkout: taken before the first run sent
         shutil.copytree(desk.STATE, stale) if desk.STATE.exists() else stale.mkdir()
-        errors = []
-
-        def run(state_dir, wait):
-            try:
-                if wait:
-                    first_sent.wait(5)
-                with mock.patch.object(desk, "STATE", state_dir):
-                    desk.evening_digest({"telegram": TG})
-            except Exception as e:  # noqa: BLE001
-                errors.append(e)
         with self.at(19):
-            a = threading.Thread(target=run, args=(desk.STATE, False))
-            b = threading.Thread(target=run, args=(stale, True))  # its own checkout, from before run a's send
-            a.start(); b.start(); a.join(); b.join()
-        self.assertEqual(errors, [])
+            desk.evening_digest({"telegram": TG})
+            with mock.patch.object(desk, "STATE", stale):
+                desk.evening_digest({"telegram": TG})
         self.assertEqual(channel, ["36"])
         self.assertTrue(json.loads((stale / "digest.json").read_text())["found_live"])
 
