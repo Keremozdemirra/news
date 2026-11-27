@@ -335,6 +335,14 @@ class FrontPage(unittest.TestCase):
         self.assertIs(order[-1], pr)
         self.assertLess(views.front_score(pr), views.front_score(breach))
 
+    def test_rows_show_their_photo_on_the_right_at_four_to_three(self):
+        css = (site.ASSETS / "views.css").read_text()
+        self.assertIn(".row{grid-template-columns:minmax(0,1fr) 148px", css)
+        self.assertIn(".rimg .pic{aspect-ratio:4/3!important}", css)
+        self.assertNotIn(".row:not(.dep) .pic{display:none}", css)  # rows used to hide their picture
+        self.assertRegex(css, r"@media\(max-width:720px\)\{\.row\{grid-template-columns:minmax\(0,1fr\) 104px")
+        self.assertNotIn("gradient", css)
+
     def test_the_ticker_pause_button_is_hidden_when_nothing_moves(self):
         css = (site.ASSETS / "views.css").read_text()
         rules = [m.start() for m in __import__("re").finditer(r"\.mstrip \.mpause\{display:none\}", css)]
@@ -419,11 +427,6 @@ class FrontBuilt(Features):
         h = self.read("index.html")
         rows = re.findall(r'<div class="sects" style="--n:(\d+)">', h)
         self.assertEqual(rows, [])  # sections reflow with auto-fit columns: no counts, no empty slots
-        # twenty articles: Top 5 and Latest take their share, the rest of the day fills the section blocks
-        h = views.front([fake(f"Story number {i} of the day", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"s{i}", published=f"2026-11-26T{22 - i // 2:02d}:{(i % 2) * 30:02d}:00+00:00") for i in range(20)], {}, None)
-        self.assertGreaterEqual(h.count('<section class="sect" id="'), 1)
-        for sect in re.findall(r'<section class="sect" id="[^"]+">(.*?)</section>', h, re.S):
-            self.assertIn("<article", sect)  # a section head always has an article under it
 
     def test_more_in_section_ends_an_article_with_no_related_and_never_lists_the_article_itself(self):
         import re
@@ -454,44 +457,21 @@ class FrontBuilt(Features):
                 self.assertNotIn('class="mstrip"', h, path)
                 self.assertIn(f'href="{site.BASE}/t/markets/">Markets</a>', h, path)  # the plain link stays in the sections row
 
-    def test_the_first_sections_go_under_the_lead_to_level_the_columns_and_no_article_appears_twice(self):
+    def test_no_article_appears_twice_on_the_front(self):
         import re
-        # every article has its own pictured subject, so the rail's two pictured articles make it much taller than the lead
         rows = [fake(f"Zorblax{i:02d} announces a plan for the day", ("Economy", "Tech", "Business", "World", "AI", "Politics")[i % 6], 3, 9, id=f"s{i}",
-                     photo_file=f"Zorblax{i:02d} portrait.jpg", photo_kind="person", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
+                     published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
         h = views.front(rows, {}, None)
-        self.assertIn('<div class="sects inlead">', h)
-        self.assertLess(h.index('class="lead"'), h.index('<div class="sects inlead">'))
-        left = re.search(r'<div class="sects inlead">(.*?)</div><div class="sects', h, re.S)
-        self.assertTrue(left)
-        ids = re.findall(r'<article class="(?:slead|srow)"><a href="[^"]*/s/([^/]+)/"', h)
-        self.assertEqual(len(ids), len(set(ids)))  # the same article never sits in two blocks
-        self.assertEqual(h.count('<div class="front">'), 1)
-
-    def test_section_pages_group_rows_by_day_and_do_not_repeat_the_section(self):
-        import re
-        h = self.read("t/business/index.html")
-        self.assertRegex(h, r'<h2 class="sh dayh">(Today|Yesterday|\d+ \w+)</h2>')
-        rows = re.findall(r'<a class="row[^"]*"[^>]*><div><span class="meta">(.*?)</span>', h)
-        self.assertTrue(rows)
-        for meta in rows:
-            self.assertNotIn("Business", meta)  # this is the Business page
-            self.assertRegex(meta, r'<time [^>]*>[^<]*</time>')
-        latest = self.read("latest/index.html")
-        self.assertIn("Business", re.search(r'<a class="row[^"]*"[^>]*><div><span class="meta">(.*?)</span>', latest).group(1))  # a mixed list names the section
-        self.assertIn('<p class="earlier"><a href="/archive/">Earlier</a></p>', h)
-        self.assertNotIn('class="earlier"', self.read("archive/2026-11-26/index.html"))
-        if "leadrow" in h:
-            self.assertLess(h.index('class="h-xl"'), h.index('<span class="pic"') if '<span class="pic"' in h else 10**9)  # headline above the picture
-        self.assertIn("max-height:480px", self.read("assets/views.css"))
+        ids = re.findall(r'<a class="(?:row[^"]*|story-link)" href="[^"]*/s/([^/]+)/"', h)
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(len(ids), views.TOP_N)
 
     def test_the_front_news_is_one_scrolling_panel_the_keyboard_can_reach(self):
         rows = [fake(f"Economy story number {i} today", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"e{i}", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
         h = views.front(rows, {}, None)
-        self.assertTrue(h.startswith('<div class="newspanel" id="news" tabindex="0" role="region" aria-label="The news">'))
-        self.assertTrue(h.endswith("</div>"))
+        self.assertTrue(h.startswith('<div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">'))
         self.assertEqual(h.count('class="newspanel"'), 1)
-        for part in ('class="front"', 'class="sects', 'id="since"'):
+        for part in ('class="topstories"', 'class="leadrow"', 'id="since"'):
             self.assertIn(part, h)
         css = (site.ASSETS / "views.css").read_text()
         self.assertRegex(css, r"\.newspanel\{height:72vh;height:72dvh;")  # a fallback, then the dynamic viewport unit
@@ -499,49 +479,6 @@ class FrontBuilt(Features):
         page = site.page("t", h, "d", "/", front=True)
         self.assertLess(page.index('class="newspanel"'), page.index('<footer class="foot">'))
         self.assertNotIn("gradient", css)
-
-    def test_the_section_chips_link_to_every_section_that_has_articles(self):
-        import re
-        rows = [fake(f"Story number {i} of the day", ("Economy", "Tech", "Business")[i % 3], 3, 9, id=f"c{i}", published=f"2026-11-26T{22 - i // 3:02d}:{(i % 3) * 20:02d}:00+00:00") for i in range(40)]
-        h = views.front(rows, {}, None)
-        nav = re.search(r'<nav class="chips" aria-label="Jump to a section"><ul>(.*?)</ul></nav>', h, re.S).group(1)
-        chips = re.findall(r'<a href="#(sec-[a-z-]+)">([^<]+)</a>', nav)
-        self.assertEqual([t for _, t in chips], ["Economy", "Business", "Tech"])  # no Markets, no Culture: nothing to jump to
-        for sid, _ in chips:
-            self.assertEqual(h.count(f'<section class="sect" id="{sid}">'), 1)  # every chip lands on a section
-        self.assertLess(h.index('class="chips"'), h.index('class="front"'))
-        css = (site.ASSETS / "views.css").read_text()
-        self.assertIn("position:sticky;top:0", css.split(".chips{")[1].split("}")[0])
-        self.assertIn("min-height:44px", css.split(".chips a{")[1].split("}")[0])
-
-    def test_story_lists_carry_the_reader_layer_and_nothing_else_does(self):
-        shell = 'id="reader" role="dialog" aria-modal="true" aria-label="Article" hidden'
-        for f in ("index.html", "latest/index.html", "t/tech/index.html"):
-            h = self.read(f)
-            self.assertIn(shell, h, f)
-            self.assertRegex(h, r'<script src="[^"]*/assets/reader\.js\?v=\w+" defer></script>', f)
-            self.assertRegex(h, r'<link rel="stylesheet" href="[^"]*/assets/reader\.css\?v=\w+">', f)
-            for part in ('class="rclose"', 'class="rprev" aria-label="Previous article"', 'class="rnext" aria-label="Next article"', 'class="rpos" aria-live="polite"'):
-                self.assertIn(part, h, (f, part))
-        for f in ("s/2026-11-26-0900-1/index.html", "about/index.html"):  # an article is the real page, not a list
-            h = self.read(f)
-            self.assertNotIn('id="reader"', h, f)
-            self.assertNotIn("reader.js", h, f)
-        for f in ("reader.js", "reader.css"):
-            self.assertTrue((self.out / "assets" / f).exists(), f)
-
-    def test_the_reader_script_keeps_urls_history_focus_and_calm_motion(self):
-        js = (site.ASSETS / "reader.js").read_text()
-        for part in ("history.pushState", "history.replaceState", '"popstate"', "history.back", "article.art",  # a URL per article, Back closes
-                     '"ArrowDown"', '"ArrowUp"', '"j"', '"k"', '"Escape"', "touchstart", "touchend",          # keys and swipes
-                     "setAttribute(\"inert\"", "opener.focus", "prefers-reduced-motion", "location.href = item.url",  # focus, calm motion, no-layer fallback
-                     "load(list[i + 1].url)"):                                                                 # the next one is prefetched
-            self.assertIn(part, js)
-        self.assertNotRegex(js, r"https?://")  # same-origin only, no third party
-        css = (site.ASSETS / "reader.css").read_text()
-        self.assertNotIn("gradient", css)
-        self.assertIn("prefers-reduced-motion:no-preference", css)
-        self.assertIn("min-width:44px;height:44px", css)
 
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")

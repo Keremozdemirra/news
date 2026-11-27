@@ -251,8 +251,7 @@ class SiteBuild(Tmp):
         out = self.build()
         front = (out / "index.html").read_text()
         self.assertIn(f'href="{site.BASE}/sport/"', front)
-        self.assertIn('class="sportblk"', front)
-        self.assertGreater(front.index('class="sportblk"'), front.index('class="sects"'))  # below the business sections
+        self.assertNotIn('class="sportblk"', front)  # the front holds the top stories; Sport is a tap away in the masthead
         page = (out / "sport" / "index.html").read_text()
         self.assertIn("Arsenal beat Chelsea", page)
         self.assertIn('aria-current="page">Sport</a>', page)
@@ -266,8 +265,9 @@ class SiteBuild(Tmp):
         out = self.build()
         for f in ("latest/index.html", "feed.xml", "brief/index.html"):
             self.assertNotIn("Arsenal", (out / f).read_text(), f)
-        lead = re.search(r'<h[12] class="lh">(.*?)</h[12]>', (out / "index.html").read_text(), re.S).group(1)
-        self.assertNotIn("Arsenal", lead)
+        front = (out / "index.html").read_text()
+        self.assertNotIn("Arsenal", re.search(r'<h2 class="h-xl">(.*?)</h2>', front, re.S).group(1))  # the lead is business
+        self.assertNotIn("Arsenal", front)
 
     def test_sport_article_page_links_its_section_and_its_sources(self):
         out = self.build()

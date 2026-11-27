@@ -120,28 +120,6 @@ def latest_list(rows):
     return "<ul>" + "".join(f'<li><a href="{S.href(p)}">{rel_time(p)}<span>{E(p["headlines"][0])}</span></a></li>' for p in rows) + "</ul>"
 
 
-def sec_id(t):
-    return "sec-" + re.sub(r"[^a-z0-9]+", "-", t.lower()).strip("-")
-
-
-def chips(ids, sport):
-    """A sideways row of links to the sections below, at the top of the news panel. A section with no articles has no chip.
-    Without the script a chip is an ordinary in-page link; the script scrolls the panel instead of the page."""
-    items = list(ids) + ([("Sport", "sec-sport")] if sport else [])
-    if not items:
-        return ""
-    return ('<nav class="chips" aria-label="Jump to a section"><ul>'
-            + "".join(f'<li><a href="#{i}">{E(t)}</a></li>' for t, i in items) + "</ul></nav>")
-
-
-def section_rows(rows, newest, n=4):
-    """The n articles a section block shows: the day's by news value, most important first. A section with fewer than n
-    in the day is filled from older ones, newest first, so a quiet section still has a block."""
-    day = {id(p) for p in S.window(rows)}
-    top = front_rank([p for p in rows if id(p) in day], newest)
-    return (top + [p for p in rows if id(p) not in day])[:n]
-
-
 def puzzles_block(cls=""):
     """"Today's puzzles": one link per live game. Static: no state about the visitor. Empty while no game is live."""
     from . import play
@@ -152,116 +130,30 @@ def puzzles_block(cls=""):
     return f'<section class="puzzles {cls}" aria-label="Today\'s puzzles"><h2 class="sh"><a href="{S.BASE}/play/">Today\'s puzzles</a></h2><ul>{items}</ul></section>'
 
 
-def top5_list(ranked, n=5):
-    """Top 5: five headlines with their age, no pictures. The phone shows ranked[1:6] right after the lead (the rail's two pictured
-    articles are in it); the desktop shows ranked[3:8], under the lead, beside the rail that already carries ranked[1:3]."""
-    rows = ranked[1:n + 3]
-    items = ""
-    for i, p in enumerate(rows):
-        cls = " ".join(c for c, on in (("ds", i < 2), ("pm", i >= n)) if on)  # ds: not on the desktop, pm: not on the phone
-        items += f'<li{f" class=\"{cls}\"" if cls else ""}><a href="{S.href(p)}"><span>{E(p["headlines"][0])}</span>{rel_time(p)}</a></li>'
-    return f'<section class="top5" aria-label="Top 5"><h2 class="sh">Top 5</h2><ol>{items}</ol></section>' if items else ""
+TOP_N = 14  # the stories in the front page's panel: the lead and the headlines after it, most important first
 
 
 def front(shown, cos, m, sport=()):
-    """The front page: the lead (8 columns) and the rail (4: two seconds, the markets block, Latest), then the sections.
-    Each article appears once; the lead and the seconds come from the news-value ranking above."""
-    today = S.window(shown)
-    ranked = front_rank(today)
-    lead = ranked[0]
-    used = {lead["id"]}
-    seconds = [p for p in ranked[1:] if p["id"] not in used][:2]
-    used |= {p["id"] for p in seconds}
-    newest = S.dt(shown[0]["published"]) if shown else None
-    used |= {p["id"] for p in ranked[1:8]}  # Top 5 (phone: ranked[1:6], desktop: ranked[3:8]): each article is placed once on the page
-    latest_rows = [p for p in shown if p["id"] not in used][:8]
-    used |= {p["id"] for p in latest_rows}
-    seen = set()
-
-    def ph(p):
-        """True when p may show its photo: it shows the named subject and no earlier item on the page shows the same one."""
-        subj = photo_subject(p) if photo_ok(p) else None
-        if subj is None or subj in seen:
-            return False
-        seen.add(subj)
-        return True
-    fig = (f'<figure>{S.photo_img(lead, False, "16/9", load="eager")}'
-           f'<figcaption>{S.credit_html(lead)}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
-    first = next((x for x in (lead.get("body") or "").split("\n") if x.strip()), "")
-    lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}{S.topic_path(S.topic(lead))}">{E(S.topic(lead))}</a>'
-                 f'<h2 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h2><p class="dk">{E(lead.get("dek", ""))}</p>'
-                 f'<div class="mt">{rel_time(lead)} &middot; {nroom(lead)}</div>{fig}'
-                 f'<p class="tx">{E(first)}</p><a class="more" href="{S.href(lead)}">Read the article</a>{top5_list(ranked)}{puzzles_block("inlead")}{markets.rates_box(m, S.BASE)}</div>')
-
-    def second(p):
-        photo = img(p, "3/2") + photo_cap(p) if ph(p) else ""
-        return (f'<article class="second"><a href="{S.href(p)}">{photo}<span class="kick">{E(S.topic(p))}</span><h3>{E(p["headlines"][0])}</h3></a>'
-                f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
-    latest = ('<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2>' + latest_list(latest_rows)
-              + f'<p class="sportmore"><a href="{S.BASE}/latest/">All latest</a></p></section>') if latest_rows else ""
-    seconds_html = [second(p) for p in seconds]
-    rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(seconds_html) + latest + "</div>"
-
-    blocks, sec_ids = [], []  # (html, estimated height at the left column's width) per section, in section order
-    for t in S.NEWS_ORDER:
-        rows = section_rows([p for p in shown if S.topic(p) == t and p["id"] not in used], newest)
-        if not rows:
-            continue  # a section without articles leaves no head and no hole
-        used.update(p["id"] for p in rows)
-        top, rest = rows[0], rows[1:]
-        shows = ph(top)
-        photo = img(top, "3/2") + photo_cap(top) if shows else ""
-        html = (f'<section class="sect" id="{sec_id(t)}"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
-                f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
-                + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
-        blocks.append((html, _block_height(top, rest, shows)))
-        sec_ids.append((t, sec_id(t)))
-    # Desktop: the left column ends where the lead, Top 5 and the markets box end, the rail much lower. The first sections go
-    # under the lead, two to a row, as many as bring the two columns level; the rest run full width below.
-    left_h = 1124 + (380 if fig else 0)  # measured at 1280 px: lead 370, Top 5 300, markets box 370, gaps
-    rail_h = 30 + sum(560 if "<img" in h else 265 for h in seconds_html) + (70 + 80 * len(latest_rows) if latest_rows else 0)
-    take, best = 0, abs(rail_h - left_h)
-    for k in range(2, len(blocks) + 1, 2):
-        h = left_h + 48 + sum(max(blocks[i][1], blocks[i + 1][1] if i + 1 < len(blocks) else 0) + 48 for i in range(0, k, 2)) - 48
-        if abs(rail_h - h) < best:
-            take, best = k, abs(rail_h - h)
-    take = min(take, len(blocks))
-    inlead = f'<div class="sects inlead">{"".join(b[0] for b in blocks[:take])}</div>' if take else ""
-    left_over = len(blocks) - take
-    cols = " c3" if left_over in (5, 6, 9) else ""  # 5 run 3 and 2, never 4 and 1 under a wide gap
-    below = f'<div class="sects{cols}">{"".join(b[0] for b in blocks[take:])}</div>' if blocks[take:] else ""
-    inner = (chips(sec_ids, bool(sport)) + S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}{inlead}</div>' + below
-             + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph) + puzzles_block("inrow"))
-    return panel(inner)
+    """The front page: one panel that scrolls inside the page and holds only the top stories, in news-value order: the lead with a large
+    photo, then an open list of rows (headline, age, a photo on the right where there is one), the same rows as a section page. The
+    sections are one tap away in the masthead; the markets ticker stays above."""
+    ranked = front_rank(S.window(shown))
+    top = ranked[:TOP_N]
+    lead = top[0]
+    shot = S.pic(lead, eager=True, ratio="16/9")
+    lead_html = (f'<div class="leadrow"><a class="story-link" href="{S.href(lead)}"><span class="kick">{E(S.topic(lead))}</span>'
+                 f'<h2 class="h-xl">{E(lead["headlines"][0])}</h2><p class="dek">{E(lead.get("dek", ""))}</p>'
+                 f'{S.meta(S.row_time(lead), S.cover(lead))}{shot}{photo_cap(lead) if shot else ""}</a></div>')
+    rows = f'<ol>{"".join(S.listing_row(p) for p in top[1:])}</ol>' if top[1:] else ""
+    inner = (S.updated_line(since=True) + f'<div class="topstories">{lead_html}{rows}'
+             f'<p class="earlier"><a href="{S.BASE}/latest/">All latest</a></p></div>')
+    return panel(inner) + puzzles_block("inrow")
 
 
 def panel(inner):
     """The news of the front page is one scrolling panel inside the page: the page stays a few screens long, the footer is one short scroll away.
     The panel is a region the keyboard can reach and scroll; without the script it is only CSS."""
-    return f'<div class="newspanel" id="news" tabindex="0" role="region" aria-label="The news">{inner}</div>'
-
-
-def _lines(text, per_line):
-    return max(1, -(-len(text) // per_line))
-
-
-def _block_height(top, rest, shows):
-    """Rough height in px of a section block in a half-width column of the left side, used only to decide how many go under the lead."""
-    h = 60 + 36 + 29 * _lines(top["headlines"][0], 30) + 24 + (260 if shows else 0)
-    return h + sum(24 + 24 * _lines(p["headlines"][0], 34) + 22 for p in rest)
-
-
-def sport_block(rows, ph, n=4):
-    """Sport on the front page: one row of the most important articles of the day below the business sections, so the front stays business news.
-    A section without articles leaves no head and no hole."""
-    rows = rows[:n]
-    if not rows:
-        return ""
-    cells = "".join(f'<article class="slead"><a href="{S.href(p)}">{img(p, "3/2") + photo_cap(p) if ph(p) else ""}<h3>{E(p["headlines"][0])}</h3></a>'
-                    f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)}</div></article>' for p in rows)
-    return (f'<section class="sportblk" id="sec-sport" aria-label="Sport"><h2 class="sh"><a href="{S.BASE}/sport/">Sport</a></h2><div class="sportgrid">{cells}</div>'
-            f'<p class="sportmore"><a href="{S.BASE}/sport/">More sport</a></p></section>')
-
+    return f'<div class="newspanel" id="news" tabindex="0" role="region" aria-label="Top stories">{inner}</div>'
 
 
 # ---------------------------------------------------------------- names

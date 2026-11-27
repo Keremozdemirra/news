@@ -608,7 +608,13 @@ def day_heading(day):
 def listing_row(p, own=False):
     """own: the page is this article's own section, so the row does not say the section again."""
     return (f'<li><a class="row{"" if p.get("_thumb") else " text"}" href="{href(p)}"><div>{meta(*([] if own else [E(topic(p))]), row_time(p), cover(p))}'
-            f'<h2 class="h-l">{E(p["headlines"][0])}</h2><p class="dek">{E(p.get("dek", ""))}</p></div>{pic(p, thumb=True)}</a></li>')
+            f'<h2 class="h-l">{E(p["headlines"][0])}</h2><p class="dek">{E(p.get("dek", ""))}</p></div>{row_photo(p)}</a></li>')
+
+
+def row_photo(p):
+    """The photo on the right of a row, 4:3, with the line that says what kind of photo it is; nothing when the story has none."""
+    shot = pic(p, thumb=True, ratio="4/3")
+    return f'<span class="rimg">{shot}{views.photo_cap(p)}</span>' if shot else ""
 
 
 def pager(path, n, total):

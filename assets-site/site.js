@@ -100,18 +100,6 @@
     if (track && matchMedia("(prefers-reduced-motion: reduce)").matches) { track.tabIndex = 0; track.setAttribute("role", "region"); track.setAttribute("aria-label", "Markets, scrolls sideways"); }
   });
 
-  // the section chips scroll the news panel to the section, not the page; the section takes focus so a screen reader follows
-  var panelEl = document.querySelector(".newspanel");
-  if (panelEl) panelEl.querySelectorAll(".chips a").forEach(function (a) {
-    a.addEventListener("click", function (e) {
-      var t = document.getElementById(a.getAttribute("href").slice(1)), bar = panelEl.querySelector(".chips");
-      if (!t) return;
-      e.preventDefault();
-      var top = t.getBoundingClientRect().top - panelEl.getBoundingClientRect().top + panelEl.scrollTop - bar.offsetHeight - 8;
-      panelEl.scrollTo({ top: Math.max(0, top), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-      t.tabIndex = -1; t.focus({ preventScroll: true });
-    });
-  });
   var list = [], at = -1;
   function stories() {
     var seenHref = {};

@@ -27,44 +27,39 @@ class Ranking(unittest.TestCase):
         html = views.front([*small, big], {}, None)
         self.assertIn("Altria explores", html)
 
-    def test_the_front_has_a_top_five_list_after_the_lead_with_ages_and_no_pictures(self):
-        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(14)]
+    def test_the_front_panel_holds_only_the_top_stories_in_importance_order(self):
+        rows = [fake(f"r{i}", f"Story number {i} of the day", ("Economy", "Tech", "Business", "World")[i % 4], n=2 + i % 4, score=9, hours=i * 0.3) for i in range(30)]
         html = views.front(rows, {}, None)
-        block = re.search(r'<section class="top5".*?</section>', html, re.S).group(0)
-        self.assertEqual(block.count("<li"), 7)  # the phone shows the first five, the desktop the last five: two articles are the rail's
-        self.assertEqual(len(re.findall(r'<li class="ds">|<li class="ds ', block)), 2)
-        self.assertEqual(block.count('class="pm"'), 2)
-        self.assertEqual(block.count("data-age"), 7)
-        latest = re.search(r'<section class="latest".*?</section>', html, re.S).group(0)
-        for href in re.findall(r'/s/([^/"]+)/', block):
-            self.assertNotIn(f"/s/{href}/", latest)  # an article already in Top 5 is not in Latest too
-        self.assertNotIn("<img", block)
-        self.assertLess(html.index('class="lead"'), html.index('class="top5"'))
-        self.assertIn(".front .lead .rates", (site.ASSETS / "views.css").read_text())
+        panel = re.search(r'<div class="newspanel".*', html, re.S).group(0)
+        ids = re.findall(r'/s/([^/"]+)/', panel)
+        ranked = [p["id"] for p in views.front_rank(site.window(rows))[:views.TOP_N]]
+        self.assertEqual(list(dict.fromkeys(ids)), ranked)  # the lead, then the rows, in the one importance order
+        self.assertEqual(panel.count('class="row'), views.TOP_N - 1)
+        for gone in ('class="sect"', 'class="sportblk"', 'class="top5"', 'class="rates', 'class="chips"'):
+            self.assertNotIn(gone, html)  # no section blocks: the sections are in the masthead
+        self.assertEqual(html.count('class="leadrow"'), 1)
+        self.assertIn('href="/latest/">All latest</a>', html)
 
-    def test_todays_puzzles_link_every_live_game_under_the_top_stories_and_in_a_row_below_the_sections(self):
+    def test_a_row_carries_its_photo_on_the_right_with_the_caption_and_a_row_without_one_is_text(self):
+        rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3, photo_kind="scene", photo_file=f"Story{i}.jpg", _thumb=True) for i in range(4)]
+        rows.append(fake("t", "No picture story today", "Economy", n=3, score=9, hours=2, _thumb=False))
+        html = views.front(rows, {}, None)
+        self.assertIn('<span class="rimg"><span class="pic" style="aspect-ratio:4/3">', html)
+        self.assertIn("Archive photo, not from this event.", html)  # the 12.5 px caption stays
+        text_row = re.search(r'<a class="row text" href="[^"]*/s/t/">.*?</a>', html, re.S).group(0)
+        self.assertNotIn("rimg", text_row)
+
+    def test_todays_puzzles_link_every_live_game_in_one_row_below_the_panel(self):
         rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=3, score=9, hours=i * 0.3) for i in range(14)]
         from aidaily import play
         with mock.patch.object(site, "SHIPPED", {"play"}):
             html = views.front(rows, {}, None)
-        self.assertEqual(html.count('class="puzzles inrow"'), 1)  # a full-width row at the end, no longer in the rail
-        self.assertEqual(html.count('class="puzzles inlead"'), 1)
+        self.assertEqual(html.count('class="puzzles inrow"'), 1)
         for slug, title, _, _ in play.live():
-            self.assertEqual(html.count(f'href="/play/{slug}/"'), 2)
-        self.assertLess(html.index('class="top5"'), html.index('class="puzzles inlead"'))
+            self.assertEqual(html.count(f'href="/play/{slug}/"'), 1)
+        self.assertLess(html.index('class="newspanel"'), html.index('class="puzzles inrow"'))
         with mock.patch.object(site, "SHIPPED", set()):
             self.assertNotIn("puzzles", views.front(rows, {}, None))
-
-    def test_section_rows_pads_a_quiet_section_with_older_articles(self):
-        rows = [fake("a", "New one", "Tech", hours=1), fake("b", "Old one", "Tech", hours=40)]
-        got = views.section_rows(rows, site.dt(rows[0]["published"]))
-        self.assertEqual([p["id"] for p in got], ["a", "b"])
-
-    def test_sport_block_is_ranked_too(self):
-        big = fake("big", "Final goes to extra time", "Sport", n=5, hours=5)
-        small = [fake(f"s{i}", f"Training update {i}", "Sport", n=1, score=1, hours=i * 0.1) for i in range(5)]
-        html = views.sport_block(views.section_rows([*small, big], site.dt(small[0]["published"])), lambda p: False)
-        self.assertIn("Final goes to extra time", html)
 
     def test_the_feed_and_the_front_page_lead_with_the_same_article(self):
         old_tariff = fake("t", "Trump signals tariffs on Asian trading partners", "Economy", n=4, score=12, hours=20)
