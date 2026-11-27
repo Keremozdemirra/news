@@ -805,9 +805,14 @@ def story_today(logo_uris, label):
 UP, DOWN, FLAT = "#4cc38a", "#ff8a80", "#a0a0a0"
 
 
-def _move_color(move):
+# The same on the white feed slides: the site's light-theme --up/--down/--soft, each above 4.5:1 on white.
+PAPER_UP, PAPER_DOWN, PAPER_FLAT = "#0b6e3a", "#b42318", GREY
+
+
+def _move_color(move, paper=False):
     m = (move or "").lstrip()
-    return UP if m.startswith(("▲", "Up")) else DOWN if m.startswith(("▼", "Down")) else FLAT
+    up, down, flat = (PAPER_UP, PAPER_DOWN, PAPER_FLAT) if paper else (UP, DOWN, FLAT)
+    return up if m.startswith(("▲", "Up")) else down if m.startswith(("▼", "Down")) else flat
 
 
 def story_markets(title, rows, label, source, more=False):
@@ -824,8 +829,8 @@ def story_markets(title, rows, label, source, more=False):
     return _frame(body, "Markets close", label, "Rates and energy next" if more else "Every rate: link in bio")
 
 
-def _chart_svg(pts, w=936, h=560):
-    """A bare line chart: the series as one white line, a hairline at its first value, the last value marked."""
+def _chart_svg(pts, w=936, h=560, ink=INK, rule=RULE):
+    """A bare line chart: the series as one line, a hairline at its first value, the last value marked."""
     vals = [v for _, v in pts]
     lo, hi = min(vals), max(vals)
     pad = (hi - lo) * 0.08 or 1
@@ -834,9 +839,9 @@ def _chart_svg(pts, w=936, h=560):
     line = " ".join(f"{x},{y}" for x, y in xy)
     y0 = xy[0][1]
     return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" style="display:block;overflow:visible">'
-            f'<line x1="0" y1="{y0}" x2="{w}" y2="{y0}" stroke="{RULE}" stroke-width="3" stroke-dasharray="10 10"/>'
-            f'<polyline points="{line}" fill="none" stroke="{INK}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>'
-            f'<circle cx="{xy[-1][0]}" cy="{xy[-1][1]}" r="14" fill="{INK}"/></svg>')
+            f'<line x1="0" y1="{y0}" x2="{w}" y2="{y0}" stroke="{rule}" stroke-width="3" stroke-dasharray="10 10"/>'
+            f'<polyline points="{line}" fill="none" stroke="{ink}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'<circle cx="{xy[-1][0]}" cy="{xy[-1][1]}" r="14" fill="{ink}"/></svg>')
 
 
 def story_chart(name, pts, first, last, move, span, label, source):
@@ -849,6 +854,47 @@ def story_chart(name, pts, first, last, move, span, label, source):
             f'<span>{e(first)}</span><span style="color:{INK}">{e(last)}</span></div>'
             f'<div data-credit style="margin-top:28px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
     return _frame(body, f"Chart · {span}", label, "More numbers: link in bio")
+
+
+def _paper(kicker, inner, brand=BRAND):
+    """A white 1080x1350 feed slide of the data carousel: kicker row on the 2px rule, the content, the footer."""
+    return head() + f"""
+<div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
+<div style="min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK};font-size:24px;color:{GREY};display:flex;align-items:center">{_meta_html(kicker, BLACK)}</div>
+{inner}
+<div style="flex:1"></div>
+<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
+<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
+</div></body></html>"""
+
+
+def feed_chart(name, pts, first, last, move, span, label, source):
+    """First slide of the data carousel: the series that moved most over the span, as on the Chart story, in ink on paper."""
+    inner = (f'<h2 style="margin:48px 0 0;font-size:96px;font-weight:800;line-height:0.95;letter-spacing:-0.04em">{e(name)}</h2>'
+             f'<div data-move style="margin-top:20px;font-size:44px;font-weight:700;line-height:1.1;letter-spacing:-0.02em;color:{_move_color(move, True)}">{e(move)}</div>'
+             f'<div style="margin-top:72px">{_chart_svg(pts, 936, 660, ink=BLACK, rule=GREY_DARK)}</div>'
+             f'<div class="num" style="margin-top:28px;display:flex;justify-content:space-between;font-size:30px;font-weight:700;color:{GREY}">'
+             f'<span>{e(first)}</span><span style="color:{BLACK}">{e(last)}</span></div>'
+             f'<div data-credit style="margin-top:28px;font-size:24px;line-height:1.35;color:{GREY}">{e(source)}</div>')
+    return _paper(f"Chart · {span} · {label}", inner)
+
+
+def feed_close(groups, label, source):
+    """Second slide: the close as a table, every row with its own print date. groups is [(heading, rows)], a row
+    (name, value, move, date); moves in green, red or grey, the arrow carrying the direction too."""
+    def row(n, v, c, d):
+        return (f'<div style="display:grid;grid-template-columns:1fr 150px 260px 156px;column-gap:16px;white-space:nowrap;align-items:baseline;'
+                f'padding:13px 0 12px;border-bottom:1px solid {LINE}">'
+                f'<span style="font-size:32px;font-weight:700;letter-spacing:-0.01em">{e(n)}</span>'
+                f'<span class="num" style="text-align:right;font-size:34px;font-weight:800;letter-spacing:-0.02em">{e(v)}</span>'
+                f'<span class="num" data-move style="text-align:right;font-size:27px;font-weight:700;color:{_move_color(c, True)}">{e(c)}</span>'
+                f'<span class="num" data-date style="text-align:right;font-size:25px;font-weight:500;color:{GREY}">{e(d)}</span></div>')
+    blocks = "".join(f'<div style="margin-top:{36 if i else 28}px;padding-bottom:8px;border-bottom:2px solid {BLACK};font-size:24px;'
+                     f'font-weight:700;letter-spacing:0.06em;text-transform:uppercase">{e(h)}</div>' + "".join(row(*r) for r in rows)
+                     for i, (h, rows) in enumerate(groups))
+    inner = (f'<h2 style="margin:40px 0 0;font-size:72px;font-weight:800;line-height:1;letter-spacing:-0.035em">Markets close.</h2>'
+             f'{blocks}<div data-credit style="margin-top:24px;font-size:24px;line-height:1.35;color:{GREY}">{e(source)}</div>')
+    return _paper(f"Markets close · {label}", inner)
 
 
 def story_follow(handle, line, label):

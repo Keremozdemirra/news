@@ -427,6 +427,10 @@ def daily(args):
         desk.scheduled_stories()
     except Exception as e:  # noqa: BLE001  the story slots are extras; the news below must still run
         print(f"scheduled stories failed: {e}")
+    try:
+        desk.data_carousel()
+    except Exception as e:  # noqa: BLE001  same: an extra, never in the news's way
+        print(f"data carousel failed: {e}")
     picked = desk.select(digest["stories"])
     if picked:
         business_lane(args, out, digest, picked)

@@ -284,6 +284,8 @@ def alt_texts(post):
     Detail slide: headline and dek. Instagram allows 1,000 characters."""
     if not growth("alt_text"):
         return None
+    if post.get("alts"):
+        return [x[:1000] for x in post["alts"]]
     head_ = (post.get("headlines") or [""])[0]
     detail = " ".join(x for x in (head_.rstrip(". ") + ".", post.get("dek", "")) if x.strip(". "))
     extra = {"number.jpg": f"{post.get('figure', '')}: {head_}", "sources.jpg": "Reported by " + "; ".join(post.get("sources") or [])}
@@ -527,8 +529,17 @@ SLOP = re.compile(r"\b(delve|game[- ]changer|landscape|unlock|revolutioni[sz]e|i
 TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture", "Sport"}
 
 
+# names of series the desk may not publish as daily prints (aidaily/markets.py): indices, crypto, metals
+LICENSED = ("S&P", "Dow", "Nasdaq", "DAX", "FTSE", "Nikkei", "Euro Stoxx", "Bitcoin", "Ether", "Gold", "Silver")
+
+
 def audit(post):
     """Fixed checks a post must pass before it is queued and again before it is published. Any problem holds it."""
+    if post.get("kind") == "data":
+        # official prints only: the source line names its publishers and no licensed series slipped in
+        cap = post.get("caption", "")
+        return ([] if "Source: " in cap else ["no source line"]) + [f"{w} is licensed data" for w in LICENSED
+                                                                     if re.search(rf"\b{re.escape(w)}\b", cap)]
     problems = []
     head_ = post["headlines"][0]
     if post.get("topic") not in TOPICS:
@@ -669,7 +680,7 @@ def story_frame(img, kicker="New post"):
 def _published(hours):
     cut = (now() - timedelta(hours=hours)).isoformat()
     # Sport is website-only: no story format may carry it, so every builder reads its posts through here
-    return [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+    return [p for p, _ in posts() if p.get("status") == "published" and p.get("kind") not in ("story", "data")
             and p.get("published", "") > cut and social_allowed(p)]
 
 
@@ -1234,9 +1245,10 @@ def _market_source(keys, short=False):
     return "Source: " + ", ".join(pubs) + "." + note
 
 
-def _market_rows(m, keys, today):
+def _market_rows(m, keys, today, every=False):
     """(name, value, move, date) per fresh series: the move against the previous print, the date only when the print
-    is not today's (EIA spot prices lag by days, a Treasury print can trail by one). A stale series is left out."""
+    is not today's (EIA spot prices lag by days, a Treasury print can trail by one), or on every row with `every`
+    (a feed post outlives its day). A stale series is left out."""
     from . import markets
     rows, used = [], []
     for k in keys:
@@ -1246,9 +1258,23 @@ def _market_rows(m, keys, today):
         name, v, d, ch, pct, _ = st
         nd = markets.SERIES[k][2]
         move = "unchanged" if not ch else f"{markets.sign_arrow(ch)} {abs(ch):.{nd}f}" + ("" if markets.SERIES[k][1] == "%" or pct is None else f" ({abs(pct):.{2 if abs(pct) < 0.1 else 1}f}%)")
-        rows.append((name, markets.fmt(k, v), move, "" if d == today.isoformat() else date.fromisoformat(d).strftime("%-d %b")))
+        rows.append((name, markets.fmt(k, v), move, "" if d == today.isoformat() and not every else date.fromisoformat(d).strftime("%-d %b")))
         used.append(k)
     return rows, used
+
+
+def _close_rows(m, today, every=False):
+    """(fx rows, fx keys, rates-and-energy rows, keys) of the close. The ECB deposit rate leads the second group as a
+    standing row; its date cell reads "since 16 Sep", the day the rate took effect."""
+    fx, fx_keys = _market_rows(m, FX_KEYS, today, every)
+    re_rows, re_keys = _market_rows(m, RATES_ENERGY_KEYS, today, every)
+    dfr = (m or {}).get("dfr") or {}
+    if dfr.get("value") is not None and dfr.get("since"):
+        since = date.fromisoformat(dfr["since"])
+        when = "today" if since == today else f"since {since.strftime('%-d %b' if since.year == today.year else '%-d %b %Y')}"
+        re_rows.insert(0, ("ECB deposit rate", f"{dfr['value']:.2f}%", "set" if since == today else "unchanged", when))
+        re_keys.insert(0, "dfr")
+    return fx, fx_keys, re_rows, re_keys
 
 
 def _s_markets(day, label):
@@ -1262,16 +1288,12 @@ def _s_markets(day, label):
     fix = markets.stat(m, "eurusd")
     if not fix or fix[2] != today.isoformat():  # no ECB fix today (weekend, TARGET holiday, not in yet): no close to show
         return []
-    fx, fx_keys = _market_rows(m, FX_KEYS, today)
-    re_rows, re_keys = _market_rows(m, RATES_ENERGY_KEYS, today)
-    dfr = (m or {}).get("dfr") or {}
-    if dfr.get("value") is not None and dfr.get("since"):
-        since = date.fromisoformat(dfr["since"])
-        move = "set today" if since == today else f"unchanged since {since.strftime('%-d %b' if since.year == today.year else '%-d %b %Y')}"
-        re_rows.insert(0, ("ECB deposit rate", f"{dfr['value']:.2f}%", move, ""))
-        re_keys.insert(0, "dfr")
+    fx, fx_keys, re_rows, re_keys = _close_rows(m, today)
     if len(fx) < 4 or len(re_rows) < 4:
         return []
+    if re_keys[0] == "dfr":  # the story has no date cell: "unchanged since 16 Sep" goes in the move line
+        n, v, c, d = re_rows[0]
+        re_rows[0] = (n, v, f"{c} {d}", "")
     first = _queue_story(f"{day}-markets", R.T.story_markets("Currencies.", fx, label, _market_source(fx_keys, short=True), more=True),
                          "Markets close: currencies")
     second = _queue_story(f"{day}-markets-b", R.T.story_markets("Rates and energy.", re_rows, label, _market_source(re_keys, short=True)),
@@ -1279,10 +1301,10 @@ def _s_markets(day, label):
     return [first, second]
 
 
-def _s_chart(day, label, span=66):
-    """The series that moved most over its last ~3 months (66 prints), as a line, when it moved enough to say so."""
+def _chart_pick(m, span=66):
+    """(score, key, points, first, last, pct) of the series that moved most over its last ~3 months (66 prints), or
+    None. A yield's move counts 20 to 1 against a price's percent: 0.25 points of yield ranks with a 5% price move."""
     from . import markets
-    m = markets.load(live=False)
     best = None
     for k in CHART_KEYS:
         pts = ((m or {}).get("series") or {}).get(k) or []
@@ -1291,19 +1313,96 @@ def _s_chart(day, label, span=66):
             continue
         a, b = pts[0][1], pts[-1][1]
         pct = (b - a) / a * 100 if a else 0
-        score = abs(b - a) * 20 if markets.SERIES[k][1] == "%" else abs(pct)  # 0.25 points of yield ranks with a 5% price move
+        score = abs(b - a) * 20 if markets.SERIES[k][1] == "%" else abs(pct)
         if best is None or score > best[0]:
             best = (score, k, pts, a, b, pct)
-    if not best or best[0] < 3:
-        return []
-    _, k, pts, a, b, pct = best
-    name, unit, nd = markets.SERIES[k][0], markets.SERIES[k][1], markets.SERIES[k][2]
+    return best
+
+
+def _chart_text(k, pts, a, b, pct):
+    """(name, move, first, last) under a chart: the move in words a reader can check against the line."""
+    from . import markets
+    name, unit = markets.SERIES[k][0], markets.SERIES[k][1]
     since = markets.dmy(pts[0][0])
     word = "Up" if b > a else "Down"
     move = (f"{word} {abs(b - a):.2f} percentage points since {since}" if unit == "%" else f"{word} {abs(pct):.1f}% since {since}")
-    first, last = f"{markets.fmt(k, a)} · {markets.dmy(pts[0][0])}", f"{markets.fmt(k, b)} · {markets.dmy(pts[-1][0])}"
+    return name, move, f"{markets.fmt(k, a)} · {markets.dmy(pts[0][0])}", f"{markets.fmt(k, b)} · {markets.dmy(pts[-1][0])}"
+
+
+def _s_chart(day, label):
+    """The series that moved most over its last ~3 months, as a line, when it moved enough to say so."""
+    from . import markets
+    best = _chart_pick(markets.load(live=False))
+    if not best or best[0] < 3:
+        return []
+    _, k, pts, a, b, pct = best
+    name, move, first, last = _chart_text(k, pts, a, b, pct)
     return [_queue_story(f"{day}-chart", R.T.story_chart(name, pts, first, last, move, "3 months", label, _market_source([k])),
                          f"Chart: {name}", series=k)]
+
+
+# The data carousel: the close and the chart on the grid, where they outlive the 24-hour stories. One a weekday at
+# most, after the ECB fix, inside Instagram's daily cap. It never takes the last room of the day from the news, and it
+# goes nowhere else: no article page, no cross-post, no story of its own.
+
+def data_carousel():
+    """Queue today's data carousel (queue/<day>-data): slide 1 the series that moved most over three months, slide 2
+    the close as a table with each print's own date and the source line; the caption carries every figure as text.
+    Returns [post.json path] or []. Skipped on weekends, before the ECB fix, outside its hour (desk.json
+    data_carousel_at, UTC, plus story_grace_hours), while Instagram cools down, when the queue leaves the news fewer
+    than two places in the cap, or when the schedule is full until past max_hours_ahead."""
+    from . import markets
+    at = CONFIG.get("data_carousel_at")
+    t = now()
+    day = t.strftime("%Y-%m-%d")
+    pid = f"{day}-data"
+    if not at or paused() or t.weekday() > 4 or (QUEUE / pid / "post.json").exists() or cooldown_until():
+        return []
+    start = t.replace(hour=int(at[:2]), minute=int(at[3:]), second=0, microsecond=0)
+    if not start <= t < start + timedelta(hours=CONFIG.get("story_grace_hours", 3)):
+        return []
+    pending = sum(1 for p, _ in posts() if p.get("status") == "queued" and p.get("kind") != "story")
+    if daily_cap() - published_last_24h() - pending < 2:
+        return []
+    m = markets.load(live=False)
+    today = t.date()
+    fix = markets.stat(m, "eurusd")
+    if not fix or fix[2] != today.isoformat():
+        return []
+    fx, fx_keys, re_rows, re_keys = _close_rows(m, today, every=True)
+    best = _chart_pick(m)
+    if len(fx) < 4 or len(re_rows) < 4 or not best:
+        return []
+    last = _last_slot()
+    when = max(t, last + timedelta(minutes=CONFIG["spacing_minutes"])) if last else t
+    if when > t + timedelta(hours=CONFIG["max_hours_ahead"]):
+        return []
+    _, k, pts, a, b, pct = best
+    name, move, first, last_ = _chart_text(k, pts, a, b, pct)
+    label = t.strftime("%-d %b")
+    keys = fx_keys + re_keys
+    groups = [("Currencies", fx), ("Rates and energy", re_rows)]
+    img = MEDIA / pid
+    img.mkdir(parents=True, exist_ok=True)
+    for file_, html in (("chart", R.T.feed_chart(name, pts, first, last_, move, "3 months", label, _market_source([k]))),
+                        ("close", R.T.feed_close(groups, label, _market_source(keys)))):
+        R.shoot(html, img / f"{file_}.png", 1080, 1350)
+        R.jpeg(img / f"{file_}.png")
+        (img / f"{file_}.png").unlink()
+    head_ = f"Markets close, {t.strftime('%-d %b %Y')}"
+    lines = [head_, "", f"Chart: {name}, {move[0].lower() + move[1:]}. {first.replace(' · ', ' on ')}, {last_.replace(' · ', ' on ')}.", ""]
+    for h, rows in groups:
+        lines += [h] + [f"{n}: {v}, {c} {d}" if d.startswith(("since", "today")) else f"{n}: {v} ({d}), {c}" for n, v, c, d in rows] + [""]
+    lines.append(_market_source(keys).replace("U.S. EIA", "U.S. Energy Information Administration"))
+    post = {"id": pid, "kind": "data", "batch": pid, "n": 1, "created": t.isoformat(timespec="seconds"),
+            "tier": "instagram", "status": "queued", "publish_after": when.isoformat(timespec="seconds"),
+            "cards": ["chart.jpg", "close.jpg"], "caption": "\n".join(lines), "urls": [], "headlines": [head_],
+            "topic": "Markets", "series": k, "story": "",
+            "alts": [f"Line chart of {name} over three months: {move}, from {first} to {last_}.",
+                     f"{head_}: " + "; ".join(f"{n} {v}, {c}" for _, rows in groups for n, v, c, _ in rows) + "."]}
+    _save(QUEUE / pid / "post.json", post)
+    print(f"queued {pid}: {head_} at {when:%H:%M} UTC")
+    return [QUEUE / pid / "post.json"]
 
 
 def _s_follow(day, label):
@@ -1584,7 +1683,7 @@ def notify():
         for post, path in rows:
             imgs = " ".join(f'<img src="{media_url(post["id"], c)}" width="260">' for c in post["cards"])
             parts.append(f"### {post.get('n', 1)}. {post['headlines'][0]}\nPublishes after **{post['publish_after']} UTC**\n\n"
-                         f"{imgs}\n\n<details><summary>Caption</summary>\n\n```\n{post['caption']}\n```\n</details>\n\n{post['urls'][0]}")
+                         f"{imgs}\n\n<details><summary>Caption</summary>\n\n```\n{post['caption']}\n```\n</details>\n\n{(post['urls'] or [''])[0]}")
         body_ = ("To stop one post, comment `veto 2` (or `veto 1, 3`). To stop all of them, comment `veto all` "
                  "or close this issue. Only the repository owner's comments count.\n\n" + "\n\n---\n\n".join(parts))
         try:
@@ -1772,7 +1871,7 @@ def evening_digest(factories=None):
     if _load(STATE / "digest.json", {}).get("date") == today or platform_cooldown("telegram"):
         return
     cut = now() - timedelta(hours=24)
-    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story" and social_allowed(p)
+    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") not in ("story", "data") and social_allowed(p)
                   and p.get("headlines") and (_stamp(p.get("published", "")) or cut) > cut),
                  key=lambda p: p.get("score") or 0, reverse=True)[:DIGEST_SIZE]
     if len(top) < DIGEST_MIN:
@@ -1895,8 +1994,9 @@ def retry_unchecked(factories=None):
     return n
 
 
-# Instagram-only formats: the other platforms mirror the feed carousels, never stories or the daily recap reel
-NO_CROSSPOST = ("story", "reel")
+# Instagram-only formats: the other platforms mirror the news carousels, never stories, the daily recap reel or the
+# data carousel
+NO_CROSSPOST = ("story", "reel", "data")
 
 
 def _cross_post(post, path):
@@ -2102,7 +2202,7 @@ def expire_stale():
     cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
     for post, path in posts():
         if post.get("status") == "queued" and post.get("kind") != "story" and datetime.fromisoformat(post["created"]) < cut:
-            if post.get("attempted"):
+            if post.get("attempted") or post.get("kind") == "data":  # the data carousel has no web page to drop to
                 post["status"] = "expired"
             else:
                 # dated when the desk wrote it: stamped with the hour it dropped, a story from yesterday afternoon
@@ -2514,7 +2614,7 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 log["answered"].append(c["id"])
                 save()
                 continue
-            is_source = bool(KEYWORD.search(c.get("text", "")))
+            is_source = bool(KEYWORD.search(c.get("text", ""))) and post.get("kind") != "data"  # no article page to send
             if not is_source and budget <= 0:
                 waiting = True  # left for tomorrow's budget, so the post must be read again
                 continue

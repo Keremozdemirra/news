@@ -1081,6 +1081,96 @@ class Formats(Tmp):
         with mock.patch.object(markets, "load", return_value=thin):
             self.assertEqual(self.run_at(_at(1, 22, 10), "markets"), {})  # three currencies: no close
 
+    def _data_close(self):
+        """The Monday close plus a three-month Brent run for the chart slide and the ECB deposit rate."""
+        m = self._close()
+        from datetime import date as D
+        end = D.fromisoformat("2026-11-20")
+        m["series"]["brent"] = [[(end - timedelta(days=65 - i)).isoformat(), 70 + i * 0.33] for i in range(64)] + [["2026-11-19", 91.2], ["2026-11-20", 91.8]]
+        m["dfr"] = {"value": 2.5, "since": "2026-09-16"}
+        return m
+
+    def data_at(self, when, m):
+        """Runs the data carousel at `when`; returns (paths, {file stem: html})."""
+        seen = {}
+        from aidaily import markets
+        with mock.patch.object(desk, "now", return_value=when), mock.patch.object(markets, "load", return_value=m), \
+             mock.patch.object(desk.R, "shoot", side_effect=lambda html, png, w, h: seen.setdefault(Path(png).stem, (html, w, h))), \
+             mock.patch.object(desk.R, "jpeg"), mock.patch.object(Path, "unlink"):
+            made = desk.data_carousel()
+            again = desk.data_carousel()
+        self.assertEqual(again, [], "one data carousel a day")
+        return made, seen
+
+    def test_data_carousel_is_the_chart_then_the_close_with_every_date_and_figure_in_the_caption(self):
+        from aidaily import templates as T
+        made, seen = self.data_at(_at(0, 16, 40), self._data_close())
+        self.assertEqual([Path(p).parent.name for p in made], ["2026-11-23-data"])
+        self.assertEqual({k: v[1:] for k, v in seen.items()}, {"chart": (1080, 1350), "close": (1080, 1350)})
+        post = json.loads(Path(made[0]).read_text())
+        self.assertEqual((post["kind"], post["status"], post["tier"], post["cards"], post["urls"]),
+                         ("data", "queued", "instagram", ["chart.jpg", "close.jpg"], []))
+        chart, close = seen["chart"][0], seen["close"][0]
+        self.assertIn("Brent", chart)
+        self.assertIn("Up 31.1% since 16 Sep 2026", chart)
+        self.assertIn(f"color:{T.PAPER_UP}", chart)
+        self.assertIn("Source: U.S. Energy Information Administration.", chart)
+        dates = re.findall(r'data-date style="[^"]*">([^<]*)<', close)
+        self.assertEqual(len(dates), 11)  # five currencies, the deposit rate, two yields, three energy prices
+        self.assertTrue(all(dates), dates)  # a feed post outlives its day: every print shows its own date
+        self.assertEqual(dates.count("23 Nov"), 7)
+        self.assertIn("since 16 Sep", dates)
+        moves = re.findall(r'data-move style="[^"]*color:(#[0-9A-Fa-f]+)">([^<]*)<', close)
+        self.assertEqual(len(moves), 11)
+        for color, text in moves:
+            self.assertEqual(color, T.PAPER_UP if text.startswith("▲") else T.PAPER_DOWN if text.startswith("▼") else T.PAPER_FLAT, text)
+        self.assertIn("Source: ECB, U.S. Treasury, U.S. Energy Information Administration. USD/JPY, GBP/USD calculated from ECB "
+                      "reference rates.", close)
+        cap = post["caption"]
+        self.assertEqual(cap.splitlines()[0], "Markets close, 23 Nov 2026")
+        for line in ("EUR/USD: 1.0991 (23 Nov), ▲ 0.0016 (0.1%)", "ECB deposit rate: 2.50%, unchanged since 16 Sep",
+                     "US 2-year: 4.58% (23 Nov), ▼ 0.03", "Brent: $91.80 (20 Nov), ▲ 0.60 (0.7%)", "EUR/GBP: 0.8376 (23 Nov), unchanged",
+                     "Chart: Brent, up 31.1% since 16 Sep 2026. $70.00 on 16 Sep 2026, $91.80 on 20 Nov 2026.",
+                     "Source: ECB, U.S. Treasury, U.S. Energy Information Administration."):
+            self.assertIn(line, cap)
+        for licensed in ("Gold", "S&P", "Bitcoin", "DAX"):
+            self.assertNotIn(licensed, cap + close)
+        self.assertEqual(desk.audit(post), [])
+        self.assertEqual(len(post["alts"]), 2)
+
+    def test_data_carousel_waits_for_its_hour_the_fix_and_room_in_the_cap(self):
+        m = self._data_close()
+        self.assertEqual(self.data_at(_at(0, 15, 40), m)[0], [])  # before its hour
+        self.assertEqual(self.data_at(_at(5, 16, 40), m)[0], [])  # Saturday
+        old = self._data_close()
+        old["series"]["eurusd"][-1][0] = "2026-11-20"
+        self.assertEqual(self.data_at(_at(0, 16, 40), old)[0], [])  # no ECB fix today
+        with mock.patch.object(desk, "daily_cap", return_value=3):
+            for i in range(2):
+                self.write_post(f"2026-11-23-0900-{i}", created=_at(0, 15).isoformat(), publish_after=_at(0, 16, 10).isoformat())
+            # two news posts queued: one place left, and it stays with the news
+            self.assertEqual(self.data_at(_at(0, 16, 40), m)[0], [])
+        made, _ = self.data_at(_at(0, 16, 40), m)  # the default cap has room; the carousel takes the next free slot
+        self.assertEqual(json.loads(Path(made[0]).read_text())["publish_after"], _at(0, 16, 55).isoformat())
+
+    def test_data_carousel_counts_in_the_cap_and_goes_nowhere_but_instagram(self):
+        from aidaily import site
+        made, _ = self.data_at(_at(0, 16, 40), self._data_close())
+        post = json.loads(Path(made[0]).read_text())
+        self.assertIn("data", desk.NO_CROSSPOST)
+        with mock.patch.object(desk, "now", return_value=_at(0, 18)):
+            post.update(status="published", published=_at(0, 17).isoformat(), media_id="m1")
+            Path(made[0]).write_text(json.dumps(post))
+            self.assertEqual(desk.published_last_24h(), 1)
+            self.assertEqual(desk._published(24), [])  # no story format reads it as news
+            self.assertEqual(site.published(), [])  # no article page
+        post.update(status="queued")
+        post.pop("published")
+        Path(made[0]).write_text(json.dumps(post))
+        with mock.patch.object(desk, "now", return_value=_at(3, 18)):
+            desk.expire_stale()
+        self.assertEqual(json.loads(Path(made[0]).read_text())["status"], "expired")  # never the web tier
+
     def test_no_day_carries_more_than_nine_stories(self):
         size = {s: 2 for s in (*desk.QUIZ_SLOTS, "markets")}
         per_day = [sum(size.get(s, 1) for s, (days, _) in desk.STORY_SLOTS.items()
