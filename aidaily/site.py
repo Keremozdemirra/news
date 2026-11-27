@@ -653,6 +653,9 @@ def article_ld(p, image):
           "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
           "author": {"@type": "Organization", "name": NAME, "url": SITE + "/about/"},
           "publisher": seo.organization(SITE, NAME, accounts())}
+    cites = [{"@type": "CreativeWork", "name": o, **({"url": u} if u else {})} for o, u in seat_list(p)]
+    if cites:
+        ld["citation"] = cites
     if p.get("company"):
         ld["about"] = {"@type": "Organization", "name": p["company"]}
     return ld
@@ -826,7 +829,8 @@ def story(p, rows, cos=None, counts=None):
     names = seat_list(p)
     linked = [f'<a href="{E(u)}" rel="nofollow noopener" target="_blank">{E(o)}</a>' if u else E(o) for o, u in names]
     outlets_line = (", ".join(linked[:-1]) + " and " + linked[-1]) if len(linked) > 1 else (linked[0] if linked else "")
-    reported = (f'<span>Reported by {outlets_line}</span>' if outlets_line else "")
+    # the sources, as a block under the byline: names and links only, never their text; one newsroom is said to be one
+    sources = (f'<p class="srcs"><b>Sources</b> <span>{outlets_line}</span>' + (' <span class="tag">Single source</span>' if len(names) == 1 else "") + "</p>") if names else ""
     insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = photo_alt(p)
@@ -854,7 +858,7 @@ def story(p, rows, cos=None, counts=None):
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1>{f'<p class="dek">{E(p["dek"])}</p>' if (p.get("dek") or "").strip() else ""}
-<div class="byline">{reported}<span>Boardread desk, written by AI</span></div>
+<div class="byline"><span>Boardread desk, written by AI</span></div>{sources}
 <div class="mt art-meta"><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div></header>
 {fig}
 <div class="art-body">{f'<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>' if paras else ""}

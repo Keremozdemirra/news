@@ -1,4 +1,5 @@
 """Findings of the 2026-11-27 review of boardread.news: one importance order on every surface, one time format, honest labels."""
+import json
 import os
 import re
 import unittest
@@ -301,6 +302,17 @@ class Built(Features):
         for page in ("index.html", "latest/index.html"):
             self.assertRegex(self.read(page), r'<p class="upd" data-built="\d{4}-\d\d-\d\dT[\d:]+Z">Updated (\d+ \w+, )?\d\d:\d\d UTC</p>')
         self.assertIn("3 * 36e5", (site.ASSETS / "site.js").read_text())
+
+    def test_sources_sit_under_the_byline_one_newsroom_is_called_single_source_and_ld_cites_them(self):
+        h = self.read("s/2026-11-26-0900-1/index.html")  # CNBC and the Financial Times (Techmeme is an aggregator)
+        self.assertRegex(h, r'<p class="srcs"><b>Sources</b> <span><a href="https://www.cnbc.com/a"[^>]*>CNBC</a> and <a href="https://www.ft.com/b"[^>]*>Financial Times</a></span></p>')
+        self.assertNotIn("Single source", h)
+        self.assertLess(h.index('class="byline"'), h.index('class="srcs"'))
+        ld = json.loads(re.findall(r'<script type="application/ld\+json">(.*?)</script>', h)[0])
+        self.assertEqual([c["name"] for c in ld["citation"]], ["CNBC", "Financial Times"])
+        self.assertEqual(ld["citation"][0]["url"], "https://www.cnbc.com/a")
+        one = self.read("s/2026-11-26-0800-1/index.html")  # SAP names a new chief: CNBC only
+        self.assertIn('<span class="tag">Single source</span>', one)
 
     def test_the_404_page_links_are_a_list_of_big_targets(self):
         self.assertIn('class="gl"', self.read("404.html"))

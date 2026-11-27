@@ -140,6 +140,9 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .art .dek{font:400 var(--t-dek)/1.45 var(--serif);color:var(--soft);margin:0 0 var(--s2);max-width:none}
 .byline{display:flex;flex-wrap:wrap;gap:4px var(--s2);font:500 14px/1.45 var(--f);color:var(--ink);padding:12px 0 0;border-top:1px solid var(--rule)}
 .byline a{text-decoration:underline;text-underline-offset:3px}.byline a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.srcs{margin:0;padding:var(--s1) 0 0;font:500 14px/1.45 var(--f);display:flex;flex-wrap:wrap;gap:0 var(--s1);align-items:baseline}
+.srcs a{text-decoration:underline;text-underline-offset:3px}
+.srcs .tag{border:1px solid var(--ink);padding:0 6px;font:600 12px/1.6 var(--f)}
 .byline span+span::before{content:"\00b7";margin-right:var(--s2);color:var(--soft)}
 .art-meta{display:flex;flex-wrap:wrap;gap:4px var(--s2);padding:var(--s1) 0 var(--s2);margin-bottom:var(--s2);border-bottom:1px solid var(--rule)}
 .art-meta span+span::before{content:"\00b7";margin-right:var(--s2)}

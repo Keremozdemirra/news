@@ -65,7 +65,7 @@ class Features(Tmp):
     def test_coverage_meter_counts_newsrooms_without_the_aggregator(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
         self.assertIn("2 newsrooms", h)
-        self.assertIn("Reported by ", h)  # the outlet names, as text, in the byline
+        self.assertIn("<b>Sources</b>", h)  # the outlet names, as text, under the byline
         self.assertNotIn('class="mtr"', h)  # no box meters
         self.assertIn("2 newsrooms", self.read("index.html"))
 
