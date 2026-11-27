@@ -648,6 +648,13 @@ def audit(post):
     why = copy.thin({"dek": post.get("dek", ""), "linkedin_post": post.get("body", "")})
     if why:
         problems.append(why)
+    # the writer checks this with the sources in hand and marks the text it checked; a post whose text was edited
+    # since is checked on the page's own words
+    sup = post.get("supported")
+    if sup and sup != copy.fingerprint(head_, post.get("dek", ""), post.get("body", "")):
+        gap = copy.headline_gap(head_, post.get("dek", ""), post.get("body", ""))
+        if gap:
+            problems.append(gap)
     for field in ("dek", "body"):
         for x in copy.sentences(post.get(field) or ""):
             if copy.META.search(x) or copy.OFFTOPIC.search(x):
@@ -1722,7 +1729,7 @@ def queue(day_dir, batch=None, render=True):
                 "person": s.get("person", ""),
                 # what the photo was picked from, so a later repick asks the same questions (plan item 8)
                 "person_role": s.get("person_role", ""), "image_query": s.get("image_query", ""),
-                "orgs": s.get("orgs", []), "venue": s.get("venue", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "so_what": so_what(s), "sources": outlets(m, s),
+                "orgs": s.get("orgs", []), "venue": s.get("venue", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "supported": s.get("supported") or None, "so_what": so_what(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],

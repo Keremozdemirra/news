@@ -515,6 +515,73 @@ def fix_legislature(headline):
     return SENATE.sub(lambda m: f"{m.group(1)}{m.group(2) or ''} {UPPER_HOUSE[m.group(1)]}", headline or "")
 
 
+# a headline's own opener is a name only when it is not a plain word: "Spain holds snap election" is about Spain,
+# "Why the Fed waits" is not about "Why"
+OPENERS = set("a an the why how what when where who will can could would should does did is are was were more most "
+              "new first last big top key major latest after before as at in on by for with from to of and or but "
+              "shares stocks prices markets investors oil gold bonds".split())
+
+
+def _prefixes(text):
+    return {w[:4] for w in WORD.findall(_fold(text).lower()) if len(w) >= 4}
+
+
+def _heads(text):
+    """Four-letter stem prefixes of a text's content words: "Chinese" and "China", "calling" and "calls" meet."""
+    return {w[:4] for w in _stems(text, short=True)}
+
+
+def _bridged(story, mine, theirs):
+    """One source sentence holds a word of the headline and a word of the dek or report that the headline lacks:
+    the two were written from the same passage, whatever words each chose ("Spain heads to early election" over
+    "the vote may usher in a right-wing coalition")."""
+    pieces = [(story.get("title", ""), story.get("summary", ""))] + [(r.get("title", ""), r.get("summary", ""))
+                                                                      for r in story.get("reports") or []]
+    for title, summary in pieces:
+        for sent in [title] + sentences(summary):
+            heads = _heads(sent)
+            if heads & mine and heads & theirs:
+                return True
+    return False
+
+
+def fingerprint(headline, dek, post):
+    """Marks the text the writer checked: a post whose text was edited by hand afterwards no longer matches."""
+    import hashlib
+    return hashlib.sha1("\n".join([headline or "", dek or "", body_of(post)]).encode()).hexdigest()[:12]
+
+
+def headline_gap(headline, dek, post, story=None):
+    """Why the dek and report do not support the headline, or "". The headline is the claim; the dek and report
+    are what stands behind it. When they share none of its numbers, none of its names and almost none of its
+    words, the page is two stories: the Zelenskyy headline about Putin and Hitler ran over a report on drones in
+    Latvia (2026-11-27). The reader sees the headline first, so it is the headline that is withheld. With the
+    story at hand, a source sentence that holds a word from each side also counts as support."""
+    text = f"{dek or ''} {body_of(post)}".strip()
+    if not text or not (headline or "").strip():
+        return ""  # thin() reports an empty report; there is nothing to compare
+    if _numbers(headline) & _numbers(text):
+        return ""
+    names = {n for n in _names("- " + headline) if len(n) >= 4 and n not in OPENERS}
+    seen = _prefixes(text)
+    if any(n[:4] in seen for n in names):
+        return ""
+    mine = _heads(headline)
+    theirs = _heads(text)
+    shared = mine & theirs
+    if len(shared) >= 2 or (mine and len(shared) / len(mine) >= 0.34):
+        return ""
+    # a dek and report that only use other words for the same news ("restructuring" under "job cuts") bring in
+    # no one new; a page about another story brings in its own people and places
+    others = _names(f"- {dek or ''} {body_of(post)}") | _names("- " + (dek or ""))
+    strangers = {n[:4] for n in others if len(n) >= 4 and n not in OPENERS and n[:4] not in _prefixes(headline)}
+    if len(strangers) < 2:
+        return ""
+    if story and _bridged(story, mine, theirs - mine):
+        return ""
+    return "the dek and report do not support the headline"
+
+
 MIN_SENTENCES, MIN_WORDS = 2, 15
 
 
@@ -531,6 +598,12 @@ def thin(s):
     if n < MIN_SENTENCES or words < MIN_WORDS:
         return f"report too thin ({n} sentences, {words} words beyond the dek)"
     return ""
+
+
+def fall_back(s):
+    """The story as its source worded it: no checked copy, so the desk will not post it."""
+    s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
+             linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback")
 
 
 def apply(stories, reply_rows):
@@ -569,8 +642,7 @@ def apply(stories, reply_rows):
             problems = verify(s, c)
         if problems:
             rejected.append((s["title"], problems))
-            s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
-                     linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback")
+            fall_back(s)
         else:
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
                                                  "person_role", "figure", "x_post", "linkedin_post", "image_query",
@@ -602,6 +674,13 @@ def apply(stories, reply_rows):
                 sw = (c.get("so_what") or "").strip()
                 if sw and not check_so_what(s, c, sw):
                     s["so_what"] = sw
+            # what is left to show must stand behind the headline; a headline over another story's report is withheld
+            gap = headline_gap(s["headline"], s.get("dek", ""), s.get("linkedin_post", ""), s)
+            if gap:
+                rejected.append((s["title"], [gap]))
+                fall_back(s)
+                continue
+            s["supported"] = fingerprint(s["headline"], s.get("dek", ""), s.get("linkedin_post", ""))
             # "Culture" only when the story is about culture: a company's viral marketing is a business story
             if s.get("lane") == "sport":
                 # the section is fixed by where the story came from, not by what the model says; no logo on a sport card
