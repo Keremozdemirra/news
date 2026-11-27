@@ -59,7 +59,7 @@ class Tmp(unittest.TestCase):
         d = desk.QUEUE / pid
         d.mkdir(parents=True)
         post = {"id": pid, "created": desk.now().isoformat(), "publish_after": (desk.now() - timedelta(minutes=1)).isoformat(),
-                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 stories.", "urls": ["u"],
+                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 reports.", "urls": ["u"],
                 "headlines": ["Lab ships a model"], "topic": "Tech", "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene",
                 "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
         post.update(kw)
@@ -88,7 +88,8 @@ class Caption(unittest.TestCase):
         s.update(company="Anthropic", linkedin_post="Anthropic released an agent.\nIt writes code.\n\nSource: Outlet 1",
                  outlets=["Outlet 1", "HN Front Page", "CNBC Technology"])
         text = desk.caption(m, s)
-        self.assertTrue(text.startswith("Anthropic releases coding agent\n\nAnthropic released an agent."))
+        # the dek leads, then the report (which never repeats it)
+        self.assertTrue(text.startswith("Anthropic releases coding agent\n\nIt does thing 1. Anthropic released an agent."))
         self.assertIn("Reported by Outlet 1; CNBC.", text)
         self.assertNotIn("Source: Outlet 1\n", text)
         self.assertNotRegex(text, r"(?i)written by ai|ai[- ]generated")
@@ -1532,7 +1533,8 @@ class Audit(Tmp):
     def good(self, **kw):
         p = {"headlines": ["FCC clears SpaceX to deploy 1 million satellites"], "topic": "Tech", "logo_names": ["SpaceX"],
              "body": "The FCC authorized SpaceX. Boston Consulting Group estimates costs stay high.", "dek": "",
-             "caption": "FCC clears SpaceX\n\n#news #business #spacex", "photo_file": "Earth.jpg", "credit": "Photo: NASA"}
+             "caption": "FCC clears SpaceX\n\n#news #business #spacex", "photo_file": "SpaceX headquarters, Hawthorne.jpg",
+             "credit": "Photo: NASA"}
         p.update(kw)
         return p
 

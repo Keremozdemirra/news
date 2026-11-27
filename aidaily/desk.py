@@ -23,7 +23,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from . import copy, github, redact
+from . import copy, github, rank, redact
 from . import render as R
 
 HERE = Path(__file__).resolve().parent.parent
@@ -121,6 +121,19 @@ def _recent_posts(days):
             and datetime.fromisoformat(p["created"]) > cut]
 
 
+def recent_headlines(days=None, limit=80):
+    """Headlines posted in the repeat window, newest first: the copy call marks a story that repeats one."""
+    rows = sorted(_recent_posts(days or CONFIG["repeat_window_days"]), key=lambda p: p.get("created", ""), reverse=True)
+    out = []
+    for p in rows:
+        if p.get("status") in ("vetoed", "deleted", "held", "expired", "failed") or p.get("kind"):
+            continue
+        for h in p.get("headlines") or []:
+            if h and h not in out:
+                out.append(h)
+    return out[:limit]
+
+
 def same_story(a, b):
     """Two runs cluster the same event under different lead links, so a shared link or a close
     headline both count as a repeat."""
@@ -153,7 +166,7 @@ def pick(manifest, stories, weights):
     return [(m, s) for _, m, s in rows]
 
 
-FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|Economy|Markets|Finance|Venture)$")
+FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|Economy|Economics|Markets|Finance|Venture|Asia)$")
 
 
 ALIASES = {"FT": "Financial Times", "WSJ": "The Wall Street Journal", "NYT": "The New York Times"}
@@ -166,12 +179,21 @@ def outlet(name):
 
 
 def outlets(m, s):
+    """Every newsroom that reported it, the lead first. Discussion boards and aggregators carry the news; they
+    are not the reporting."""
     out = []
-    for o in map(outlet, [m["source"]] + list(s.get("outlets", []))):
-        # discussion boards carry stories; they are not the reporting
+    names = s.get("newsrooms") or s.get("outlets") or []
+    for o in map(outlet, [m["source"]] + list(names)):
         if o and o not in out and o not in CONFIG["not_sources"]:
             out.append(o)
-    return out[:4]
+    return out
+
+
+def reported_by(names, cap=4):
+    """"A; B; C; D and 3 more": the list on the detail slide and in the caption, which the card's count matches."""
+    names = list(names)
+    head_ = "; ".join(names[:cap])
+    return head_ + (f" and {len(names) - cap} more" if len(names) > cap else "")
 
 
 def growth(name):
@@ -198,9 +220,38 @@ def body(s):
     return "\n".join(l for l in (s.get("linkedin_post") or "").splitlines() if l.strip() and not l.startswith("Source:"))
 
 
+def report(s):
+    """What the detail slide and the caption print under the headline: the dek, then the report. The report never
+    repeats the dek (copy.drop_repeats), so the two together are every checked fact once."""
+    return "\n".join(x for x in ((s.get("dek") or "").strip(), body(s)) if x)
+
+
 def so_what(s):
     """The checked "what it means" sentence, or "" while the switch is off or the sentence failed its checks."""
     return (s.get("so_what") or "") if growth("so_what") else ""
+
+
+def detail_text(m, s, web, ctas):
+    """The detail slide's text: dek and report, minus the dek when another slide already sets it (the text card's
+    hook, or the number slide's line) and the report has more to say. No sentence is read twice in one carousel."""
+    elsewhere = R.T.hook_shown(s) or any(n == "number" and R.T.number_line(s) == (s.get("dek") or "").strip()
+                                         for n, _ in extra_slides(m, s, web, ctas))
+    return body(s) if elsewhere and body(s) else report(s)
+
+
+def extra_slides(m, s, web, ctas):
+    """[(name, html)] of the slides after the detail slide, with growth.carousel_extended on: "number" when the post
+    has a figure the headline or dek states (the figure, the sentence that holds it, its source), then "sources" (every
+    newsroom that reported it and where the links are). Off, or for the web tier, there are none: the post stays two
+    slides. An A/B option, off by default."""
+    if web or not growth("carousel_extended"):
+        return []
+    out = []
+    num = R.T.number_slide(s)
+    if num:
+        out.append(("number", num))
+    out.append(("sources", R.T.sources_slide(s, outlets(m, s), cta=wants_source_cta(m, web, ctas))))
+    return out
 
 
 def alt_texts(post):
@@ -210,7 +261,9 @@ def alt_texts(post):
         return None
     head_ = (post.get("headlines") or [""])[0]
     detail = " ".join(x for x in (head_.rstrip(". ") + ".", post.get("dek", "")) if x.strip(". "))
-    return [head_[:1000], detail[:1000]][:len(post.get("cards", []))] or None
+    extra = {"number.jpg": f"{post.get('figure', '')}: {head_}", "sources.jpg": "Reported by " + "; ".join(post.get("sources") or [])}
+    texts = [head_, detail] + [extra.get(c, head_) for c in post.get("cards", [])[2:]]
+    return [x[:1000] for x in texts[:len(post.get("cards", []))]] or None
 
 
 def source_cta_count(hours=24):
@@ -271,7 +324,11 @@ def keyword_line(headline, lead, s):
     opening = f"{headline}\n\n{lead}"[:KEY_WINDOW].lower()
     co = (s.get("company") or "").strip()
     tk = (s.get("_assets") or {}).get("ticker") if co else None
-    names = [n for n in dict.fromkeys([co, s.get("person") or ""] + list(s.get("orgs") or [])[:1]) if n]
+    # an organisation joins only when it is a company with its logo on the card: "EU · World", "Supreme Court ·
+    # Politics" and "Republican party" read as filler, not as names someone searches for
+    shown = set((s.get("_assets") or {}).get("logo_names") or [])
+    orgs = [o for o in list(s.get("orgs") or [])[:1] if o in shown]
+    names = [n for n in dict.fromkeys([co, s.get("person") or ""] + orgs) if n]
     room = KEY_WINDOW - len(headline) - 2 - len(" · ") - len(topic)  # the line follows the headline and a blank line
     chosen = []
     for n in (n for n in names if n.lower() not in opening or (tk and n == co)):
@@ -291,7 +348,7 @@ def keyword_line(headline, lead, s):
 
 def caption(m, s, cta=True):
     src = outlets(m, s)
-    lead = body(s) or s.get("dek", "")
+    lead = report(s).replace("\n", " ")
     head_lines = [m["headline"], ""]
     if growth("keyword_caption"):
         kw = keyword_line(m["headline"], lead, s)
@@ -301,7 +358,7 @@ def caption(m, s, cta=True):
     mid = [lead, ""]
     if growth("so_what") and s.get("so_what"):
         mid += [f"{CONFIG.get('so_what_label', 'What it means')}: {s['so_what']}", ""]
-    lines = head_lines + mid + [f"Reported by {'; '.join(src)}.", "",
+    lines = head_lines + mid + [f"Reported by {reported_by(src)}.", "",
                                 CONFIG["source_line"] if cta else "", send_line(m, s), "", " ".join(hashtags(m, s))]
     text = re.sub(r"\n{3,}", "\n\n", "\n".join(lines))
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
@@ -441,12 +498,41 @@ def audit(post):
     if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
                              or (not post.get("person") and E.CROWD.search(pf))):
         problems.append(f"photo {pf!r} is not a news photo of the subject")
-    if post.get("person") and post["person"].split()[-1].lower() not in (head_ + " " + post.get("body", "")).lower():
+    if pf and post.get("person") and post["person"].split()[-1].lower() not in (
+            head_ + " " + post.get("dek", "") + " " + post.get("body", "")).lower():
         problems.append(f"photo of {post['person']}, who the text does not name")
     if post.get("topic") == "Sport" and pf and E.foreign_team(pf, head_ + " " + post.get("body", "") + " " + post.get("dek", "")):
         problems.append(f"photo file names {E.foreign_team(pf, head_ + ' ' + post.get('body', ''))}, a team the article does not name")
     if post.get("photo_file") and not post.get("credit"):
         problems.append("photo without a credit line")
+    # the credit line must be the card photo's own: a second lookup once paired one photo with another's credit
+    if pf and post.get("credit_file") and post["credit_file"] != pf:
+        problems.append(f"credit belongs to {post['credit_file']!r}, the card shows {pf!r}")
+    # a company photo shows the company's own premises, sign or (for an airline or planemaker) its own aircraft
+    if pf and post.get("photo_kind") == "company" and not post.get("person"):
+        subject = next((n for n in owners if R.T.entities.phrase_in(n, pf)), "")
+        if not subject:
+            problems.append(f"photo {pf!r} does not name the company the story is about")
+        elif not (E.PREMISES.search(pf.replace(subject, " ")) or (E.AIR_COMPANY.search(subject) and E.AIRCRAFT.search(pf))):
+            problems.append(f"photo {pf!r} shows something of {subject}'s, not its premises")
+    texts = (head_, post.get("dek", ""), post.get("body", ""))
+    for t in texts:
+        m = SKIP.search(t or "")
+        if m:
+            problems.append(f"skipped topic {m.group(0)!r}")
+            break
+    for t in texts:
+        m = rank.SOFT.search(t or "") or FORMAT.search(t or "")
+        if m and t is head_:
+            problems.append(f"not a news format: {m.group(0)!r}")
+    if len(head_) > copy.MAX_HEADLINE:
+        problems.append(f"headline over {copy.MAX_HEADLINE} characters")
+    if head_.rstrip().endswith("."):
+        problems.append("headline ends with a full stop")
+    if post.get("dek") and copy.repeats(post["dek"], head_):
+        problems.append("dek repeats the headline")
+    if "Source:" in (post.get("body") or ""):
+        problems.append("the source line ran into the report")
     # check_video() drops a failing video before audit runs; reaching here with one means a path skipped it
     problems += [f"video: {p}" for p in video_problems(post)]
     cap = post.get("caption", "")
@@ -456,9 +542,22 @@ def audit(post):
     if len(cap) > 2200:
         problems.append("caption over 2,200 characters")
     for text in (head_, post.get("dek", ""), post.get("body", ""), cap):
-        m = SLOP.search(text or "")
-        if m:
-            problems.append(f"stock phrase {m.group(0)!r}")
+        for rx, why in ((SLOP, "stock phrase"), (copy.HYPE, "hype word"), (copy.NOT_BUT, "not X but Y")):
+            m = rx.search(text or "")
+            if m:
+                problems.append(f"{why} {m.group(0)!r}")
+        if re.search("[\u2014\u2013]", text or ""):
+            problems.append("em or en dash")
+    # the lines the desk writes itself never call the news a "story" (Instagram Stories are something else)
+    own = cap
+    for t in (*texts, *(post.get("headlines") or [])):
+        for line in (t or "").splitlines():
+            own = own.replace(line, "") if line.strip() else own
+    m = re.search(r"\bstor(y|ies)\b", own, re.I)
+    if m:
+        problems.append(f"caption calls the news a {m.group(0)!r}")
+    if bool(post.get("source_cta")) != (CONFIG["source_line"] in cap):
+        problems.append("SOURCE ask and its flag disagree")
     return problems
 
 
@@ -590,7 +689,10 @@ def distractors(fig):
 
 
 def _in_text(fig, text):
-    """The figure as its own token in the text, not inside a longer number."""
+    """The figure as its own token in the text, not inside a longer number. A figure has a digit: "a million" and
+    "a quarter" in old posts must never fill the site's number box or a quiz blank."""
+    if not re.search(r"\d", fig or ""):
+        return False
     return re.search(rf"(?<![\d.,$€£]){re.escape(fig)}(?!\d|[.,]\d)", text) is not None
 
 
@@ -1197,7 +1299,7 @@ def select(stories, lane="news"):
         newsroom = set(s.get("outlets", [])) - set(CONFIG["not_sources"]) or s.get("primary")
         me = {"url": s["url"], "links": s.get("links", []), "headline": s["title"]}
         if (s.get("score", 0) >= bar and fresh and newsroom
-                and not SKIP.search(s["title"]) and not FORMAT.search(s["title"])
+                and not SKIP.search(s["title"]) and not FORMAT.search(s["title"]) and not rank.SOFT.search(s["title"])
                 and not (sport and (SPORT_SKIP.search(s["title"]) or len(s["title"].split()) < 4))
                 and not any(same_story(me, r) for r in recent + out)):
             out.append(s)
@@ -1261,9 +1363,13 @@ def queue(day_dir, batch=None, render=True):
             img.mkdir(parents=True, exist_ok=True)
             R.jpeg(day_dir / "pack" / m["file"]).replace(img / "card.jpg")
             png = img / "detail.png"
-            R.shoot(R.T.detail(s, body(s), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
+            R.shoot(R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
             R.jpeg(png)
             png.unlink()
+            for name, html in extra_slides(m, s, web, ctas):
+                R.shoot(html, img / f"{name}.png", 1080, 1350)
+                R.jpeg(img / f"{name}.png")
+                (img / f"{name}.png").unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
             if CONFIG.get("stories") and not web:  # a story is an Instagram format
                 story_frame(img, "Breaking" if m.get("score", 0) >= CONFIG["breaking_score"] else "New post")
@@ -1281,7 +1387,8 @@ def queue(day_dir, batch=None, render=True):
                 video = make_video(s, img, out.name)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
-                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
+                "cards": ["card.jpg", "detail.jpg"] + [f"{n}.jpg" for n, _ in extra_slides(m, s, web, ctas)],
+                "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
                 "source_cta": cta,
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
@@ -1292,7 +1399,8 @@ def queue(day_dir, batch=None, render=True):
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
-                "credit": s.get("_assets", {}).get("credit", ""), "photo_kind": s.get("_assets", {}).get("kind", "")}
+                "credit": s.get("_assets", {}).get("credit", ""), "credit_file": s.get("_assets", {}).get("file", ""),
+                "photo_kind": s.get("_assets", {}).get("kind", "")}
         ctas += bool(cta)
         if video:
             post["video"] = video

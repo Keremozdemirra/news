@@ -9,6 +9,7 @@ import json
 import os
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
@@ -25,7 +26,8 @@ Formula 1, the NBA, the NFL, the tennis majors, the Olympics, cricket, the golf 
 Readers want the result, the decision or the move, stated plainly."""
 RELEVANT = """false if a consultant or manager would not need it: crime and court cases about private
   people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
-  and advice pieces, product deals and reviews; true otherwise"""
+  and advice pieces, personal-finance columns, explainers, product deals and reviews, a brand's marketing
+  stunt or social-media post; true otherwise"""
 SPORT_RELEVANT = """false for betting tips and odds, gossip, fantasy-league advice, opinion and
   predictions, match previews with no news in them, podcasts and quizzes, and reports on minor or local
   competitions; true for results, signings and transfers, injuries, managerial changes, rulings, records and
@@ -54,28 +56,37 @@ that sounds quotable. American English. No em or en dashes. No hype words. No "n
 Fields:
 - id: copy the id
 - relevant: {relevant}
+- same_event: the id of an EARLIER story in this list that reports the same event, or the R number of a
+  RECENT headline below that reports it with no new development ("R4"); "" when it is a new event
 - topic: {topic_rule}
-- headline: max 80 characters, present tense, names the actor and the action, the key figure if any
-- dek: one sentence, max 140 characters, the most useful extra fact
+- headline: max 80 characters, present tense, names the actor and the action, the key figure if any. Plain
+  words: "more than £400m", never "£400m+"; no question; no quote marks around a single word. Name the
+  country when a senate, parliament, court, central bank or election is not American ("Argentina's Senate")
+- dek: one sentence, max 140 characters, the most useful extra fact (not a restatement of the headline)
 - company: {company_rule}
 - company_domain: that company's website domain if you are certain of it, like "redqueen.bio" ("" if unsure;
   it is checked against the site's own title before use)
 - backer: a named investor or parent company in the story, like "OpenAI" ("" if none)
 - person: the one person the story is centrally about, full name ("" if none; never a person only quoted)
+- person_role: who that person is, 3 to 8 words: nationality, job, organisation, like "British economist,
+  Bank of England governor" ("" if no person). Only used to find the right photo among people who share
+  the name; never printed, so it may use what you know beyond the source
 - orgs: up to 3 companies or institutions the story names, main one first, each spelled as in the source
   ([] if none)
 - image_query: {image_rule}
-- figure: the single key figure as written in the source, like "$36M" or "40%" ("" if none)
+- figure: the single key figure as written in the source, digits only, like "$36M", "40%" or "77,000" ("" if
+  none, if it is a word like "a quarter", or if the source qualifies it with "more than", "up to", "about")
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
-- linkedin_post: 2 to 3 short sentences: what happened, then the most useful further facts from the source;
-  end with the line "Source: <outlet>"
+- linkedin_post: 2 to 3 short sentences of the most useful facts from the source beyond the headline. Do not
+  open by repeating the headline: the reader has just read it. Each sentence complete and grammatical, never
+  a source phrase pasted into another sentence. End with the line "Source: <outlet>"
 - fits_category: false if the story does not match its slot, e.g. a profile or retrospective in a funding
   slot, an opinion piece in a breaking slot; true otherwise{extra_fields}
 
 Return a JSON array only, no prose.
 
 STORIES:
-{stories}"""
+{stories}{recent}"""
 
 # Added to the prompt only while desk.json growth.so_what is true. It overrides the "do not interpret" rule above
 # for this one field, which is why the field text repeats the limits instead of leaning on them.
@@ -108,7 +119,8 @@ WORD = re.compile(r"[a-z][a-z'’]+")
 FILLER = set("that this with from their they have been will would could about into over after than then "
              "also more most such which what when where while there these those its it's the and for are "
              "was were has had not but one two all any each other some said says according reportedly report "
-             "source".split())
+             "source them him his her she who whom being still just very among including made make "
+             "while whose them also only even much many".split())
 CULTURE = re.compile(r"\b(film|films|movie|movies|box office|game|games|gaming|console|music|album|song|singer|"
                      r"concert|tour|sport|sports|football|soccer|nba|nfl|olympic\w*|series|streaming|netflix|"
                      r"festival|art|artist|museum|celebrity|actor|actress|oscar\w*|grammy|book|novel|tv|show)\b", re.I)
@@ -129,8 +141,32 @@ HYPE = re.compile(r"\b(huge|massive|incredible|stunning|shocking|explosive|game[
 GROUNDED = 0.6  # share of a sentence's content words that must come from the source
 
 
-def _stems(text):
-    return {w[:5] for w in WORD.findall((text or "").lower()) if len(w) > 3 and w not in FILLER}
+INFLECTION = re.compile(r"(ing|ed|es|s)$")
+
+
+def _stem(w):
+    """"cutting", "cuts" and "cut", "jobs" and "job" are one word to the grounding check."""
+    st = INFLECTION.sub("", w) if len(w) > 4 else w
+    st = re.sub(r"([b-df-hj-np-tv-z])\1$", r"\1", st)
+    return st[:5]
+
+
+def _fold(text):
+    """"Hernández" and "Hernandez" are one name: accents go before words are compared."""
+    return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
+
+
+def _stems(text, short=False):
+    """Content-word stems. Words of four letters or more, as ever, so "wins cup tie" never makes two matches one
+    event; `short` adds three-letter words, for the source side of the grounding check ("jobs" finds "job")."""
+    out = set()
+    for w in WORD.findall(_fold(text).lower()):
+        if w in FILLER or len(w) < (3 if short else 4):
+            continue
+        st = _stem(w)
+        if len(st) >= 3 and st not in FILLER:
+            out.add(st)
+    return out
 
 
 def ungrounded(sentence, source_text):
@@ -138,7 +174,13 @@ def ungrounded(sentence, source_text):
     words = _stems(sentence)
     if len(words) < 3:
         return False
-    return len(words & _stems(source_text)) / len(words) < GROUNDED
+    return len(words & _stems(source_text, short=True)) / len(words) < GROUNDED
+
+
+def repeats(text, other, share=0.7):
+    """Most of `text`'s content words are already in `other`: a dek that only restates its headline."""
+    a = _stems(text)
+    return len(a) >= 3 and len(a & _stems(other)) / len(a) >= share
 
 
 def _numbers(text):
@@ -150,16 +192,15 @@ def verify(story, copy):
     src = _numbers(story["title"] + " " + story.get("summary", ""))
     problems = []
     for field in ("headline", "dek", "figure", "x_post", "linkedin_post"):
-        extra = _numbers(copy.get(field, "")) - src
+        # the "Source: France 24" line names the outlet; its digits are not a claim
+        text = "\n".join(l for l in str(copy.get(field, "")).splitlines() if not l.startswith("Source:"))
+        extra = _numbers(text) - src
         if extra:
             problems.append(f"{field}: numbers not in source {sorted(extra)}")
     if len(copy.get("headline", "")) > MAX_HEADLINE:
         problems.append("headline too long")
-    text = story["title"] + " " + story.get("summary", "")
-    for field in ("dek", "x_post", "linkedin_post"):
-        for sent in re.split(r"(?<=[.!?])\s+|\n+", copy.get(field, "")):
-            if sent and not sent.startswith("Source:") and ungrounded(sent, text):
-                problems.append(f"{field}: sentence not grounded in source: {sent[:80]}")
+    if re.search(r"\d[\d,.]*\s?(?:[%kKmMbBtn]|bn|tn)?\+", copy.get("headline", "") + " " + copy.get("dek", "")):
+        problems.append("a '+' after a number: write 'more than'")
     if copy.get("fits_category") is False:
         problems.append("does not fit its slot")
     if copy.get("relevant") is False:
@@ -244,9 +285,11 @@ def ask_claude(prompt, runner=subprocess.run):
     return json.loads(m.group(0))
 
 
-def prompt(block, lane="news"):
+def prompt(block, lane="news", recent=()):
     sport = lane == "sport"
-    return PROMPT.format(stories=block, extra_fields=SO_WHAT_FIELD if switch("so_what") else "",
+    tail = ("\n\nRECENT (already posted, for same_event only):\n" + "\n".join(f"R{i}: {h}" for i, h in enumerate(recent, 1))
+            if recent else "")
+    return PROMPT.format(stories=block, recent=tail, extra_fields=SO_WHAT_FIELD if switch("so_what") else "",
                          audience=SPORT_AUDIENCE if sport else AUDIENCE, relevant=SPORT_RELEVANT if sport else RELEVANT,
                          topic_rule=SPORT_TOPIC_RULE if sport else TOPIC_RULE,
                          image_rule=SPORT_IMAGE if sport else IMAGE_RULE,
@@ -267,13 +310,99 @@ def write(stories, runner=subprocess.run):
     return apply(stories, ask_claude(prompt(block), runner))
 
 
-def request(stories, lane="news"):
-    """The prompt a Claude session answers when no headless call is available."""
+def request(stories, recent=(), lane="news"):
+    """The prompt for the copy call. `recent` are headlines already posted, so the model can say a story repeats one."""
     for i, s in enumerate(stories):
         s["id"] = i
     block = "\n\n".join(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
                         for i, s in enumerate(stories))
-    return prompt(block, lane)
+    return prompt(block, lane, recent)
+
+
+QUALIFIED = re.compile(r"\b(more than|over|up to|at least|about|around|nearly|almost|under|less than|roughly|"
+                       r"as many as|as much as|some|close to)\s+$", re.I)
+
+
+# a source phrase pasted into another sentence: "called an “underhanded” the push", "Justice described as a
+# landmark ruling convicted". Such a sentence is cut like commentary.
+MALFORMED = re.compile(r"\b(a|an|the)\s+[\"“‘'][^\"”’']{1,40}[\"”’']\s+(the|a|an)\b|"
+                       r"\b[A-Z][a-z]+ described as an? [a-z]+ [a-z]+ [a-z]+ed\b", re.I)
+
+
+def strip_ungrounded(story, copy):
+    """Removes every dek, x_post and report sentence whose words are mostly not the source's: commentary is never
+    shown, and the story keeps its checked facts. It used to cost the whole story, so one padded sentence
+    ("The figure is a minimum") dropped SAP's 10,000 job cuts from the day. Returns the sentences removed."""
+    # the outlet's own name is grounded: "the Buenos Aires Times reports" is attribution, not commentary
+    text = story["title"] + " " + story.get("summary", "") + " " + story.get("source", "")
+    cut = []
+    for field in ("dek", "x_post", "linkedin_post"):
+        lines = str(copy.get(field) or "").split("\n")
+        keep_lines = []
+        for line in lines:
+            if line.startswith("Source:") or not line.strip():
+                keep_lines.append(line)
+                continue
+            kept = []
+            for sent in sentences(line):
+                (cut.append(sent) if ungrounded(sent, text) or MALFORMED.search(sent) else kept.append(sent))
+            if kept:
+                keep_lines.append(" ".join(kept))
+        copy[field] = re.sub(r"\n{3,}", "\n\n", "\n".join(keep_lines)).strip()
+    if not copy.get("x_post"):
+        copy["x_post"] = copy.get("headline", "")
+    return cut
+
+
+def figure_ok(fig, seen):
+    """A big figure must be a number (a word like "a quarter" set at 300 px says nothing), and the number the
+    reader finds in the headline or dek must not carry a qualifier the card would drop ("more than £400m")."""
+    if not fig or not re.search(r"\d", fig):
+        return False
+    m = re.search(re.escape(fig), seen, re.I)
+    if not m:
+        return True
+    return not QUALIFIED.search(seen[:m.start()]) and not seen[m.end():m.end() + 1] == "+"
+
+
+def sentences(text):
+    return [x for x in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"“‘'])", text or "") if x.strip()]
+
+
+def drop_restated_lead(post, headline):
+    """The report under a headline starts with news: a first sentence that only restates the headline is cut
+    when more follows ("SAP explores at least 10,000 job cuts." under "SAP explores at least 10,000 job cuts")."""
+    lines = (post or "").split("\n")
+    body = [l for l in lines if l.strip() and not l.startswith("Source:")]
+    tail = [l for l in lines if l.startswith("Source:")]
+    if not body:
+        return post
+    sents = sentences(" ".join(body))
+    # never when what follows leans on the cut sentence: "One share would come from SpaceX and one from him
+    # personally." lost its "Musk" that way
+    while (len(sents) > 1 and repeats(sents[0], headline, share=0.6)
+           and not re.search(r"\b(he|she|him|his|her|hers|they|them|their|it|its|this|that|these|those)\b", sents[1], re.I)):
+        sents = sents[1:]
+    return " ".join(sents) + ("\n\n" + "\n".join(tail) if tail else "")
+
+
+def drop_repeats(post, deks, headline):
+    """The report without sentences that restate the dek, and without a lone sentence that restates the headline."""
+    lines = (post or "").split("\n")
+    tail = [l for l in lines if l.startswith("Source:")]
+    sents = sentences(" ".join(l for l in lines if l.strip() and not l.startswith("Source:")))
+    def said(x, d):
+        # a short sentence ("It equals $6 billion.") repeats the dek when its words and numbers are all there
+        short = len(_stems(x)) < 3 and _stems(x) <= _stems(d, short=True) and _numbers(x) <= _numbers(d)
+        return short or repeats(x, d) or repeats(d, x, share=0.8)
+    # and a sentence whose words the headline and dek already hold between them ("The information comes from people
+    # familiar with the situation." under a dek that says so)
+    both = " ".join([headline] + [d for d in deks if d])
+    kept = [x for x in sents if not any(d and said(x, d) for d in deks) and not (deks and repeats(x, both, share=0.6))]
+    if len(kept) == 1 and repeats(kept[0], headline, share=0.6):
+        kept = []
+    body = " ".join(kept)
+    return (body + ("\n\n" + "\n".join(tail) if tail else "")).strip() if body else "\n".join(tail)
 
 
 def apply(stories, reply_rows):
@@ -283,15 +412,50 @@ def apply(stories, reply_rows):
     rejected = []
     for i, s in enumerate(stories):
         c = {k: (v.translate(DASHES) if isinstance(v, str) else v) for k, v in rows.get(i, {}).items()}
+        # the same event reported twice in one run, or again with nothing new after a post: one post only, and
+        # the earlier story inherits the other newsrooms so its count stays true
+        same = str(c.get("same_event") or "").strip()
+        if same.isdigit() and int(same) < i and stories[int(same)].get("copy_status") == "ok":
+            first = stories[int(same)]
+            for key in ("newsrooms", "outlets", "links"):
+                first[key] = list(dict.fromkeys(list(first.get(key) or []) + list(s.get(key) or [])))
+            s["copy_status"] = "duplicate"
+            rejected.append((s["title"], [f"same event as story {same}"]))
+            continue
+        if re.fullmatch(r"R\d+", same):
+            s["copy_status"] = "repeat"
+            rejected.append((s["title"], [f"repeats recent headline {same}"]))
+            continue
+        if c:
+            strip_ungrounded(s, c)
+            # hype the source used ("massive revision") is still hype in our voice: the intensifier goes, the fact stays
+            for f in ("headline", "dek", "x_post", "linkedin_post"):
+                if isinstance(c.get(f), str):
+                    # spaces only: the report's blank line before "Source:" must survive
+                    c[f] = re.sub(r"[ \t]{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip()
         problems = verify(s, c) if c else ["no copy returned"]
+        # a headline over the limit is the model's slip, not a wrong fact: the source's own headline stands in when
+        # it fits and everything else checked out (a Meloni post was lost to five extra characters)
+        if problems == ["headline too long"] and len(s["title"]) <= MAX_HEADLINE:
+            c["headline"] = s["title"]
+            problems = verify(s, c)
         if problems:
             rejected.append((s["title"], problems))
             s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
                      linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback")
         else:
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
-                                                 "figure", "x_post", "linkedin_post", "image_query", "topic")},
+                                                 "person_role", "figure", "x_post", "linkedin_post", "image_query",
+                                                 "topic")},
                      copy_status="ok")
+            s["linkedin_post"] = drop_restated_lead(s["linkedin_post"], s["headline"])
+            # a dek that only says the headline again is no dek ("Congress passed the overhaul ... in its final vote")
+            if s.get("dek") and repeats(s["dek"], s["headline"]):
+                s["dek"] = ""
+            # the report adds facts; it never says the dek again, and never only the headline. The site prints dek
+            # and report one under the other, so a repeat reads twice (SAP's job cuts, 2026-11-27). Sentences that
+            # repeat either are cut; when nothing is left the report is empty and the dek carries the post alone.
+            s["linkedin_post"] = drop_repeats(s["linkedin_post"], [s["dek"]] if s.get("dek") else [], s["headline"])
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
             if switch("so_what") and s.get("lane") != "sport":
@@ -308,8 +472,19 @@ def apply(stories, reply_rows):
             src = (s["title"] + " " + s.get("summary", "")).lower()
             orgs = c.get("orgs") if isinstance(c.get("orgs"), list) else []
             s["orgs"] = [o for o in orgs if isinstance(o, str) and o.strip() and o.lower() in src][:3]
-            # the same holds for a face: only a person the source names may be pictured
-            if s.get("person") and s["person"].split()[-1].lower() not in src:
+            # a surname that is also a company reads as the company: "Ford and Unifor leader urge Ottawa to scrap
+            # automaker emissions rules" is Ontario's premier, not Ford Motor. The headline gets the full name.
+            from .entities import BRANDS
+            if s.get("person") and len(s["person"].split()) > 1:
+                first, last = s["person"].split()[0], s["person"].split()[-1]
+                if (BRANDS.fullmatch(last.lower()) and re.search(rf"(?<!{re.escape(first)} )\b{re.escape(last)}\b", s["headline"])
+                        and len(s["headline"]) + len(first) + 1 <= MAX_HEADLINE):
+                    s["headline"] = re.sub(rf"(?<!{re.escape(first)} )\b{re.escape(last)}\b", f"{first} {last}", s["headline"], count=1)
+            # the same holds for a face: only a person the source names may be pictured, and only when our own text
+            # names them too, or the reader sees a face nobody on the card is
+            # the card shows the headline, the detail slide the report: the dek alone is not on either
+            shown = (s["headline"] + " " + s.get("linkedin_post", "")).lower()
+            if s.get("person") and (s["person"].split()[-1].lower() not in src or s["person"].split()[-1].lower() not in shown):
                 s["person"] = ""
             # and for every logo: a company or backer the source does not name gets no logo on the card. An
             # unchecked "backer" once put the BCG logo on an FCC story.
@@ -320,5 +495,10 @@ def apply(stories, reply_rows):
             seen = s["headline"] + " " + s["dek"]
             fig = s["figure"]
             if fig and not ((_numbers(fig) & _numbers(seen)) if _numbers(fig) else fig.lower() in seen.lower()):
+                s["figure"] = ""
+            if s["figure"] and not figure_ok(s["figure"], seen):
+                s["figure"] = ""
+            # a bare count ("14") set huge says nothing unless the headline right under it says 14 of what
+            if s["figure"] and not re.search(r"[$€£¥%]|\d\s?[A-Za-z]", s["figure"]) and not (_numbers(s["figure"]) & _numbers(s["headline"])):
                 s["figure"] = ""
     return rejected

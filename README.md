@@ -1,6 +1,6 @@
 # boardread desk
 
-An Instagram account for the business, markets, politics, tech and AI news a consultant or manager needs, run by GitHub Actions. Every hour it fetches 82 news feeds and ranks the stories. It keeps each relevant story above the importance bar that is under a day old and has not been posted yet. It writes the copy, checks it against the sources, and queues one post per story: a photo card, then a slide with the report. Each run opens one issue in this repository listing its posts. Posts go out 20 minutes apart, the first two hours after queuing, unless the owner vetoes them.
+An Instagram account for the business, markets, politics, tech and AI news a consultant or manager needs, run by GitHub Actions. Every hour it fetches 138 news feeds from newsrooms on six continents and ranks the stories. It keeps each relevant story above the importance bar that is under a day old and has not been posted yet. It writes the copy, checks it against the sources, and queues one post per story: a photo card, then a slide with the report. Each run opens one issue in this repository listing its posts. Posts go out 20 minutes apart, the first two hours after queuing, unless the owner vetoes them.
 
 ## The day
 
@@ -45,6 +45,7 @@ GitHub may start a scheduled run up to half an hour late.
 | `send_prompt` | the closing caption line comes from the six approved `send_prompts`, picked by topic |
 | `alt_text` | alt text on each carousel image: the headline on the card, headline and dek on the detail slide |
 | `keyword_caption` | the company and person go into the first 125 characters when the headline lacks them; hashtags drop to the topic tag and `#news` |
+| `carousel_extended` | Instagram posts get up to four slides instead of two: the card, the report, "The number" (the figure, the sentence that states it, its source; only when the text states a figure) and "Sources" (every newsroom and where the links are). Web-tier posts stay at two |
 | `daily_reel` | once a day, from `reel_hour` UTC, a 1080x1920 recap video of the day's top five posts, published as a Reel by the `publish` workflow (`aidaily reel due`, `build`, `send`); state in `state/reel.json`; never cross-posted |
 
 `python3 scripts/growth_preview.py` writes `brand/preview/growth.html` with all five on, from real posts, without calling Instagram.
@@ -68,7 +69,7 @@ Instagram fetches each JPEG from its raw URL on the `media` branch, which is why
 
 | Path | What it does |
 |---|---|
-| `aidaily/feeds.py`, `rank.py` | fetch 82 feeds, cluster items into stories, score them |
+| `aidaily/feeds.py`, `rank.py` | fetch 138 feeds, cluster items into stories (weighting the words few titles share), score them by newsrooms, recency and hard-news terms |
 | `aidaily/copy.py` | the copy prompt and the checks against the source text |
 | `aidaily/templates.py`, `render.py` | 1080x1350 cards and the daily cover, rendered by headless Chrome, saved as JPEG |
 | `aidaily/desk.py` | queue, publish, replies, token check |

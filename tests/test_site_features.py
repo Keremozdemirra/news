@@ -480,6 +480,8 @@ class Play(Features):
     def test_no_game_file_is_git_ignored(self):
         import subprocess
         from aidaily import play
-        files = [str(f) for f in play.GAMES_DIR.rglob("*") if f.is_file() and ".cache" not in f.parts]
+        # __pycache__ is bytecode another test's import leaves behind, not a game file (main's CI went red on it)
+        files = [str(f) for f in play.GAMES_DIR.rglob("*") if f.is_file() and ".cache" not in f.parts
+                 and "__pycache__" not in f.parts]
         r = subprocess.run(["git", "check-ignore", *files], capture_output=True, text=True, cwd=play.GAMES_DIR)
         self.assertEqual(r.stdout.strip(), "", "ignored by .gitignore, so they would be missing on the deployed site")
