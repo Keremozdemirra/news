@@ -86,6 +86,44 @@ def published():
     return sorted(rows, key=lambda p: p["published"], reverse=True)
 
 
+LEAK = re.compile(r"\{\{|\}\}|\{[a-z_]+\}|%\([a-z_]+\)s|\[\[|\bTODO\b|lorem ipsum|\bundefined\b|<headline>", re.I)
+QUARANTINE = []  # [{"id", "reasons"}] of the last build: articles held back from every page, sitemap and feed; the status page lists them
+
+
+def content_problems(p):
+    """Why an article is not fit to go on the site, as short reasons; [] when it is. Empty text and a template that leaked into it
+    (26 of 91 empty-body articles once passed the audit and went live) are the cases."""
+    out = []
+    if not (p.get("headlines") or [""])[0].strip():
+        out.append("empty headline")
+    if not (p.get("body") or "").strip():
+        out.append("empty body")
+    if not (p.get("dek") or "").strip():
+        out.append("empty dek")
+    text = " ".join([(p.get("headlines") or [""])[0], p.get("dek") or "", p.get("body") or ""])
+    if LEAK.search(text):
+        out.append("template leak")
+    return out
+
+
+class BuildBlocked(RuntimeError):
+    """The site is not rebuilt: the last good one stays up."""
+
+
+def quarantine(rows):
+    """(articles that may go on the site, the held ones). Only two global rules stop the build: nothing passes at all, or half of
+    six or more fail (the writer is broken, and a thin site would read as a quiet day)."""
+    ok, held = [], []
+    for p in rows:
+        why = content_problems(p)
+        (held if why else ok).append(dict(id=p["id"], reasons=why) if why else p)
+    if rows and not ok:
+        raise BuildBlocked(f"every one of {len(rows)} articles failed the content checks: {held[:3]}")
+    if len(rows) >= 6 and len(held) * 2 >= len(rows):
+        raise BuildBlocked(f"{len(held)} of {len(rows)} articles failed the content checks: {held[:3]}")
+    return ok, held
+
+
 def dt(iso):
     d = datetime.fromisoformat(iso)
     return d.astimezone(timezone.utc) if d.tzinfo else d.replace(tzinfo=timezone.utc)
@@ -1071,7 +1109,11 @@ def build(out=desk.HERE / "_site"):
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
     shown = []
     PHOTOS.clear()
-    for p in published():
+    passed, held = quarantine(published())
+    QUARANTINE[:] = held
+    for h in held:
+        print(f"site: held back {h['id']}: {', '.join(h['reasons'])}")
+    for p in passed:
         photo = desk.MEDIA / p["id"] / "photo.jpg"
         if photo.exists():
             resized(photo, out / "img" / f"{p['id']}.jpg", 960)

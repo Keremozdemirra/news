@@ -160,6 +160,32 @@ class Strip(unittest.TestCase):
             self.assertIn(anchor, page)
 
 
+class Gate(unittest.TestCase):
+    def test_what_fails(self):
+        ok = fake("a", "Fine headline", body="Text.", dek="Dek.")
+        self.assertEqual(site.content_problems(ok), [])
+        self.assertEqual(site.content_problems(dict(ok, body=" \n")), ["empty body"])
+        self.assertEqual(site.content_problems(dict(ok, dek="")), ["empty dek"])
+        self.assertEqual(site.content_problems(dict(ok, body="Hello {headline}")), ["template leak"])
+        self.assertEqual(site.content_problems(dict(ok, dek="{{ dek }}")), ["template leak"])
+        self.assertEqual(site.content_problems(dict(ok, body="None of the banks said so.")), [])
+
+    def test_one_bad_article_is_held_and_the_rest_go(self):
+        rows = [fake(f"g{i}", f"Good {i}", body="Text.", dek="Dek.") for i in range(5)] + [fake("bad", "Bad one", body="", dek="Dek.")]
+        ok, held = site.quarantine(rows)
+        self.assertEqual(len(ok), 5)
+        self.assertEqual(held, [{"id": "bad", "reasons": ["empty body"]}])
+
+    def test_the_build_stops_only_when_nothing_or_half_passes(self):
+        bad = lambda i: fake(f"b{i}", f"Bad {i}", body="", dek="Dek.")  # noqa: E731
+        good = lambda i: fake(f"g{i}", f"Good {i}", body="Text.", dek="Dek.")  # noqa: E731
+        with self.assertRaises(site.BuildBlocked):
+            site.quarantine([bad(1), bad(2)])
+        with self.assertRaises(site.BuildBlocked):
+            site.quarantine([bad(i) for i in range(3)] + [good(i) for i in range(3)])
+        site.quarantine([bad(1), good(1), good(2)])  # under six articles, one bad: only that one is held
+
+
 class Related(unittest.TestCase):
     def test_related_needs_something_in_common_and_skips_the_neighbours(self):
         a = fake("a", "Rosebank oil field approved by UK ministers", "Politics", hours=1)
@@ -211,6 +237,30 @@ class Touch(unittest.TestCase):
 
     def test_no_gradient_anywhere(self):
         self.assertNotIn("gradient", self.css)
+
+
+class Held(Features):
+    """A real build with one article whose body is empty: it is on no page, sitemap, feed or search, and the status page lists it."""
+
+    def setUp(self):
+        self._p = mock.patch.object(site, "SHIPPED", {"numbers", "board", "feed", "paper"})
+        self._p.start()
+        self.addCleanup(self._p.stop)
+        super().setUp()
+
+    def test_a_held_article_is_nowhere(self):
+        import shutil
+        shutil.rmtree(self.out)
+        post(self, "2026-11-26-1000-1", 1, headlines=["Empty one"], body="")
+        stub = lambda *a: a[-1].write_bytes(b"jpg") or True  # noqa: E731
+        with mock.patch.object(site, "og_image", side_effect=stub), mock.patch.object(site, "share_card", side_effect=stub):
+            out = site.build(self.root / "_site2")
+        self.assertFalse((out / "s" / "2026-11-26-1000-1").exists())
+        for f in ("sitemap.xml", "news-sitemap.xml", "feed.xml", "search.json", "latest/index.html"):
+            self.assertNotIn("2026-11-26-1000-1", (out / f).read_text(), f)
+        self.assertEqual(site.QUARANTINE, [{"id": "2026-11-26-1000-1", "reasons": ["empty body"]}])
+        from aidaily import status
+        self.assertEqual(status.snapshot()["quarantined"], site.QUARANTINE)
 
 
 class Built(Features):

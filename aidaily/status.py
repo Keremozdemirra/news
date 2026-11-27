@@ -91,6 +91,12 @@ def _today_count(rows, day):
     return sum(1 for r in rows if (r or "")[:10] == day)
 
 
+def _quarantined():
+    """Articles the site build held back (empty body, empty dek, template leak); empty unless this process just built the site."""
+    from . import site
+    return site.QUARANTINE
+
+
 def snapshot(runs=None):
     """Everything the page and the health check read, from queue/ and state/ (and the run list when given)."""
     t, day = now(), now().strftime("%Y-%m-%d")
@@ -158,6 +164,7 @@ def snapshot(runs=None):
         "errors": errors[:20],
         "tokens": dict(desk.CONFIG.get("token_expiry") or {}),
         "workflows": workflows(runs) if runs is not None else {},
+        "quarantined": list(_quarantined()),
     }
     return snap
 
@@ -425,6 +432,7 @@ def render(snap, found):
     errs = ("<table><thead><tr><th>When</th><th>Post</th><th>Where</th><th>What</th></tr></thead><tbody>"
             + "".join(f'<tr><td>{_ago(e["at"])}</td><td>{E(e["post"])}</td><td>{E(e["where"])}</td><td>{E(e["summary"])}</td></tr>'
                       for e in snap["errors"]) + "</tbody></table>") if snap["errors"] else "<p>None in the last 24 hours.</p>"
+    held = ("<h2>Held back from the site</h2><ul>" + "".join(f'<li>{E(h["id"])}: {E(", ".join(h["reasons"]))}</li>' for h in snap["quarantined"]) + "</ul>") if snap.get("quarantined") else ""
     state = "Stopped" if any(k == "clock" for k, _ in found) else "Running"
     head = ("Paused by the owner." if snap["paused"] else
             (f"{state}, {len(found)} {'thing needs' if len(found) == 1 else 'things need'} the owner." if found else f"{state}, nothing needs the owner."))
@@ -444,7 +452,7 @@ def render(snap, found):
 <h2>Queue</h2><p>{q["queued"]} queued, {q["due"]} due now, {q["held"]} held for review, {q["failed"]} failed, {q["web"]} site-only.
 Replies today: {snap["today"]["replies"]}.</p>
 <h2>Workflows</h2><div class="wrap">{wf}</div>
-<h2>Errors, last 24 hours</h2><div class="wrap">{errs}</div>
+<h2>Errors, last 24 hours</h2><div class="wrap">{errs}</div>{held}
 <p class="meta">Every figure comes from the public repository and its Actions runs. Errors are classified, never quoted.
 Machine-readable: <a href="status.json">status.json</a>.</p>
 </div>"""
