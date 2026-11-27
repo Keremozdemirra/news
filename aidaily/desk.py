@@ -1619,9 +1619,11 @@ def data_carousel():
     groups = [("Currencies", fx), ("Rates and energy", re_rows)]
     img = MEDIA / pid
     img.mkdir(parents=True, exist_ok=True)
+    held = []
     for file_, html in (("chart", R.T.feed_chart(name, pts, first, last_, move, "3 months", label, _market_source([k]))),
                         ("close", R.T.feed_close(groups, label, _market_source(keys)))):
         R.shoot(html, img / f"{file_}.png", 1080, 1350)
+        held += [f"visual gate, {file_} slide: {x}" for x in _gate(html, img / f"{file_}.png", None, "", "")]
         R.jpeg(img / f"{file_}.png")
         (img / f"{file_}.png").unlink()
     head_ = f"Markets close, {t.strftime('%-d %b %Y')}"
@@ -1635,6 +1637,9 @@ def data_carousel():
             "topic": "Markets", "series": k, "story": "",
             "alts": [f"Line chart of {name} over three months: {move}, from {first} to {last_}.",
                      f"{head_}: " + "; ".join(f"{n} {v}, {c}" for _, rows in groups for n, v, c, _ in rows) + "."]}
+    if held:  # no safer layout for a table of official prints: the carousel is held, and the day goes without it
+        post.update(status="held", held=held)
+        print(f"{pid}: data carousel held by the visual gate: {'; '.join(held)[:300]}")
     _save(QUEUE / pid / "post.json", post)
     print(f"queued {pid}: {head_} at {when:%H:%M} UTC")
     return [QUEUE / pid / "post.json"]
@@ -1937,6 +1942,7 @@ def queue(day_dir, batch=None, render=True):
             png.unlink()
             for name, html in extra_slides(m, s, web, ctas):
                 R.shoot(html, img / f"{name}.png", 1080, 1350)
+                s["_gate"] = (s.get("_gate") or []) + [f"{name} slide: {x}" for x in _gate(html, None, None, "", "")]
                 R.jpeg(img / f"{name}.png")
                 (img / f"{name}.png").unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)

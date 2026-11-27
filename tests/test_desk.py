@@ -1166,6 +1166,13 @@ class Formats(Tmp):
         self.assertEqual(desk.audit(post), [])
         self.assertEqual(len(post["alts"]), 2)
 
+    def test_a_data_slide_that_fails_the_visual_gate_holds_the_carousel(self):
+        with mock.patch.object(desk, "_gate", side_effect=lambda html, png, *a, **k: ["text off the canvas: 'EUR/TRY'"] if "Rates" in html else []):
+            made, _ = self.data_at(_at(0, 16, 40), self._data_close())
+        post = json.loads(Path(made[0]).read_text())
+        self.assertEqual(post["status"], "held")
+        self.assertIn("visual gate, close slide: text off the canvas: 'EUR/TRY'", post["held"])
+
     def test_data_carousel_waits_for_its_hour_the_fix_and_room_in_the_cap(self):
         m = self._data_close()
         self.assertEqual(self.data_at(_at(0, 15, 40), m)[0], [])  # before its hour
