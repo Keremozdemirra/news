@@ -19,7 +19,7 @@ import os
 import re
 import urllib.parse
 import zlib
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -1012,6 +1012,64 @@ def _s_numbers(day, label):
                          "The week in numbers", refs=[q["id"] for q, _ in figs])]
 
 
+# Data stories from the official series the site already shows (aidaily/markets.py: ECB, US Treasury, EIA). No index
+# level or share price appears: those are licensed data. Each value carries its own date and its publisher.
+RATE_KEYS = ("eurusd", "usdjpy", "ust10", "ust2", "brent", "wti")
+CHART_KEYS = ("brent", "wti", "ust10", "ust2", "eurusd", "usdjpy", "henryhub")
+
+
+def _market_source(keys):
+    from . import markets
+    names = {"ecb": "ECB", "calc": "ECB", "ust": "U.S. Treasury", "eia": "U.S. Energy Information Administration"}
+    pubs = list(dict.fromkeys(names[markets.SERIES[k][3]] for k in keys))
+    return "Source: " + ", ".join(pubs) + "." + (" USD/JPY calculated from ECB reference rates." if "usdjpy" in keys else "")
+
+
+def _s_rates(day, label):
+    from . import markets
+    m = markets.load(live=False)
+    rows, keys = [], []
+    for k in RATE_KEYS:
+        st = markets.stat(m, k)
+        if not st or (now().date() - date.fromisoformat(st[2])).days > 10:  # a stale series is left out, never shown as today's
+            continue
+        name, v, d, ch, pct, _ = st
+        nd = markets.SERIES[k][2]
+        move = "unchanged" if not ch else f"{markets.sign_arrow(ch)} {abs(ch):.{nd}f}" + ("" if markets.SERIES[k][1] == "%" or pct is None else f" ({abs(pct):.{2 if abs(pct) < 0.1 else 1}f}%)")
+        rows.append((name, markets.fmt(k, v), move, markets.dmy(d)))
+        keys.append(k)
+    if len(rows) < 4:
+        return []
+    return [_queue_story(f"{day}-rates", R.T.story_rates(rows, label, _market_source(keys)), "Rates and oil")]
+
+
+def _s_chart(day, label, span=66):
+    """The series that moved most over its last ~3 months (66 prints), as a line, when it moved enough to say so."""
+    from . import markets
+    m = markets.load(live=False)
+    best = None
+    for k in CHART_KEYS:
+        pts = ((m or {}).get("series") or {}).get(k) or []
+        pts = pts[-span:]
+        if len(pts) < 40 or (now().date() - date.fromisoformat(pts[-1][0])).days > 10:
+            continue
+        a, b = pts[0][1], pts[-1][1]
+        pct = (b - a) / a * 100 if a else 0
+        score = abs(b - a) * 20 if markets.SERIES[k][1] == "%" else abs(pct)  # 0.25 points of yield ranks with a 5% price move
+        if best is None or score > best[0]:
+            best = (score, k, pts, a, b, pct)
+    if not best or best[0] < 3:
+        return []
+    _, k, pts, a, b, pct = best
+    name, unit, nd = markets.SERIES[k][0], markets.SERIES[k][1], markets.SERIES[k][2]
+    since = markets.dmy(pts[0][0])
+    word = "Up" if b > a else "Down"
+    move = (f"{word} {abs(b - a):.2f} percentage points since {since}" if unit == "%" else f"{word} {abs(pct):.1f}% since {since}")
+    first, last = f"{markets.fmt(k, a)} · {markets.dmy(pts[0][0])}", f"{markets.fmt(k, b)} · {markets.dmy(pts[-1][0])}"
+    return [_queue_story(f"{day}-chart", R.T.story_chart(name, pts, first, last, move, "3 months", label, _market_source([k])),
+                         f"Chart: {name}", series=k)]
+
+
 def _s_follow(day, label):
     return [_queue_story(f"{day}-follow", R.T.story_follow(CONFIG["handle"], "The news that moves business.", label), "Follow",
                          user_tags=[{"username": CONFIG["handle"].lstrip("@"), "x": 0.5, "y": 0.5}])]
@@ -1038,6 +1096,10 @@ STORY_SLOTS = {
     "numbers": (SUN, lambda d, s, l: _s_numbers(d, l)),
     "shared": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     "saved": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
+    # data stories: rates on Monday and Wednesday, the chart on Thursday and Saturday, the days without the follow story,
+    # so no weekday passes eight stories
+    "rates": ((0, 2), lambda d, s, l: _s_rates(d, l)),
+    "chart": ((3, 5), lambda d, s, l: _s_chart(d, l)),
     "today": (ALL, lambda d, s, l: _s_today(d, l)),
     "follow": ((1, 4), lambda d, s, l: _s_follow(d, l)),
     "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),

@@ -1004,6 +1004,43 @@ class Formats(Tmp):
             self.assertIn("data-on", a)
             self.assertNotIn("data-on", q)
 
+    def _markets(self, days=70, move=0.3):
+        from datetime import date as D
+        start = D(2026, 11, 24) - timedelta(days=days)
+        pts = lambda base, step: [[(start + timedelta(days=i)).isoformat(), round(base + step * i, 4)] for i in range(days + 1)]  # noqa: E731
+        return {"series": {"eurusd": pts(1.15, -0.0005), "usdjpy": pts(150, 0.1), "ust10": pts(4.5, 0.005), "ust2": pts(4.2, 0.001),
+                           "brent": pts(70, move), "wti": pts(66, 0.2)}}
+
+    def test_rates_story_shows_each_print_with_its_date_and_source(self):
+        from aidaily import markets
+        with mock.patch.object(markets, "load", return_value=self._markets()):
+            out = self.run_at(_at(0, 16, 40), "rates")
+        h = out["rates"]
+        for text in ("EUR/USD", "US 10-year", "Brent", "24 Nov 2026", "Source: ECB, U.S. Treasury, U.S. Energy Information Administration."):
+            self.assertIn(text, h)
+        self.assertNotIn("S&amp;P", h)  # no index levels: licensed data
+        with mock.patch.object(markets, "load", return_value={"series": {}}):
+            self.assertEqual(self.run_at(_at(2, 16, 40), "rates"), {})
+
+    def test_chart_story_picks_the_biggest_mover_and_skips_a_flat_quarter(self):
+        from aidaily import markets
+        with mock.patch.object(markets, "load", return_value=self._markets()):
+            out = self.run_at(_at(3, 15, 10), "chart")
+        self.assertIn("Brent", out["chart"])
+        self.assertIn("Up ", out["chart"])
+        self.assertIn("<polyline", out["chart"])
+        flat = self._markets(move=0.0)
+        flat["series"] = {k: [[d, 1.0] for d, _ in v] for k, v in flat["series"].items()}
+        with mock.patch.object(markets, "load", return_value=flat):
+            self.assertEqual(self.run_at(_at(5, 15, 10), "chart"), {})
+
+    def test_breaking_label_only_at_the_breaking_score(self):
+        from aidaily import templates as T
+        s = {"title": "Fed cuts rates", "headline": "Fed cuts rates", "topic": "Economy", "published": desk.now().isoformat(),
+             "source": "X", "outlets": ["X"], "_assets": {"logo": "", "backer": "", "logos": [], "photo": "", "credit": "", "file": ""}}
+        self.assertNotIn("data-breaking", T.card(dict(s, score=desk.CONFIG["breaking_score"] - 1)))
+        self.assertIn(">Breaking<", T.card(dict(s, score=desk.CONFIG["breaking_score"])))
+
     def test_sport_reaches_no_story_format(self):
         w = _at(1, 19)  # Tuesday evening: last12, board, top5 and the quiz pools all see these posts
         sport = ["Arsenal beat Chelsea 3-1 in derby", "Australian Open sets $90M prize money", "Lakers sign star for $200M",

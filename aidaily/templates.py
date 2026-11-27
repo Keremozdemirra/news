@@ -149,6 +149,17 @@ def domain():
     return desk.brand_domain()
 
 
+def _breaking(story, dark=False):
+    """A label before the meta line of a card whose story scores at the desk's breaking bar, the way Bloomberg,
+    CNBC and the FT flag one on Instagram. Ink on a white chip over a photo, white on ink on paper."""
+    from . import desk
+    if (story.get("score") or 0) < desk.CONFIG.get("breaking_score", 99):
+        return ""
+    fg, bg = (BLACK, WHITE) if dark else (WHITE, BLACK)
+    return (f'<span data-breaking style="display:inline-block;margin-right:16px;padding:5px 14px 4px;background:{bg};color:{fg};'
+            f'font-weight:800;letter-spacing:2px;text-transform:uppercase">Breaking</span>')
+
+
 def _meta_card(story):
     """The topic and date line of a card, with how many newsrooms carried it (the footer's right side is the domain)."""
     return f"{_meta(story)} · {_sourceline(story)}"
@@ -253,7 +264,7 @@ def card(story, brand=BRAND, motion=False, height=1350):
 <div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
 <div class="c-chips" style="position:absolute;left:64px;right:64px;top:{top}px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div style="position:absolute;left:72px;right:{side}px;bottom:{bottom}px;display:flex;flex-direction:column">
-<span class="c-meta" style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
+<span class="c-meta" style="font-size:26px;font-weight:600;color:#d6d6d6">{_breaking(story, True)}{e(_meta_card(story))}</span>
 <h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{e(title)}</h1>
 <div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div></div></body></html>"""
     if kind == "figure":
@@ -262,7 +273,7 @@ def card(story, brand=BRAND, motion=False, height=1350):
                   f'{_logo_block(a["backer"], story.get("backer", ""), 30)}</div>') if story.get("backer") else ""
         return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
+<div style="font-size:24px;font-weight:500;color:{GREY}">{_breaking(story)}{e(_meta_card(story))}</div>
 <div style="margin-top:88px">{_logo_block(a['logo'], story.get('company', ''), 62)}</div>
 <div style="margin-top:52px;font-size:{300 if len(fig) <= 4 else 250 if len(fig) == 5 else 205}px;font-weight:800;line-height:0.82;letter-spacing:-12px">{e(fig)}</div>
 <div style="flex:1"></div>
@@ -270,7 +281,7 @@ def card(story, brand=BRAND, motion=False, height=1350):
 {backer}<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
+<div style="font-size:24px;font-weight:500;color:{GREY}">{_breaking(story)}{e(_meta_card(story))}</div>
 <div style="margin-top:88px">{_logo_block(a['logo'], story.get('company', ''), 62)}</div>
 <div style="flex:1"></div>
 <h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:-2px">{e(title)}</h1>
@@ -634,6 +645,47 @@ def story_today(logo_uris, label):
     body = (f'{_story_head("In the news<br>today.", 140)}<div style="flex:1;min-height:40px"></div>'
             f'<div style="display:flex;flex-wrap:wrap;gap:24px;width:936px">{tiles}</div>')
     return _frame(body, "Today", label, CTA_ARTICLES)
+
+
+def story_rates(rows, label, source):
+    """Rates and oil: official prints the desk already shows on the site, each with its own date. A row is
+    (name, value, change, date); change is the move against the previous print, set with an arrow, never colour."""
+    items = "".join(f'<div style="display:grid;grid-template-columns:1fr auto;align-items:baseline;margin-top:{30 if i else 0}px">'
+                    f'<div><div style="font-size:52px;font-weight:800;letter-spacing:-0.025em">{e(n)}</div>'
+                    f'<div style="margin-top:6px;font-size:34px;font-weight:600;color:{MUTE}">{e(d)}</div></div>'
+                    f'<div style="text-align:right"><div style="font-size:76px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
+                    f'<div style="margin-top:8px;font-size:38px;font-weight:700;color:{DIM}">{e(c)}</div></div></div>'
+                    for i, (n, v, c, d) in enumerate(rows))
+    body = (f'{_story_head("Rates and oil.", 104)}<div style="flex:1;min-height:40px"></div>{items}'
+            f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
+    return _frame(body, "Markets", label, "Every rate: link in bio")
+
+
+def _chart_svg(pts, w=936, h=560):
+    """A bare line chart: the series as one white line, a hairline at its first value, the last value marked."""
+    vals = [v for _, v in pts]
+    lo, hi = min(vals), max(vals)
+    pad = (hi - lo) * 0.08 or 1
+    lo, hi = lo - pad, hi + pad
+    xy = [(round(i * w / (len(pts) - 1), 1), round(h - (v - lo) / (hi - lo) * h, 1)) for i, (_, v) in enumerate(pts)]
+    line = " ".join(f"{x},{y}" for x, y in xy)
+    y0 = xy[0][1]
+    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" style="display:block;overflow:visible">'
+            f'<line x1="0" y1="{y0}" x2="{w}" y2="{y0}" stroke="{RULE}" stroke-width="3" stroke-dasharray="10 10"/>'
+            f'<polyline points="{line}" fill="none" stroke="{INK}" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'<circle cx="{xy[-1][0]}" cy="{xy[-1][1]}" r="14" fill="{INK}"/></svg>')
+
+
+def story_chart(name, pts, first, last, move, span, label, source):
+    """One series over its last months, from the official prints: the name, the move in words a reader can check
+    against the line, the first and last values with their dates under the ends of the line."""
+    body = (f'{_h(e(name), 120, lh=0.92, track=-0.04)}'
+            f'{_h(e(move), 64, color=DIM, top=24, lh=1.05, track=-0.03)}'
+            f'<div style="flex:1;min-height:40px"></div>{_chart_svg(pts)}'
+            f'<div style="margin-top:28px;display:flex;justify-content:space-between;font-size:34px;font-weight:700;color:{DIM}">'
+            f'<span>{e(first)}</span><span style="color:{INK}">{e(last)}</span></div>'
+            f'<div data-credit style="margin-top:28px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
+    return _frame(body, f"Chart · {span}", label, "More numbers: link in bio")
 
 
 def story_follow(handle, line, label):
