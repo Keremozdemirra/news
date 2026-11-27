@@ -16,26 +16,24 @@ import re
 MIN_WORDS, MAX_WORDS, MAX_SENTENCE = 45, 62, 20
 REPEAT = 0.6  # a sentence whose content words mostly appear in one earlier sentence restates it
 
-PROMPT = """You write the voice-over for a 20-second news video. Say it the way a calm person tells a friend what
-just happened. Use ONLY the facts in PUBLISHED; add nothing, guess nothing.
+PROMPT = """You've just read this story and you're telling a friend about it, out loud, in about 20 seconds.
+Use ONLY the facts in PUBLISHED; add nothing, guess nothing.
 
-Write four or five short sentences, 45 to 60 words in all:
-1. What happened, plainly, with who said so folded in once and briefly ("France's stats office says...",
-   "Reuters reports..."). Never credit a source in a sentence of its own.
-2. One or two facts that add to it. Every sentence says something the earlier ones did not.
-3. Last: one plain, concrete sentence on why it matters to someone watching, drawn from PUBLISHED (what changes,
-   for whom, by how much). Not a moral, not a prediction PUBLISHED does not make. If PUBLISHED gives no reason it
-   matters, stop after the last new fact: four sentences are fine. Never close by summing up what you already said.
-Credit with "says": "France's stats office says", "Bloomberg says". Not "according to".
-Big numbers rounded the way people say them: "about twenty-one and a half trillion won", not "twenty one point five".
+How it should sound:
+- Open on the thing that happened, in your own words, with one concrete detail (a number, a name, a place).
+- Mix sentence lengths: a short one, then a longer one. Start one sentence with "And" or "But" if it fits.
+- Fold the source in once, lightly ("France's stats office says", "according to Bloomberg" is fine once).
+- Each sentence tells the listener something new. Never repeat or sum up a point already made, not even at the end.
+- End on the most interesting concrete fact, or on why it matters to someone if PUBLISHED says why.
+- 45 to 60 words, four or five sentences.
 
-Numbers: the way people say them. "zero point two percent", "about twenty-one trillion won, roughly fifteen billion
-dollars", "nearly three percent". Round where it reads naturally. A sum in another currency gets its dollar amount
-when PUBLISHED gives one or CONVERSIONS below has it. No symbols, no digits except a year. Each number once.
-
-Plain words, contractions welcome (it's, that's, they've). Never: questions, lists of three, "not just X but Y",
-dashes, "earlier on", "this time", "in money terms", "the numbers come from", "in a significant development",
-"this comes as", "here's what you need to know", "it remains to be seen", "only time will tell".
+Words: plain, specific verbs ("shrank", "jumped", "cut"), not "made more profit" or "saw growth".
+Numbers: as people say them, rounded where natural: "zero point two percent", "about twenty-one and a half
+trillion won", "nearly three percent". A sum in another currency gets its dollar amount when PUBLISHED gives one or
+CONVERSIONS below has it. No symbols, no digits except a year. Each number once.
+Contractions are good. Never: questions, lists of three, "not just X but Y", dashes, "earlier on", "this time",
+"in money terms", "the numbers come from", "the data shows", "this comes as", "here's what you need to know",
+"it remains to be seen", "only time will tell", "so the new figure", "which means".
 
 Return JSON only: {{"script": "...", "facts": ["exact quote from PUBLISHED that each fact rests on", ...]}}
 
@@ -72,7 +70,7 @@ STOCK = ["in a significant development", "in a major development", "this comes a
          # stiff spoken links Kerem's review named (2026-11-27)
          "earlier on", "this time", "in money terms", "the numbers come from", "the figures come from", "the data comes from",
          "reported the figure", "the figure was reported", "according to the report", "the data shows", "the figure shows",
-         "the numbers show", "the data show"]
+         "the numbers show", "the data show", "made more profit", "saw growth", "so the new figure", "which means"]
 BANNED = HUMANIZER + SLOPCHECK + STOCK
 CONTRAST = re.compile(r"\bnot (?:just|only|merely)\b[^.]{1,60}\bbut\b|\bit'?s not [^.]{1,40}\. it'?s\b", re.I)
 WRITTEN_NUMBER = re.compile(r"[$€£¥₩%]|\b\d+[.,]\d+\b|\b\d+\s?(?:bn|m|k)\b|\b(?!(?:19|20)\d\d\b)\d{2,}\b", re.I)

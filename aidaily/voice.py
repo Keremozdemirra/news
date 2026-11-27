@@ -71,7 +71,7 @@ def speak(text, out_mp3, key, voice=None, model=None, post=_post):
     if not voice:
         raise VoiceError("no voice id (growth.shorts_voice_id)")
     model = model or cfg("shorts_voice_model", "eleven_v3")
-    body = json.dumps({"text": spoken(text), "model_id": model, "voice_settings": settings(model)}).encode()
+    body = json.dumps({"text": deliver(spoken(text), model), "model_id": model, "voice_settings": settings(model)}).encode()
     code, raw = post(API.format(voice=voice), {"xi-api-key": key, "Content-Type": "application/json",
                                                "Accept": "audio/mpeg"}, body)
     if code != 200 or not raw or raw[:1] == b"{":
@@ -85,11 +85,26 @@ def speak(text, out_mp3, key, voice=None, model=None, post=_post):
     return Path(out_mp3)
 
 
+NUMBER_START = re.compile(r"\b(?:zero point|about|roughly|nearly|more than|over|some )?\s?(?:zero|one|two|three|four|five|six|seven|"
+                          r"eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|a hundred|"
+                          r"hundred)\b", re.I)
+
+
+def deliver(text, model):
+    """The script with one light delivery cue for the v3/v4 models (elevenlabs.io/docs best practices, read
+    2026-11-27): a [short pause] before the first number after the opening words, so the key figure lands instead of
+    running on. Nothing else: more tags make it sound acted. Other models get the text as it is."""
+    if model not in ("eleven_v3", "eleven_v4"):
+        return text
+    m = next((m for m in NUMBER_START.finditer(text) if m.start() > 25), None)
+    return text if not m else text[:m.start()].rstrip() + " [short pause] " + text[m.start():].lstrip()
+
+
 def settings(model):
     """Natural delivery: v3 takes stability in three steps (0 creative, 0.5 natural, 1 robust) and reads the text's
     own rhythm; multilingual_v2 needs lower stability and some style to stop sounding read (Kerem's review, 2026-11-27)."""
-    if model == "eleven_v3":
-        return {"stability": 0.5, "similarity_boost": 0.75}
+    if model in ("eleven_v3", "eleven_v4"):
+        return {"stability": 0.5, "similarity_boost": 0.75, "speed": 1.0}  # "Natural": tags still work, no drift
     return {"stability": 0.35, "similarity_boost": 0.75, "style": 0.3, "use_speaker_boost": True}
 
 
