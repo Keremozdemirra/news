@@ -299,7 +299,8 @@ def hashtags(m, s):
     entity = _tag(s.get("company")) or _tag(s.get("person"))
     subject = next((t for k, t in SUBJECT_TAGS if re.search(rf"\b{k}", head)), "")
     tags = [t for t in dict.fromkeys([section, entity, subject]) if t][:3]
-    if set(tags) == last_post_tags(m.get("id", "")) and TOPIC_ALT.get(topic):
+    # only for a real post (it has an id): a caption built outside the queue has no previous post to differ from
+    if m.get("id") and TOPIC_ALT.get(topic) and set(tags) == last_post_tags(m["id"]):
         tags = [TOPIC_ALT[topic]] + [t for t in tags if t != section]
     return tags[:3]
 
