@@ -216,6 +216,9 @@ class Copy(unittest.TestCase):
         copy.apply([t], rows)
         self.assertEqual(desk.body(t), "")
         self.assertIn("The vote is a boost for Milei.", desk.caption({"headline": t["headline"], "source": "BA Times"}, t))
+        # the slide and the caption print the dek and then the report: every checked fact once
+        self.assertEqual(desk.report(s), "The European software group is the latest to restructure as AI hits the "
+                                         "software sector.\nTalks are at an early stage.")
 
     def test_old_posts_with_a_word_figure_get_no_number_box(self):
         from aidaily import site

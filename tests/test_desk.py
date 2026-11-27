@@ -88,7 +88,8 @@ class Caption(unittest.TestCase):
         s.update(company="Anthropic", linkedin_post="Anthropic released an agent.\nIt writes code.\n\nSource: Outlet 1",
                  outlets=["Outlet 1", "HN Front Page", "CNBC Technology"])
         text = desk.caption(m, s)
-        self.assertTrue(text.startswith("Anthropic releases coding agent\n\nAnthropic released an agent."))
+        # the dek leads, then the report (which never repeats it)
+        self.assertTrue(text.startswith("Anthropic releases coding agent\n\nIt does thing 1. Anthropic released an agent."))
         self.assertIn("Reported by Outlet 1; CNBC.", text)
         self.assertNotIn("Source: Outlet 1\n", text)
         self.assertNotRegex(text, r"(?i)written by ai|ai[- ]generated")

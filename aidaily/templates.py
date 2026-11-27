@@ -405,7 +405,9 @@ def number_slide(story, brand=BRAND):
     fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
     raw = story.get("figure") or fig
     title = story.get("headline") or story.get("title") or ""
-    line = next((x for x in (title, story.get("dek") or "") if raw and (desk._in_text(raw, x) or desk._in_text(fig, x))), "")
+    # the sentence that states it, as written ("€550M" is "€550 million" in the headline)
+    line = next((x for x in (title, story.get("dek") or "")
+                 if raw and (desk._in_text(raw, x) or desk._in_text(fig, x) or key_figure(x) == fig)), "")
     if not fig or not line or not copy.figure_ok(raw, line):
         return None
     names = desk.outlets(story, story)

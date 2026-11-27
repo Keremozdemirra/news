@@ -215,6 +215,12 @@ def body(s):
     return "\n".join(l for l in (s.get("linkedin_post") or "").splitlines() if l.strip() and not l.startswith("Source:"))
 
 
+def report(s):
+    """What the detail slide and the caption print under the headline: the dek, then the report. The report never
+    repeats the dek (copy.drop_repeats), so the two together are every checked fact once."""
+    return "\n".join(x for x in ((s.get("dek") or "").strip(), body(s)) if x)
+
+
 def so_what(s):
     """The checked "what it means" sentence, or "" while the switch is off or the sentence failed its checks."""
     return (s.get("so_what") or "") if growth("so_what") else ""
@@ -329,7 +335,7 @@ def keyword_line(headline, lead, s):
 
 def caption(m, s, cta=True):
     src = outlets(m, s)
-    lead = body(s) or s.get("dek", "")
+    lead = report(s).replace("\n", " ")
     head_lines = [m["headline"], ""]
     if growth("keyword_caption"):
         kw = keyword_line(m["headline"], lead, s)
@@ -1214,7 +1220,7 @@ def queue(day_dir, batch=None, render=True):
             img.mkdir(parents=True, exist_ok=True)
             R.jpeg(day_dir / "pack" / m["file"]).replace(img / "card.jpg")
             png = img / "detail.png"
-            R.shoot(R.T.detail(s, body(s), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
+            R.shoot(R.T.detail(s, report(s), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
             R.jpeg(png)
             png.unlink()
             for name, html in extra_slides(m, s, web, ctas):
