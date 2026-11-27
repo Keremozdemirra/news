@@ -115,10 +115,14 @@ class SitePages(SiteMeta):
         self.assertIn('rel="prev"', h)  # the older story
         self.assertNotIn("Newer", h)  # nothing is newer than the newest
 
-    def test_footer_sends_impressum_and_privacy_to_the_main_site(self):
-        h = (self.build() / "index.html").read_text()
-        self.assertIn('href="https://keremozdemir.de/impressum/"', h)
+    def test_footer_links_the_own_impressum_and_the_main_site_privacy(self):
+        out = self.build()
+        h = (out / "index.html").read_text()
+        self.assertIn('href="/impressum/"', h)
         self.assertIn('href="https://keremozdemir.de/privacy/"', h)
+        imp = (out / "impressum" / "index.html").read_text()
+        for s in ("§ 5 DDG", "§ 18 Abs. 2 MStV", "Kerem Özdemir", "80807 München", "§ 36 VSBG"):
+            self.assertIn(s, imp)
 
     def test_newsletter_slot_stays_hidden_until_a_url_exists(self):
         self.assertNotIn("Newsletter", (self.build() / "index.html").read_text())

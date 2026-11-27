@@ -69,7 +69,10 @@ def topic_path(t):
     """Where a section lives: Sport at /sport/, every other topic at /t/<topic>/."""
     return f"/{t.lower()}/" if t == SPORT else f"/t/{t.lower()}/"
 # Same operator as keremozdemir.de, whose Impressum and Privacy pages are the legal notice of this site too.
-LEGAL = {"impressum": "https://keremozdemir.de/impressum/", "privacy": "https://keremozdemir.de/privacy/"}
+# The Impressum is on this domain (§ 5 DDG, § 18 Abs. 2 MStV for journalistic content, 2026-11-27); privacy stays on keremozdemir.de
+LEGAL = {"impressum": "/impressum/", "privacy": "https://keremozdemir.de/privacy/"}
+OPERATOR = {"name": "Kerem Özdemir", "street": "Ricarda-Huch-Straße 1", "city": "80807 München", "country": "Germany",
+            "email": "kozdemir3523@gmail.com"}
 CONTACT_ISSUES = "https://github.com/Keremozdemirra/news/issues"
 
 
@@ -338,7 +341,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <div class="foot-grid">
 <div><h2>Sections</h2><ul>{foot_sections}</ul></div>
 <div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li>{f'<li><a href="{BASE}/play/">Play</a></li>' if "play" in SHIPPED else ""}<li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
-<div><h2>Legal</h2><ul><li><a href="{LEGAL['impressum']}">Impressum</a></li><li><a href="{LEGAL['privacy']}">Privacy</a></li></ul></div>
+<div><h2>Legal</h2><ul><li><a href="{BASE}{LEGAL['impressum']}">Impressum</a></li><li><a href="{LEGAL['privacy']}">Privacy</a></li></ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC.{crypto_credit()} &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
@@ -898,7 +901,8 @@ def about_page():
 <p>Boardread does no original reporting. It summarises what named newsrooms have reported, and says which ones. Read the linked source for the full report. Opinion and speculation are not published.</p>
 <h2>Follow</h2>
 <p>The business news goes out on <a href="{BASE}/feed.xml">RSS</a> (the latest 50, no Sport){"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}. Sport has <a href="{BASE}/sport/feed.xml">its own feed</a>, and so does every section and company.</p>
-<p>See the <a href="{BASE}/standards/">editorial standards and corrections policy</a>, the <a href="{BASE}/contact/">contact page</a> and the <a href="{LEGAL['impressum']}">Impressum</a>.</p>
+<p>Boardread is run by {OPERATOR["name"]}.</p>
+<p>See the <a href="{BASE}/standards/">editorial standards and corrections policy</a>, the <a href="{BASE}/contact/">contact page</a> and the <a href="{BASE}{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
 
@@ -917,7 +921,26 @@ def standards_page():
 <p>If an article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
 <ul>{contact_lines()}</ul>
 <h2>Who is responsible</h2>
-<p>The operator named in the <a href="{LEGAL['impressum']}">Impressum</a> is responsible for the site, including the output of its automated desk.</p>
+<p>The operator named in the <a href="{BASE}{LEGAL['impressum']}">Impressum</a> is responsible for the site, including the output of its automated desk.</p>
+</div>"""
+
+
+def impressum_page():
+    o = OPERATOR
+    addr = f'{E(o["name"])}<br>{E(o["street"])}<br>{E(o["city"])}<br>{E(o["country"])}'
+    return pagehead("Impressum", "Legal notice.") + f"""<div class="prose">
+<h2>Information pursuant to § 5 DDG</h2>
+<p>{addr}<br>Contact: <a href="mailto:{E(o["email"])}">{E(o["email"])}</a></p>
+<h2>Responsible for the content pursuant to § 18 Abs. 2 MStV</h2>
+<p>{E(o["name"])}, address as above.</p>
+<h2>How the articles are made</h2>
+<p>Boardread articles are written by an AI system from the reporting of the newsrooms named on each article, and checked by code before publishing: every number must appear in the source. No person reviews each article before it goes up. Errors are corrected once reported: <a href="{BASE}/standards/">standards and corrections</a>.</p>
+<h2>Consumer dispute resolution</h2>
+<p>I am neither obliged nor willing to take part in dispute resolution proceedings before a consumer arbitration board (§ 36 VSBG).</p>
+<h2>Links and sources</h2>
+<p>Every article links to the reports it is based on. Those pages are not under my control.</p>
+<h2>Copyright</h2>
+<p>The text and design of Boardread are mine unless marked otherwise. Photos and footage carry their author and licence beneath them. Market data shows its source: ECB, U.S. Treasury, U.S. EIA, World Bank. Crypto prices: <a href="{markets.CMC_HOME}" rel="noopener">{markets.CMC_CREDIT}</a>.</p>
 </div>"""
 
 
@@ -925,7 +948,7 @@ def contact_page():
     return pagehead("Contact", "Corrections, tips and questions.") + f"""<div class="prose">
 <p>Include the link to the article you are writing about. Corrections are read first.</p>
 <ul>{contact_lines()}</ul>
-<p>The operator's details are in the <a href="{LEGAL['impressum']}">Impressum</a>.</p>
+<p>The operator's details are in the <a href="{BASE}{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
 
@@ -1139,7 +1162,8 @@ def build(out=desk.HERE / "_site"):
     (out / "search.json").write_text(search_index(shown))
     for key, title, fn, d in (("about", "About", about_page, "What Boardread is and how the desk works."),
                               ("standards", "Editorial standards and corrections", standards_page, "What a Boardread article promises and how corrections work."),
-                              ("contact", "Contact", contact_page, "Corrections, tips and questions.")):
+                              ("contact", "Contact", contact_page, "Corrections, tips and questions."),
+                              ("impressum", "Impressum", impressum_page, "Legal notice for boardread.news.")):
         put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
         sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
     (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
