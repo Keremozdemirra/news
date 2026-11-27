@@ -155,7 +155,7 @@ def front(shown, cos, m, sport=()):
         seen.add(subj)
         return True
     fig = (f'<figure>{S.photo_img(lead, False, "16/9", load="eager")}'
-           f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
+           f'<figcaption>{S.credit_html(lead)}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
     first = next((x for x in (lead.get("body") or "").split("\n") if x.strip()), "")
     lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}{S.topic_path(S.topic(lead))}">{E(S.topic(lead))}</a>'
                  f'<h2 class="lh"><a href="{S.href(lead)}">{E(lead["headlines"][0])}</a></h2><p class="dk">{E(lead.get("dek", ""))}</p>'

@@ -291,6 +291,9 @@ def _logo_block(uri, name, h=60, invert=False):
 def _foot(story, brand, dark=False, edited=False):
     grey = GREY_DARK if dark else GREY
     credit = entities.clean_credit(assets(story)["credit"])
+    # the card says it too, not only the site: no photo the desk finds is of this event
+    if credit.startswith("Photo:"):
+        credit = f'{entities.archive_label(assets(story).get("kind", ""), story.get("topic", ""))} {credit}'
     if edited and credit and re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited"):
         credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
     # archive footage says so where it can be read on a phone; a photo credit stays small

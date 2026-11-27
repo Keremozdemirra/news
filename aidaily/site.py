@@ -667,20 +667,39 @@ def photo_alt(p):
     A scene carries its own: its file name names a place the story may not be about."""
     if p.get("photo_alt"):
         return p["photo_alt"]
+    # a portrait is described by who it shows, never by its file name ("Kathy Hochul, November 2017"); any other photo
+    # says it is an archive picture of what its title names, so the alt never passes it off as this event
+    person = (p.get("person") or "").strip()
+    if person and person.split()[-1].lower() in (p.get("photo_file") or "").lower():
+        return f"Archive portrait of {person}"
     t = Path(p.get("photo_file") or "").stem.replace("_", " ")
     t = re.sub(r"\([^)]*\)", " ", t)
-    t = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{5,}\b|\b\d{8}\b", " ", t)
-    return re.sub(r"\s+", " ", t).strip(" -,.")
+    t = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{5,}\b|\b\d{8}\b|\b(19|20)\d{2}\b", " ", t)
+    t = re.sub(r"\s+", " ", t).strip(" -,.")
+    return f"Archive photo: {t}" if t else ""
 
 
 def credit_line(p):
-    """The photo credit as licensed. A stand-in scene says so: it is not a photo of this event."""
+    """The photo credit as licensed, after the archive label: no photo the desk finds is of this event (a Macy's store
+    front ran unlabelled on the parade's postponement)."""
     from . import entities
     c = entities.clean_credit((p.get("credit") or "").strip())
-    if not c or p.get("photo_kind") != "scene":
+    if not c or not c.startswith("Photo:"):
         return c
-    what = "of the sport" if p.get("topic") == "Sport" else ""
-    return f"Archive photo {what}, not from this event. {c}".replace(" ,", ",")
+    return f"{entities.archive_label(p.get('photo_kind', ''), p.get('topic', ''))} {c}"
+
+
+def credit_html(p):
+    """credit_line with the licence linked to its deed and "Wikimedia Commons" to the file's page: CC BY asks for both."""
+    from . import entities
+    line = credit_line(p)
+    if not line or not p.get("photo_file"):
+        return E(line)
+    out = E(line)
+    m = re.search(r"(CC BY \d(?:\.\d)?|CC0(?: 1\.0)?|Public domain)", line)
+    if m and entities.licence_url(m.group(1)):
+        out = out.replace(E(m.group(1)), f'<a href="{E(entities.licence_url(m.group(1)))}" rel="license noopener">{E(m.group(1))}</a>', 1)
+    return out.replace("Wikimedia Commons", f'<a href="{E(entities.file_page(p["photo_file"]))}" rel="noopener">Wikimedia Commons</a>', 1)
 
 
 def resized(photo, dest, width):
@@ -887,7 +906,7 @@ def story(p, rows, cos=None, counts=None):
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = photo_alt(p)
     fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
-           f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else ""
+           f'<figcaption class="meta">{credit_html(p)}</figcaption></figure>') if p.get("_hires") else ""
     i = rows.index(p)
     newer, older = (rows[i - 1] if i > 0 else None), (rows[i + 1] if i + 1 < len(rows) else None)
     rel = related(p, rows, exclude=[o for o in (newer, older) if o])

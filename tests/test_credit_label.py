@@ -27,7 +27,38 @@ class Label(unittest.TestCase):
         self.assertEqual(entities.clean_credit(good), good)
         self.assertIn(good, T._credit(bad))
         self.assertNotIn("Foto:", T._credit(bad))
-        self.assertEqual(site.credit_line({"credit": bad}), good)
+        self.assertEqual(site.credit_line({"credit": bad}), "Archive photo, not from this event. " + good)
+
+
+class Licence(unittest.TestCase):
+    """Photo plan item 6 and the deep review: licence gate, credit, links, archive label on every kind."""
+
+    def info(self, lic, terms="", artist="A"):
+        return {"extmetadata": {"LicenseShortName": {"value": lic}, "License": {"value": terms}, "Artist": {"value": artist}}}
+
+    def test_only_cc0_public_domain_and_cc_by(self):
+        for lic, ok in (("CC BY 4.0", True), ("CC BY 2.0", True), ("CC0", True), ("Public domain", True),
+                        ("CC BY-SA 4.0", False), ("OGL", False), ("CC BY-NC 2.0", False)):
+            self.assertEqual(entities.photo_ok(self.info(lic))[0], ok, lic)
+        self.assertFalse(entities.photo_ok(self.info("Public domain", "pd-us-expired"))[0])
+        self.assertTrue(entities.photo_ok(self.info("Public domain", "pd-usgov"))[0])
+        self.assertFalse(entities.photo_ok(self.info("CC BY 4.0", artist="Xinhua"))[0])
+
+    def test_an_address_is_never_the_credited_creator(self):
+        self.assertEqual(entities.photo_ok(self.info("CC BY 4.0", artist="http://www.president.gov.ua/,"))[1],
+                         "Photo: president.gov.ua, CC BY 4.0, via Wikimedia Commons")
+        self.assertEqual(entities.clean_credit("Photo: http://www.president.gov.ua/, CC BY 4.0, via Wikimedia Commons"),
+                         "Photo: president.gov.ua, CC BY 4.0, via Wikimedia Commons")
+
+    def test_every_kind_is_labelled_and_the_licence_and_file_are_linked(self):
+        p = {"credit": "Photo: Shinuinu, CC BY 4.0, via Wikimedia Commons", "photo_kind": "company", "photo_file": "Macy's store.jpg"}
+        self.assertTrue(site.credit_line(p).startswith("Archive photo, not from this event."))
+        h = site.credit_html(p)
+        self.assertIn('href="https://creativecommons.org/licenses/by/4.0/"', h)
+        self.assertIn('href="https://commons.wikimedia.org/wiki/File:Macy%27s_store.jpg"', h)
+        story = {"headline": "Macy's postpones parade", "_assets": {"credit": p["credit"], "kind": "company", "photo": "file:///tmp/x.jpg",
+                                                                      "file": "x", "logos": [], "logo_names": []}}
+        self.assertIn("Archive photo, not from this event.", T._foot(story, T.BRAND))
 
 
 class GasScene(unittest.TestCase):

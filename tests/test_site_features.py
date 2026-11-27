@@ -361,11 +361,14 @@ class FrontBuilt(Features):
             self.assertIn("position:relative", css[css.index(sel):css.index("}", css.index(sel))], sel)
 
     def test_photo_alt_drops_camera_numbers_and_crop_tags(self):
-        for name, want in (("Elon Musk (54816836217) (cropped 2) (b).jpg", "Elon Musk"),
-                           ("Jensen Huang Stanford 2026-04-30 010 (cropped).jpg", "Jensen Huang Stanford 010"),
-                           ("European Central Bank Frankfurt Germany 18 Feb 2023.jpg", "European Central Bank Frankfurt Germany 18 Feb 2023"),
+        # labelled as an archive photo; a portrait of the story's person says who it shows (the deep review, 2026-11-27)
+        for name, want in (("Elon Musk (54816836217) (cropped 2) (b).jpg", "Archive photo: Elon Musk"),
+                           ("Jensen Huang Stanford 2026-04-30 010 (cropped).jpg", "Archive photo: Jensen Huang Stanford 010"),
+                           ("European Central Bank Frankfurt Germany 18 Feb 2023.jpg", "Archive photo: European Central Bank Frankfurt Germany 18 Feb"),
                            ("", "")):
             self.assertEqual(site.photo_alt({"photo_file": name}), want)
+        self.assertEqual(site.photo_alt({"photo_file": "Kathy Hochul, November 2017.jpeg", "person": "Kathy Hochul"}),
+                         "Archive portrait of Kathy Hochul")
 
     def test_most_covered_stays_out_until_three_companies_have_two_articles(self):
         self.assertNotIn("Most covered", self.read("index.html"))  # only SAP has two articles

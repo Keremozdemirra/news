@@ -22,11 +22,40 @@ CACHE = Path(__file__).resolve().parent.parent / "assets" / "cache"
 UA = {"User-Agent": UA_STRING}
 # No ShareAlike: a card with the headline set over a photo is an adaptation, and BY-SA would bind the card to the
 # photo's licence, which Instagram's terms do not allow. CC BY, CC0 and public domain only.
-OK_LICENCES = re.compile(r"^(CC BY [\d.]+|CC0|Public domain|OGL|Open Government Licence)", re.I)
+# CC0, public domain and CC BY of any version (Kerem, 2026-11-27); never OGL, ShareAlike, NonCommercial or NoDerivatives
+OK_LICENCES = re.compile(r"^(CC BY \d(?:\.\d)?|CC0(?: 1\.0)?|Public domain)$", re.I)
+# public domain in the United States only, or only as a scan of an artwork: not public domain where the brand publishes
+US_ONLY = re.compile(r"\b(pd-us(?!gov)[\w-]*|uraa|pd-art|pd-scan|pd-1923|pd-us-expired|pd-us-no-notice|pd-us-not-renewed)\b", re.I)
 # a made-up picture is not a photo, whatever the file is called: the title, description or a category says so
 AI_MADE = re.compile(r"ai[- ]generated|generated (by|with|using) (an? )?(ai|artificial)|midjourney|dall[-· ]?e|stable diffusion|"
                      r"\bflux\b|\bimagen\b|firefly|\bai art\b|ai-art|artificial intelligence art|text-to-image", re.I)
-AGENCIES = re.compile(r"getty|shutterstock|reuters|associated press|\bap photo|afp|alamy|bloomberg|epa\b|imago", re.I)
+AGENCIES = re.compile(r"getty|shutterstock|reuters|associated press|\bap photo|afp|alamy|bloomberg|epa\b|imago|\bdpa\b|"
+                      r"pa media|pa images|xinhua|kyodo|anadolu|nurphoto|wireimage|tass\b|picture-alliance|picture alliance|"
+                      r"keystone|sipa\b|abaca|zuma", re.I)
+
+
+def licence_url(lic):
+    """The licence deed a CC BY credit must link to (CC BY 4.0, 3(a)(1)(A)(v))."""
+    m = re.match(r"(?i)CC BY (\d(?:\.\d)?)", lic or "")
+    if m:
+        v = m.group(1) if "." in m.group(1) else m.group(1) + ".0"
+        return f"https://creativecommons.org/licenses/by/{v}/"
+    if re.match(r"(?i)CC0", lic or ""):
+        return "https://creativecommons.org/publicdomain/zero/1.0/"
+    if re.match(r"(?i)public domain", lic or ""):
+        return "https://creativecommons.org/publicdomain/mark/1.0/"
+    return ""
+
+
+def file_page(filename):
+    return "https://commons.wikimedia.org/wiki/File:" + urllib.parse.quote((filename or "").replace(" ", "_"))
+
+
+def creator(artist):
+    """The creator as given, never a raw address: "http://www.president.gov.ua/," is president.gov.ua."""
+    a = strip_label(artist).strip().rstrip(",;")
+    m = re.match(r"^https?://(?:www\.)?([^/\s,]+)", a)
+    return m.group(1) if m else a
 
 
 def _get(url, raw=False):
@@ -160,9 +189,21 @@ def strip_label(author):
 
 
 def clean_credit(credit):
-    """A stored credit line with the label once: "Photo: Foto: X, CC0" becomes "Photo: X, CC0"."""
+    """A stored credit line with the label once: "Photo: Foto: X, CC0" becomes "Photo: X, CC0"; an address as the
+    author becomes its site ("Photo: http://www.president.gov.ua/, CC BY 4.0" is "Photo: president.gov.ua, CC BY 4.0")."""
     m = re.match(r"^(Photo|Video|Footage):\s*(.*)$", credit or "", re.S)
-    return f"{m.group(1)}: {strip_label(m.group(2))}" if m else (credit or "")
+    if not m:
+        return credit or ""
+    rest = strip_label(m.group(2))
+    rest = re.sub(r"^https?://(?:www\.)?([^/\s,]+)[^\s,]*,?", r"\1,", rest)
+    return f"{m.group(1)}: {rest}"
+
+
+def archive_label(kind, topic=""):
+    """Every photo the desk can find is an archive photo: Commons holds no picture of today's event."""
+    if kind == "scene" and topic == "Sport":
+        return "Archive photo of the sport, not from this event."
+    return "Archive photo, not from this event."
 
 
 def photo_ok(info):
@@ -172,12 +213,14 @@ def photo_ok(info):
     artist = strip_label(re.sub(r"<[^>]+>", "", meta.get("Artist", {}).get("value", "")))
     exif = " ".join(str(m.get("value", "")) for m in (info.get("metadata") or []) if m.get("name") in ("Copyright", "Artist"))
     credit_line = re.sub(r"<[^>]+>", "", meta.get("Credit", {}).get("value", ""))
-    if not OK_LICENCES.match(lic) or AGENCIES.search(" ".join((artist, exif, credit_line))):
+    terms = " ".join(meta.get(k, {}).get("value", "") for k in ("License", "UsageTerms", "LicenseUrl"))
+    if (not OK_LICENCES.match(lic.strip()) or US_ONLY.search(terms) or re.search(r"\b(SA|NC|ND)\b", lic)
+            or AGENCIES.search(" ".join((artist, exif, credit_line)))):
         return False, ""
     said = " ".join(re.sub(r"<[^>]+>", " ", meta.get(k, {}).get("value", "")) for k in ("ImageDescription", "ObjectName", "Categories"))
     if AI_MADE.search(said):
         return False, ""
-    return True, f"Photo: {artist or 'Wikimedia Commons'}, {lic}, via Wikimedia Commons"
+    return True, f"Photo: {creator(artist) or 'Wikimedia Commons'}, {lic.strip()}, via Wikimedia Commons"
 
 
 def logo(name, domain="", fetch=True):
