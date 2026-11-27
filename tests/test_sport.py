@@ -306,9 +306,13 @@ class OneAsset(Tmp):
         m.update(photo_file="Card photo.jpg", photo_kind="person", credit="Photo: Card, CC0, via Wikimedia Commons")
         s["topic"] = "Tech"
         s["_assets"] = {"credit": "Photo: Other, CC BY 4.0, via Wikimedia Commons", "file": "Other.jpg", "kind": "scene"}
+        s.update(person_role="Danish football manager", venue="Selhurst Park", image_query="Selhurst Park")
         (d / "pack" / "manifest.json").write_text(json.dumps([m]))
         (d / "digest.json").write_text(json.dumps({"final": {"top": [s]}}))
         (path,) = desk.queue(d, batch="b", render=False)
         post = json.loads(path.read_text())
         self.assertEqual((post["photo_file"], post["credit"], post["credit_file"]),
                          ("Card photo.jpg", "Photo: Card, CC0, via Wikimedia Commons", "Card photo.jpg"))
+        # what the photo was picked from stays on the record, so a repick asks the same questions (plan item 8)
+        self.assertEqual((post["person_role"], post["venue"], post["image_query"]),
+                         ("Danish football manager", "Selhurst Park", "Selhurst Park"))

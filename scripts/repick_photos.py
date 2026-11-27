@@ -20,7 +20,9 @@ from aidaily import desk, entities as E, render as R, templates as T  # noqa: E4
 def failing():
     out = []
     for p, path in desk.posts():
-        if p.get("status") in ("queued", "web", "held") and p.get("photo_file") and any("scene" in x for x in desk.audit(p)):
+        # any photo, scene or credit message; a post already on social keeps its post there, only its site copy changes
+        if p.get("status") in ("queued", "web", "held", "published") and p.get("kind") != "story" and any(
+                w in x for x in desk.audit(p) for w in ("photo", "scene", "credit", "ShareAlike", "retired")):
             out.append(p["id"])
     return out
 
@@ -35,7 +37,9 @@ def repick(pid, dry=False, keep=False):
              "category": (post.get("categories") or ["news"])[0], "published": post.get("created"),
              "source": (post.get("sources") or [""])[0], "newsrooms": post.get("sources") or [],
              "person": post.get("person") or "", "company": post.get("company") or "", "score": post.get("score", 0),
-             "figure": post.get("figure", ""), "linkedin_post": post.get("body", ""), "lane": "sport" if sport else ""}
+             "figure": post.get("figure", ""), "linkedin_post": post.get("body", ""), "lane": "sport" if sport else "",
+             "person_role": post.get("person_role") or "", "image_query": post.get("image_query") or "",
+             "orgs": post.get("orgs") or [], "venue": post.get("venue") or ""}
     T.USED.clear()
     T.USED.update(desk.used_photos() - {post.get("photo_file")})
     T.USED.add(post.get("photo_file"))  # never the photo being replaced

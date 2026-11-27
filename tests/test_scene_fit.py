@@ -159,3 +159,14 @@ class SceneTags(unittest.TestCase):
                 got.append(f)
                 batch.add(f)
         self.assertEqual(len(got), len(set(got)))
+
+
+class LastRung(unittest.TestCase):
+    def test_a_used_up_batch_still_gives_a_picture(self):
+        info = {"width": 2000, "height": 1400, "url": "u", "extmetadata": {}}
+        every = {i["file"] for items in scenes.entries("Taiwan votes Saturday", "Politics", DATA) for i in items}
+        with mock.patch.object(entities, "_commons_info", return_value=info), \
+             mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC0, via Wikimedia Commons")), \
+             mock.patch.object(entities, "_get", return_value=b"jpeg"):
+            _, _, f, _ = scenes.photo("Taiwan votes Saturday", "Politics", set(), batch=set(every))
+        self.assertIn(f, every)

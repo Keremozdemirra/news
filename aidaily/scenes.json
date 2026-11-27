@@ -229,7 +229,7 @@
   },
   {
    "id": "shipping",
-   "match": "\\b(shipping|tankers?|vessels?|ships?|container\\w*|freight|cargo|ports?|maritime|capsiz\\w+|shipyards?|straits?|suez|panama canal|tariffs?|trade war|exports?|imports?)\\b",
+   "match": "\\b(shipping|tankers?|vessels?|ships?|container\\w*|freight|cargo|ports?|maritime|capsiz\\w+|shipyards?|straits?|suez|panama canal|tariffs?|trade war|trade barriers?|free trade|trade (?:deal|pact|agreement|area|bloc)s?|exports?|imports?)\\b",
    "files": [
     {
      "file": "Container ship in Koper 2013.jpg",
@@ -281,7 +281,7 @@
   },
   {
    "id": "energy",
-   "match": "\\b(oil|crude|opec|brent|petrol|gasoline|diesel|fuel|refiner\\w*|pipelines?|drilling|energy prices?)\\b",
+   "match": "\\b(oilfields?|oil fields?|north sea|offshore drilling|oil|crude|opec|brent|petrol|gasoline|diesel|fuel|refiner\\w*|pipelines?|drilling|energy prices?)\\b",
    "files": [
     {
      "file": "Oil pumpjack in the Permian Basin.jpg",
@@ -677,6 +677,12 @@
   ],
   "Politics": [
    {
+    "file": "UK Polling Booth 2011.JPG",
+    "alt": "Empty wooden voting booths at a polling station",
+    "needs": "\\b(elections?|electoral|votes?|voting|voters?|ballots?|polls?|polling|referendum|by-election|primar(?:y|ies))\\b",
+    "generic": true
+   },
+   {
     "file": "Säynätsalo Town Hall council chamber ballot box.jpg",
     "alt": "A carved wooden ballot box on a council table",
     "place": [
@@ -729,9 +735,50 @@
     "file": "Berlaymont building in Brussels.jpg",
     "alt": "The European Commission's Berlaymont building in Brussels",
     "needs": "\\b(european commission|european union|eu|brussels|eurozone|von der leyen)\\b"
+   },
+   {
+    "file": "Palace of Westminster London 2023 01.jpg",
+    "alt": "The Palace of Westminster from across the Thames",
+    "needs": "\\b(UK|U\\.K\\.|Britain|British|England|English|Scotland|Scottish|Wales|Welsh|London|Westminster|Labour|Tory|Tories|Conservatives?|Lib Dems?|Liberal Democrats|Commons|House of Lords|Downing Street|Starmer|Burnham|Reform UK|MPs)\\b"
+   },
+   {
+    "file": "Palace of Westminster Victoria Tower Gardens South 2020.jpg",
+    "alt": "The Victoria Tower of the Palace of Westminster",
+    "needs": "\\b(UK|U\\.K\\.|Britain|British|England|English|Scotland|Scottish|Wales|Welsh|London|Westminster|Labour|Tory|Tories|Conservatives?|Lib Dems?|Liberal Democrats|Commons|House of Lords|Downing Street|Starmer|Burnham|Reform UK|MPs)\\b"
+   },
+   {
+    "file": "United States Supreme Court Building, July 21, 2020.jpg",
+    "alt": "The US Supreme Court building in Washington",
+    "needs": "\\bSupreme Court\\b",
+    "place": [
+     "U.S.",
+     "US",
+     "United States",
+     "American",
+     "Trump",
+     "Washington"
+    ]
+   },
+   {
+    "file": "Supreme Court Of The United States (193413861).jpeg",
+    "alt": "The steps of the US Supreme Court building",
+    "needs": "\\bSupreme Court\\b",
+    "place": [
+     "U.S.",
+     "US",
+     "United States",
+     "American",
+     "Trump",
+     "Washington"
+    ]
    }
   ],
   "Tech": [
+   {
+    "file": "Two iPhones (1091302).jpg",
+    "alt": "Two smartphones on a dark surface",
+    "needs": "\\b(apple|iphones?|app store|ios)\\b"
+   },
    {
     "file": "Katrin Radio Tower.jpg",
     "alt": "A radio tower on a mountain ridge",
@@ -799,6 +846,11 @@
    {
     "file": "Industrial production line operating in a large modern factory.jpg",
     "alt": "A production line in a factory hall"
+   },
+   {
+    "file": "Two iPhones (1091302).jpg",
+    "alt": "Two smartphones on a dark surface",
+    "needs": "\\b(apple|iphones?|app store|ios)\\b"
    }
   ],
   "World": [

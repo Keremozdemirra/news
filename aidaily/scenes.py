@@ -135,7 +135,7 @@ def order(items, used, last=None, seed=""):
     return fresh + sorted((i for i in ring if i["file"] in used), key=lambda i: last.get(i["file"], ""))
 
 
-def photo(headline, topic, used, last=None, fetch=True, data=None, sport=False, title=None, batch=()):
+def photo(headline, topic, used, last=None, fetch=True, data=None, sport=False, title=None, batch=(), _again=False):
     """(path, credit, file, alt) of the scene photo to use, or four empty strings when nothing could be fetched.
     A file already in `batch` (this run's cards) is never used twice: the next list is tried instead. The voting
     machine ran on six posts of one batch and the New Jersey stadium on four."""
@@ -144,7 +144,9 @@ def photo(headline, topic, used, last=None, fetch=True, data=None, sport=False, 
     entities.CACHE.mkdir(parents=True, exist_ok=True)
     seen = set()
     for items in entries(headline, topic, data, sport, title=title):
-        for item in order(items, used, last, seed=headline):
+        # a file that matched the article by its place or subject goes before a generic one (Westminster for Labour MPs)
+        ranked = order(items, used, last, seed=headline)
+        for item in sorted(ranked, key=lambda i: not (i.get("place") or i.get("needs"))):
             f = item["file"]
             if f in seen or f in batch:
                 continue
@@ -160,4 +162,8 @@ def photo(headline, topic, used, last=None, fetch=True, data=None, sport=False, 
             except Exception:  # noqa: BLE001  a file that will not load moves on to the next
                 continue
             return p, credit, f, item.get("alt", "")
+    # every post carries a picture (Kerem): when this batch has used every fitting file, the least recently used one
+    # runs again rather than none
+    if batch and not _again:
+        return photo(headline, topic, used, last, fetch, data, sport, title, (), _again=True)
     return None, "", "", ""
