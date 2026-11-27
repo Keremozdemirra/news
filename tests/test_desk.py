@@ -876,6 +876,9 @@ class Formats(Tmp):
         self.assertEqual(desk._qualifier({"figure": "40%", "headlines": ["Costs rise more than 40% in a year"]}), "More than")
         self.assertEqual(desk._qualifier({"figure": "40%", "headlines": ["Costs rise 40%, over 1 year"]}), "")
 
+    def test_number_takes_job_cuts_as_a_unit(self):
+        self.assertEqual(desk._meaningful({"figure": "10,000", "headlines": ["SAP explores at least 10,000 job cuts"]}), ("10,000", "job cuts"))
+
     def test_number_skips_a_figure_with_no_digit(self):
         self.pub("a", "Policy lasts five-year", _at(3, 8), figure="five-year")
         self.assertEqual(self.run_at(_at(3, 8, 36), "number"), {})

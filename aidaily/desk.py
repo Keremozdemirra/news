@@ -685,7 +685,7 @@ def _s_last12(day, label):
 # "42 state AGs" or "14 trading partners" is a count, not a figure: it is not in this list and is never used.
 UNIT_WORDS = """people jobs workers employees staff users customers subscribers members satellites units vehicles cars
 trucks barrels tons tonnes megawatts gigawatts chips gpus servers aircraft planes flights homes houses patients visitors
-stores acres miles kilometers""".split()
+stores acres miles kilometers layoffs""".split() + ["job cuts", "jobs cuts"]
 SCALE = {"B": 10**9, "bn": 10**9, "billion": 10**9, "M": 10**6, "million": 10**6, "K": 10**3, "T": 10**12, "trillion": 10**12}
 
 
