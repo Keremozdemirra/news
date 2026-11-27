@@ -24,7 +24,9 @@
    "people": false,
    "match": "\\b(wind (?:power|farms?|turbines?|energy|parks?)|turbines?|offshore wind|renewables?|clean energy)\\b",
    "alt": "A wind turbine turning against a blue sky",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": true,
+   "audio_note": "wind and rotor sound only; spectrogram broadband, no music or speech (checked 2026-11-27)"
   },
   {
    "id": "wind-farm-albany",
@@ -39,7 +41,9 @@
    "people": false,
    "match": "\\b(wind (?:power|farms?|turbines?|energy|parks?)|turbines?|offshore wind|renewables?|clean energy)\\b",
    "alt": "Wind turbines turning on a coastal ridge",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": true,
+   "audio_note": "wind only; spectrogram broadband, no music or speech (checked 2026-11-27)"
   },
   {
    "id": "wind-farm-rampion",
@@ -54,7 +58,9 @@
    "people": false,
    "match": "\\b(wind (?:power|farms?|turbines?|energy|parks?)|turbines?|offshore wind|renewables?|clean energy)\\b",
    "alt": "An offshore wind turbine seen from a boat",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false,
+   "audio_note": "people on the boat may be audible: treated as silent"
   },
   {
    "id": "wind-farm-aerial",
@@ -69,7 +75,8 @@
    "people": false,
    "match": "\\b(wind (?:power|farms?|turbines?|energy|parks?)|turbines?|offshore wind|renewables?|clean energy)\\b",
    "alt": "Wind turbines over farmland, from the air",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
   },
   {
    "id": "solar-agrivoltaics-aasen",
@@ -84,7 +91,8 @@
    "people": false,
    "match": "\\b(solar|photovoltaic|renewables?|clean energy)\\b",
    "alt": "Rows of solar panels across a field, from the air",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
   },
   {
    "id": "harvest-combines-koeru",
@@ -99,7 +107,8 @@
    "people": false,
    "match": "\\b(farm\\w*|harvests?|crops?|wheat|grains?|corn|maize|rice|soybeans?|agricultur\\w*|food prices?)\\b",
    "alt": "Combine harvesters in a wheat field, from the air",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
   },
   {
    "id": "harvest-rice-usda",
@@ -114,7 +123,8 @@
    "people": false,
    "match": "\\b(farm\\w*|harvests?|crops?|wheat|grains?|corn|maize|rice|soybeans?|agricultur\\w*|food prices?)\\b",
    "alt": "A combine harvester working a field",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
   },
   {
    "id": "traffic-expressway-timelapse",
@@ -129,7 +139,8 @@
    "people": false,
    "match": "\\b(cars?|traffic|motorists?|commut\\w+|highways?|motorways?|car sales|automakers?|carmakers?|vehicles?|road tolls?)\\b",
    "alt": "Traffic on a city expressway, speeded up",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
   },
   {
    "id": "rail-freight-terminal",
@@ -144,7 +155,24 @@
    "people": false,
    "match": "\\b(rail freight|freight|railways?|rail|logistics|intermodal|supply chains?)\\b",
    "alt": "Freight trains and trailers at a rail terminal",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
+  },
+  {
+   "id": "rail-freight-terminal-2",
+   "file": "Malmö kombiterminal 04.webm",
+   "path": "0/07",
+   "source": "commons",
+   "licence": "CC BY 4.0",
+   "author": "Rose Abrams",
+   "page": "https://commons.wikimedia.org/wiki/File:Malm%C3%B6_kombiterminal_04.webm",
+   "start": 0,
+   "seconds": 26,
+   "people": false,
+   "match": "\\b(rail freight|freight|railways?|rail|logistics|intermodal|supply chains?)\\b",
+   "alt": "Freight trains moving through a rail terminal",
+   "checked": "2026-11-27",
+   "audio": false
   },
   {
    "id": "container-ship-at-sea",
@@ -160,7 +188,8 @@
    "match": "\\b(shipping|container\\w*|freight|cargo|ports?|maritime|exports?|imports?|trade (?:deal|talks|war|surplus|deficit)|tariffs?)\\b",
    "alt": "A container ship under way at sea",
    "checked": "2026-11-27",
-   "skip": "\\b(attacks?|attacked|strikes?|drones?|navy|naval|warships?|sinks?|sank|seiz\\w+|missiles?|military|fuel|oil|crude|gas|lng|diesel|stocks?|shares)\\b"
+   "skip": "\\b(attacks?|attacked|strikes?|drones?|navy|naval|warships?|sinks?|sank|seiz\\w+|missiles?|military|fuel|oil|crude|gas|lng|diesel|stocks?|shares)\\b",
+   "audio": false
   },
   {
    "id": "artemis-launch",
@@ -175,7 +204,8 @@
    "people": false,
    "match": "\\b(nasa|artemis|sls|moon missions?|lunar)\\b",
    "alt": "A NASA rocket lifting off from its launch pad",
-   "checked": "2026-11-27"
+   "checked": "2026-11-27",
+   "audio": false
   }
  ]
 }

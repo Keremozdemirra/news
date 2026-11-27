@@ -57,13 +57,22 @@ def fits(clip, headline, min_seconds=0):
     return scenes.fits(clip, headline)
 
 
+MAX_SAME_DAY = 2  # one clip at most twice in 24 hours, even when nothing else fits: after that the photo moves
+
+
 def pick(headline, used=(), min_seconds=0, data=None, seed=""):
-    """The clip for a headline, or None. Clips not used recently first, rotated by the story like scene photos."""
+    """The clip for a headline, or None. `used` lists the clip ids of the last 24 hours, one entry per use. A clip
+    not used today comes first (rotated by the story, like scene photos); then the least used one, while it is
+    under MAX_SAME_DAY."""
     clips = [c for c in (data or load())["clips"] if fits(c, headline, min_seconds)]
+    used = list(used)
+    clips = [c for c in clips if used.count(c["id"]) < MAX_SAME_DAY]
     if not clips:
         return None
-    ring = scenes.order([dict(c, file=c["id"]) for c in clips], set(used), seed=seed or headline)
-    return next(c for c in clips if c["id"] == ring[0]["file"])
+    fresh = [c for c in clips if c["id"] not in used]
+    pool = fresh or sorted(clips, key=lambda c: used.count(c["id"]))[:1]
+    ring = scenes.order([dict(c, file=c["id"]) for c in pool], set(), seed=seed or headline)
+    return next(c for c in pool if c["id"] == ring[0]["file"])
 
 
 def source_url(clip, size="1080p"):
@@ -101,8 +110,10 @@ def fetch(clip, dest, seconds):
     """The clip's working segment as a local file (one request, the needed seconds only)."""
     dest = Path(dest)
     for size in ("1080p", "720p"):
+        # the clip's own sound comes along only when a person checked it (no music, no speech): audio.py
+        sound = ["-c:a", "aac", "-b:a", "192k", "-ac", "2"] if clip.get("audio") else ["-an"]
         p = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-user_agent", UA, "-ss", str(clip.get("start", 0)),
-                            "-t", f"{seconds + 0.5:.2f}", "-i", source_url(clip, size), "-an", "-c:v", "libx264",
+                            "-t", f"{seconds + 0.5:.2f}", "-i", source_url(clip, size), *sound, "-c:v", "libx264",
                             "-preset", "veryfast", "-crf", "14", str(dest)], capture_output=True, text=True, timeout=300)
         if p.returncode == 0 and dest.exists() and dest.stat().st_size:
             return dest

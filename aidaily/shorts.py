@@ -160,8 +160,14 @@ def choose_footage(post, seconds, fetch=True):
     if not fetch or not (desk.CONFIG.get("video") or {}).get("footage"):
         return None
     from . import broll
-    # a clip shorter than the Short opens it and hands over to the moving photo
-    clip = broll.pick(post["headlines"][0], min_seconds=min(seconds, 8), seed=post["id"])
+    # a clip shorter than the Short opens it and hands over to the moving photo; a clip a Short or a feed video
+    # used in the last day goes last (broll.MAX_SAME_DAY)
+    cut = desk.now() - timedelta(hours=24)
+    used = [v["footage"] for v in _state().get("attempted", {}).values()
+            if v.get("footage") and v.get("at") and _dt(v["at"]) > cut]
+    used += [p["video"]["footage"]["id"] for p, _ in desk.posts()
+             if (p.get("video") or {}).get("footage") and (desk._stamp(p.get("created", "")) or cut) > cut]
+    clip = broll.pick(post["headlines"][0], used=used, min_seconds=min(seconds, 8), seed=post["id"])
     if not clip:
         return None
     ok, why = broll.still_ok(clip)
@@ -249,7 +255,7 @@ def build(post, out_mp4, fetch=True, clip=None):
         for png, *_ in layers:
             cmd += ["-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(png)]
         from . import audio
-        cmd += ["-i", str(audio.track(tmp / "sound.wav", total, post["id"], sting_at=total - END_SECONDS))]
+        cmd += ["-i", str(audio.track(tmp / "sound.wav", total, footage))]
         from . import broll
         if footage and not handover:
             chain, last = [broll.background(*CV.probe_size(footage), CV.W, h, total, CV.FPS)], "bg"
@@ -478,7 +484,8 @@ def run(http=_http, render=build):
         return None
     with tempfile.TemporaryDirectory() as tmp:
         try:
-            mp4, credit = render(post, Path(tmp) / "short.mp4")
+            clip = choose_footage(post, sum(d for _, d in beats(post))) if render is build else None
+            mp4, credit = render(post, Path(tmp) / "short.mp4", clip=clip) if clip else render(post, Path(tmp) / "short.mp4")
             spec = CV.audit_file(mp4, "reel") if Path(mp4).stat().st_size else ["empty file"]
             if spec:
                 raise ValueError("; ".join(spec))
@@ -488,7 +495,8 @@ def run(http=_http, render=build):
             _save(st)
             print(f"shorts: build failed ({failures}): {str(e)[-200:]}")
             return None
-        rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": post["headlines"][0]}
+        rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": post["headlines"][0],
+               **({"footage": clip["id"]} if clip else {})}
         st.setdefault("attempted", {})[post["id"]] = rec
         _save(st)  # on disk before the upload: never twice
         try:

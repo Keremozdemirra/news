@@ -175,7 +175,7 @@ class Upload(unittest.TestCase):
 
 
 class Run(Choice):
-    def render(self, p, out):
+    def render(self, p, out, **kw):
         Path(out).write_bytes(b"mp4")
         return Path(out), CREDIT
 

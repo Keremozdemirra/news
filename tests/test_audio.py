@@ -6,47 +6,58 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aidaily import audio
+from aidaily import audio, broll
 
 HAVE = bool(shutil.which("ffmpeg"))
 
 
 def probe(path):
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)],
-                         capture_output=True, text=True).stdout
-    return json.loads(out)
+    return json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)],
+                                     capture_output=True, text=True).stdout)
 
 
-def loudness(path):
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(path), "-af", "ebur128=peak=true", "-f", "null", "-"],
+def peak(path):
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(path), "-af", "volumedetect", "-f", "null", "-"],
                        capture_output=True, text=True)
-    i = float(re.findall(r"I:\s+(-?[\d.]+) LUFS", r.stderr)[-1])
-    peak = float(re.findall(r"Peak:\s+(-?[\d.]+) dBFS", r.stderr)[-1])
-    return i, peak
+    return float(re.findall(r"max_volume: (-?[\d.inf]+) dB", r.stderr)[-1])
 
 
-class Files(unittest.TestCase):
-    def test_owned_beds_and_sting_ship_with_their_note(self):
-        self.assertEqual(len(audio.beds()), 3)
-        self.assertTrue((audio.DIR / "sting.m4a").exists())
-        self.assertIn("belong to Boardread", (audio.DIR / "OWNERSHIP.md").read_text())
+class NoMusic(unittest.TestCase):
+    def test_no_generated_music_ships(self):
+        root = Path(audio.__file__).resolve().parent.parent
+        self.assertFalse((root / "scripts" / "make_audio.py").exists())
+        self.assertFalse(list((root / "aidaily").glob("audio/*.m4a")))
 
-    def test_the_story_picks_the_bed_the_same_way_every_time(self):
-        self.assertEqual(audio.pick("a"), audio.pick("a"))
-        self.assertGreater(len({audio.pick(f"story-{i}")[0] for i in range(30)}), 1)
+    def test_only_checked_clips_keep_their_sound(self):
+        for c in broll.load()["clips"]:
+            self.assertIn("audio", c, c["id"])
+            if c["audio"]:
+                self.assertIn("no music or speech", c.get("audio_note", ""), c["id"])
 
 
 @unittest.skipUnless(HAVE, "needs ffmpeg")
 class Track(unittest.TestCase):
-    def test_mobile_loudness_stereo_48k_and_the_sting(self):
+    def test_no_source_is_true_silence(self):
         with tempfile.TemporaryDirectory() as tmp:
-            wav = audio.track(Path(tmp) / "a.wav", 12.0, "story", sting_at=9.5)
-            s = probe(wav)["streams"][0]
-            self.assertEqual((s["sample_rate"], s["channels"]), ("48000", 2))
-            self.assertAlmostEqual(float(probe(wav)["format"]["duration"]), 12.0, delta=0.1)
-            i, peak = loudness(wav)
-            self.assertAlmostEqual(i, -16, delta=1.5)
-            self.assertLess(peak, -1.0)
+            wav = audio.track(Path(tmp) / "a.wav", 5.0)
+            s = probe(wav)
+            self.assertEqual((s["streams"][0]["sample_rate"], s["streams"][0]["channels"]), ("48000", 2))
+            self.assertAlmostEqual(float(s["format"]["duration"]), 5.0, delta=0.05)
+            self.assertLessEqual(peak(wav), -90.0)  # volumedetect reports digital zero as its floor, -91 dB
+
+    def test_a_source_keeps_its_sound_levelled_and_padded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "src.mp4"
+            # a quiet noise track stands in for a field recording: it is raised, but at most MAX_GAIN dB
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anoisesrc=a=0.01:d=4", "-ac", "2",
+                            "-c:a", "aac", str(src)], check=True)
+            before = audio.loudness(src)
+            wav = audio.track(Path(tmp) / "a.wav", 6.0, src)
+            self.assertAlmostEqual(float(probe(wav)["format"]["duration"]), 6.0, delta=0.05)
+            after = audio.loudness(wav)
+            self.assertLessEqual(after - before, audio.MAX_GAIN + 1)
+            self.assertGreater(after, before)
+            self.assertLess(peak(wav), -1.0)
 
 
 if __name__ == "__main__":

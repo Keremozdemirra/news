@@ -176,7 +176,7 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None):
         for name in LAYERS:
             cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{seconds}", "-i", str(pngs[name])]
         from . import audio
-        cmd += ["-i", str(audio.track(Path(tmp) / "sound.wav", seconds, story.get("headline") or story.get("title", "")))]
+        cmd += ["-i", str(audio.track(Path(tmp) / "sound.wav", seconds, footage))]
         if footage:
             from . import broll
             chain = [broll.background(*probe_size(footage), W, h, seconds, FPS)]

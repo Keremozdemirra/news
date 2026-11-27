@@ -102,8 +102,8 @@ def frames(posts, out_dir, now=None):
 
 def assemble(pngs, out_mp4, seconds=3, cover_seconds=2, end_seconds=2, fade=0.3):
     """Frames joined by a short crossfade (ffmpeg xfade), 30 fps. Built to Instagram's Reels spec: MP4, H.264
-    4:2:0 progressive with a closed GOP, AAC 48 kHz stereo (Boardread's own music bed and end
-    sting, aidaily/audio.py), 1080x1920, no edit lists (-use_editlist 0), moov atom first (+faststart). Each frame holds for its
+    4:2:0 progressive with a closed GOP, AAC 48 kHz stereo (a silent track, aidaily/audio.py),
+    1080x1920, no edit lists (-use_editlist 0), moov atom first (+faststart). Each frame holds for its
     full time; the fade overlaps the start of the next one, so the total is the sum of the holds."""
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
@@ -121,7 +121,7 @@ def assemble(pngs, out_mp4, seconds=3, cover_seconds=2, end_seconds=2, fade=0.3)
         label = out
     chain.append(f"{label}scale=1080:1920,fps=30,format=yuv420p[v]")
     from . import audio
-    sound = audio.track(out_mp4.with_suffix(".wav"), sum(holds), out_mp4.parent.name, sting_at=sum(holds) - end_seconds)
+    sound = audio.track(out_mp4.with_suffix(".wav"), sum(holds))  # silence: the recap is made of stills
     cmd += ["-i", str(sound), "-filter_complex", ";".join(chain), "-map", "[v]",
             "-map", f"{len(pngs)}:a", "-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "20",
             "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-sc_threshold", "0",

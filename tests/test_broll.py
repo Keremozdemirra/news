@@ -29,6 +29,12 @@ class Fit(unittest.TestCase):
         self.assertIsNone(broll.pick("Port strike halts container traffic", data=DATA, min_seconds=20))
         self.assertEqual(broll.pick("Port strike halts container traffic", data=DATA, min_seconds=8)["id"], "terminal")
 
+    def test_a_clip_is_not_reused_while_another_fits_and_never_more_than_twice_a_day(self):
+        two = {"clips": [OIL, dict(OIL, id="pumpjack-2")]}
+        self.assertEqual(broll.pick("Oil prices rise", data=two, used=["pumpjack"])["id"], "pumpjack-2")
+        self.assertEqual(broll.pick("Oil prices rise", data={"clips": [OIL]}, used=["pumpjack"])["id"], "pumpjack")
+        self.assertIsNone(broll.pick("Oil prices rise", data={"clips": [OIL]}, used=["pumpjack", "pumpjack"]))
+
     def test_credit_says_archive_and_names_the_licence(self):
         self.assertEqual(broll.credit(OIL), "Archive footage, not from this event. Video: T. Farley, CC0, via Wikimedia Commons")
         self.assertTrue(broll.credit(PORT).endswith("CC BY 4.0, via Wikimedia Commons. Edited"))
