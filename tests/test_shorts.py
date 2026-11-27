@@ -53,8 +53,12 @@ class Metadata(unittest.TestCase):
         self.assertIn("Reported by Bloomberg and France 24.", d)
         self.assertIn("CC BY 4.0, via Wikimedia Commons. Edited", d)
         self.assertIn("#Shorts", d)
-        for text in (d, m["snippet"]["title"]):
-            self.assertNotRegex(text.lower(), r"written by ai|ai[- ]generated")
+        self.assertNotRegex(m["snippet"]["title"].lower(), r"written by ai|ai[- ]generated")
+        # Kerem, 2026-11-27: the description discloses, the title does not
+        with mock.patch.dict(desk.CONFIG, {"site_url": "https://boardread.news", "growth": {"shorts_ai_line": True}}):
+            self.assertIn("Written by AI from the sources listed.", SH.metadata(post(), CREDIT)["snippet"]["description"])
+        with mock.patch.dict(desk.CONFIG, {"site_url": "https://boardread.news", "growth": {"shorts_ai_line": False}}):
+            self.assertNotIn("Written by AI", SH.metadata(post(), CREDIT)["snippet"]["description"])
 
     def test_title_and_description_limits(self):
         p = post(headlines=["<b>" + "word " * 40 + "</b>"], dek="é" * 6000)

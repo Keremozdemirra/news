@@ -205,7 +205,7 @@
     "shorts_spacing_minutes": 180,
     "shorts_max_age_hours": 12,
     "shorts_privacy": "public",
-    "shorts_ai_line": false,
+    "shorts_ai_line": true,
     "shorts_voice": false,
     "shorts_voice_id": "",
     "shorts_voice_per_day": 1,

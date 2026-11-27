@@ -5,7 +5,8 @@ the card text (cardvideo.py), then the same picture carries one or two sentences
 the outlets the story was reported from, and an end frame with the site. Every word on screen was already published
 and checked on the story page: the video adds no new claim. When a vetted archive clip fits the headline
 (broll.py), it plays behind the text instead, labelled "Archive footage, not from this event". No generated imagery,
-no AI line (the channel bio carries the disclosure); photo and footage are real, so containsSyntheticMedia is false.
+the description carries "Written by AI from the sources listed" (growth.shorts_ai_line, Kerem 2026-11-27) and
+containsSyntheticMedia is set as the conservative disclosure; photo and footage are real.
 
 Candidates are the stories the desk already picked for the social channels: on the site (status published or web),
 on a topic the social channels carry, at or above social_min_score, with a photo under CC0, CC BY or public domain.
@@ -319,9 +320,8 @@ def description(post, credit):
     return text
 
 
-# off until Kerem decides: his standing rule was no "Written by AI" line in social output (tests/test_shorts.py), the
-# 2026-11-27 playbook asks for one. The containsSyntheticMedia flag below discloses either way.
-AI_LINE = "Written by AI from the reporting named above. Photos and footage are real, licensed and credited."
+# Kerem's decision, 2026-11-27: YouTube descriptions say it, in these words (growth.shorts_ai_line)
+AI_LINE = "Written by AI from the sources listed."
 
 
 def metadata(post, credit):
@@ -366,8 +366,8 @@ def metadata_job(job, credit=""):
         from . import shortforms as SF
         title_, caption, src, _ = SF.data_timeline(job["m"], job["series"], job["why"])
         url = desk.CONFIG["site_url"] + "/numbers/" + ("?utm_source=youtube&utm_medium=social" if desk.growth("utm") else "")
-        return _resource(title_, [f"More numbers: {url}", "", caption, f"{src}. Chart drawn by Boardread from the published series.",
-                                  "", "#Shorts #Markets #Economy"])
+        return _resource(title_, [f"More numbers: {url}", "", caption, f"{src}. Chart drawn by Boardread from the published series."]
+                         + (["", AI_LINE] if cfg("shorts_ai_line", False) else []) + ["", "#Shorts #Markets #Economy"])
     return metadata(job["post"], credit)
 
 
