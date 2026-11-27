@@ -1,0 +1,51 @@
+{
+ "id": "2026-11-27-0208-1",
+ "batch": "2026-11-27-0208",
+ "n": 1,
+ "created": "2026-11-27T02:08:28+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Rams wear alternate Fearsome White uniform in NFL Week 12\n\nLos Angeles Rams · Sport\n\nThe Cowboys wear a Thanksgiving throwback uniform, and ESPN lists what every NFL team is wearing this week.\n\nReported by ESPN.\n\nSend this to whoever on your team follows policy.\n\n#news",
+ "source_cta": false,
+ "urls": [
+  "https://www.espn.com/nfl/story/_/id/50577887/nfl-week-12-uniforms"
+ ],
+ "links": [
+  "https://www.espn.com/nfl/story/_/id/50577887/nfl-week-12-uniforms"
+ ],
+ "headlines": [
+  "Rams wear alternate Fearsome White uniform in NFL Week 12"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "SoFi Stadium (51126606022).jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.46,
+ "figure": "",
+ "company": "Los Angeles Rams",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The Cowboys wear a Thanksgiving throwback uniform, and ESPN lists what every NFL team is wearing this week.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "ESPN"
+ ],
+ "source_urls": [
+  "https://www.espn.com/nfl/story/_/id/50577887/nfl-week-12-uniforms"
+ ],
+ "credit": "Photo: Thank You (21 Millions+) views, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "SoFi Stadium (51126606022).jpg",
+ "status": "held",
+ "story": "",
+ "held": [
+  "photo 'SoFi Stadium (51126606022).jpg' does not name the company the story is about"
+ ]
+}

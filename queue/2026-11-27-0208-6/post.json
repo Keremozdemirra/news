@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0208-6",
+ "batch": "2026-11-27-0208",
+ "n": 6,
+ "created": "2026-11-27T02:08:10+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Tokyo core inflation hits 16-month high\n\nReported by CNA; Bloomberg.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.channelnewsasia.com/business/core-inflation-in-tokyo-hits-16-month-high-bolsters-case-boj-hike-6586101"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-26/tokyo-inflation-accelerates-keeping-boj-wary-of-price-pressure",
+  "https://www.channelnewsasia.com/business/core-inflation-in-tokyo-hits-16-month-high-bolsters-case-boj-hike-6586101"
+ ],
+ "headlines": [
+  "Tokyo core inflation hits 16-month high"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Economy",
+ "photo_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Container cranes across a bay",
+ "score": 8.796,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "CNA",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.channelnewsasia.com/business/core-inflation-in-tokyo-hits-16-month-high-bolsters-case-boj-hike-6586101",
+  "https://www.bloomberg.com/news/articles/2026-11-26/tokyo-inflation-accelerates-keeping-boj-wary-of-price-pressure"
+ ],
+ "credit": "Photo: Wikipek, CC0, via Wikimedia Commons",
+ "credit_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
+ "status": "web",
+ "published": "2026-11-27T02:08:10+00:00",
+ "story": ""
+}

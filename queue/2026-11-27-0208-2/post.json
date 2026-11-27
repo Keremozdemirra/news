@@ -1,0 +1,60 @@
+{
+ "id": "2026-11-27-0208-2",
+ "batch": "2026-11-27-0208",
+ "n": 2,
+ "created": "2026-11-27T02:08:06+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Myanmar refuses to comply with parts of ICJ genocide ruling\n\nThe International Court of Justice ruling convicted Myanmar of genocide against its Rohingya minority.\n\nReported by BBC; The Straits Times; The Japan Times; CNA.\n\nSend this to whoever on your team tracks global risk.\n\n#worldnews #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bbc.co.uk/news/articles/c61wr87wyg5wo?at_medium=RSS&at_campaign=rss"
+ ],
+ "links": [
+  "https://www.bbc.co.uk/news/articles/c61wr87wyg5wo?at_medium=RSS&at_campaign=rss",
+  "https://www.channelnewsasia.com/asia/myanmar-will-not-comply-icj-rohingya-genocide-ruling-6584511",
+  "https://www.japantimes.co.jp/news/2026/11/26/asia-pacific/politics/myanmar-comply-genocide-ruling/",
+  "https://www.straitstimes.com/asia/myanmar-says-it-will-not-fully-comply-with-icj-genocide-orders",
+  "https://www.straitstimes.com/asia/se-asia/myanmar-will-not-comply-with-inappropriate-parts-of-genocide-ruling-min-aung-hlaing"
+ ],
+ "headlines": [
+  "Myanmar refuses to comply with parts of ICJ genocide ruling"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "World",
+ "photo_file": "João Silas 2015 (Unsplash).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A shelf of old and new globes",
+ "score": 9.4,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The International Court of Justice ruling convicted Myanmar of genocide against its Rohingya minority.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "BBC",
+  "The Straits Times",
+  "The Japan Times",
+  "CNA"
+ ],
+ "source_urls": [
+  "https://www.bbc.co.uk/news/articles/c61wr87wyg5wo?at_medium=RSS&at_campaign=rss",
+  "https://www.channelnewsasia.com/asia/myanmar-will-not-comply-icj-rohingya-genocide-ruling-6584511",
+  "https://www.japantimes.co.jp/news/2026/11/26/asia-pacific/politics/myanmar-comply-genocide-ruling/",
+  "https://www.straitstimes.com/asia/myanmar-says-it-will-not-fully-comply-with-icj-genocide-orders",
+  "https://www.straitstimes.com/asia/se-asia/myanmar-will-not-comply-with-inappropriate-parts-of-genocide-ruling-min-aung-hlaing"
+ ],
+ "credit": "Photo: João Silas joaosilas, CC0, via Wikimedia Commons",
+ "credit_file": "João Silas 2015 (Unsplash).jpg",
+ "status": "web",
+ "published": "2026-11-27T02:08:06+00:00",
+ "story": ""
+}

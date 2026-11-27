@@ -1,0 +1,51 @@
+{
+ "id": "2026-11-27-0208-8",
+ "batch": "2026-11-27-0208",
+ "n": 8,
+ "created": "2026-11-27T02:08:11+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Oil prices mixed in early Asian trade as Mideast attacks rise\n\nANZ said rising attacks on Middle East energy infrastructure raised concerns of further supply disruptions. Markets are also tracking U.S. inventories.\n\nReported by The Wall Street Journal.\n\nSend this to whoever on your team watches the markets.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.wsj.com/finance/commodities-futures/oil-mixed-as-markets-track-mideast-developments-u-s-inventories-6daf3fb1?mod=rss_markets_main"
+ ],
+ "links": [
+  "https://www.wsj.com/finance/commodities-futures/oil-mixed-as-markets-track-mideast-developments-u-s-inventories-6daf3fb1?mod=rss_markets_main",
+  "https://www.wsj.com/finance/commodities-futures/oil-rises-amid-ongoing-middle-east-tensions-c730426d?mod=rss_markets_main"
+ ],
+ "headlines": [
+  "Oil prices mixed in early Asian trade as Mideast attacks rise"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Markets",
+ "photo_file": "Caspian Sea nefteplatforma.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Offshore oil platforms seen from the air",
+ "score": 8.45,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "ANZ said rising attacks on Middle East energy infrastructure raised concerns of further supply disruptions.",
+ "body": "Markets are also tracking U.S. inventories.",
+ "so_what": "",
+ "sources": [
+  "The Wall Street Journal"
+ ],
+ "source_urls": [
+  "https://www.wsj.com/finance/commodities-futures/oil-mixed-as-markets-track-mideast-developments-u-s-inventories-6daf3fb1?mod=rss_markets_main",
+  "https://www.wsj.com/finance/commodities-futures/oil-rises-amid-ongoing-middle-east-tensions-c730426d?mod=rss_markets_main"
+ ],
+ "credit": "Photo: Dogad75, CC0, via Wikimedia Commons",
+ "credit_file": "Caspian Sea nefteplatforma.jpg",
+ "status": "web",
+ "published": "2026-11-27T02:08:11+00:00",
+ "story": ""
+}

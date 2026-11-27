@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0208-5",
+ "batch": "2026-11-27-0208",
+ "n": 5,
+ "created": "2026-11-27T02:08:09+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Argentina's Congress gives final approval to Milei's central bank overhaul\n\nJavier Milei · Economy\n\nThe approval completes passage of Milei's changes to Argentina's Central Bank.\n\nReported by Buenos Aires Times; Bloomberg.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.batimes.com.ar/news/economy/mileis-overhaul-of-argentinas-central-bank-wins-final-approval-in-congress.phtml"
+ ],
+ "links": [
+  "https://www.batimes.com.ar/news/economy/mileis-overhaul-of-argentinas-central-bank-wins-final-approval-in-congress.phtml",
+  "https://www.bloomberg.com/news/articles/2026-11-26/milei-s-overhaul-of-argentina-s-central-bank-wins-final-approval-in-congress"
+ ],
+ "headlines": [
+  "Argentina's Congress gives final approval to Milei's central bank overhaul"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Economy",
+ "photo_file": "US Dollar banknotes II.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Stacks of US dollar banknotes",
+ "score": 8.878,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Javier Milei",
+ "logo_names": [],
+ "dek": "The approval completes passage of Milei's changes to Argentina's Central Bank.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Buenos Aires Times",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.batimes.com.ar/news/economy/mileis-overhaul-of-argentinas-central-bank-wins-final-approval-in-congress.phtml",
+  "https://www.bloomberg.com/news/articles/2026-11-26/milei-s-overhaul-of-argentina-s-central-bank-wins-final-approval-in-congress"
+ ],
+ "credit": "Photo: Milad Mosapoor, Public domain, via Wikimedia Commons",
+ "credit_file": "US Dollar banknotes II.jpg",
+ "status": "web",
+ "published": "2026-11-27T02:08:09+00:00",
+ "story": ""
+}

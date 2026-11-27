@@ -1,0 +1,57 @@
+{
+ "id": "2026-11-27-0208-7",
+ "batch": "2026-11-27-0208",
+ "n": 7,
+ "created": "2026-11-27T02:08:10+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Musk pledges two SpaceX shares for every US child\n\nElon Musk · Business\n\nOne share would come from SpaceX and one from Musk personally.\n\nReported by Al Jazeera; Euronews; The Globe and Mail.\n\nSend this to whoever on your team covers SpaceX.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.aljazeera.com/economy/2026/11/26/musk-pledges-two-spacex-shares-for-every-us-child?traffic_source=rss"
+ ],
+ "links": [
+  "https://www.aljazeera.com/economy/2026/11/26/musk-pledges-two-spacex-shares-for-every-us-child?traffic_source=rss",
+  "https://www.euronews.com/2026/11/26/musk-says-will-give-two-spacex-shares-to-every-child-in-america",
+  "https://www.theglobeandmail.com/investing/article-musk-pledges-two-spacex-shares-for-every-us-child-in-18-billion-ai/"
+ ],
+ "headlines": [
+  "Musk pledges two SpaceX shares for every US child"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Business",
+ "photo_file": "Entrance to SpaceX headquarters.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.476,
+ "figure": "",
+ "company": "SpaceX",
+ "ticker": null,
+ "person": "Elon Musk",
+ "logo_names": [
+  "SpaceX"
+ ],
+ "dek": "One share would come from SpaceX and one from Musk personally.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Al Jazeera",
+  "Euronews",
+  "The Globe and Mail"
+ ],
+ "source_urls": [
+  "https://www.aljazeera.com/economy/2026/11/26/musk-pledges-two-spacex-shares-for-every-us-child?traffic_source=rss",
+  "https://www.euronews.com/2026/11/26/musk-says-will-give-two-spacex-shares-to-every-child-in-america",
+  "https://www.theglobeandmail.com/investing/article-musk-pledges-two-spacex-shares-for-every-us-child-in-18-billion-ai/"
+ ],
+ "credit": "Photo: Bruno Sanchez-Andrade Nuño from Washington, DC, USA, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Entrance to SpaceX headquarters.jpg",
+ "status": "web",
+ "published": "2026-11-27T02:08:10+00:00",
+ "story": ""
+}

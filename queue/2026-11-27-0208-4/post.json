@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0208-4",
+ "batch": "2026-11-27-0208",
+ "n": 4,
+ "created": "2026-11-27T02:08:08+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Argentina's Senate approves bill to suspend primaries, boosting Milei\n\nJavier Milei · Politics\n\nThe Buenos Aires Times describes the vote as a boost for Milei.\n\nReported by Buenos Aires Times; Bloomberg.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.batimes.com.ar/news/economy/senate-approves-bill-to-suspend-primaries-in-boost-for-milei.phtml"
+ ],
+ "links": [
+  "https://www.batimes.com.ar/news/economy/senate-approves-bill-to-suspend-primaries-in-boost-for-milei.phtml",
+  "https://www.bloomberg.com/news/articles/2026-11-26/argentina-senate-approves-bill-to-suspend-primaries-in-boost-for-milei"
+ ],
+ "headlines": [
+  "Argentina's Senate approves bill to suspend primaries, boosting Milei"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "Javier Milei en el Salón Blanco 2 (cropped).jpg",
+ "photo_kind": "person",
+ "photo_alt": "",
+ "score": 9.054,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Javier Milei",
+ "logo_names": [],
+ "dek": "",
+ "body": "The Buenos Aires Times describes the vote as a boost for Milei.",
+ "so_what": "",
+ "sources": [
+  "Buenos Aires Times",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.batimes.com.ar/news/economy/senate-approves-bill-to-suspend-primaries-in-boost-for-milei.phtml",
+  "https://www.bloomberg.com/news/articles/2026-11-26/argentina-senate-approves-bill-to-suspend-primaries-in-boost-for-milei"
+ ],
+ "credit": "Photo: Cancillería Argentina, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Javier Milei en el Salón Blanco 2 (cropped).jpg",
+ "status": "web",
+ "published": "2026-11-27T02:08:08+00:00",
+ "story": ""
+}
