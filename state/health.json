@@ -1,10 +1,8 @@
 {
- "since": {
-  "errors-facebook": "2026-11-27T19:02:40+00:00"
- },
+ "since": {},
  "issue": 18,
  "reported": [
   "errors-facebook"
  ],
- "clear_since": null
+ "clear_since": "2026-11-27T20:50:26+00:00"
 }
