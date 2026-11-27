@@ -178,7 +178,7 @@ def choose_footage(post, seconds, fetch=True):
     return clip
 
 
-def narrator(folder, narrate=None, voice_id=None):
+def narrator(folder, narrate=None, voice_id=None, post=None):
     """A voice.Narrator when narration is on (growth.shorts_voice, or narrate=True for a sample) and a key is set;
     else None, and the Short stays silent."""
     from . import voice
@@ -193,7 +193,14 @@ def narrator(folder, narrate=None, voice_id=None):
     if not key:
         print("shorts: narration on but no ElevenLabs key; silent Short")
         return None
-    return voice.Narrator(folder, key, voice_id)
+    if voice_id:  # a sample with a named voice: no plan check, no rotation
+        return voice.Narrator(folder, key, voice_id)
+    if not voice.credits_ok(key):
+        return None
+    last = next((v.get("voice") for v in sorted(_state().get("attempted", {}).values(), key=lambda v: v.get("at", ""),
+                                                 reverse=True) if v.get("voice")), None)
+    name, vid = voice.choose_voice(post or {}, last)
+    return voice.Narrator(folder, key, vid, name=name)
 
 
 def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, info=None, narrate=None, voice_id=None,
@@ -239,7 +246,7 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             raise ValueError("not enough published copy for a 20-second Short")
         # narration: a spoken script (spoken.py), never the screen text read out; a script that fails its gate, or a
         # refused voice, leaves the Short silent
-        nar, voice_cues = narrator(tmp, narrate, voice_id), None
+        nar, voice_cues = narrator(tmp, narrate, voice_id, post), None
         if nar:
             try:
                 from . import spoken
@@ -257,7 +264,8 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
         CV.build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy), footage=footage,
                           voice=voice_cues)
     if info is not None:
-        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar))
+        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar),
+                    **({"voice": nar.name} if nar and nar.name else {}))
     return out_mp4, credit
 
 
@@ -620,7 +628,7 @@ def run(http=_http, render=build):
             return None
         headline = post["headlines"][0] if post else metadata_job(job)["snippet"]["title"]
         rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": headline, "structure": info["structure"],
-               **({"narrated": True} if info.get("narrated") else {}),
+               **({"narrated": True, "voice": info.get("voice", "")} if info.get("narrated") else {}),
                **({"layout": info["layout"]} if info.get("layout") else {}), **({"footage": clip["id"]} if clip else {})}
         st.setdefault("attempted", {})[job["key"]] = rec
         st["last_structure"] = info["structure"]

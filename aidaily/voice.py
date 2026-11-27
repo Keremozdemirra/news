@@ -114,11 +114,55 @@ def duration(path):
     return float(out or 0)
 
 
+# Kerem, 2026-11-27: River and Mark, chosen per story, never the same voice twice in a row
+VOICES = {"river": "SAz9YHcvj6GT2YYXdXww", "mark": "UgBBYS2sOqTuMpoF3BR0"}
+# a story that clearly suits one voice: hard numbers to Mark, lighter or culture stories to River
+SUITS = {"Markets": "mark", "Economy": "mark", "Business": "mark", "Culture": "river", "Tech": "river", "AI": "river"}
+CREDIT_FLOOR = 0.10  # below a tenth of the month's characters left, Shorts go out silent
+
+
+def voices():
+    return cfg("shorts_voices", VOICES)
+
+
+def choose_voice(post, last=None):
+    """(name, voice id): the voice the story suits unless the last Short used it, else the other one."""
+    pool = voices()
+    names = list(pool)
+    want = SUITS.get(post.get("topic") or "")
+    if want in pool and want != last:
+        name = want
+    else:
+        name = next((n for n in names if n != last), names[0])
+    return name, pool[name]
+
+
+def credits_ok(key, need=700, get=None):
+    """True when the plan has at least CREDIT_FLOOR of its monthly characters left and room for this script. Any
+    failure reading it counts as no: the Short then goes out silent, never held."""
+    try:
+        if get is None:
+            req = urllib.request.Request("https://api.elevenlabs.io/v1/user/subscription", headers={"xi-api-key": key})
+            with urllib.request.urlopen(req, timeout=20) as r:
+                sub = json.loads(r.read())
+        else:
+            sub = get()
+        limit, used = int(sub["character_limit"]), int(sub["character_count"])
+    except Exception as e:  # noqa: BLE001
+        print(f"voice: plan not readable ({type(e).__name__}); silent Short")
+        return False
+    left = limit - used
+    ok = limit > 0 and left / limit >= CREDIT_FLOOR and left >= need
+    if not ok:
+        print(f"voice: {left} of {limit} characters left; silent Short")
+    return ok
+
+
 class Narrator:
     """Speaks lines into a folder and remembers each file, so the timeline can be sized to the speech."""
 
-    def __init__(self, folder, key, voice=None, speak_fn=speak):
-        self.folder, self.key, self.voice, self.speak_fn = Path(folder), key, voice, speak_fn
+    def __init__(self, folder, key, voice=None, speak_fn=speak, name=""):
+        self.folder, self.key, self.voice, self.speak_fn, self.name = Path(folder), key, voice, speak_fn, name
         self.files = {}
 
     def seconds(self, text):

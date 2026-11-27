@@ -201,9 +201,9 @@
     "shorts_privacy": "public",
     "shorts_ai_line": true,
     "caption_ai_line": true,
-    "shorts_voice": false,
+    "shorts_voice": true,
     "shorts_voice_id": "",
-    "shorts_voice_per_day": 1,
+    "shorts_voice_per_day": 2,
     "shorts_voice_model": "eleven_v4"
   },
   "send_prompts": [
