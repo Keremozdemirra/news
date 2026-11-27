@@ -17,7 +17,9 @@ from . import entities, scenes
 
 FONTS = "https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap"
 BRAND = {"name": "boardread.", "handle": "@boardread"}
-WHITE, BLACK, GREY, GREY_DARK, LINE = "#fcfcfb", "#111111", "#6f6f6f", "#a3a3a3", "#e4e4e2"
+# brand v2 (brand/v2/BRAND.md, 2026-11-26): ink, paper, grey and hairline; black and white only, flat surfaces
+WHITE, BLACK, GREY, GREY_DARK, LINE = "#FFFFFF", "#121212", "#5A5A5A", "#C9C9C9", "#E2E2E2"
+TRACK = "-0.03em"  # Franklin 800 headlines and the wordmark, as the site and the brand sheet set them
 LABEL = {"funding": "Funding", "launch": "Launch", "research": "Research", "policy": "Policy",
          "statement": "Statement", "markets": "Markets", "business": "Business", "news": "News"}
 FIGURE = re.compile(r"(?:(?<![A-Za-z])(?:[A-Z]{1,2})?[$€£]\s?\d[\d,.]*\s?(?:[BMK]\b|billion|million|trillion|bn)?|\b\d[\d,.]*\s?(?:%|percent))", re.I)
@@ -184,7 +186,8 @@ def _headline_figure(story):
 
 def head():
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="{FONTS}" rel="stylesheet">'
-            "<style>body{margin:0}*{box-sizing:border-box}h1{text-wrap:balance}</style></head><body>")
+            "<style>body{margin:0}*{box-sizing:border-box}h1,h2{text-wrap:balance}"
+            ".num{font-variant-numeric:tabular-nums}.kick{font-weight:700}</style></head><body>")
 
 
 TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture", "Sport"}
@@ -206,6 +209,14 @@ def _meta_card(story):
     return f"{_meta(story)} · {_sourceline(story)}"
 
 
+def _meta_html(text, ink):
+    """The meta line as the site sets it: the kicker (the topic, before the first " · ") in Franklin 700 ink, the
+    rest in 500 secondary, figures tabular."""
+    kick, _, rest = text.partition(" · ")
+    rest = f'<span style="font-weight:500"> · {e(rest)}</span>' if rest else ""
+    return f'<span class="num"><span class="kick" style="color:{ink}">{e(kick)}</span>{rest}</span>'
+
+
 def _sourceline(story):
     if story.get("primary"):
         return f"Announced by {re.sub(r' [Bb]log$', '', story['primary'])}"
@@ -216,7 +227,7 @@ def _sourceline(story):
 
 
 def _logo_tile(uri, size):
-    return (f'<div style="width:{size}px;height:{size}px;border-radius:{size // 5}px;overflow:hidden;box-shadow:0 0 0 1px {LINE};'
+    return (f'<div style="width:{size}px;height:{size}px;overflow:hidden;outline:1px solid {LINE};'
             f'background:#fff;display:flex;align-items:center;justify-content:center">'
             f'<img src="{uri}" style="width:100%;height:100%;object-fit:contain"></div>')
 
@@ -271,7 +282,7 @@ def _foot(story, brand, dark=False, edited=False):
         credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
     c = f'<div style="margin-top:10px;font-size:16px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
     return (f'<div><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
-            f'<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand["name"])}</span>'
+            f'<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand["name"])}</span>'
             f'<span style="color:{grey}">{e(domain())}</span></div>{c}</div>')
 
 
@@ -292,8 +303,8 @@ def card(story, brand=BRAND, motion=False, height=1350):
     if kind == "photo":
         # the photo fills the card; logos of every organisation in the story sit on white chips over it
         chips = "".join(
-            f'<div style="height:96px;padding:0 26px;background:#fff;border-radius:20px;display:flex;align-items:center;'
-            f'box-shadow:0 6px 24px rgba(0,0,0,.25)"><img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
+            f'<div style="height:96px;padding:0 26px;background:#fff;display:flex;align-items:center">'
+            f'<img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
             f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
         tall = height > 1350
         top, side, bottom = (240, 150, 420) if tall else (64, 72, 64)
@@ -307,8 +318,8 @@ def card(story, brand=BRAND, motion=False, height=1350):
 <div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
 <div class="c-chips" style="position:absolute;left:64px;right:64px;top:{top}px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div style="position:absolute;left:72px;right:{side}px;bottom:{bottom}px;display:flex;flex-direction:column">
-<span class="c-meta" style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
-<h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{t(title)}</h1>
+<span class="c-meta" style="font-size:26px;color:#D6D6D6">{_meta_html(_meta_card(story), WHITE)}</span>
+<h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1>
 <div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div></div></body></html>"""
     if kind == "figure":
         # one way to set a big figure: "C$8.5 billion" from the copy step reads "C$8.5B", like every other card
@@ -319,19 +330,31 @@ def card(story, brand=BRAND, motion=False, height=1350):
                   f'{_logo_block(a["backer"], story.get("backer", ""), 30)}</div>') if story.get("backer") and funding else ""
         return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
+<div style="font-size:24px;color:{GREY}">{_meta_html(_meta_card(story), BLACK)}</div>
 <div style="margin-top:88px">{_logo_block(*_own_logo(story), 62)}</div>
-<div style="margin-top:52px;font-size:{300 if len(fig) <= 4 else 250 if len(fig) == 5 else 205}px;font-weight:800;line-height:0.82;letter-spacing:-12px">{e(fig)}</div>
+<div class="num" style="margin-top:52px;font-size:{300 if len(fig) <= 4 else 250 if len(fig) == 5 else 205}px;font-weight:800;line-height:0.82;letter-spacing:-12px">{e(fig)}</div>
 <div style="flex:1"></div>
-<h1 style="margin:0;font-size:{_size(title, 76, 70, 60)}px;font-weight:800;line-height:1.04;letter-spacing:-1.5px">{t(title)}</h1>
+<h1 style="margin:0;font-size:{_size(title, 76, 70, 60)}px;font-weight:800;line-height:1.04;letter-spacing:{TRACK}">{t(title)}</h1>
 {backer}<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<div style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta_card(story))}</div>
+<div style="font-size:24px;color:{GREY}">{_meta_html(_meta_card(story), BLACK)}</div>
 <div style="margin-top:88px">{_logo_block(*_own_logo(story), 62)}</div>
 <div style="flex:1"></div>
-<h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:-2px">{t(title)}</h1>
-<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
+<h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:{TRACK}">{t(title)}</h1>
+{_hook(story, title)}<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
+
+
+def _hook(story, title):
+    """The dek under a text-only headline: the second fact, set where the card was empty paper. Only a dek that adds
+    to the headline, and short enough to stay a line or three."""
+    from . import copy
+    dek = (story.get("dek") or "").strip()
+    # two content words the headline lacks, or it is the headline again
+    if not dek or len(dek) > 150 or len(copy._stems(dek) - copy._stems(title, short=True)) < 2:
+        return ""
+    return (f'<div style="margin-top:36px;padding-top:28px;border-top:2px solid {BLACK};font-size:38px;font-weight:500;'
+            f'line-height:1.28;color:{GREY}">{t(dek)}</div>')
 
 
 def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means"):
@@ -352,16 +375,63 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
     src = desk.reported_by(outlets) if outlets else story.get("source", "")
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:24px;font-weight:500;color:{GREY}">{e(_meta(story))}</span>
+<div style="display:flex;justify-content:space-between;align-items:center;min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK}"><span style="font-size:24px;color:{GREY}">{_meta_html(_meta(story), BLACK)}</span>
 <div style="opacity:0.9">{_logo_block(_own_logo(story)[0], '', 34) if _own_logo(story)[0] else ''}</div></div>
-<h2 style="margin:72px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:-1px;text-wrap:balance">{t(title)}</h2>
-<div style="margin-top:44px;height:2px;width:96px;background:{BLACK}"></div>
-<div style="margin-top:44px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
+<h2 style="margin:56px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:{TRACK}">{t(title)}</h2>
+<div style="margin-top:40px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
 <div style="flex:1"></div>
-<div style="font-size:24px;color:{GREY};line-height:1.4">Reported by {e(src)}</div>
+<div style="padding-top:24px;border-top:1px solid {LINE};font-size:24px;color:{GREY};line-height:1.4">Reported by {e(src)}</div>
 <div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
-<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
+<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
 </div></body></html>"""
+
+
+def _slide(story, kicker, inner, brand=BRAND):
+    """A paper slide of the extended carousel: kicker row on the 2px section rule, the content, the footer."""
+    return head() + f"""
+<div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
+<div style="min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK};font-size:24px;color:{GREY};display:flex;align-items:center">{_meta_html(kicker + " · " + _meta(story), BLACK)}</div>
+{inner}
+<div style="flex:1"></div>
+<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
+<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
+</div></body></html>"""
+
+
+def number_slide(story, brand=BRAND):
+    """The number and its context: the figure set large, the headline or dek sentence that states it, and who reported
+    it. None when the post has no figure its own text states (a figure the reader cannot find is not set large)."""
+    from . import copy, desk
+    fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
+    raw = story.get("figure") or fig
+    title = story.get("headline") or story.get("title") or ""
+    line = next((x for x in (title, story.get("dek") or "") if raw and (desk._in_text(raw, x) or desk._in_text(fig, x))), "")
+    if not fig or not line or not copy.figure_ok(raw, line):
+        return None
+    names = desk.outlets(story, story)
+    src = f"Source: {desk.reported_by(names)}" if names else ""
+    size = 300 if len(fig) <= 4 else 250 if len(fig) <= 6 else 190
+    inner = (f'<div class="num" style="margin-top:120px;font-size:{size}px;font-weight:800;line-height:0.86;letter-spacing:{TRACK}">{e(fig)}</div>'
+             f'<div style="margin-top:72px;font-size:52px;font-weight:700;line-height:1.16;letter-spacing:-0.01em">{t(line)}</div>'
+             f'<div style="margin-top:40px;font-size:26px;color:{GREY}">{e(src)}</div>')
+    return _slide(story, "The number", inner, brand)
+
+
+def sources_slide(story, outlets, cta=False, brand=BRAND):
+    """Every newsroom that reported it, in the order they ran it, and where the links are."""
+    names = list(outlets) or [story.get("source", "")]
+    shown = names[:8]
+    rows = "".join(f'<li style="display:flex;gap:28px;padding:22px 0;border-bottom:1px solid {LINE}">'
+                   f'<span class="num" style="color:{GREY};width:44px">{i:02d}</span><span>{e(n)}</span></li>'
+                   for i, n in enumerate(shown, 1))
+    more = f'<div style="margin-top:20px;font-size:28px;color:{GREY}">and {len(names) - 8} more</div>' if len(names) > 8 else ""
+    ask = ("Comment SOURCE and we send the links to your DMs." if cta else
+           f"Every link is on the article at {domain()}.")
+    head_ = f"Reported by {len(names)} newsrooms" if len(names) > 1 else f"Reported by {names[0]}"
+    inner = (f'<h2 style="margin:64px 0 0;font-size:72px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{e(head_)}</h2>'
+             f'<ol style="list-style:none;margin:48px 0 0;padding:0;font-size:40px;font-weight:700;border-top:1px solid {LINE}">{rows}</ol>{more}'
+             f'<div style="margin-top:48px;font-size:34px;font-weight:500;line-height:1.3">{e(ask)}</div>')
+    return _slide(story, "Sources", inner, brand)
 
 
 STORY_BG = "#111214"
@@ -612,7 +682,7 @@ def daily_cover(day_label, headlines, brand=BRAND):
 <div style="flex:1"></div>
 <ol style="list-style:none;margin:0;padding:0;font-size:{30 if len(headlines) <= 5 else 27}px;font-weight:500;line-height:1.25">{items}</ol>
 <div style="margin-top:64px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
-<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand['name'])}</span><span style="color:{GREY}">Swipe for each story</span></div>
+<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">Swipe through the news</span></div>
 </div></body></html>"""
 
 

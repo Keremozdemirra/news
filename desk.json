@@ -143,6 +143,7 @@
   },
   "growth": {
     "so_what": false,
+    "carousel_extended": false,
     "send_prompt": true,
     "alt_text": true,
     "keyword_caption": true,

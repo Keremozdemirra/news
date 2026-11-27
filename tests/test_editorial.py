@@ -340,6 +340,70 @@ class FigureCard(unittest.TestCase):
         self.assertIn("Backed by", T.card(round_))
 
 
+class PostDesign(unittest.TestCase):
+    """brand v2 on the social posts: flat, ink and paper, the kicker in 700, boardread.news bottom right."""
+    def story(self, **kw):
+        s = {"headline": "SAP explores at least 10,000 job cuts", "title": "x", "figure": "", "company": "", "backer": "",
+             "dek": "The software group is the latest to restructure as AI hits the sector.", "topic": "Business",
+             "source": "FT", "newsrooms": ["FT", "Bloomberg", "CNA"], "published": "2026-11-26T20:00:00+00:00",
+             "_assets": {"photo": "", "logo": "", "backer": "", "logos": [], "logo_names": [], "credit": "", "file": ""}}
+        s.update(kw)
+        return s
+
+    def test_cards_and_slides_are_flat_and_carry_the_domain(self):
+        s = self.story()
+        pages = [T.card(s), T.detail(s, "Talks are at an early stage.", ["FT"]), T.sources_slide(s, ["FT", "CNA"]),
+                 T.number_slide(self.story(headline="UK net migration falls to 77,000", figure="77,000"))]
+        for html in pages:
+            self.assertNotIn("border-radius", html)
+            self.assertNotIn("box-shadow", html)
+            self.assertIn(">boardread.news</span></div>", html)
+            self.assertIn('class="kick"', html)
+
+    def test_text_card_carries_the_dek_as_its_hook_unless_it_repeats(self):
+        self.assertIn("latest to restructure", T.card(self.story()))
+        self.assertNotIn("SAP explores 10,000", T.card(self.story(dek="SAP explores 10,000 job cuts, it says.")))
+
+    def test_number_slide_needs_a_figure_the_text_states(self):
+        self.assertIsNone(T.number_slide(self.story()))
+        self.assertIsNone(T.number_slide(self.story(figure="a million", headline="Neets fall below a million")))
+        html = T.number_slide(self.story(headline="Alberta raises surplus to C$8.5 billion", figure="C$8.5 billion"))
+        self.assertIn(">C$8.5B<", html)
+        self.assertIn("Source: Financial Times; Bloomberg; CNA", html)
+
+    def test_sources_slide_lists_every_newsroom_and_asks_only_when_told(self):
+        html = T.sources_slide(self.story(), ["FT", "Bloomberg", "CNA"])
+        self.assertIn("Reported by 3 newsrooms", html)
+        self.assertIn("Every link is on the article at boardread.news.", html)
+        self.assertIn("Comment SOURCE", T.sources_slide(self.story(), ["FT"], cta=True))
+
+
+class ExtendedCarousel(unittest.TestCase):
+    def rows(self, figure=""):
+        s = {"headline": "UK net migration falls to 77,000", "figure": figure, "dek": "", "topic": "Economy",
+             "source": "The Guardian", "newsrooms": ["The Guardian"], "score": 9,
+             "_assets": {"photo": "", "logo": "", "backer": "", "logos": [], "logo_names": [], "credit": "", "file": ""}}
+        return {"headline": s["headline"], "source": "The Guardian", "score": 9}, s
+
+    def test_off_by_default_two_slides(self):
+        self.assertFalse(desk.CONFIG["growth"].get("carousel_extended"))
+        self.assertEqual(desk.extra_slides(*self.rows("77,000"), web=False, ctas=0), [])
+
+    def test_on_four_slides_with_a_figure_three_without_none_on_the_web(self):
+        with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": True}):
+            self.assertEqual([n for n, _ in desk.extra_slides(*self.rows("77,000"), web=False, ctas=0)], ["number", "sources"])
+            self.assertEqual([n for n, _ in desk.extra_slides(*self.rows(""), web=False, ctas=0)], ["sources"])
+            self.assertEqual(desk.extra_slides(*self.rows("77,000"), web=True, ctas=0), [])
+
+    def test_alt_text_covers_every_slide(self):
+        post = {"headlines": ["UK net migration falls to 77,000"], "dek": "", "figure": "77,000", "sources": ["The Guardian"],
+                "cards": ["card.jpg", "detail.jpg", "number.jpg", "sources.jpg"]}
+        with mock.patch.dict(desk.CONFIG["growth"], {"alt_text": True}):
+            alts = desk.alt_texts(post)
+        self.assertEqual(len(alts), 4)
+        self.assertEqual(alts[3], "Reported by The Guardian")
+
+
 class Newsrooms(unittest.TestCase):
     def test_card_count_matches_the_list(self):
         # the card said "Reported by 8 newsrooms" over a slide listing four, one of them an aggregator

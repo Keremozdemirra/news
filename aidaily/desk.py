@@ -220,6 +220,21 @@ def so_what(s):
     return (s.get("so_what") or "") if growth("so_what") else ""
 
 
+def extra_slides(m, s, web, ctas):
+    """[(name, html)] of the slides after the detail slide, with growth.carousel_extended on: "number" when the post
+    has a figure the headline or dek states (the figure, the sentence that holds it, its source), then "sources" (every
+    newsroom that reported it and where the links are). Off, or for the web tier, there are none: the post stays two
+    slides. An A/B option, off by default."""
+    if web or not growth("carousel_extended"):
+        return []
+    out = []
+    num = R.T.number_slide(s)
+    if num:
+        out.append(("number", num))
+    out.append(("sources", R.T.sources_slide(s, outlets(m, s), cta=wants_source_cta(m, web, ctas))))
+    return out
+
+
 def alt_texts(post):
     """Alt text per carousel image, in card order, or None while the switch is off. Card: the headline.
     Detail slide: headline and dek. Instagram allows 1,000 characters."""
@@ -227,7 +242,9 @@ def alt_texts(post):
         return None
     head_ = (post.get("headlines") or [""])[0]
     detail = " ".join(x for x in (head_.rstrip(". ") + ".", post.get("dek", "")) if x.strip(". "))
-    return [head_[:1000], detail[:1000]][:len(post.get("cards", []))] or None
+    extra = {"number.jpg": f"{post.get('figure', '')}: {head_}", "sources.jpg": "Reported by " + "; ".join(post.get("sources") or [])}
+    texts = [head_, detail] + [extra.get(c, head_) for c in post.get("cards", [])[2:]]
+    return [x[:1000] for x in texts[:len(post.get("cards", []))]] or None
 
 
 def source_cta_count(hours=24):
@@ -1200,6 +1217,10 @@ def queue(day_dir, batch=None, render=True):
             R.shoot(R.T.detail(s, body(s), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
             R.jpeg(png)
             png.unlink()
+            for name, html in extra_slides(m, s, web, ctas):
+                R.shoot(html, img / f"{name}.png", 1080, 1350)
+                R.jpeg(img / f"{name}.png")
+                (img / f"{name}.png").unlink()
             R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
             if CONFIG.get("stories") and not web:  # a story is an Instagram format
                 story_frame(img, "Breaking" if m.get("score", 0) >= CONFIG["breaking_score"] else "New post")
@@ -1217,7 +1238,8 @@ def queue(day_dir, batch=None, render=True):
                 video = make_video(s, img, out.name)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
-                "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
+                "cards": ["card.jpg", "detail.jpg"] + [f"{n}.jpg" for n, _ in extra_slides(m, s, web, ctas)],
+                "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
                 "source_cta": cta,
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
