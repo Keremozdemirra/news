@@ -153,14 +153,29 @@ class Text(Env):
         self.assertNotIn("keremozdemir", t)
         self.assertNotIn("http", platforms.bluesky_text(post()))
 
+    def test_bluesky_text_adds_a_fact_the_card_does_not_show(self):
+        t = platforms.bluesky_text(post())
+        head, extra = t.split("\n\n")
+        self.assertEqual(head, "Denny's reshares Nvidia origin story after Jensen Huang's return")
+        self.assertNotIn("reinstalled a plaque", t)  # the card's description already says it
+        self.assertTrue(extra.startswith("Denny's used Jensen Huang's return"))
+
+    def test_telegram_caption_is_bold_headline_two_sentences_and_one_quiet_line(self):
+        c = platforms.telegram_caption(post())
+        head, _, foot = c.split("\n\n")
+        self.assertEqual(head, "<b>Denny&#x27;s reshares Nvidia origin story after Jensen Huang&#x27;s return</b>")
+        self.assertEqual(foot, 'Written by AI · <a href="https://boardread.news/s/2026-11-26-1446-1/">Sources</a> · #business')
+        long = platforms.telegram_caption(post(body="A fact. " * 300, dek="Another " * 200 + "."))
+        self.assertLessEqual(platforms._visible(long), 1024)
+        self.assertTrue(long.endswith("#business"))
+
     def test_digest_text_lists_headlines_with_story_links(self):
         t = platforms.digest_text([post(), post(id="b", headlines=["Second"])])
-        self.assertTrue(t.startswith("Today on Boardread\n\n1. Denny's"))
-        self.assertIn("\nhttps://boardread.news/s/b/\n", t + "\n")
-        self.assertIn("2. Second", t)
+        self.assertTrue(t.startswith("<b>Today on Boardread</b>\n\n1. <a href=\"https://boardread.news/s/2026-11-26-1446-1/\">Denny&#x27;s"))
+        self.assertIn('\n2. <a href="https://boardread.news/s/b/">Second</a>\n', t)
 
     def test_telegram_caption_1024(self):
-        self.assertLessEqual(len(platforms.telegram_caption(post(body="word " * 500))), 1024)
+        self.assertLessEqual(platforms._visible(platforms.telegram_caption(post(body="word " * 500))), 1024)
 
     def test_overlong_headline_is_cut_but_the_ai_note_stays(self):
         t = platforms.threads_text(post(headlines=["long " * 200]))
@@ -215,19 +230,26 @@ class Clients(Env):
         self.assertIn("threads_manage_replies", got["reply_error"])
         self.assertNotIn("tt-secret", got["reply_error"])
 
-    def test_facebook_attaches_unpublished_photos(self):
+    def test_facebook_is_a_short_link_post_without_hashtags(self):
         n = []
 
         def out(req):
             n.append(req.data.decode())
-            return {"id": "ph1"} if "/photos" in req.full_url else {"id": "111_99"}
+            return {"id": "111_99"}
         fake = Fake({"me/accounts": {"data": [{"id": "111", "name": "Boardread", "access_token": "page-tok"}]}, "/111/": out})
         got = platforms.Facebook(opener=fake).post(post())
         self.assertEqual(got["url"], "https://www.facebook.com/111_99")
-        # the stored system-user token only reads the Page; the posts go out with the Page's own token
-        self.assertIn("access_token=page-tok", n[0])
-        self.assertIn("published=false", n[0])
-        self.assertIn("attached_media%5B1%5D", n[2])
+        # the stored system-user token only reads the Page; the post goes out with the Page's own token
+        self.assertEqual(len(n), 1)
+        sent = urllib.parse.parse_qs(n[0])
+        self.assertEqual(sent["access_token"], ["page-tok"])
+        self.assertEqual(sent["link"], ["https://boardread.news/s/2026-11-26-1446-1/"])
+        msg = sent["message"][0]
+        self.assertTrue(msg.startswith("Denny's reshares Nvidia"))
+        self.assertNotIn("#", msg)
+        self.assertNotIn("reinstalled a plaque", msg)  # the dek is the preview's, not said twice
+        self.assertTrue(msg.endswith("Written by AI. Sources: https://boardread.news/s/2026-11-26-1446-1/"))
+        self.assertLessEqual(len(platforms.facebook_text(post(body="word. " * 400))), 700)
 
     def test_facebook_placeholder_page_id_is_read_from_the_token(self):
         import os
@@ -257,9 +279,10 @@ class Clients(Env):
         with self.assertRaises(platforms.PlatformError):
             platforms.Facebook(opener=person).post(post())
 
-    def bsky_fake(self, card):
+    def bsky_fake(self, card, og=None):
         return Fake({
             "createSession": {"accessJwt": "jwt", "did": "did:plc:z"},
+            "boardread.news/og/": og if og is not None else http_error(404, "not built yet"),
             "raw.example": card,
             "uploadBlob": {"blob": {"$type": "blob", "ref": {"$link": "b"}, "mimeType": "image/jpeg", "size": 1000}},
             "createRecord": {"uri": "at://did:plc:z/app.bsky.feed.post/3kabc", "cid": "c"}})
@@ -283,6 +306,13 @@ class Clients(Env):
         self.assertEqual(len([r for r in fake.seen if "uploadBlob" in r.full_url]), 1)
         self.assertEqual([r.full_url for r in fake.seen if "raw.example" in r.full_url],
                          ["https://raw.example/r/media/2026-11-26-1446-1/card.jpg"])
+
+    def test_bluesky_thumb_is_the_article_share_image_when_the_site_has_it(self):
+        fake = self.bsky_fake(b"j" * 1000, og=b"o" * 900)
+        platforms.Bluesky(opener=fake).post(post())
+        up = [r for r in fake.seen if "uploadBlob" in r.full_url][0]
+        self.assertEqual(up.data, b"o" * 900)
+        self.assertFalse([r for r in fake.seen if "raw.example" in r.full_url])
 
     def test_bluesky_thumb_limit_is_one_million_bytes(self):
         fake = self.bsky_fake(b"j" * 1_000_000)
@@ -326,14 +356,15 @@ class Clients(Env):
         got = platforms.Telegram(opener=fake).digest([post(), post(id="b")])
         self.assertEqual(got, {"id": "41"})
         body = json.loads(fake.seen[0].data)
-        self.assertTrue(body["text"].startswith("Today on Boardread"))
+        self.assertTrue(body["text"].startswith("<b>Today on Boardread</b>"))
+        self.assertEqual(body["parse_mode"], "HTML")
         self.assertIs(body["disable_notification"], True)
         self.assertIs(body["disable_web_page_preview"], True)
         self.assertEqual(body["link_preview_options"], {"is_disabled": True})
 
     def test_errors_never_carry_secrets(self):
         fake = Fake({"me/accounts": {"data": [{"id": "111", "name": "Boardread", "access_token": "page-secret"}]},
-                     "/photos": http_error(400, "bad token fb-secret here and page-secret")})
+                     "/feed": http_error(400, "bad token fb-secret here and page-secret")})
         with self.assertRaises(platforms.PlatformError) as cm:
             platforms.Facebook(opener=fake).post(post())
         self.assertNotIn("fb-secret", str(cm.exception))
