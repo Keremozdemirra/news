@@ -98,8 +98,10 @@ SERIES = {
 }
 RAIL = ("eurusd", "usdjpy", "gbpusd", "brent", "wti", "gasoline", "ust10")
 METALS = ("gold", "silver", "platinum", "copper", "aluminium", "nickel", "zinc", "lead", "tin", "ironore")
-# most watched first: the euro-dollar, oil, gold, the US 10-year, then the rest of the majors, metals and gas
-STRIP = ("eurusd", "brent", "gold", "ust10", "usdjpy", "gbpusd", "silver", "copper", "henryhub", "wti", "usdcny")
+# most watched first: the euro-dollar, oil, the US 10-year, then the other majors and gas. Daily series only: gold was
+# here as the World Bank's monthly average ($4,105 for October) while spot traded near $3,600 (2026-11-27); next to
+# daily prices a monthly average reads as today's price whatever its label, so the metals stay on /numbers/
+STRIP = ("eurusd", "brent", "ust10", "usdjpy", "gbpusd", "henryhub", "wti", "usdcny")
 SOURCE_NAME = {"ecb": "ECB reference rate", "calc": CALC, "eia": "EIA", "ust": "US Treasury par yield", "wb": "World Bank Pink Sheet, monthly average"}
 HISTORY = 100  # observations kept per series
 

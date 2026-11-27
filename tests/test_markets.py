@@ -171,15 +171,13 @@ class Metals(unittest.TestCase):
         self.assertNotIn("World Bank", markets.attribution(m))
         self.assertNotIn("Gold", markets.cards(m))
 
-    def test_the_strip_puts_gold_third_and_marks_monthly_averages(self):
+    def test_the_strip_carries_daily_series_only(self):
         m = data(True)
         m["series"].update({k: [list(x) for x in v] for k, v in self.pink().items()})
         strip = markets.strip(m)
-        labels = re.findall(r'<span class="sl">([^<]+)</span>', strip)
-        self.assertEqual(labels[:3], ["EUR/USD", "Brent", "Gold"])
-        self.assertIn('$4,105</b> <small class="sd">Oct avg</small>', strip)
-        self.assertNotIn("avg", strip.split("Gold")[0])  # daily series carry no month tag
-        self.assertIn('href="/numbers/"', strip)  # the CC BY credit for the Pink Sheet is one link away
+        self.assertNotIn("Gold", strip)  # a monthly average next to daily prices reads as today's price
+        self.assertNotIn("avg", strip)
+        self.assertTrue(all(markets.SERIES[k][3] != "wb" for k in markets.STRIP))
 
     def test_a_failed_pink_sheet_keeps_the_last_good_metals(self):
         with tempfile.TemporaryDirectory() as d:
