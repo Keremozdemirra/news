@@ -1,0 +1,53 @@
+{
+ "_fixture": "Synthetic values in the data.sec.gov schema for a fictional registrant; not a real filing.",
+ "cik": 1999001,
+ "taxonomy": "us-gaap",
+ "tag": "Revenues",
+ "units": {
+  "USD": [
+   {
+    "start": "2025-06-29",
+    "end": "2025-09-27",
+    "val": 3870000000,
+    "accn": "0001999001-25-000041",
+    "fy": 2025,
+    "fp": "Q3",
+    "form": "10-Q",
+    "filed": "2025-10-31",
+    "frame": "CY2025Q3"
+   },
+   {
+    "start": "2026-03-29",
+    "end": "2026-06-27",
+    "val": 4050000000,
+    "accn": "0001999001-26-000029",
+    "fy": 2026,
+    "fp": "Q2",
+    "form": "10-Q",
+    "filed": "2026-07-31",
+    "frame": "CY2026Q2"
+   },
+   {
+    "start": "2026-06-28",
+    "end": "2026-09-26",
+    "val": 4210000000,
+    "accn": "0001999001-26-000041",
+    "fy": 2026,
+    "fp": "Q3",
+    "form": "10-Q",
+    "filed": "2026-10-30",
+    "frame": "CY2026Q3"
+   },
+   {
+    "start": "2026-01-01",
+    "end": "2026-09-26",
+    "val": 12100000000,
+    "accn": "0001999001-26-000041",
+    "fy": 2026,
+    "fp": "Q3",
+    "form": "10-Q",
+    "filed": "2026-10-30"
+   }
+  ]
+ }
+}

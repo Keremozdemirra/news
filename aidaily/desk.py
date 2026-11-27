@@ -774,6 +774,10 @@ def audit(post):
         gap = copy.headline_gap(head_, post.get("dek", ""), post.get("body", ""))
         if gap:
             problems.append(gap)
+    # the "By the numbers" section states only what its primary source holds, and names and links that source
+    if growth("enrich"):
+        from . import enrich
+        problems += [f"context: {x}" for x in enrich.audit(post.get("context"))]
     # the caption, the figure card and the so-what line are written after the copy was verified: a number that the
     # article does not state must not reach a reader through them
     for field, nums in copy.surface_gap(post).items():
@@ -2012,6 +2016,7 @@ def queue(day_dir, batch=None, render=True):
                 # what the photo was picked from, so a later repick asks the same questions (plan item 8)
                 "person_role": s.get("person_role", ""), "image_query": s.get("image_query", ""),
                 "orgs": s.get("orgs", []), "venue": s.get("venue", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "supported": s.get("supported") or None, "by_source": s.get("by_source") or [], "so_what": so_what(s), "sources": outlets(m, s),
+                "context": (s.get("context") or []) if growth("enrich") else [],
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],

@@ -462,6 +462,15 @@ def business_lane(args, out, digest, picked):
     # the model only sees stories that will be posted, so an hourly run costs one short call
     digest["slots"] = {"top": picked}
     (out / "digest.json").write_text(json.dumps(digest, indent=1))
+    # primary-source facts for the top few stories (switch growth.enrich); a failure leaves every story as it was
+    if desk.growth("enrich"):
+        try:
+            from . import enrich
+            ctx = enrich.live_ctx()
+            done = enrich.run(picked, ctx)
+            print(f"enrich: {sum(1 for _, n in done if n >= enrich.MIN_FACTS)} of {len(done)} stories got primary facts; {'; '.join(ctx.notes[:4])}")
+        except Exception as e:  # noqa: BLE001
+            print(f"enrich step failed: {e}")
     (out / "copy-request.md").write_text(copy.request(picked, desk.recent_headlines()))
     (out / "chosen.json").write_text(json.dumps(picked, indent=1))
     try:

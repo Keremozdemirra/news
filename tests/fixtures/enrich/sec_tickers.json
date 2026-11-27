@@ -1,0 +1,17 @@
+{
+ "0": {
+  "cik_str": 1999001,
+  "ticker": "ACME",
+  "title": "ACME ROBOTICS INC."
+ },
+ "1": {
+  "cik_str": 1999002,
+  "ticker": "TGT",
+  "title": "TARGET CORP"
+ },
+ "2": {
+  "cik_str": 1999003,
+  "ticker": "OAK",
+  "title": "OAKWOOD HOLDINGS, INC."
+ }
+}

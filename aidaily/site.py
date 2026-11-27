@@ -959,7 +959,7 @@ def how_made(p, counts):
               "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this article has no photo."),
               "Audit: topic, photo, hashtag and stock-phrase checks passed."]
     return (f'<details class="made"><summary>How this article was made</summary><div class="made-body">'
-            f'<p>An AI model wrote it from the text of {len(rooms)} newsroom{"" if len(rooms) == 1 else "s"} and had no other input. '
+            f'<p>An AI model wrote it from the text of {len(rooms)} newsroom{"" if len(rooms) == 1 else "s"}{", plus the primary sources listed under Primary sources," if p.get("context") else ""} and had no other input. '
             f'Fixed code checked it before it went up.</p>'
             f'<dl><dt>Feeds scanned</dt><dd>{counts["feeds"]} feeds, every 30 minutes</dd>'
             f'<dt>Newsrooms used</dt><dd>{E(", ".join(rooms)) or "none listed"}</dd>'
@@ -976,6 +976,15 @@ def story(p, rows, cos=None, counts=None):
     outlets_line = (", ".join(linked[:-1]) + " and " + linked[-1]) if len(linked) > 1 else (linked[0] if linked else "")
     # the sources, as a block under the byline: names and links only, never their text; one newsroom is said to be one
     sources = (f'<p class="srcs"><b>Sources:</b> <span>{outlets_line}</span>' + (' <span class="tag">Single source</span>' if len(names) == 1 else "") + "</p>") if names else ""
+    # primary-source facts (growth.enrich): a section built only from them, and each source named by its agency or company
+    from . import enrich
+    lines = p.get("context") or []
+    prim = enrich.primary_sources(lines)
+    primary = (f'<p class="srcs prim"><b>Primary sources:</b> <span>' + ", ".join(f'<a href="{E(u)}" rel="noopener" target="_blank">{E(l)}</a>' for l, u in prim)
+               + "</span></p>") if prim else ""
+    bynum = (f'<section class="bynum" aria-labelledby="bn"><h2 id="bn">{enrich.heading(lines)}</h2><ul>'
+             + "".join(f'<li>{E(r["text"])} <a href="{E(r["url"])}" rel="noopener" target="_blank">{E(r["label"])}</a></li>' for r in lines)
+             + "</ul></section>") if lines else ""
     insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = photo_alt(p)
@@ -1012,9 +1021,9 @@ def story(p, rows, cos=None, counts=None):
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1>{f'<p class="dek">{E(p["dek"])}</p>' if (p.get("dek") or "").strip() else ""}
-<div class="mt art-meta"><span class="by">By <a href="{BASE}/about/">Boardread</a></span><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div>{sources}{notes}</header>
+<div class="mt art-meta"><span class="by">By <a href="{BASE}/about/">Boardread</a></span><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div>{sources}{primary}{notes}</header>
 {fig}
-<div class="art-body">{f'<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>' if paras else ""}
+<div class="art-body">{f'<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>' if paras else ""}{bynum}
 <p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work</a>. <a href="{report_link(p)}" rel="noopener nofollow">Report an error</a>.</p>
 <div class="reportedby">{insta}</div>
 {ctx}{number_box(p)}

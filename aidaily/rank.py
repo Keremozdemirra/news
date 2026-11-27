@@ -282,6 +282,8 @@ def rank(items, sources, now=None, max_age_h=36):
             "newsrooms": [p for p, _ in trace([i for i in s["items"]
                                                if sources.get(i["source_id"], {}).get("category") != "community"], sources)],
             "links": sorted({i["url"] for i in s["items"]}),
+            # links inside the items' own text: only a primary-source link is ever followed (enrich.py)
+            "hrefs": sorted({h for i in s["items"] for h in i.get("hrefs", [])})[:12],
             # what the other newsrooms wrote: the copy step reads them and checks every word against them, so a
             # report can carry facts the lead outlet's one-line summary leaves out (26 of 91 articles had no report
             # beyond the dek on 2026-11-27, each written from a single summary)

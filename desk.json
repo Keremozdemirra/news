@@ -185,6 +185,7 @@
     "games_post": true,
     "so_what": false,
     "by_source": false,
+    "enrich": false,
     "carousel_extended": true,
     "send_prompt": true,
     "alt_text": true,

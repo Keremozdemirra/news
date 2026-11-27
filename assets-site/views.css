@@ -159,6 +159,9 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .corr{margin:var(--s2) 0 0;padding:var(--s1) var(--s2);border-left:3px solid var(--ink);font:500 15px/1.5 var(--f)}
 .srcs{margin:0;padding:0 0 var(--s2);border-bottom:1px solid var(--rule);margin-bottom:var(--s2);font:500 14px/1.45 var(--f)}
 .srcs a{text-decoration:underline;text-underline-offset:3px}
+.srcs:has(+ .srcs.prim){border-bottom:0;margin-bottom:0;padding-bottom:var(--s1)}
+.bynum{margin:var(--s3) 0 var(--s2)}.bynum h2{font:600 var(--t-h3,22px)/1.2 var(--serif);margin:0 0 var(--s1)}
+.bynum ul{margin:0;padding-left:1.2em}.bynum li{font:400 var(--t-body)/1.55 var(--serif);margin:0 0 .6em}.bynum li a{font:500 .8em/1 var(--f);white-space:nowrap}
 .srcs .tag{border:1px solid var(--ink);padding:0 6px;font:600 12px/1.6 var(--f)}
 .art-meta{display:flex;flex-wrap:wrap;gap:4px var(--s2);padding:var(--s1) 0 var(--s1);margin:0}
 .art-meta>*+*::before{content:"\00b7";margin-right:var(--s2)}.art-meta .by a{text-decoration:underline;text-underline-offset:3px}

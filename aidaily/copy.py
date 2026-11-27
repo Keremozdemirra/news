@@ -155,6 +155,16 @@ BY_SOURCE_FIELD = """
   text adds nothing. [] for a story only one newsroom reported"""
 
 
+# Added to the prompt only while desk.json growth.enrich is true and a story below carries primary facts. It overrides
+# "use only the title and summary" for this one field and for the facts listed under that story.
+CONTEXT_FIELD = """
+- context: [] unless the story lists "primary facts" (F1, F2 ...). Then 2 to 4 sentences for a "By the numbers" or
+  "Context" section, built ONLY from those facts, in your own words: each one plain sentence of at most 28 words that
+  states a fact the headline, dek and report do not, with every number written as the fact writes it. No number, name or
+  claim that is not in the facts. No sentence from the newsroom text, never a run of six words copied from it. No
+  interpretation, no "so", no "which means". Fewer sentences when the facts hold fewer; [] when they add nothing"""
+
+
 def switch(name):
     """A growth switch from desk.json; read on each call so a test or a config edit takes effect at once."""
     try:
@@ -603,7 +613,8 @@ def prompt(block, lane="news", recent=()):
     sport = lane == "sport"
     tail = ("\n\nRECENT (already posted, for same_event only):\n" + "\n".join(f"R{i}: {h}" for i, h in enumerate(recent, 1))
             if recent else "")
-    return PROMPT.format(stories=block, recent=tail, extra_fields=(SO_WHAT_FIELD if switch("so_what") else "") + (BY_SOURCE_FIELD if switch("by_source") else ""),
+    return PROMPT.format(stories=block, recent=tail, extra_fields=(SO_WHAT_FIELD if switch("so_what") else "") + (BY_SOURCE_FIELD if switch("by_source") else "")
+                         + (CONTEXT_FIELD if switch("enrich") and "\nprimary facts:" in block else ""),
                          audience=SPORT_AUDIENCE if sport else AUDIENCE, relevant=SPORT_RELEVANT if sport else RELEVANT,
                          topic_rule=SPORT_TOPIC_RULE if sport else TOPIC_RULE,
                          image_rule=SPORT_IMAGE if sport else IMAGE_RULE,
@@ -624,8 +635,10 @@ def block(stories):
     for i, s in enumerate(stories):
         s["id"] = i
         also = "".join(f"\n- {r['outlet']}: {r['title']}. {r['summary'][:SUMMARY_CAP]}" for r in s.get("reports") or [])
+        facts = (s.get("enrich") or {}).get("facts") or [] if switch("enrich") else []
         out.append(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:SUMMARY_CAP]}"
-                   + (f"\nalso reported:{also}" if also else ""))
+                   + (f"\nalso reported:{also}" if also else "")
+                   + ("\nprimary facts:" + "".join(f"\n- F{n}: {f['text']} (source: {f['label']})" for n, f in enumerate(facts, 1)) if facts else ""))
     return "\n\n".join(out)
 
 
@@ -1219,7 +1232,7 @@ def check_by_source(story, rows):
 def fall_back(s):
     """The story as its source worded it: no checked copy, so the desk will not post it."""
     s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
-             linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback", by_source=[])
+             linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback", by_source=[], context=[])
 
 
 def apply(stories, reply_rows):
@@ -1301,6 +1314,11 @@ def apply(stories, reply_rows):
                 sw = (c.get("so_what") or "").strip()
                 if sw and not check_so_what(s, c, sw):
                     s["so_what"] = sw
+            # primary-source facts (enrich.py): a section of checked sentences, or none; the article never waits on it
+            s["context"] = []
+            if switch("enrich") and s.get("enrich"):
+                from . import enrich  # imported here because enrich imports this module
+                s["context"] = enrich.check_context(s, c.get("context"))
             # what is left to show must stand behind the headline; a headline over another story's report is withheld
             gap = headline_gap(s["headline"], s.get("dek", ""), s.get("linkedin_post", ""), s)
             if gap:

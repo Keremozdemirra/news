@@ -20,6 +20,7 @@ UA = f"boardread/0.2 (+{os.environ.get('DESK_CONTACT_URL', 'https://github.com/K
 # python.org builds ship without a CA bundle; macOS keeps one here
 CTX = ssl.create_default_context(cafile="/etc/ssl/cert.pem" if os.path.exists("/etc/ssl/cert.pem") else None)
 TAG = re.compile(r"<[^>]+>")
+HREF = re.compile(r"""href=["'](https?://[^"'\s>]+)""", re.I)
 
 
 def http_get(url, timeout=20):
@@ -81,9 +82,14 @@ def parse_xml(raw, source_id):
         s = _child(el, "description", "summary", "content", "encoded")
         title = clean(t.text if t is not None else "", 300)
         if title and url.startswith("http"):
-            out.append({"title": title, "url": url, "source_id": source_id,
-                        "published": parse_date(d.text if d is not None else None),
-                        "summary": clean(s.text if s is not None else "")})
+            item = {"title": title, "url": url, "source_id": source_id,
+                    "published": parse_date(d.text if d is not None else None),
+                    "summary": clean(s.text if s is not None else "")}
+            # links in the item's own HTML: enrich.py follows only the ones that lead to a primary source
+            hrefs = list(dict.fromkeys(HREF.findall(html.unescape(s.text or "")) if s is not None else []))[:8]
+            if hrefs:
+                item["hrefs"] = hrefs
+            out.append(item)
     return out
 
 
