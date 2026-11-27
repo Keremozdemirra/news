@@ -23,6 +23,7 @@
   ],
   "max_per_run": 10,
   "spacing_minutes": 45,
+  "ig_gap_minutes": 20,
   "daily_posts_start": 10,
   "daily_posts_step": 2,
   "daily_posts_max": 20,

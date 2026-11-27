@@ -48,7 +48,7 @@ class Tmp(unittest.TestCase):
                         mock.patch.object(desk, "PAUSED", root / "PAUSED"), mock.patch.object(desk, "HERE", root),
                         mock.patch.object(desk, "MEDIA", root / "media"),
                         mock.patch.dict("os.environ", {"GITHUB_TOKEN": "", "DESK_MEDIA_BASE": "https://raw.example/r/main"}),
-                        mock.patch.dict(desk.CONFIG, {"story_concepts": True})]
+                        mock.patch.dict(desk.CONFIG, {"story_concepts": True, "ig_gap_minutes": 0})]  # InstagramGap tests the gap
         for p in self.patches:
             p.start()
         self.root = root
@@ -338,6 +338,26 @@ class Pace(Tmp):
             self.write_post(f"d{i}", status="published", published=(desk.now() - timedelta(hours=25)).isoformat())
         self.write_post("a")
         self.assertEqual(desk.publish(client=FakeIG()), 1)
+
+
+class InstagramGap(Tmp):
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.dict(desk.CONFIG, {"ig_gap_minutes": 20})
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_nothing_goes_to_instagram_within_the_gap_of_the_last_send(self):
+        just = (desk.now() - timedelta(minutes=5)).isoformat()
+        self.write_post("s0", kind="story", status="published", published=just, media_id="m1")
+        self.assertIsNotNone(desk.ig_gap_wait())
+        self.write_post("f1")
+        self.assertEqual(desk.publish(client=FakeIG()), 0)
+
+    def test_free_after_the_gap(self):
+        old = (desk.now() - timedelta(minutes=desk.CONFIG["ig_gap_minutes"] + 1)).isoformat()
+        self.write_post("s0", kind="story", status="published", published=old, media_id="m1")
+        self.assertIsNone(desk.ig_gap_wait())
 
 
 class SlotClock(Tmp):
@@ -1934,7 +1954,8 @@ class Hardening(Tmp):
 
     def test_the_committed_cooldown_blocks_until_the_known_time(self):
         real = json.loads((Path(__file__).resolve().parent.parent / "state" / "cooldown.json").read_text())
-        self.assertEqual(real["until"], "2026-11-27T16:15:00+00:00")
+        # set for 16:15; Kerem ended it early on 2026-11-27, so it may end sooner but never later
+        self.assertLessEqual(real["until"], "2026-11-27T16:15:00+00:00")
         self.assertEqual(real["error"], "manual: Instagram action block 2026-11-26")
 
 

@@ -2187,6 +2187,19 @@ def _mark_live(post, path, m):
     _cross_post(post, path)
 
 
+def last_ig_action():
+    """The last time anything went to Instagram, feed post or story. Bursts trigger action blocks (2026-11-26), so every
+    send keeps ig_gap_minutes from the one before, whatever its kind."""
+    stamps = [_stamp(p.get("published", "")) for p, _ in posts() if p.get("status") == "published" and p.get("media_id", True)]
+    return max((s for s in stamps if s), default=None)
+
+
+def ig_gap_wait():
+    last = last_ig_action()
+    gap = timedelta(minutes=CONFIG.get("ig_gap_minutes", 20))
+    return (last + gap) if last and now() - last < gap else None
+
+
 def last_published():
     stamps = [_stamp(p.get("published", "")) for p, _ in posts()
               if p.get("status") == "published" and p.get("kind") != "story"]
@@ -2366,6 +2379,9 @@ def _publish(client, dry):
             if _over_story_quota():
                 print(f"{post['id']}: near Instagram's daily publishing limit, story left queued")
                 continue
+            if ig_gap_wait():
+                print(f"{post['id']}: story waits for the Instagram gap, until {ig_gap_wait():%H:%M} UTC")
+                continue
             if dry:
                 print(f"{post['id']}: would publish a story")
                 return 0
@@ -2415,6 +2431,9 @@ def _publish(client, dry):
             continue
         if published_last_24h() >= daily_cap():
             print("daily post cap reached; waiting")
+            return 0
+        if ig_gap_wait():
+            print(f"{post['id']}: waits for the Instagram gap, until {ig_gap_wait():%H:%M} UTC")
             return 0
         last = last_published()
         if last and now() - last < timedelta(minutes=CONFIG.get("spacing_minutes", 0)):
