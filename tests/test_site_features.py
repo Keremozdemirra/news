@@ -433,6 +433,12 @@ class Play(Features):
             css = "".join(f.read_text() for f in (d / "css").glob("*.css"))
             for ref in re.findall(r'url\("\.\./([^"]+)"\)', css):          # and every file its stylesheet names
                 self.assertTrue((d / ref).exists(), f"{slug}: {ref}")
+            u = f"{site.SITE}/play/{slug}/"                                 # the same head the site's own pages carry
+            for tag in (f'<link rel="canonical" href="{u}">', f'property="og:url" content="{u}"', 'property="og:title"', 'property="og:description"',
+                        f'property="og:image" content="{u}assets/share.jpg"', 'name="twitter:card" content="summary_large_image"', 'name="twitter:image"', '<meta name="description"'):
+                self.assertIn(tag, html, f"{slug}: {tag}")
+            self.assertEqual(html.count("<h1"), 1, slug)
+            self.assertTrue((d / "assets" / "share.jpg").exists(), slug)
             self.assertIn('href="/play/"', html, slug)                     # a way back to the hub and to Boardread
             self.assertIn('href="/"', html, slug)
 
