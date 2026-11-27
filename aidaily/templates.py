@@ -471,8 +471,7 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
     src = desk.reported_by(outlets) if outlets else story.get("source", "")
     return head() + f"""
 <div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
-<div style="display:flex;justify-content:space-between;align-items:center;min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK}"><span style="font-size:24px;color:{GREY}">{_meta_html(_meta(story), BLACK)}</span>
-<div style="opacity:0.9">{_logo_block(_own_logo(story)[0], '', 34) if _own_logo(story)[0] else ''}</div></div>
+<div style="display:flex;align-items:center;gap:24px;min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK}">{_detail_logo(story)}<span style="font-size:24px;color:{GREY}">{_meta_html(_meta(story), BLACK)}</span></div>
 <h2 style="margin:56px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:{TRACK}">{t(title)}</h2>
 <div style="margin-top:40px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
 <div style="flex:1"></div>
@@ -480,6 +479,20 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
 <div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
 <span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
 </div></body></html>"""
+
+
+# Instagram draws its slide counter ("2/2") in the top right of a carousel slide: nothing of ours goes in a square
+# this big there. The detail slide's logo sat in that corner, squeezed into a square tile (OpenAI post, 2026-11-27).
+IG_COUNTER = 120
+
+
+def _detail_logo(story):
+    """The story's own logo on the detail slide: the shared chip, on the left before the section line, with a hairline
+    so a white chip shows on white paper. Nothing when the logo is not certainly the company's."""
+    uri = _own_logo(story)[0]
+    if not uri:
+        return ""
+    return logo_chip(uri, 68).replace("background:#fff;", f"background:#fff;outline:1px solid {LINE};", 1)
 
 
 def _slide(story, kicker, inner, brand=BRAND):
