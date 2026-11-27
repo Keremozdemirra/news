@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-1117-2",
+ "batch": "2026-11-27-1117",
+ "n": 2,
+ "created": "2026-11-27T11:17:25+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Indonesia arrests three over alleged Dian Swastatika share manipulation\n\nThe arrests follow MSCI's threat to downgrade the country to standalone market status. The suspects allegedly manipulated trading volumes, helping the stock meet criteria for inclusion in MSCI indexes. An Indonesian police official announced the arrests.\n\nReported by Financial Times; The Straits Times.\n\nSend this to whoever on your team covers Dian Swastatika.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.ft.com/content/50626b00-6d7b-47ac-b1f2-4b150ff9417e?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.ft.com/content/50626b00-6d7b-47ac-b1f2-4b150ff9417e?syn-25a6b1a6=1",
+  "https://www.straitstimes.com/asia/se-asia/indonesian-police-arrest-three-over-alleged-dian-swastatika-share-manipulation-official-says"
+ ],
+ "headlines": [
+  "Indonesia arrests three over alleged Dian Swastatika share manipulation"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Markets",
+ "photo_file": "Stockmarket.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A wall of stock prices in green and red",
+ "score": 8.11,
+ "figure": "",
+ "company": "Dian Swastatika",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The arrests follow MSCI's threat to downgrade the country to standalone market status.",
+ "body": "The suspects allegedly manipulated trading volumes, helping the stock meet criteria for inclusion in MSCI indexes. An Indonesian police official announced the arrests.",
+ "so_what": "",
+ "sources": [
+  "Financial Times",
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/50626b00-6d7b-47ac-b1f2-4b150ff9417e?syn-25a6b1a6=1",
+  "https://www.straitstimes.com/asia/se-asia/indonesian-police-arrest-three-over-alleged-dian-swastatika-share-manipulation-official-says"
+ ],
+ "credit": "Photo: AhmadArdity, CC0, via Wikimedia Commons",
+ "credit_file": "Stockmarket.jpg",
+ "status": "web",
+ "published": "2026-11-27T11:17:25+00:00",
+ "story": ""
+}

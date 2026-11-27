@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-1117-1",
+ "batch": "2026-11-27-1117",
+ "n": 1,
+ "created": "2026-11-27T11:17:24+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "India's Modi government revives plan to expand Parliament\n\nNarendra Modi · Politics\n\nParliament will hold a special session from Nov 30 to vote on a constitutional amendment adding about 50% more Lower House lawmakers. An earlier attempt to expand the size of India's Parliament was defeated when opposition parties joined forces against it. Bloomberg reported the revival, citing people familiar with the matter.\n\nReported by The Straits Times; Bloomberg.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/asia/south-asia/modis-government-to-revive-plan-to-expand-indias-parliament"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/modi-s-government-to-revive-plan-to-expand-india-s-parliament",
+  "https://www.straitstimes.com/asia/south-asia/modis-government-to-revive-plan-to-expand-indias-parliament"
+ ],
+ "headlines": [
+  "India's Modi government revives plan to expand Parliament"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "Example voting booth.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A mechanical voting booth",
+ "score": 9.092,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Narendra Modi",
+ "logo_names": [
+  "Parliament"
+ ],
+ "dek": "Parliament will hold a special session from Nov 30 to vote on a constitutional amendment adding about 50% more Lower House lawmakers.",
+ "body": "An earlier attempt to expand the size of India's Parliament was defeated when opposition parties joined forces against it. Bloomberg reported the revival, citing people familiar with the matter.",
+ "so_what": "",
+ "sources": [
+  "The Straits Times",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/asia/south-asia/modis-government-to-revive-plan-to-expand-indias-parliament",
+  "https://www.bloomberg.com/news/articles/2026-11-27/modi-s-government-to-revive-plan-to-expand-india-s-parliament"
+ ],
+ "credit": "Photo: Kenneth C. Zirkel, CC0, via Wikimedia Commons",
+ "credit_file": "Example voting booth.jpg",
+ "status": "web",
+ "published": "2026-11-27T11:17:24+00:00",
+ "story": ""
+}
