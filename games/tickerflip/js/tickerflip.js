@@ -292,7 +292,7 @@ function renderEnd(win) {
 }
 function shareText(win) {
   const rows = guesses.map((g) => score(g, answer).map((x) => SYM[x]).join(""));
-  return `Tickerflip ${extraNo ? "extra board" : "No. " + data.no}  ${win ? guesses.length : "X"}/${ROWS}\n${L} letters\n${rows.join("\n")}\nboardread.news/play/tickerflip`;
+  return `Tickerflip ${extraNo ? "extra board" : "No. " + data.no}  ${win ? guesses.length : "X"}/${ROWS}\n${L} letters\n${rows.join("\n")}\nhttps://boardread.news/play/tickerflip/?utm_source=share`;
 }
 let cdT = 0;
 function countdown() {
@@ -307,7 +307,8 @@ async function share() {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
     toast("Copied.");
-  } catch {
+  } catch (e) {
+    if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     toast("Select and copy the text.");
   }

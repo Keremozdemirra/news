@@ -205,7 +205,7 @@ button { font: inherit; color: inherit; }
 .d-row.loss .d-bar { background: repeating-linear-gradient(135deg, #5b4a2b 0 3px, #3a2f1b 3px 6px); }
 .d-row.loss.me .d-bar { background: repeating-linear-gradient(135deg, #f1a927 0 3px, #b9791a 3px 6px); }
 .d-row.loss.me .d-n { color: #1c1206; background: #ffd878; padding: 0 4px; }
-.share-text { font: 600 15px/1.35 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; background: var(--cab); border: 2px solid var(--brass-lo); border-radius: 0; padding: 12px 14px; color: var(--cream); margin-bottom: 12px; user-select: all; }
+.share-text { font: 600 15px/1.35 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; background: var(--cab); border: 2px solid var(--brass-lo); border-radius: 0; padding: 12px 14px; color: var(--cream); margin-bottom: 12px; user-select: all; overflow-wrap: anywhere; }
 .next-in { text-align: center; font-size: 14px; color: var(--muted); margin-top: 10px; }
 .next-in b { font-size: 17px; color: var(--amber-hi); font-weight: 600; margin-left: 4px; }
 .credit { font-size: 11.5px; line-height: 1.4; color: #8f8470; text-align: center; padding-bottom: 8px; }

@@ -67,12 +67,19 @@ jobs:
             [ -d media ] || scripts/media.sh pull
             python3 -m aidaily shorts run
           fi
-      # Off unless desk.json growth.games_post is true. One Telegram message a day with the three puzzle numbers, sent
-      # once the day's puzzles are on the site; the channel is checked first, so a second run sends nothing.
+      # Off unless desk.json growth.games_post is true. One post a day per platform with the three puzzle numbers, sent
+      # once the day's puzzles are on the site; each platform's feed is checked first, so a second run sends nothing.
+      # The same eight secrets the Publish step above holds, and no others.
       - name: Games post
         if: ${{ !cancelled() }}
         continue-on-error: true
         env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
           TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
         run: python3 -m aidaily games-post --send

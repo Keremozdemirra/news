@@ -177,7 +177,7 @@ def main(argv=None):
     sub.add_parser("insights", help="weekly numbers from every connected platform, weights and learned timing")
     so = sub.add_parser("seo", help="audit a built site directory for Google News, Discover and Search")
     so.add_argument("dir", nargs="?", default="_site")
-    gp = sub.add_parser("games-post", help="the daily games post for Telegram (switch growth.games_post); --send posts it once a day")
+    gp = sub.add_parser("games-post", help="the daily games post for Threads, Bluesky, Telegram and Facebook (switch growth.games_post); --send posts it once a day")
     gp.add_argument("--send", action="store_true")
     tp = sub.add_parser("telegram-pin", help="print the Telegram pinned post; --send posts it silently and pins it")
     tp.add_argument("--send", action="store_true")

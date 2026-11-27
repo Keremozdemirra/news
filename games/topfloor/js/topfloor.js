@@ -413,7 +413,7 @@ function renderEnd(rec) {
   clearInterval(cdT); cdT = setInterval(countdown, 1000); countdown();
   requestAnimationFrame(() => $("e-floor").focus({ preventScroll: true }));
 }
-const shareText = (rec) => `Topfloor No. ${data.no}\nFloor ${rec.floor} of 100\n${rec.ans.map((a) => (a[1] >= 0 ? BARS[a[1]] : "·")).join("")}\nboardread.news/play/topfloor`;
+const shareText = (rec) => `Topfloor No. ${data.no}\nFloor ${rec.floor} of 100\n${rec.ans.map((a) => (a[1] >= 0 ? BARS[a[1]] : "·")).join("")}\nhttps://boardread.news/play/topfloor/?utm_source=share`;
 let cdT = 0;
 function countdown() {
   const now = new Date(), nx = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
@@ -426,7 +426,8 @@ async function share() {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
     toast("Copied.");
-  } catch {
+  } catch (e) {
+    if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     toast("Select and copy the text.");
   }

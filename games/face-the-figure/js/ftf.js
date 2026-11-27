@@ -349,7 +349,7 @@ function renderEnd(rec) {
   for (const [k, v] of [["Played", played], ["Day streak", stats.streak || 1], ["Best score", stats.best ?? rec.score], ["Avg right", ((stats.sumCorrect ?? correct) / played).toFixed(1)]]) {
     const d = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; d.append(dd, dt); sd.appendChild(d);
   }
-  $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nboardread.news/play/face-the-figure`;
+  $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nhttps://boardread.news/play/face-the-figure/?utm_source=share`;
   $("credit").textContent = data.credit;
   // the tickets become two tallies on the pans: misses weigh down A, right calls weigh down B
   for (const [pl, n, name, what] of [[pa, miss, "Missed", "Calls that slipped"], [pb, correct, "Called it", "Right calls"]]) {
@@ -375,7 +375,8 @@ async function share() {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
     toast("Copied.");
-  } catch {
+  } catch (e) {
+    if (e && e.name === "AbortError") return;      // the share sheet was closed: nothing went wrong
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     toast("Select and copy the text.");
   }

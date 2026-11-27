@@ -145,7 +145,7 @@ button { cursor: pointer; -webkit-tap-highlight-color: transparent; border-radiu
 .stats dd { font: 900 30px / 1 var(--sign); font-variant-numeric: tabular-nums; }
 .stats dt { font: 600 10.5px / 1.15 var(--label); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); margin-top: 4px; }
 .share { display: grid; gap: 10px; }
-.share-text { font: 700 14px / 1.55 var(--stamp); letter-spacing: 0.03em; background: var(--paper); border: 2px solid var(--ink); box-shadow: var(--shadow-paper); padding: 10px 12px; white-space: pre-wrap; user-select: all; }
+.share-text { font: 700 14px / 1.55 var(--stamp); letter-spacing: 0.03em; background: var(--paper); border: 2px solid var(--ink); box-shadow: var(--shadow-paper); padding: 10px 12px; white-space: pre-wrap; user-select: all; overflow-wrap: anywhere; }
 .next-in { font: 600 12.5px / 1.2 var(--label); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
 .next-in b { font: 900 26px / 1 var(--sign); letter-spacing: 0.04em; margin-left: 8px; vertical-align: -3px; color: var(--ink); }
 .credit { font: 400 12px / 1.4 var(--plate); color: var(--ink-soft); }
