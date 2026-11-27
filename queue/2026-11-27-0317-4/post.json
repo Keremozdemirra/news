@@ -1,0 +1,55 @@
+{
+ "id": "2026-11-27-0317-4",
+ "batch": "2026-11-27-0317",
+ "n": 4,
+ "created": "2026-11-27T03:17:17+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Trump says he asked Putin to pull back all military aggression against Europe\n\nDonald Trump · World\n\nHe said he made the request when they met in China last week and thinks it would help lead to a deal on Ukraine. His comments came a day after he hosted Nato chief Mark Rutte in Florida.\n\nReported by South China Morning Post; France 24; The Japan Times.\n\nSend this to whoever on your team tracks global risk.\n\n#worldnews #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.scmp.com/news/world/europe/article/3375978/trump-says-he-urged-putin-pull-back-all-military-aggression-europe"
+ ],
+ "links": [
+  "https://www.france24.com/en/trump-urges-putin-to-end-military-aggression-in-europe",
+  "https://www.japantimes.co.jp/news/2026/11/27/world/trump-putin-military-aggression/",
+  "https://www.scmp.com/news/world/europe/article/3375978/trump-says-he-urged-putin-pull-back-all-military-aggression-europe"
+ ],
+ "headlines": [
+  "Trump says he asked Putin to pull back all military aggression against Europe"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "World",
+ "photo_file": "Globe with yellow background 1.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A globe against a yellow wall",
+ "score": 8.991,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Donald Trump",
+ "logo_names": [],
+ "dek": "He said he made the request when they met in China last week and thinks it would help lead to a deal on Ukraine.",
+ "body": "His comments came a day after he hosted Nato chief Mark Rutte in Florida.",
+ "so_what": "",
+ "sources": [
+  "South China Morning Post",
+  "France 24",
+  "The Japan Times"
+ ],
+ "source_urls": [
+  "https://www.scmp.com/news/world/europe/article/3375978/trump-says-he-urged-putin-pull-back-all-military-aggression-europe",
+  "https://www.france24.com/en/trump-urges-putin-to-end-military-aggression-in-europe",
+  "https://www.japantimes.co.jp/news/2026/11/27/world/trump-putin-military-aggression/"
+ ],
+ "credit": "Photo: Wendy Cope, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Globe with yellow background 1.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:17:17+00:00",
+ "story": ""
+}

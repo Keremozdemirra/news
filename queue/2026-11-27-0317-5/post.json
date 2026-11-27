@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0317-5",
+ "batch": "2026-11-27-0317",
+ "n": 5,
+ "created": "2026-11-27T03:17:18+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Counterpoint's Wei Sun discusses China's AI outlook under US chip curbs\n\nCounterpoint Research\n\nUpdated US chip controls further restrict access to the advanced semiconductors needed to train frontier AI models. Wei Sun, Principal Analyst for AI at Counterpoint Research, discusses the outlook for Chinese internet giants and leading AI labs. She spoke with Annabelle Droulers on Bloomberg: Tech Asia.\n\nReported by Bloomberg; The Japan Times.\n\nSend this to whoever on your team covers Counterpoint Research.\n\n#ai #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/counterpoint-on-china-s-ai-progress-under-chip-curbs-video"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/counterpoint-on-china-s-ai-progress-under-chip-curbs-video",
+  "https://www.japantimes.co.jp/business/2026/11/26/companies/china-ai-development-hurdles/"
+ ],
+ "headlines": [
+  "Counterpoint's Wei Sun discusses China's AI outlook under US chip curbs"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "AI",
+ "photo_file": "Micro-chips wafer.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Chips on a silicon wafer in close-up",
+ "score": 8.013,
+ "figure": "",
+ "company": "Counterpoint Research",
+ "ticker": null,
+ "person": "Wei Sun",
+ "logo_names": [],
+ "dek": "Updated US chip controls further restrict access to the advanced semiconductors needed to train frontier AI models.",
+ "body": "Wei Sun, Principal Analyst for AI at Counterpoint Research, discusses the outlook for Chinese internet giants and leading AI labs. She spoke with Annabelle Droulers on Bloomberg: Tech Asia.",
+ "so_what": "",
+ "sources": [
+  "Bloomberg",
+  "The Japan Times"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/counterpoint-on-china-s-ai-progress-under-chip-curbs-video",
+  "https://www.japantimes.co.jp/business/2026/11/26/companies/china-ai-development-hurdles/"
+ ],
+ "credit": "Photo: Syced, CC0, via Wikimedia Commons",
+ "credit_file": "Micro-chips wafer.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:17:18+00:00",
+ "story": ""
+}

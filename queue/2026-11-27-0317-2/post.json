@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0317-2",
+ "batch": "2026-11-27-0317",
+ "n": 2,
+ "created": "2026-11-27T03:17:15+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Taiwan votes Saturday in local elections as officials warn of China interference\n\nVoters will choose mayors, council members and other local leaders across 22 districts. The results will shape the fortunes of the ruling Democratic Progressive party.\n\nReported by The Guardian; Bloomberg.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.theguardian.com/world/2026/nov/27/threat-from-china-looms-large-over-taiwan-local-elections"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/taiwan-gears-up-for-local-elections-video",
+  "https://www.theguardian.com/world/2026/nov/27/threat-from-china-looms-large-over-taiwan-local-elections"
+ ],
+ "headlines": [
+  "Taiwan votes Saturday in local elections as officials warn of China interference"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "Politics",
+ "photo_file": "Example voting booth.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A mechanical voting booth",
+ "score": 9.317,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Voters will choose mayors, council members and other local leaders across 22 districts.",
+ "body": "The results will shape the fortunes of the ruling Democratic Progressive party.",
+ "so_what": "",
+ "sources": [
+  "The Guardian",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.theguardian.com/world/2026/nov/27/threat-from-china-looms-large-over-taiwan-local-elections",
+  "https://www.bloomberg.com/news/videos/2026-11-27/taiwan-gears-up-for-local-elections-video"
+ ],
+ "credit": "Photo: Kenneth C. Zirkel, CC0, via Wikimedia Commons",
+ "credit_file": "Example voting booth.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:17:15+00:00",
+ "story": ""
+}

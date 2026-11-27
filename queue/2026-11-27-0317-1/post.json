@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0317-1",
+ "batch": "2026-11-27-0317",
+ "n": 1,
+ "created": "2026-11-27T03:17:14+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Australia clears law requiring LNG exporters to keep 20% for domestic use\n\nCritics argue the policy could lower prices enough to discourage exploration and investment in new gas resources.\n\nReported by The Japan Times; The Straits Times.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.japantimes.co.jp/business/2026/11/27/australia-gas-reserve-law-lng/"
+ ],
+ "links": [
+  "https://www.japantimes.co.jp/business/2026/11/27/australia-gas-reserve-law-lng/",
+  "https://www.straitstimes.com/asia/australianz/australian-parliament-passes-government-plan-to-reserve-20-of-lng-for-domestic-market"
+ ],
+ "headlines": [
+  "Australia clears law requiring LNG exporters to keep 20% for domestic use"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "Politics",
+ "photo_file": "Colorful Old Oil Barrels.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Weathered oil barrels stacked together",
+ "score": 9.574,
+ "figure": "20%",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Critics argue the policy could lower prices enough to discourage exploration and investment in new gas resources.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Japan Times",
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.japantimes.co.jp/business/2026/11/27/australia-gas-reserve-law-lng/",
+  "https://www.straitstimes.com/asia/australianz/australian-parliament-passes-government-plan-to-reserve-20-of-lng-for-domestic-market"
+ ],
+ "credit": "Photo: Lars Christopher  Nøttaasen, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Colorful Old Oil Barrels.jpg",
+ "status": "web",
+ "published": "2026-11-27T03:17:14+00:00",
+ "story": ""
+}
