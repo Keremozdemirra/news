@@ -47,7 +47,7 @@ class Tmp(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
-        env = mock.patch.dict(os.environ, {"DESK_SITE_OFFLINE": "1"})  # site builds in tests never fetch the market data
+        env = mock.patch.dict(os.environ, {"DESK_SITE_OFFLINE": "1", "REPLY_STATE_KEY": "test-key"})  # site builds in tests never fetch the market data
         env.start()
         self.addCleanup(env.stop)
         self.patches = [mock.patch.object(desk, "QUEUE", root / "queue"), mock.patch.object(desk, "STATE", root / "state"),
@@ -1815,6 +1815,9 @@ class EngageHardening(Tmp):
     def replies(self):
         return json.loads((desk.STATE / "replies.json").read_text())
 
+    def marks(self, *ids):
+        return [desk.comment_hash(i, b"test-key") for i in ids]
+
     def client(self, comments, reply=None):
         class IG:
             sent = []
@@ -1838,24 +1841,24 @@ class EngageHardening(Tmp):
                           {"id": "c2", "username": "bob", "text": "how fast?"}], reply)
         n = desk.engage(client=ig, ask=lambda p: "The lab says the model runs inference 40% faster.")
         self.assertEqual((n, ig.sent), (1, ["c2"]))
-        self.assertEqual(self.replies()["answered"], ["c1", "c2"])  # c1 is never retried
+        self.assertEqual(sorted(self.replies()["answered"]), sorted(self.marks("c1", "c2")))  # c1 is never retried
 
     def test_state_is_saved_after_each_comment(self):
         seen = []
 
         def ask(prompt):
-            seen.append(json.loads((desk.STATE / "replies.json").read_text())["answered"] if (desk.STATE / "replies.json").exists() else [])
+            seen.append(len(json.loads((desk.STATE / "replies.json").read_text())["answered"]) if (desk.STATE / "replies.json").exists() else 0)
             return "The lab says the model runs inference 40% faster."
         ig = self.client([{"id": "c1", "username": "ann", "text": "one?"}, {"id": "c2", "username": "bob", "text": "two?"}])
         desk.engage(client=ig, ask=ask)
-        self.assertEqual(seen, [["c1"], ["c1", "c2"]])  # c1 was on disk before c2 was asked about
+        self.assertEqual(seen, [1, 2])  # c1 was on disk before c2 was asked about
 
     def test_a_crashing_model_call_does_not_fail_the_job(self):
         def ask(prompt):
             raise RuntimeError("claude exited 1")
         ig = self.client([{"id": "c1", "username": "ann", "text": "one?"}])
         self.assertEqual(desk.engage(client=ig, ask=ask), 0)
-        self.assertEqual(self.replies()["answered"], ["c1"])
+        self.assertEqual(list(self.replies()["answered"]), self.marks("c1"))
 
     def test_unreadable_account_name_ends_the_run_quietly(self):
         ig = self.client([])
@@ -1875,7 +1878,47 @@ class EngageHardening(Tmp):
         desk.engage(client=ig, ask=lambda p: asked.append(p) or "The lab says the model runs inference 40% faster.")
         self.assertTrue(desk.cooldown_until())
         self.assertEqual(len(asked), 1)  # c2 was never looked at
-        self.assertNotIn("c1", self.replies()["answered"])
+        self.assertNotIn(self.marks("c1")[0], self.replies()["answered"])
+
+    def test_no_raw_comment_id_is_written_to_the_state_or_the_log(self):
+        """state/replies.json is committed to a public repository and the run log of a public repository is public."""
+        import contextlib
+        import io
+        ids = ["17900000000000001", "17900000000000002"]
+        desk._save(desk.STATE / "replies.json", {"answered": [ids[0]], "days": {}})  # the file as it was before 2026-11-27
+        buf = io.StringIO()
+        ig = self.client([{"id": i, "username": "ann", "text": "how much faster?"} for i in ids[1:]],
+                         lambda cid, msg: (_ for _ in ()).throw(instagram.IGError(f"HTTP 400: comment {cid} not found")))
+        with contextlib.redirect_stdout(buf):
+            desk.engage(client=ig, ask=lambda p: "The lab says the model runs inference 40% faster.")
+        written = (desk.STATE / "replies.json").read_text()
+        for i in ids:
+            self.assertNotIn(i, written)
+            self.assertNotIn(i, buf.getvalue())
+        self.assertEqual(sorted(self.replies()["answered"]), sorted(self.marks(*ids)))
+
+    def test_marks_older_than_14_days_are_dropped(self):
+        old = (desk.now() - timedelta(days=15)).strftime("%Y-%m-%d")
+        desk._save(desk.STATE / "replies.json", {"answered": {"stale": old}, "days": {old: 3}})
+        desk.engage(client=self.client([{"id": "c1", "username": "ann", "text": "how much faster?"}]),
+                    ask=lambda p: "The lab says the model runs inference 40% faster.")
+        got = self.replies()
+        self.assertNotIn("stale", got["answered"])
+        self.assertNotIn(old, got["days"])
+
+    def test_no_key_no_replies(self):
+        with mock.patch.dict(os.environ, {"REPLY_STATE_KEY": "", "ANTHROPIC_API_KEY": "", "CLAUDE_CODE_OAUTH_TOKEN": ""}):
+            ig = self.client([])
+            ig.own_username = mock.Mock(side_effect=AssertionError("Instagram was called"))
+            self.assertEqual(desk.engage(client=ig), 0)
+
+    def test_the_source_dm_names_the_privacy_page(self):
+        sent = []
+        ig = self.client([{"id": "c1", "username": "ann", "text": "SOURCE"}])
+        ig.private_reply = lambda cid, msg: sent.append(msg)
+        desk.engage(client=ig, ask=lambda p: "")
+        self.assertEqual(len(sent), 1)
+        self.assertIn(f"Privacy: {desk.CONFIG['site_url']}/privacy/", sent[0])
 
 
 class Hardening(Tmp):

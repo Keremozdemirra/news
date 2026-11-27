@@ -8,9 +8,11 @@ to one account.
 
 State lives in the repository, so every post and reply is a commit:
   queue/<id>/post.json   cards, caption, status, issue number, media id
-  state/replies.json     comment ids answered, per day count
+  state/replies.json     keyed hashes of the comments answered (14 days), per day count
   state/insights/        weekly numbers and the category weights they produce
 """
+import hashlib
+import hmac
 import json
 import math
 import shutil
@@ -3160,6 +3162,23 @@ def check_reply(reply, caption):
     return problems
 
 
+REPLY_KEEP_DAYS = 14  # Meta's private-reply window is 7 days: an older comment can no longer be answered, so its mark is useless
+
+
+def reply_key():
+    """The key that turns a comment id into the mark kept in state/replies.json. It is a secret the job already holds
+    (no new one), stable between runs, and never written anywhere. Without it nothing is answered: an unkeyed hash of a
+    17-digit id can be reversed in minutes."""
+    for name in ("REPLY_STATE_KEY", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"):
+        if os.environ.get(name):
+            return os.environ[name].encode()
+    return None
+
+
+def comment_hash(comment_id, key):
+    return hmac.new(key, f"instagram-comment:{comment_id}".encode(), hashlib.sha256).hexdigest()[:32]
+
+
 def engage(client=None, ask=copy.ask_text, dry=False):
     if paused():
         print("paused: no replies")
@@ -3171,11 +3190,17 @@ def engage(client=None, ask=copy.ask_text, dry=False):
     if blocked:
         print(f"Instagram cooldown until {blocked:%Y-%m-%d %H:%M} UTC: no replies")
         return 0
+    key = reply_key()
+    if not key:
+        print("no key for the reply state: no replies")
+        return 0
     if client is None:
         from .instagram import Client
         client = Client()
-    log = _load(STATE / "replies.json", {"answered": [], "days": {}})
+    log = _load(STATE / "replies.json", {"answered": {}, "days": {}})
     day = now().strftime("%Y-%m-%d")
+    if isinstance(log.get("answered"), list):  # until 2026-11-27 the file held the raw ids: keep only their marks
+        log["answered"] = {comment_hash(i, key): day for i in log["answered"]}
     budget = CONFIG["reply_daily_cap"] - log["days"].get(day, 0)
     try:
         me = client.own_username()
@@ -3200,7 +3225,9 @@ def engage(client=None, ask=copy.ask_text, dry=False):
 
     def save():
         # after every comment: a crash later in the run must not lose what was already answered
-        log["answered"] = log["answered"][-5000:]
+        oldest = (now() - timedelta(days=REPLY_KEEP_DAYS)).strftime("%Y-%m-%d")
+        log["answered"] = {h: d for h, d in log["answered"].items() if d >= oldest}
+        log["days"] = {d: n for d, n in log["days"].items() if d >= oldest}
         _save(STATE / "replies.json", log)
 
     for post, _ in posts():
@@ -3221,10 +3248,15 @@ def engage(client=None, ask=copy.ask_text, dry=False):
         for c in comments:
             if halted:  # Instagram blocked the account: every further call digs the hole deeper
                 break
-            if c["id"] in log["answered"] or c.get("username") == me:
+            h = comment_hash(c["id"], key)
+            tag = h[:8]  # the run log of a public repository shows this, never the id
+
+            def clean(e):
+                return str(e).replace(c["id"], tag)
+            if h in log["answered"] or c.get("username") == me:
                 continue
             if any(r.get("username") == me for r in c.get("replies", {}).get("data", [])):
-                log["answered"].append(c["id"])
+                log["answered"][h] = day
                 save()
                 continue
             is_source = bool(KEYWORD.search(c.get("text", ""))) and post.get("kind") != "data"  # no article page to send
@@ -3232,50 +3264,50 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 waiting = True  # left for tomorrow's budget, so the post must be read again
                 continue
             # judged once, replied or not: recorded before anything is sent, so a failure here is never retried
-            log["answered"].append(c["id"])
+            log["answered"][h] = day
             save()
             try:
                 if is_source:
                     # the reader asked for the links: one private reply, fixed text, sent once per comment
-                    msg = CONFIG["source_dm"].format(headline=post["headlines"][0], url=story_url(post["id"]))
+                    msg = CONFIG["source_dm"].format(headline=post["headlines"][0], url=story_url(post["id"]), privacy=f"{CONFIG['site_url']}/privacy/")
                     # the public reply tells the reader (and everyone after them) where the links went; it rotates
                     # through a fixed set so the thread does not read as one bot line pasted twenty times
                     note = CONFIG["source_replies"][log.get("source_n", 0) % len(CONFIG["source_replies"])]
                     if dry:
-                        print(f"comment {c['id']}: would DM: {msg} / reply: {note}")
+                        print(f"comment {tag}: would DM: {msg} / reply: {note}")
                     else:
                         try:
                             client.private_reply(c["id"], msg)
                         except Exception as e:  # noqa: BLE001  a closed inbox or an expired window costs one DM
-                            print(f"comment {c['id']}: DM failed: {str(e)[:160]}")
-                            if note_block(e):
-                                log["answered"].remove(c["id"])  # never sent: retry after the cooldown
+                            print(f"comment {tag}: DM failed: {clean(e)[:160]}")
+                            if note_block(clean(e)):
+                                log["answered"].pop(h, None)  # never sent: retry after the cooldown
                                 halted = True
                             continue
                         try:
                             client.reply(c["id"], note)
                         except Exception as e:  # noqa: BLE001  the DM went out; a failed public note is cosmetic
-                            print(f"comment {c['id']}: public reply failed: {str(e)[:160]}")
-                            note_block(e)
+                            print(f"comment {tag}: public reply failed: {clean(e)[:160]}")
+                            note_block(clean(e))
                     log["source_n"] = log.get("source_n", 0) + 1
                     dms += 1
                     continue
                 reply = ask(REPLY_PROMPT.format(caption=post["caption"], comment=c.get("text", "")[:600])).strip()
                 problems = check_reply(reply, post["caption"])
                 if problems:
-                    print(f"comment {c['id']}: no reply ({', '.join(problems)})")
+                    print(f"comment {tag}: no reply ({', '.join(problems)})")
                     continue
                 if dry:
-                    print(f"comment {c['id']}: would reply: {reply}")
+                    print(f"comment {tag}: would reply: {reply}")
                 else:
                     client.reply(c["id"], reply)
                 sent += 1
                 budget -= 1
                 log["days"][day] = log["days"].get(day, 0) + 1
             except Exception as e:  # noqa: BLE001  one bad comment must not cost the others, or the job
-                print(f"comment {c['id']}: failed: {str(e)[:160]}")
-                if note_block(e):
-                    log["answered"].remove(c["id"])
+                print(f"comment {tag}: failed: {clean(e)[:160]}")
+                if note_block(clean(e)):
+                    log["answered"].pop(h, None)
                     halted = True
             finally:
                 save()

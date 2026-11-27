@@ -25,7 +25,7 @@ class Tmp(unittest.TestCase):
                                                      "THREADS_TOKEN": "threads-token-value", "THREADS_USER_ID": "me",
                                                      "FB_PAGE_TOKEN": TOKEN, "FB_PAGE_ID": "111", "BSKY_HANDLE": "desk.bsky.social",
                                                      "BSKY_APP_PASSWORD": "abcd-efgh-ijkl-mnop", "TG_BOT_TOKEN": "tg-token-value",
-                                                     "TG_CHANNEL": "@chan"}),
+                                                     "TG_CHANNEL": "@chan", "REPLY_STATE_KEY": "test-key"}),
                         mock.patch.dict(desk.CONFIG, {"platforms": {n: True for n in platforms.NAMES}, "token_expiry": {}})]
         for p in self.patches:
             p.start()

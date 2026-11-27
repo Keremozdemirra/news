@@ -44,7 +44,7 @@
   "source_keyword": "SOURCE",
   "source_line": "Comment SOURCE and we'll DM the links.",
   "source_line_legacy": ["Want the sources? Comment SOURCE and we'll send them to your DMs."],
-  "source_dm": "Sources for \"{headline}\": {url}",
+  "source_dm": "Sources for \"{headline}\": {url}\nPrivacy: {privacy}",
   "newsletter_url": "",
   "media_keep_days": 3,
   "thumb_keep_days": 120,
