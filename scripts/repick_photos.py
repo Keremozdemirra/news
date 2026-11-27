@@ -47,7 +47,7 @@ def repick(pid, dry=False):
     story["_assets"] = {"logo": logos[0].as_uri() if logos else "", "backer": "", "ticker": post.get("ticker"),
                         "logos": [x.as_uri() for x in logos], "logo_names": post.get("logo_names") or [],
                         "photo": ph.as_uri(), "credit": credit, "file": file_, "kind": kind, "alt": alt}
-    new = dict(post, photo_file=file_, credit=credit, credit_file=file_, photo_kind=kind, photo_alt=alt or post.get("photo_alt", ""))
+    new = dict(post, photo_file=file_, credit=credit, credit_file=file_, photo_kind=kind, photo_alt=alt or "")  # the old photo's alt never describes the new one
     # only what the photo decides: an old post's other notes (a caption from before the SOURCE flag) are not this fix's
     problems = [x for x in desk.audit(new) if any(w in x for w in ("photo", "scene", "credit"))]
     print(f"{pid}: {post.get('photo_file')!r} -> {file_!r} ({kind}){' HELD: ' + '; '.join(problems) if problems else ''}")
