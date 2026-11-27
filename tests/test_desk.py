@@ -341,6 +341,13 @@ class Pace(Tmp):
 
 
 class Ramp(Tmp):
+    # the ramp's logic, tested with fixed numbers rather than whatever desk.json holds today
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.dict(desk.CONFIG, {"daily_posts_start": 12, "daily_posts_step": 4, "daily_posts_max": 40})
+        p.start()
+        self.addCleanup(p.stop)
+
     def pace(self, **kw):
         base = {"cap": 12, "since": desk.now().isoformat(), "last_block": ""}
         base.update(kw)
