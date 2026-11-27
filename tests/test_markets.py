@@ -121,3 +121,57 @@ class Markets(unittest.TestCase):
         self.assertIn("Brent", markets.context_for({"headlines": ["Oil jumps as OPEC cuts output"], "dek": ""}, m))
         self.assertEqual(markets.context_for({"headlines": ["SAP explores job cuts"], "dek": "Restructuring."}, m), "")
         self.assertEqual(markets.context_for(p, None), "")
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
+
+
+class Metals(unittest.TestCase):
+    def pink(self):
+        return markets.parse_pink((FIXTURES / "pink_sheet_mini.xlsx").read_bytes())
+
+    def test_pink_sheet_parses_by_header_name_and_skips_unpublished_cells(self):
+        got = self.pink()
+        self.assertEqual(set(got), set(markets.METALS))
+        self.assertEqual(got["gold"][-1], ("2026-10-01", 4105.0))
+        self.assertEqual(got["aluminium"][-1], ("2026-10-01", 3061.0))
+        self.assertEqual(got["ironore"][-1], ("2026-10-01", 90.8))
+        self.assertEqual(len(got["tin"]), 13)  # one "…" cell left out, not read as zero
+        self.assertEqual(got["gold"], sorted(got["gold"]))
+
+    def test_the_download_link_is_read_from_the_page_not_hard_coded(self):
+        page = '<a href="https://thedocs.worldbank.org/en/doc/abc123-0050012026/related/CMO-Historical-Data-Monthly.xlsx">Monthly</a>'
+        self.assertTrue(markets.WB_LINK.search(page).group(0).endswith("CMO-Historical-Data-Monthly.xlsx"))
+        with mock.patch.object(markets, "_get", return_value=page), mock.patch.object(markets, "_get_bytes", return_value=(FIXTURES / "pink_sheet_mini.xlsx").read_bytes()) as g:
+            self.assertIn("copper", markets.pink())
+        self.assertIn("abc123", g.call_args[0][0])
+        with mock.patch.object(markets, "_get", return_value="<html>moved</html>"), self.assertRaises(ValueError):
+            markets.pink()
+
+    def test_metals_are_labelled_as_monthly_averages_with_thousands_separators(self):
+        m = data()
+        m["series"].update({k: [list(x) for x in v] for k, v in self.pink().items()})
+        r = {x["k"]: x for x in markets.rows(m, markets.METALS)}
+        self.assertEqual(r["Gold"]["v"], "$4,105")
+        self.assertEqual(r["Gold"]["date"], "Oct 2026 avg")
+        self.assertEqual(r["Silver"]["v"], "$57.00")
+        self.assertIn("chg down", r["Gold"]["chg"])  # 4319 -> 4105
+        html = markets.cards(m, markets.METALS)
+        self.assertIn("Oct 2026 avg", html)
+        self.assertIn("monthly averages", html)
+        self.assertIn("World Bank, Commodity Price Data (The Pink Sheet), CC BY 4.0", html)
+        self.assertNotIn("Series date 1 ", html)
+
+    def test_metals_stay_out_of_the_rail_strip_and_the_other_attribution(self):
+        m = data(True)
+        m["series"].update({k: [list(x) for x in v] for k, v in self.pink().items()})
+        self.assertNotIn("Gold", markets.rates_box(m) + markets.strip(m))
+        self.assertNotIn("World Bank", markets.attribution(m))
+        self.assertNotIn("Gold", markets.cards(m))
+
+    def test_a_failed_pink_sheet_keeps_the_last_good_metals(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "m.json"
+            f.write_text(json.dumps({"series": {"gold": [["2026-10-01", 4105.0]]}}))
+            with mock.patch.object(markets, "FILE", f), mock.patch.object(markets, "fetch", return_value={}):
+                self.assertEqual(markets.load()["series"]["gold"][-1][1], 4105.0)
