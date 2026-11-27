@@ -652,7 +652,10 @@ def distractors(fig):
 
 
 def _in_text(fig, text):
-    """The figure as its own token in the text, not inside a longer number."""
+    """The figure as its own token in the text, not inside a longer number. A figure has a digit: "a million" and
+    "a quarter" in old posts must never fill the site's number box or a quiz blank."""
+    if not re.search(r"\d", fig or ""):
+        return False
     return re.search(rf"(?<![\d.,$€£]){re.escape(fig)}(?!\d|[.,]\d)", text) is not None
 
 

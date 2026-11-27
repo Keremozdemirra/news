@@ -217,6 +217,13 @@ class Copy(unittest.TestCase):
         self.assertEqual(desk.body(t), "")
         self.assertIn("The vote is a boost for Milei.", desk.caption({"headline": t["headline"], "source": "BA Times"}, t))
 
+    def test_old_posts_with_a_word_figure_get_no_number_box(self):
+        from aidaily import site
+        p = {"headlines": ["UK Neet number falls below a million"], "dek": "", "figure": "a million"}
+        self.assertEqual(site.number_box(p), "")
+        p.update(headlines=["UK net migration falls to 77,000"], figure="77,000")
+        self.assertIn("The number", site.number_box(p))
+
     def test_a_spelled_out_quantity_is_never_the_number(self):
         s = {"title": "Number of Neets in UK falls below a million", "summary": "", "source": "The Guardian"}
         copy.apply([s], [{"id": 0, "headline": "UK Neet number falls below a million", "dek": "", "x_post": "",
