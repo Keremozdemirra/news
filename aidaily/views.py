@@ -31,12 +31,11 @@ def mt(p):
     return f'{E(S.topic(p))} &middot; <time datetime="{S.iso(p["published"])}">{S.hhmm(p["published"])}</time> UTC &middot; {nroom(p)}'
 
 
-def img(p, ratio="3/2", thumb=True):
+def img(p, ratio="3/2", thumb=True, fixed=False):
+    """fixed: the stylesheet gives the image its own width and height (the board rows), so the shape is kept as asked."""
     if not p.get("_thumb"):
         return ""
-    src = f"{S.BASE}/img/{p['id']}-t.jpg" if thumb or not p.get("_hires") else f"{S.BASE}/img/{p['id']}.jpg"
-    w, h = (480, 320) if thumb or not p.get("_hires") else (960, 640)
-    return f'<img src="{src}" width="{w}" height="{h}" alt="" loading="lazy" decoding="async" style="aspect-ratio:{ratio}">'
+    return S.photo_img(p, thumb, ratio, fixed=fixed)
 
 
 def paras(p):
@@ -118,7 +117,7 @@ def front(shown, cos, m, sport=()):
             return False
         seen.add(subj)
         return True
-    fig = (f'<figure><img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">'
+    fig = (f'<figure>{S.photo_img(lead, False, "16/9", load="eager")}'
            f'<figcaption>{E(S.credit_line(lead))}</figcaption></figure>') if ph(lead) and lead.get("_hires") else ""
     first = next((x for x in (lead.get("body") or "").split("\n") if x.strip()), "")
     lead_html = (f'<div class="lead"><a class="kick" href="{S.BASE}{S.topic_path(S.topic(lead))}">{E(S.topic(lead))}</a>'
@@ -225,7 +224,7 @@ def board_rows(rows):
     out = ""
     for p in rows:
         big = bool(p.get("_hires")) and S.coverage(p) >= 4
-        th = img(p, "3/2") if p.get("_thumb") else '<span class="th"></span>'
+        th = img(p, "3/2", fixed=True) if p.get("_thumb") else '<span class="th"></span>'
         out += (f'<article class="row dep{" big" if big else ""}"><span class="tm"><time datetime="{S.iso(p["published"])}">{flaps(S.hhmm(p["published"]), go=True)}'
                 f'<span class="sr">{S.hhmm(p["published"])} UTC</span></time></span><span class="sc" title="{E(S.topic(p))}">{CODE[S.topic(p)]}</span>'
                 f'<div class="ti"><h3><a href="{S.href(p)}">{E(p["headlines"][0])}</a></h3>'
@@ -316,10 +315,10 @@ def cover_page(shown):
     lead = next((p for p in top if p.get("_hires")), top[0])
     lines = "".join(f'<li><a href="{S.href(p)}">{E(p["headlines"][0])}</a></li>' for p in top if p is not lead)[:4000]
     lines = "".join(f'<li><a href="{S.href(p)}">{E(p["headlines"][0])}</a></li>' for p in [q for q in top if q is not lead][:4])
-    photo = f'<img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">' if lead.get("_hires") else ""
+    photo = S.photo_img(lead, False, "4/3", load="eager", box=False) if lead.get("_hires") else ""
     unfinished = wk == datetime.now(timezone.utc).strftime("%G-W%V")
     unfinished = wk == datetime.now(timezone.utc).strftime("%G-W%V")
-    photo = f'<img src="{S.BASE}/img/{lead["id"]}.jpg" width="960" height="640" alt="" fetchpriority="high">' if photo_ok(lead) and lead.get("_hires") else ""
+    photo = S.photo_img(lead, False, "4/3", load="eager", box=False) if photo_ok(lead) and lead.get("_hires") else ""
     return (head(f"Week {wk[-2:]}, {wk[:4]}" + (", so far" if unfinished else ""), "The cover", "The week's top articles as one card, ready to share.")
             + f'<div class="cover4"><a class="cv-card" href="{S.href(lead)}">{photo}<span class="cin"><span class="cg">boardread. &middot; Week {wk[-2:]}</span>'
               f'<h2>{E(lead["headlines"][0])}</h2></span></a>'
@@ -376,8 +375,12 @@ def edition_pages(rows, m, day):
     chunks = [rest[i:i + 4] for i in range(0, len(rest), 4)]
 
     def a(p, cls="", photo=False, dek=True, ratio="3/2"):
-        im = f'<img src="{S.BASE}/img/{p["id"]}-t.jpg" width="480" height="320" alt="" loading="lazy" style="aspect-ratio:{ratio}">' if photo and p.get("_thumb") else ""
-        return (f'<div class="a"><div class="m">{E(S.topic(p))} &middot; {S.hhmm(p["published"])}</div>{im}<h3 class="{cls}"><a href="{S.href(p)}">{E(p["headlines"][0])}</a></h3>'
+        im = S.photo_img(p, True, ratio) if photo and p.get("_thumb") else ""
+        side = ""
+        if im and cls == "x" and S.fit(p, True, ratio)[2] != ratio:
+            # a face does not fit a wide strip, and the page has no room for a tall one under the headline: the portrait stands beside it
+            im, side = S.photo_img(p, True, "3/4", fixed=True), " side"
+        return (f'<div class="a{side}"><div class="m">{E(S.topic(p))} &middot; {S.hhmm(p["published"])}</div>{im}<h3 class="{cls}"><a href="{S.href(p)}">{E(p["headlines"][0])}</a></h3>'
                 + (f'<p>{E(p.get("dek", ""))}</p>' if dek else "") + "</div>")
 
     def page(n, sect, inner):

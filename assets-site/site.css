@@ -241,10 +241,7 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
   .foot-grid{grid-template-columns:minmax(0,1fr)}
   .sbox input{font-size:18px}
 }
-@media (prefers-reduced-motion:no-preference){
-  .pic img{transition:transform .6s cubic-bezier(.2,.7,.2,1)}
-  a:hover .pic img{transform:scale(1.02)}
-}
+/* no hover zoom on photos: a tap leaves :hover on, so the picture grew under the finger as the page opened */
 @media print{.mh,.rail,.foot,.related,.prevnext,.share{display:none}.art{display:block}}
 .prevnext.one{grid-template-columns:minmax(0,1fr)}
 .h-s,.h-m{display:block}

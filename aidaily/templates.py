@@ -167,6 +167,22 @@ def _logo_tile(uri, size):
             f'<img src="{uri}" style="width:100%;height:100%;object-fit:contain"></div>')
 
 
+_POS = {}
+
+
+def _pos(uri, w, h, about=None):
+    """CSS object-position for the photo at `uri` in a w x h box, centred on its focal point (the face of a portrait), so the crop
+    does not cut the forehead or the chin. `about`: a dict with person / photo_file of the story, or None for a portrait."""
+    from urllib.parse import unquote, urlparse
+    from . import focus
+    path = unquote(urlparse(uri).path) if uri.startswith("file:") else ""
+    if (path, bool(about)) not in _POS:
+        at = focus.for_post(about if about is not None else {"person": "portrait"}, path)[0] if path else focus.PRIOR_SCENE
+        _POS[path, bool(about)] = (at, focus.jpeg_size(path) or (w, h))
+    at, size = _POS[path, bool(about)]
+    return focus.object_position(at, size, w / h)
+
+
 def _aspect(uri):
     """Width over height of a local SVG from its viewBox or width/height; 4 (a wordmark) when unreadable."""
     try:
@@ -230,7 +246,7 @@ def card(story, brand=BRAND, motion=False, height=1350):
         grad = ("rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.84) 58%,rgba(0,0,0,.94) 100%" if tall else
                 "rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%")
         photo = "" if motion else (f'<img src="{a["photo"]}" style="position:absolute;inset:0;width:1080px;height:{height}px;object-fit:cover;'
-                                   f'object-position:50% {"25%" if story.get("person") else "50%"}">')
+                                   f'object-position:{_pos(a["photo"], 1080, height, {"person": story.get("person"), "photo_file": story.get("photo_file")})}">')
         return head().replace("<body>", "<body style=\"background:transparent\">" if motion else "<body>") + f"""
 <div style="position:relative;width:1080px;height:{height}px;background:{'transparent' if motion else BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
 {photo}
@@ -384,7 +400,7 @@ def story_company(logo_uri, name, rows, label):
 def story_person(photo_uri, name, headline, credit, label):
     """In the news: the person of the day in a licensed portrait, with the headline that put them there."""
     inner = (f'{_story_tag("In the news")}'
-             f'<div style="margin-top:30px;border-radius:24px;overflow:hidden;height:700px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+             f'<div style="margin-top:30px;border-radius:24px;overflow:hidden;height:700px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:{_pos(photo_uri, 912, 700)}"></div>'
              f'{_credit(credit)}'
              f'<div style="margin-top:32px;font-size:88px;font-weight:800;letter-spacing:-4px;line-height:.95">{e(name)}</div>'
              f'<div style="margin-top:20px;font-size:42px;font-weight:700;line-height:1.15;letter-spacing:-1px;color:#d6d6d4">{e(headline)}</div>'
@@ -416,7 +432,7 @@ def story_quiz(hint, label, options=(), title="Guess the<br>company."):
 def story_whois(photo_uri, label, options, credit=""):
     """Who is this?: a licensed portrait, no name, four names. The answer is the next story."""
     inner = (f'{_story_head("Who is this?", top=48)}'
-             f'<div style="margin-top:28px;border-radius:24px;overflow:hidden;width:700px;height:515px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+             f'<div style="margin-top:28px;border-radius:24px;overflow:hidden;width:700px;height:515px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:{_pos(photo_uri, 700, 515)}"></div>'
              f'{_credit(credit)}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{_options(options, 44)}</div>{_story_foot("Answer on the next story")}')
     return _story_shell(inner, label)
@@ -471,7 +487,7 @@ def story_answer(letter, options, label, headline="", mark="", logo_uri="", phot
         # the portrait sits beside the headline, in the same 1.36:1 frame as the question, so a face is never cut to a strip
         story = (f'<div style="margin-top:36px;display:flex;gap:32px;align-items:flex-start">'
                  f'<div style="flex:none;border-radius:24px;overflow:hidden;width:430px;height:316px"><img src="{photo_uri}" '
-                 f'style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+                 f'style="width:100%;height:100%;object-fit:cover;object-position:{_pos(photo_uri, 430, 316)}"></div>'
                  f'<div style="font-size:42px;font-weight:800;line-height:1.18;letter-spacing:-1px;color:#d6d6d4">{_marked(headline, mark)}</div></div>'
                  f'{_credit(credit)}')
     else:

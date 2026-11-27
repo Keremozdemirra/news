@@ -31,6 +31,7 @@
 .pg .a{padding:9px 0 11px;border-bottom:1px solid var(--rule)}.pg .a:last-child{border-bottom:0}
 .pg .a p{color:var(--soft);margin-top:5px;font-size:11.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .pg .a img{width:100%;display:block;object-fit:cover;margin-bottom:6px}
+.pg .a.side{display:grid;grid-template-columns:200px minmax(0,1fr);column-gap:18px;align-items:start}.pg .a.side img{grid-column:1;grid-row:1/span 3;margin:0}.pg .a.side>:not(img){grid-column:2}
 .pg .m{font:500 9.5px var(--f);letter-spacing:.08em;color:var(--faint);margin-bottom:3px}
 .pg .ft{margin-top:auto;border-top:1px solid var(--ink);padding-top:5px;display:flex;justify-content:space-between;font:600 10px var(--f);letter-spacing:.1em;color:var(--faint)}
 .pg .nn{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}.pg .nn b{font:800 52px/.85 var(--f);display:block;overflow-wrap:anywhere}.pg .nn span{font:800 17px/1 var(--f);display:block;margin-top:4px}

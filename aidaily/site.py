@@ -32,7 +32,7 @@ from email.utils import format_datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import desk, markets, outlets, seo
+from . import desk, focus, markets, outlets, seo
 
 E = lambda s: html.escape(s or "", quote=True)  # noqa: E731
 # DESK_SITE_URL builds the same pages for another address (a local preview, a staging host) without touching desk.json
@@ -328,14 +328,38 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 
 # ---------------------------------------------------------------- pieces
 
-def pic(p, thumb=False, eager=False):
-    """The photo in a 3:2 box. width and height give the box before the file arrives, so nothing shifts."""
+PHOTOS = {}  # post id -> {"dim": (w, h), "dim_t": (w, h), "focus": (fx, fy), "face": bool}, filled while the images are written
+
+
+def fit(p, thumb, ratio, fixed=False):
+    """(src, (w, h), ratio, object-position) of the photo of p in a box of shape `ratio`.
+
+    w and h are the file's own size, so the browser reserves the right box before the file arrives. The position comes
+    from the photo's focal point and the box shape, so a face stays inside every crop; a face is never cut into a strip
+    wider than 3:2. The same call serves every page, so the thumbnail in a list and the figure on the article agree."""
+    use_thumb = thumb or not p.get("_hires")
+    src = f"{BASE}/img/{p['id']}-t.jpg" if use_thumb else f"{BASE}/img/{p['id']}.jpg"
+    m = PHOTOS.get(p["id"], {})
+    size = m.get("dim_t" if use_thumb else "dim") or ((480, 320) if use_thumb else (960, 640))
+    ratio = ratio if fixed else focus.box_ratio(ratio, size, m.get("face"))  # fixed: the stylesheet sets the box, so the shape is not ours to change
+    return src, size, ratio, focus.object_position(m.get("focus") or focus.PRIOR_SCENE, size, focus.ratio_value(ratio))
+
+
+def photo_img(p, thumb=True, ratio="3/2", alt="", load="lazy", box=True, fixed=False):
+    """The <img> of p. `box`: the tag carries its own aspect-ratio (when no wrapper does), so nothing moves while it loads."""
+    src, (w, h), ratio, pos = fit(p, thumb, ratio, fixed)
+    lazy = 'fetchpriority="high"' if load == "eager" else 'loading="lazy" decoding="async"'
+    style = f"aspect-ratio:{ratio};" if box else ""
+    return f'<img src="{src}" width="{w}" height="{h}" alt="{E(alt)}" {lazy} style="{style}object-position:{pos}">'
+
+
+def pic(p, thumb=False, eager=False, ratio="3/2", alt=""):
+    """The photo in a box of the given shape (3:2 unless a page asks for another). The wrapper holds the shape, the image
+    fills it, so the page does not shift as photos arrive."""
     if not p.get("_thumb"):
         return ""
-    src = f"{BASE}/img/{p['id']}-t.jpg" if thumb or not p.get("_hires") else f"{BASE}/img/{p['id']}.jpg"
-    w, h = (480, 320) if thumb or not p.get("_hires") else (960, 640)
-    load = 'fetchpriority="high"' if eager else 'loading="lazy" decoding="async"'
-    return f'<span class="pic"><img src="{src}" width="{w}" height="{h}" alt="" {load}></span>'
+    ratio = fit(p, thumb, ratio)[2]
+    return f'<span class="pic" style="aspect-ratio:{ratio}">{photo_img(p, thumb, ratio, alt=alt, load="eager" if eager else "lazy", box=False)}</span>'
 
 
 def by(p):
@@ -445,7 +469,7 @@ def listing(rows, path, n, total, aside=""):
     if not rows:
         return '<div class="empty">The first articles are on their way.</div>'
     first = rows[0] if n == 1 and rows[0].get("_hires") else None
-    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True)}<span class="kick">{E(topic(first))}</span>'
+    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True, ratio="16/9")}<span class="kick">{E(topic(first))}</span>'
             f'<h2 class="h-xl">{E(first["headlines"][0])}</h2><p class="dek">{E(first.get("dek", ""))}</p>'
             f'{meta(t_tag(first), cover(first))}</a></div>') if first else ""
     body = lead + f'<ol>{"".join(listing_row(p) for p in rows if p is not first)}</ol>' + pager(path, n, total)
@@ -469,12 +493,13 @@ def share_links(p):
             + "".join(f'<a href="{E(h2)}" target="_blank" rel="noopener noreferrer" aria-label="Share on {n}">{mark(n)}<span class="t">{n}</span></a>' for n, h2 in items) + "</div>")
 
 
-def og_image(photo, dest):
+def og_image(photo, dest, at=None, size=None):
     """A 1200x630 JPEG cut from the article's photo, for link previews (Facebook, Telegram, Threads, X).
 
-    The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop, biased to the top
-    third because the subject of a portrait photo sits there. ffmpeg is on the Actions image and on the desk's Mac."""
-    vf = f"scale={OG_W}:{OG_H}:force_original_aspect_ratio=increase,crop={OG_W}:{OG_H}:(iw-{OG_W})/2:(ih-{OG_H})*0.3"
+    The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop whose window is centred on the
+    photo's focal point (the face of a portrait), as far as the edges allow. ffmpeg is on the Actions image and on the desk's Mac."""
+    px, py = focus.position(at or focus.PRIOR_SCENE, size or focus.jpeg_size(photo) or (OG_W, OG_H), OG_W / OG_H)
+    vf = f"scale={OG_W}:{OG_H}:force_original_aspect_ratio=increase,crop={OG_W}:{OG_H}:(iw-{OG_W})*{px:.4f}:(ih-{OG_H})*{py:.4f}"
     try:
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "3", str(dest)],
                        check=True, capture_output=True, timeout=60)
@@ -489,7 +514,9 @@ def card_html(p, photo=None):
     head, n = p["headlines"][0], coverage(p)
     size = 70 if len(head) <= 60 else 60 if len(head) <= 95 else 50 if len(head) <= 130 else 42
     face = "".join(f"@font-face{{font-family:'Libre Franklin';font-weight:{w};src:url('file://{ASSETS / 'fonts' / f'LibreFranklin-{w}.woff2'}') format('woff2')}}" for w in (400, 600, 800))
-    img = (f'<div class="ph"><img src="file://{photo}"></div>' if photo
+    m = PHOTOS.get(p.get("id"), {})
+    pos = focus.object_position(m.get("focus") or focus.PRIOR_SCENE, m.get("dim") or focus.jpeg_size(photo) or (960, 640), 420 / OG_H) if photo else ""
+    img = (f'<div class="ph"><img src="file://{photo}" style="object-position:{pos}"></div>' if photo
            else "")
     return f"""<!doctype html><meta charset="utf-8"><style>{face}
 *{{box-sizing:border-box;margin:0}}body{{width:{OG_W}px;height:{OG_H}px;background:#fff;color:#111;font-family:'Libre Franklin',Arial,sans-serif;display:flex;overflow:hidden}}
@@ -499,7 +526,7 @@ h1{{font-weight:800;font-size:{size}px;line-height:1.06;letter-spacing:-.035em;m
 .b{{display:flex;justify-content:space-between;align-items:center;font-size:26px;font-weight:600;border-top:2px solid #0a0a0a;padding-top:22px}}
 .c{{white-space:nowrap;font-size:24px;color:#5c5c5c}}
 .u{{color:#0a0a0a;font-weight:800;letter-spacing:-.02em}}
-.ph{{width:420px;flex:none;position:relative}}.ph.art{{color:#0a0a0a;background:#fff;border-left:2px solid #111}}.ph.art svg{{position:absolute;inset:0;width:100%;height:100%}}.ph img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}}</style>
+.ph{{width:420px;flex:none;position:relative}}.ph.art{{color:#0a0a0a;background:#fff;border-left:2px solid #111}}.ph.art svg{{position:absolute;inset:0;width:100%;height:100%}}.ph img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}}</style>
 <body><div class="t"><div><div class="w">boardread.</div><div class="k">{E(topic(p))}</div><h1>{E(head)}</h1></div>
 <div class="b"><span class="c">{n} newsroom{"" if n == 1 else "s"}</span><span class="u">boardread.news</span></div></div>{img}</body>"""
 
@@ -673,7 +700,7 @@ def story(p, rows, cos=None, counts=None):
     insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
     alt = photo_alt(p)
-    fig = (f'<figure><span class="pic"><img src="{BASE}/img/{p["id"]}.jpg" width="960" height="640" alt="{E(alt)}" fetchpriority="high"></span>'
+    fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
            f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else ""
     rel = related(p, rows)
     more = (f'<section class="related" aria-labelledby="rel"><h2 id="rel">Related news</h2><ul>'
@@ -921,11 +948,15 @@ def build(out=desk.HERE / "_site"):
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
     shown = []
+    PHOTOS.clear()
     for p in published():
         photo = desk.MEDIA / p["id"] / "photo.jpg"
         if photo.exists():
             resized(photo, out / "img" / f"{p['id']}.jpg", 960)
             resized(photo, out / "img" / f"{p['id']}-t.jpg", 480)  # not thumb.jpg: that one is a crop of the Instagram card, text included
+            big, small = out / "img" / f"{p['id']}.jpg", out / "img" / f"{p['id']}-t.jpg"
+            at, is_face = focus.for_post(p, photo)
+            PHOTOS[p["id"]] = {"dim": focus.jpeg_size(big) or (960, 640), "dim_t": focus.jpeg_size(small) or (480, 320), "focus": at, "face": is_face}
             p["_hires"] = p["_thumb"] = True
         # no photo: the story is a text row. media/<id>/thumb.jpg is a crop of the Instagram card with the headline
         # set into it, so it is never used as a picture on the site (it showed "Global stocks" in a tile)
@@ -935,7 +966,8 @@ def build(out=desk.HERE / "_site"):
         photo = out / "img" / f"{p['id']}.jpg"  # the photo as the site shows it, so a shared card looks like the site
         photo = photo if photo.exists() else None
         dest = out / "og" / f"{p['id']}.jpg"
-        return share_card(p, photo, dest) or bool(photo and og_image(photo, dest))
+        m = PHOTOS.get(p["id"], {})
+        return share_card(p, photo, dest) or bool(photo and og_image(photo, dest, m.get("focus"), m.get("dim")))
     with ThreadPoolExecutor(max_workers=6) as pool:
         for p, ok in zip(shown, pool.map(card, shown)):
             if ok:
