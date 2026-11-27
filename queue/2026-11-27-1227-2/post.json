@@ -63,5 +63,14 @@
  "status": "queued",
  "publish_after": "2026-11-27T13:12:25+00:00",
  "story": "",
- "issue": 12
+ "issue": 12,
+ "platforms": {
+  "telegram": {
+   "id": "32",
+   "url": "https://t.me/boardread/32",
+   "at": "2026-11-27T13:20:24+00:00",
+   "video": true
+  }
+ },
+ "lead_published": "2026-11-27T13:20:24+00:00"
 }
