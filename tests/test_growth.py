@@ -156,12 +156,14 @@ class KeywordCaption(unittest.TestCase):
     S = {"topic": "Tech", "company": "Anthropic", "person": "Dario Amodei", "linkedin_post": "The lab shipped an agent.\n\nSource: X",
          "outlets": ["X"]}
 
-    def test_hashtags_at_most_two_when_on(self):
-        with on(keyword_caption=True):
-            self.assertEqual(desk.hashtags({}, self.S), ["#tech", "#news"])
-            self.assertEqual(desk.hashtags({}, {"topic": "Business"}), ["#business", "#news"])
-            self.assertEqual(desk.hashtags({}, {}), ["#news"])
-        self.assertGreater(len(desk.hashtags({}, self.S)), 2)
+    def test_hashtags_specific_and_at_most_three(self):
+        # copy audit 2026-11-27: no catch-all #news; the section plus one entity or subject
+        for sw in (True, False):
+            with on(keyword_caption=sw):
+                self.assertEqual(desk.hashtags({}, {"topic": "Business"}), ["#business"])
+                self.assertEqual(desk.hashtags({}, {}), [])
+                self.assertLessEqual(len(desk.hashtags({}, self.S)), 3)
+                self.assertNotIn("#news", desk.hashtags({}, self.S))
 
     def test_missing_names_land_in_the_first_125_characters(self):
         m = {"headline": "Lab ships a coding agent and a model", "source": "X"}

@@ -6,7 +6,6 @@
   "reply_daily_cap": 20,
   "reply_window_days": 7,
   "hashtags": [
-    "#news",
     "#business"
   ],
   "send_line": "Follow for business news.",

@@ -226,18 +226,58 @@ def growth(name):
     return bool(CONFIG.get("growth", {}).get(name))
 
 
+# the section tag and a second form of it, so two posts in the same section need not carry the same set
+TOPIC_ALT = {"AI": "#artificialintelligence", "Tech": "#technology", "Business": "#companies", "Markets": "#investing",
+             "Economy": "#macro", "Politics": "#government", "World": "#geopolitics", "Culture": "#culture"}
+# a subject the headline names, as a tag people search
+SUBJECT_TAGS = (("inflation", "#inflation"), ("tariff", "#tariffs"), ("election", "#elections"), ("vote", "#elections"),
+                ("oil", "#oil"), ("crude", "#oil"), ("recession", "#recession"), ("gdp", "#gdp"), ("ipo", "#ipo"),
+                ("earnings", "#earnings"), ("profit", "#earnings"), ("rate", "#interestrates"), ("bank", "#banking"),
+                ("crypto", "#crypto"), ("bitcoin", "#bitcoin"), ("chip", "#semiconductors"), ("hack", "#cybersecurity"),
+                ("breach", "#cybersecurity"), ("merger", "#mergers"), ("acqui", "#mergers"), ("deal", "#dealmaking"),
+                ("trade", "#trade"), ("housing", "#housing"), ("rent", "#housing"), ("energy", "#energy"))
+
+
+def _tag(name):
+    t = re.sub(r"[^a-z0-9]", "", (name or "").lower())
+    return f"#{t}" if 2 < len(t) < 25 else ""
+
+
+def drop_news_tag(caption):
+    """The caption without the catch-all #news on its hashtag lines (captions queued before 2026-11-27)."""
+    rows = []
+    for r in (caption or "").split("\n"):
+        if r.startswith("#"):
+            r = " ".join(t for t in r.split() if t.lower() != "#news")
+        rows.append(r)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(rows)).rstrip()
+
+
+def last_post_tags(exclude=""):
+    """The hashtag set of the newest Instagram feed post, so the next one never carries the same set."""
+    best = ("", set())
+    for p, _ in posts():
+        if p.get("id") == exclude or p.get("tier") == "web" or not p.get("caption"):
+            continue
+        tags = set(re.findall(r"(?<!\w)#\w+", p["caption"]))
+        if tags and p.get("created", "") > best[0]:
+            best = (p["created"], tags)
+    return best[1]
+
+
 def hashtags(m, s):
-    """Two house tags, the story's topic, the main company: five at most, Instagram's cap.
-    With keyword_caption on: the topic tag and #news only. Names belong in the text, where search reads them."""
-    topic = CONFIG["topic_tags"].get(s.get("topic") or "", "")
-    if growth("keyword_caption"):
-        return [t for t in dict.fromkeys([topic, "#news"]) if t][:2]
-    tags = list(CONFIG["hashtags"])
-    co = re.sub(r"[^a-z0-9]", "", (s.get("company") or "").lower())
-    for t in [topic] + ([f"#{co}"] if 2 < len(co) < 25 else []):
-        if t and t not in tags:
-            tags.append(t)
-    return tags[:5]
+    """One to three specific tags: the section, then the company or person the story is about, then a subject the
+    headline names. No catch-all tag (#news sat on every caption: a template tell that reaches no one, copy audit
+    2026-11-27), and never the same set as the post before (a second form of the section tag stands in)."""
+    topic = s.get("topic") or ""
+    section = CONFIG["topic_tags"].get(topic, "")
+    head = (m.get("headline") or s.get("headline") or s.get("title") or "").lower()
+    entity = _tag(s.get("company")) or _tag(s.get("person"))
+    subject = next((t for k, t in SUBJECT_TAGS if re.search(rf"\b{k}", head)), "")
+    tags = [t for t in dict.fromkeys([section, entity, subject]) if t][:3]
+    if set(tags) == last_post_tags(m.get("id", "")) and TOPIC_ALT.get(topic):
+        tags = [TOPIC_ALT[topic]] + [t for t in tags if t != section]
+    return tags[:3]
 
 
 def body(s):
@@ -2911,7 +2951,8 @@ def _publish(client, dry):
         if post["id"] not in checked:  # structural guard: nothing is posted without the duplicate check
             print(f"{post['id']}: not checked against the account's posts, skipped")
             continue
-        post["caption"] = with_ai_line(post["caption"])  # posts queued before the line existed get it too
+        # posts queued before today: the catch-all #news goes, the AI line comes last
+        post["caption"] = with_ai_line(drop_news_tag(post["caption"]))
         post["attempted"] = now().isoformat(timespec="seconds")
         _save(path, post)  # on disk before the call: a killed run still leaves the trace for the next check
         try:

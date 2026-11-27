@@ -2023,3 +2023,31 @@ class SourceCtaAndReminders(unittest.TestCase):
                 mock.patch.object(desk.github, "enabled", return_value=False):
             self.assertEqual(desk.platform_token_reminders(date(2027, 1, 10)), [])
             self.assertEqual(desk.platform_token_reminders(date(2027, 1, 15))[0][2], 10)
+
+
+class Hashtags(Tmp):
+    def test_specific_tags_no_catch_all_and_never_the_same_set_twice(self):
+        m = {"headline": "Musinsa third-quarter profit jumps 67%", "id": "b"}
+        s = {"topic": "Business", "company": "Musinsa"}
+        self.assertEqual(desk.hashtags(m, s), ["#business", "#musinsa", "#earnings"])
+        self.assertNotIn("#news", desk.hashtags({"headline": "Asian stocks rise", "id": "c"}, {"topic": "Markets"}))
+        self.write_post("a", caption="Head\n\n#markets", tier="instagram")
+        got = desk.hashtags({"headline": "Asian stocks rise", "id": "c"}, {"topic": "Markets"})
+        self.assertEqual(got, ["#investing"])
+        self.assertLessEqual(len(desk.hashtags(m, dict(s, person="Jane Roe"))), 3)
+
+    def test_caption_order_body_sources_send_tags_then_ai_note(self):
+        with mock.patch.dict(desk.CONFIG, {"growth": {**desk.CONFIG.get("growth", {}), "caption_ai_line": True}}):
+            cap = desk.caption({"headline": "Musinsa profit jumps 67%", "id": "z", "source": "The Korea Herald", "url": "https://x"},
+                               {"topic": "Business", "company": "Musinsa", "dek": "Revenue rose.", "source": "The Korea Herald",
+                                "outlets": ["The Korea Herald"]})
+        lines = [l for l in cap.split("\n") if l.strip()]
+        rep = next(i for i, l in enumerate(lines) if l.startswith("Reported by"))
+        tags = next(i for i, l in enumerate(lines) if l.startswith("#"))
+        self.assertLess(rep, tags)
+        self.assertEqual(lines[-1], "Written by AI from named newsrooms.")
+        self.assertEqual(tags, len(lines) - 2)
+
+    def test_queued_captions_lose_the_catch_all_tag(self):
+        self.assertEqual(desk.drop_news_tag("Read the news.\n\n#politics #news"), "Read the news.\n\n#politics")
+        self.assertEqual(desk.drop_news_tag("x\n\n#news"), "x")
