@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build the daily Face the Figure puzzle: assets/data/today.json.
 
-Ten rounds per UTC day, deterministic from the date. Each round pairs two figures of the
+One chain per UTC day, deterministic from the date: the figure just revealed stays on the balance
+as A of the next round, and no company is weighed twice. Each round pairs two figures of the
 same kind and unit (USD revenue vs USD revenue, headcount vs headcount, founding year vs
 founding year, ...). Two sources, both shown to the player:
 
@@ -15,8 +16,8 @@ Rules the build enforces:
     currency unit; two same-year statements that disagree drop the figure (ambiguous)
   - the two figures of a round are at most MAX_YEAR_APART years apart (founding years excepted)
   - pairs within 5 percent of each other are skipped (founding years: a gap under 2 years)
-  - no company appears in more than two rounds, no kind in more than four
-  - rounds climb from a wide gap to a narrow one
+  - no company comes back once it has been weighed; no two figures of a round are a tie
+  - when the pool cannot make a chain of six, the day falls back to ten separate pairs
 
 Usage: python3 build_data.py [--date YYYY-MM-DD] [--queue ../../queue] [--out assets/data/today.json]
 Standard library only. Wikidata responses are cached in .cache/ for 24 h.
@@ -299,6 +300,10 @@ def build_pairs(figs):
                 a, b = lst[i], lst[j]
                 if key_of(a) == key_of(b) or (a["src"]["name"] == "Boardread" and b["src"]["name"] == "Boardread" and a["headline"] == b["headline"]):
                     continue
+                # "10,000 job cuts" is not a headcount and a deal size is not a year's revenue: a story's figure
+                # only meets another story's figure, a company's reported figure only another reported one
+                if (a["src"]["name"] == "Boardread") != (b["src"]["name"] == "Boardread"):
+                    continue
                 d, ok = gap(a, b)
                 # a 2022 figure against a 2025 figure is not a fair duel; founding years are fixed points
                 if kind != "founded" and abs(a["year"] - b["year"]) > MAX_YEAR_APART:
@@ -342,6 +347,70 @@ def public(f):
     return keep
 
 
+# ---------------------------------------------------------------- the chain
+CHAIN_MIN = 6        # a shorter chain than this is not a day's game; the build falls back to separate pairs
+MAX_SAME_ANSWER = 3  # in a row
+
+
+def subject_key(f):
+    return norm(f["subject"])
+
+
+def chain(figs, pairs, rng, tries=6000):
+    """One run for the day: the figure just revealed stays on the balance as A of the next round.
+
+    Nodes are subjects (a company is weighed once and never comes back), an edge is a valid pair of
+    one kind. When the next round is another kind, the same company stays in pan A with its figure
+    for that kind. Returns [(a, b, link)], link in start / same / turn."""
+    fig = {}
+    for f in figs:
+        fig.setdefault((subject_key(f), f["kind"]), f)
+    edges = {}
+    for p in pairs:
+        ka, kb = subject_key(p["a"]), subject_key(p["b"])
+        if ka == kb or fig[(ka, p["kind"])] is not p["a"] or fig[(kb, p["kind"])] is not p["b"]:
+            continue
+        edges.setdefault(ka, []).append((kb, p["kind"], p["d"], p["news"]))
+        edges.setdefault(kb, []).append((ka, p["kind"], p["d"], p["news"]))
+    best, best_score = None, -1e9
+    starts = sorted(edges)
+    for _ in range(tries if starts else 0):
+        cur = rng.choice(starts)
+        seen, path, kind, run_ans, last_ans, kinds = {cur}, [], None, 0, None, {}
+        while len(path) < ROUNDS:
+            opts = []
+            for nb, k, d, news in edges[cur]:
+                if nb in seen:
+                    continue
+                ans = "higher" if fig[(nb, k)]["value"] > fig[(cur, k)]["value"] else "lower"
+                if ans == last_ans and run_ans >= MAX_SAME_ANSWER:
+                    continue
+                if kinds.get(k, 0) >= 6:
+                    continue
+                w = (3.0 if k == kind else 1.0) * (1 + 2 * news) * (1.5 if ans != last_ans else 1.0)
+                opts.append((w, nb, k, d, ans))
+            if not opts:
+                break
+            _, nb, k, d, ans = rng.choices(opts, weights=[o[0] for o in opts])[0]
+            path.append((cur, nb, k, d, ans, "start" if not path else "same" if k == kind else "turn"))
+            run_ans = run_ans + 1 if ans == last_ans else 1
+            last_ans, kind, cur = ans, k, nb
+            kinds[k] = kinds.get(k, 0) + 1
+            seen.add(nb)
+        if len(path) < CHAIN_MIN:
+            continue
+        hi = sum(1 for x in path if x[4] == "higher")
+        turns = sum(1 for x in path if x[5] == "turn")
+        # long, balanced, a few column changes but not one every round, the wide gaps early
+        order = sum(1 for i in range(1, len(path)) if path[i][3] <= path[i - 1][3])
+        sc = len(path) * 100 - abs(2 * hi - len(path)) * 6 - abs(turns - 2) * 4 + order * 1.5 + len(kinds) * 3
+        if sc > best_score:
+            best, best_score = path, sc
+    if not best:
+        return None
+    return [(fig[(a, k)], fig[(b, k)], link) for a, b, k, d, ans, link in best]
+
+
 def build(date, queue):
     report = []
     posts = read_queue(queue)
@@ -358,22 +427,39 @@ def build(date, queue):
     pairs = build_pairs(news + wd)
     report.append(f"valid pairs {len(pairs)} (news in {sum(1 for p in pairs if p['news'])})")
     rng = random.Random(int(hashlib.sha256(f"face-the-figure|{date.isoformat()}".encode()).hexdigest(), 16))
-    picked = choose(pairs, rng)
-    if not picked:
-        return None, report
-    # balance: five of each answer, in a seeded order, so a pattern cannot be guessed
-    ans = ["higher"] * (ROUNDS // 2) + ["lower"] * (ROUNDS - ROUNDS // 2)
-    rng.shuffle(ans)
     rounds = []
-    for p, want in zip(picked, ans):
-        a, b = p["a"], p["b"]
-        higher = b["value"] > a["value"]
-        if (want == "higher") != higher:
-            a, b = b, a
-        rounds.append({"kind": p["kind"], "what": a["what"] if a["what"] == b["what"] else WHAT.get(p["kind"], "Figure"),
-                       "a": public(a), "b": public(b), "answer": want})
-    return {"v": 1, "date": date.isoformat(), "no": (date - LAUNCH).days + 1,
-            "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "rounds": rounds,
+    links = chain(news + wd, pairs, rng)
+    if links:
+        report.append(f"chain of {len(links)} links, {sum(1 for l in links if l[2] == 'turn')} column changes")
+        for a, b, link in links:
+            rounds.append({"kind": a["kind"], "what": a["what"] if a["what"] == b["what"] else WHAT.get(a["kind"], "Figure"),
+                           "a": public(a), "b": public(b), "answer": "higher" if b["value"] > a["value"] else "lower", "link": link})
+    else:
+        report.append("no chain in this pool: separate pairs")
+        picked = choose(pairs, rng)
+        if not picked:
+            return None, report
+        # balance: five of each answer, in a seeded order, so a pattern cannot be guessed
+        ans = ["higher"] * (ROUNDS // 2) + ["lower"] * (ROUNDS - ROUNDS // 2)
+        rng.shuffle(ans)
+        for p, want in zip(picked, ans):
+            a, b = p["a"], p["b"]
+            higher = b["value"] > a["value"]
+            if (want == "higher") != higher:
+                a, b = b, a
+            rounds.append({"kind": p["kind"], "what": a["what"] if a["what"] == b["what"] else WHAT.get(p["kind"], "Figure"),
+                           "a": public(a), "b": public(b), "answer": want, "link": "start"})
+    # the practice chain is dealt on the player's device from the same figures, one per subject and kind
+    pool, seen = [], set()
+    for f in news + wd:
+        k = (subject_key(f), f["kind"])
+        if k not in seen:
+            seen.add(k)
+            pool.append({**public(f), "k": k[0]})
+    sig = hashlib.sha256("|".join(r["a"]["subject"] + ">" + r["b"]["subject"] + r["kind"] for r in rounds).encode()).hexdigest()[:10]
+    return {"v": 2, "date": date.isoformat(), "no": (date - LAUNCH).days + 1, "sig": sig,
+            "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "rounds": rounds, "pool": pool,
+            "rules": {"gap": MIN_GAP, "year_gap": MIN_YEAR_GAP, "years_apart": MAX_YEAR_APART},
             "credit": "Figures: Boardread stories and Wikidata (CC0). Each card links to its source. No market data is used."}, report
 
 
@@ -386,7 +472,7 @@ def main():
     data, report = build(dt.date.fromisoformat(a.date), Path(a.queue))
     print("\n".join(report))
     if not data:
-        sys.exit(f"could not build {ROUNDS} rounds from this pool")
+        sys.exit("could not build a chain or ten pairs from this pool")
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")))

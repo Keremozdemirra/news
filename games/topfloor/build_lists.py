@@ -40,11 +40,11 @@ POOL = [
 # instead: Tesla is no "automobile manufacturer" there, Kaufland no "supermarket chain". These routes fetch them.
 ROUTES = {
     "bank": {"P31": ["Q141145821"], "P452": ["Q806718", "Q3435731", "Q112165989", "Q22687"], "P1056": ["Q1548025"]},
-    "brewery": {"P452": ["Q11644505", "Q869095", "Q131734"], "P1056": ["Q44"]},
-    "supermarket": {"P31": ["Q105615608", "Q750656", "Q261428", "Q142177163"], "P452": ["Q15825471", "Q180846", "Q1295201"], "P1056": ["Q180846", "Q750656", "Q261428", "Q1295201"]},
+    "brewery": {"P31": ["Q15075508"], "P452": ["Q11644505", "Q869095", "Q131734"], "P1056": ["Q44"]},   # beer brands: "Corona" is an answer a player gives
+    "supermarket": {"P31": ["Q105615608", "Q750656", "Q261428", "Q142177163", "Q76213979"], "P452": ["Q15825471", "Q180846", "Q1295201"], "P1056": ["Q180846", "Q750656", "Q261428", "Q1295201"]},
     "carmaker": {"P31": ["Q10429667"], "P452": ["Q190117", "Q786820", "Q29584629"], "P1056": ["Q1420", "Q1144312", "Q193692", "Q274586"]},
     "publisher": {"P31": ["Q210167"], "P452": ["Q941594", "Q112165928"]},
-    "fast-food": {"P452": ["Q81799", "Q57497035", "Q1442415"]},
+    "fast-food": {"P31": ["Q18534542", "Q18654742", "Q63869263", "Q76212517"], "P452": ["Q81799", "Q57497035", "Q1442415", "Q1751445"], "P1056": ["Q6663", "Q81799"]},   # restaurant, pizzeria, bakery and café chains: regional chains sit there
     "airline": {"P452": ["Q2055808", "Q46970"]},
 }
 EXTRAS = json.loads((HERE / "extras.json").read_text())
@@ -74,11 +74,13 @@ def members(pid, qid):
         parts.append("{ VALUES ?x { " + " ".join("wd:" + a for a in add) + " } }")
     out = {}
     for part in parts:                                  # one question per route: a union of them times out
+        # a class route keeps only items some Wikipedia writes about; a hand-picked item is wanted as it is
+        floor = "" if part.startswith("{ VALUES") else "FILTER(?s >= 1)"
         rows = sparql(f"""SELECT ?x (MAX(?s) AS ?sl) (MAX(?st) AS ?stn) WHERE {{ {part}
-          ?x wikibase:sitelinks ?s. ?x wikibase:statements ?st. FILTER(?s >= 1)
+          ?x wikibase:sitelinks ?s. ?x wikibase:statements ?st. {floor}
           FILTER NOT EXISTS {{ ?x wdt:P31 wd:Q5 }} }} GROUP BY ?x""")
         for b in rows:
-            out[b["x"]["value"].rsplit("/", 1)[1]] = (int(b["sl"]["value"]), int(b["stn"]["value"]))
+            out[b["x"]["value"].rsplit("/", 1)[1]] = (max(int(b["sl"]["value"]), 0 if floor else KNOWN), int(b["stn"]["value"]))
         print(f"  route {part[:44]} ... {len(rows)}", flush=True)
         time.sleep(0.5)
     return out
@@ -124,12 +126,22 @@ def build(pid, text, qid):
         if label in drop:
             continue            # a kind of thing, not a name: extras.json says which
         rows.append({"id": q, "label": label, "sl": sl, "st": st, "names": names})
+    for row in EXTRAS.get(pid, {}).get("names", []):       # real answers Wikidata has no item for: label, then other spellings
+        rows.append({"id": "", "label": row[0], "sl": KNOWN, "st": 0, "names": list(row)})
     rows.sort(key=lambda r: (-r["sl"], -r["st"], r["label"]))
     known = sum(r["sl"] >= KNOWN for r in rows) or 1
     seen, seen_core, entries = {}, {}, []
     for i, r in enumerate(rows):
         tier = sum(i / known >= c for c in TIER_CUTS) if r["sl"] >= KNOWN else 4
         keys, cores = [], []
+        if not r["id"]:         # a hand-written name that Wikidata does have: its spellings join that entry
+            home = next((seen[k] for n in r["names"] for k in variants(n) if k in seen), None)
+            if home is not None:
+                for n in r["names"]:
+                    for k in variants(n):
+                        if k not in seen:
+                            seen[k] = home; entries[home][3].append(k)
+                continue
         for n in r["names"]:
             for k in variants(n):
                 if k not in seen:
@@ -143,7 +155,27 @@ def build(pid, text, qid):
         entries.append([r["label"], r["sl"], tier, keys, cores])
     for e in entries:           # a core that is also somebody's full key never steals it
         e[4] = [c for c in e[4] if c not in seen]
-    return {"v": 2, "id": pid, "text": text, "src": f"wikidata:{qid}", "built": time.strftime("%Y-%m-%d"), "n": len(entries), "entries": entries}
+    return {"v": 2, "id": pid, "text": text, "src": f"wikidata:{qid}", "built": time.strftime("%Y-%m-%d"), **unkind(pid, entries)}
+
+
+def unkind(pid, entries):
+    """No spelling of any entry may be a kind of thing: "supermarket" as another chain's alias would still be accepted.
+    Banned is every spelling of the labels in extras.json "drop"."""
+    banned = set()          # not the filler words themselves: "Sparkasse" is filler in a bank's name and a bank on its own
+    for label in EXTRAS.get(pid, {}).get("drop", []):
+        banned.update(variants(label))
+        banned.update(c for c in (core(sp, pid) for sp in spaced(label)) if c)
+    drop = set(EXTRAS.get(pid, {}).get("drop", []))
+    out = []
+    for e in entries:
+        if e[0] in drop:
+            continue
+        e[3] = [k for k in e[3] if k not in banned]
+        e[4] = [c for c in e[4] if c not in banned]
+        if e[3]:
+            out.append(e)
+    return {"n": len(out), "entries": out}
+
 
 
 if __name__ == "__main__":

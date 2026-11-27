@@ -14,6 +14,8 @@ const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {};
 const save = (o) => { try { localStorage.setItem(STORE, JSON.stringify(o)); } catch { /* private mode */ } };
 
 let data, rig, S = 1, idx = 0, streak = 0, bestRun = 0, points = 0, phase = "loading", locked = true, results = [];
+// R is the chain on the balance: the day's ten links, or a practice chain dealt link by link from the day's figures
+let R = [], mode = "daily", dealt = null;
 const stats = load();
 const pa = $("pa"), pb = $("pb");
 
@@ -52,10 +54,12 @@ function srcLine(f) {
 }
 function fillTicket(pl, f, hidden) {
   pl.querySelector(".subj").textContent = f.subject;
+  pl.querySelector(".subj").classList.toggle("long", f.subject.split(/\s+/).some((w) => w.length > 12));
   pl.querySelector(".what").textContent = f.what;
   const fig = pl.querySelector(".fig");
   pl.querySelector(".head").textContent = f.headline || "";
   pl.querySelectorAll(".stamp,.tally,.coin").forEach((n) => n.remove());
+  pl.querySelector(".tape")?.getAnimations().forEach((x) => x.cancel());   // the last round's torn tape must not stay torn
   pl.querySelectorAll("[hidden]").forEach((n) => { n.hidden = false; });
   if (hidden) { fig.dataset.k = ""; fig.className = "fig sealed"; fig.textContent = "0.00"; pl.classList.add("sealed-on"); pl.querySelector(".src").textContent = "Source printed after the reveal"; }
   else { pl.classList.remove("sealed-on"); setFig(fig, f.kind, f.value); pl.querySelector(".src").innerHTML = srcLine(f); }
@@ -89,41 +93,101 @@ function show(name) {
 }
 function pipsRender() {
   const ol = $("pips"); ol.innerHTML = "";
-  for (let i = 0; i < data.rounds.length; i++) {
+  ol.hidden = mode !== "daily";
+  for (let i = 0; i < data.rounds.length && mode === "daily"; i++) {
     const li = document.createElement("li"), r = results[i];
     li.className = r ? (r.ok ? "ok" : "no") : i === idx && (phase === "play" || phase === "result") ? "now" : "";
     li.setAttribute("aria-label", `Round ${i + 1}${r ? (r.ok ? ", right" : ", wrong") : ""}`);
     ol.appendChild(li);
   }
 }
-function hud() { $("streak").textContent = streak; $("score").textContent = points; }
+function hud() {
+  $("streak").textContent = streak;
+  $("score-l").textContent = mode === "daily" ? "Score" : "Best";
+  $("score").textContent = mode === "daily" ? points : Math.max(stats.practice || 0, streak);
+}
 let toastT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200); }
 
 // ---------------------------------------------------------------- rounds
 function equalize() { pa.style.height = pb.style.height = ""; const h = Math.max(pa.offsetHeight, pb.offsetHeight); pa.style.height = pb.style.height = h + "px"; }
 function startRound(i) {
+  const from = phase === "result" && i > 0 ? R[i - 1] : null;      // coming from a reveal: the chain moves on
   idx = i; phase = "play"; locked = false;
-  const r = data.rounds[i];
+  const r = R[i];
   show("play");
-  $("kind").textContent = KIND[r.kind] || r.what;
+  $("kind").textContent = (r.link === "turn" && i ? "New column · " : "") + (KIND[r.kind] || r.what);
   $("q").innerHTML = r.kind === "founded" ? "Was <em>B</em> founded later or earlier than <em>A</em>?" : "Is <em>B</em> higher or lower than <em>A</em>?";
   const sub = SUBS[r.kind] || ["more", "less"];
   $("ks-up").textContent = sub[0]; $("ks-down").textContent = sub[1];
   for (const k of [$("k-up"), $("k-down")]) { k.disabled = false; k.classList.remove("picked", "fade"); }
+  const gapX = pb.getBoundingClientRect().left - pa.getBoundingClientRect().left;
   fillTicket(pa, r.a, false); fillTicket(pb, r.b, true);
   equalize(); seatTape();
-  rig.set(IDLE);
-  requestAnimationFrame(() => { rig.squash(pa); setTimeout(() => rig.squash(pb), 70); });   // both tickets set down in the pans
+  if (from && !RM) {
+    // The link: the ticket just weighed crosses to pan A in six stepped frames (or turns over to its next column),
+    // a sealed one is set down in B, and the beam comes back to rest with a small overshoot.
+    const steps = { duration: 300, easing: "steps(6, end)" };
+    if (r.link === "same") pa.animate({ translate: [`${gapX}px 0`, `${gapX * 0.5}px ${-14 * S}px`, "0 0"] }, steps);
+    else pa.animate({ scale: ["1 1", "0.06 1", "1 1"] }, steps);
+    pb.animate({ translate: [`0 ${-46 * S}px`, "0 0"], opacity: [0, 1] }, { duration: 200, delay: 160, easing: "steps(4, end)", fill: "backwards" });
+    const t0 = rig.theta;
+    rig.play(keyed([[0, t0], [300, IDLE - 1.4, "inOut"], [450, IDLE + 0.5, "inOut"], [580, IDLE, "inOut"]]), 580);
+    setTimeout(() => rig.squash(pa), 300); setTimeout(() => rig.squash(pb), 360);
+    snd.press();
+  } else {
+    rig.set(IDLE);
+    requestAnimationFrame(() => { rig.squash(pa); setTimeout(() => rig.squash(pb), 70); });   // both tickets set down in the pans
+  }
   pipsRender(); hud();
   $("q").focus({ preventScroll: true });
+}
+
+// ---------------------------------------------------------------- practice: a chain dealt from the day's figures, until a miss
+const fair = (a, b) => {
+  if (a.kind !== b.kind || a.k === b.k || (a.src.name === "Boardread") !== (b.src.name === "Boardread")) return false;
+  if (a.kind === "founded") return Math.abs(a.value - b.value) >= data.rules.year_gap;
+  const hi = Math.max(a.value, b.value), lo = Math.min(a.value, b.value);
+  return lo > 0 && (hi - lo) / hi >= data.rules.gap && Math.abs(a.year - b.year) <= data.rules.years_apart;
+};
+const draw = (list) => list[Math.floor(Math.random() * list.length)];
+function deal() {
+  const pool = data.pool || [];
+  if (!R.length) {
+    dealt = new Set();
+    const firsts = pool.filter((a) => pool.some((b) => fair(a, b)));
+    if (!firsts.length) return null;
+    const a = draw(firsts), b = draw(pool.filter((x) => fair(a, x)));
+    dealt.add(a.k); dealt.add(b.k);
+    return { kind: a.kind, what: a.what, a, b, answer: b.value > a.value ? "higher" : "lower", link: "start" };
+  }
+  const last = R[R.length - 1].b;
+  const same = pool.filter((x) => !dealt.has(x.k) && fair(last, x));
+  const turns = pool.filter((a) => a.k === last.k && a.kind !== last.kind).flatMap((a) => pool.filter((x) => !dealt.has(x.k) && fair(a, x)).map((x) => [a, x]));
+  let a = last, b, link = "same";
+  if (same.length && (!turns.length || Math.random() < 0.72)) b = draw(same);
+  else if (turns.length) { [a, b] = draw(turns); link = "turn"; }
+  else return null;
+  dealt.add(b.k);
+  return { kind: a.kind, what: a.what, a, b, answer: b.value > a.value ? "higher" : "lower", link };
+}
+function startPractice() {
+  mode = "practice"; R = []; results = []; streak = 0; points = 0; bestRun = 0;
+  const first = deal();
+  if (!first) { toast("Not enough figures today for a practice chain."); mode = "daily"; R = data.rounds; return; }
+  R.push(first); phase = "intro"; startRound(0);
+}
+function backToDaily() {
+  const saved = stats.days?.[data.date];
+  mode = "daily"; R = data.rounds;
+  if (saved) restore(saved); else location.reload();
 }
 
 // The reveal score. Anticipation, a count the beam follows, contact, overshoot, settle.
 function pick(choice) {
   if (phase !== "play" || locked) return;
   locked = true; snd.press();
-  const r = data.rounds[idx];
+  const r = R[idx];
   $("k-up").disabled = $("k-down").disabled = true;
   (choice === "higher" ? $("k-up") : $("k-down")).classList.add("picked");
   (choice === "higher" ? $("k-down") : $("k-up")).classList.add("fade");
@@ -172,42 +236,78 @@ function coins() {
 }
 
 function settle(choice) {
-  const r = data.rounds[idx], ok = choice === r.answer;
-  if (ok) { streak++; bestRun = Math.max(bestRun, streak); } else streak = 0;
+  const r = R[idx], ok = choice === r.answer;
+  if (ok) { streak++; bestRun = Math.max(bestRun, streak); } else if (mode === "daily") streak = 0;
   const pts = ok ? streak : 0;
   points += pts;
   results[idx] = { ok, pick: choice, pts, gap: gapOf(r) };
   phase = "result"; show("result");
   panel.querySelector(".verdict").classList.toggle("miss", !ok);
-  $("v-word").textContent = ok ? (streak >= 3 ? `Right, ${streak} straight` : "Right call") : "Missed it";
+  const line = `${r.b.subject}: ${plain(r.b.kind, r.b.value)}, ${relation(r)} than ${r.a.subject}.`;
+  $("back").hidden = true;
+  if (mode === "practice") {
+    let more = null;
+    if (ok) { more = deal(); if (more) R.push(more); }
+    const over = !ok || !more;
+    if (over && streak > (stats.practice || 0)) { stats.practice = streak; save(stats); }
+    $("v-word").textContent = !ok ? `Chain broken at ${streak}` : more ? `Right, chain of ${streak}` : `Ledger emptied at ${streak}`;
+    $("v-pts").textContent = over ? `Best ${stats.practice || 0}` : "";
+    $("v-line").textContent = line;
+    $("next-label").textContent = over ? "New practice chain" : "Next link";
+    $("back").hidden = !over;
+    hud(); $("next").focus({ preventScroll: true });
+    return;
+  }
+  $("v-word").textContent = ok ? (streak >= 3 ? `Right, chain of ${streak}` : "Right call") : "Missed it, chain broken";
   $("v-pts").textContent = ok ? `+${pts}` : "+0";
-  $("v-line").textContent = `${r.b.subject}: ${plain(r.b.kind, r.b.value)}, ${relation(r)} than ${r.a.subject}.`;
-  $("next-label").textContent = idx === data.rounds.length - 1 ? "See your result" : "Next figure";
+  $("v-line").textContent = line + (idx < R.length - 1 ? ` ${r.b.subject} stays on the balance.` : "");
+  $("next-label").textContent = idx === R.length - 1 ? "See your result" : "Next link";
+  progress(false);
   pipsRender(); hud();
   $("next").focus({ preventScroll: true });
 }
+let nextAt = 0;
 function next() {
-  if (phase !== "result") return;
-  if (idx + 1 < data.rounds.length) startRound(idx + 1); else finish();
+  if (phase !== "result" || performance.now() < nextAt) return;
+  nextAt = performance.now() + 350;               // a double tap or a held Enter moves one link, not two
+  if (mode === "practice") { if ($("back").hidden) startRound(idx + 1); else startPractice(); return; }
+  if (idx + 1 < R.length) startRound(idx + 1); else finish();
 }
 
 // ---------------------------------------------------------------- end
 const rankOf = (c) => RANKS.filter(([n]) => c >= n).pop()[1];
-function finish() {
-  const rec = { score: points, run: bestRun, res: results.map((r) => [r.ok ? 1 : 0, r.pick, r.pts, +r.gap.toFixed(4)]) };
-  const correct = results.filter((r) => r.ok).length;
+const record = (done) => ({ sig: data.sig, done, score: points, run: bestRun, res: results.map((r) => [r.ok ? 1 : 0, r.pick, r.pts, +r.gap.toFixed(4)]) });
+// every answered link is saved at once, so a reload resumes the chain instead of dealing the same sealed figure again
+function progress(done) {
   if (!stats.days) stats.days = {};
-  if (!stats.days[data.date] || params.has("fresh")) {
+  const had = stats.days[data.date], counted = had && had.counted;
+  stats.days[data.date] = { ...record(done), counted: !!counted };
+  for (const d of Object.keys(stats.days).sort().slice(0, -60)) delete stats.days[d];     // two months of days is plenty
+  save(stats);
+}
+function finish() {
+  const correct = results.filter((r) => r.ok).length;
+  const had = stats.days?.[data.date];
+  progress(true);
+  if (!had || !had.counted) {
     stats.played = (stats.played || 0) + 1;
     stats.sumCorrect = (stats.sumCorrect || 0) + correct;
     stats.best = Math.max(stats.best || 0, points);
     const y = new Date(Date.parse(data.date + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
-    stats.streak = stats.last === y ? (stats.streak || 0) + 1 : 1;
+    stats.streak = stats.last === y ? (stats.streak || 0) + 1 : stats.last === data.date ? (stats.streak || 1) : 1;
     stats.last = data.date;
-    stats.days[data.date] = rec;
+    stats.days[data.date].counted = true;
     save(stats);
   }
-  renderEnd(rec);
+  renderEnd(stats.days[data.date]);
+}
+function restore(saved) {
+  mode = "daily"; R = data.rounds;
+  points = saved.score; bestRun = saved.run;
+  results = saved.res.map((r) => ({ ok: !!r[0], pick: r[1], pts: r[2], gap: r[3] }));
+  streak = 0; for (let i = results.length - 1; i >= 0 && results[i].ok; i--) streak++;
+  if (saved.done === false && results.length < R.length) { phase = "intro"; startRound(results.length); }
+  else renderEnd(saved);
 }
 function link(f, text) { const a = document.createElement("a"); a.href = f.src.url; a.target = "_blank"; a.rel = "noopener"; a.textContent = text; return a; }
 function tally(n) {
@@ -226,19 +326,21 @@ function renderEnd(rec) {
   $("e-issue").textContent = `Face the Figure No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
   $("e-score").innerHTML = `${correct}<small>/${rounds.length}</small>`;
   $("e-rank").textContent = rankOf(correct);
-  $("e-line").textContent = correct ? `Score ${rec.score} of ${rounds.length * (rounds.length + 1) / 2}. Longest run ${rec.run}.` : "No call landed. Same ledger tomorrow, new figures.";
+  $("e-line").textContent = correct ? `Score ${rec.score} of ${rounds.length * (rounds.length + 1) / 2}. Longest chain ${rec.run}.` : "No call landed. Same ledger tomorrow, new figures.";
   const mk = (cls, txt) => { const s = document.createElement("span"); s.className = cls; s.textContent = txt; return s; };
-  const best = res.map((r, i) => ({ r, i })).filter((x) => x.r[0]).sort((x, y) => x.r[3] - y.r[3]).slice(0, 3);
+  const best = res.map((r, i) => ({ r, i })).filter((x) => x.r[0] && rounds[x.i]).sort((x, y) => x.r[3] - y.r[3]).slice(0, 3);
   const ob = $("e-best"); ob.innerHTML = "";
   best.forEach(({ r, i }) => {
-    const q = rounds[i], li = document.createElement("li");
+    const q = rounds[i];
+    const li = document.createElement("li");
     li.append(mk("n", String(i + 1)), mk("a", `${q.a.subject} vs ${q.b.subject}`), mk("p", `+${r[2]}`));
     const sub = document.createElement("span"); sub.className = "sub"; sub.append(`B was ${relation(q)}. `, link(q.a, "Source A"), " · ", link(q.b, "Source B")); li.append(sub); ob.appendChild(li);
   });
   ob.hidden = !best.length;
   const ol = $("e-rows"); ol.innerHTML = "";
   res.forEach((r, i) => {
-    const q = rounds[i], li = document.createElement("li"); li.className = r[0] ? "ok" : "no";
+    const q = rounds[i]; if (!q) return;
+    const li = document.createElement("li"); li.className = r[0] ? "ok" : "no";
     li.append(mk("n", String(i + 1)), mk("a", `${q.a.subject} → ${q.b.subject}`), mk("p", r[0] ? `+${r[2]}` : "0"));
     const sub = document.createElement("span"); sub.className = "sub";
     sub.append(`${plain(q.a.kind, q.a.value)} vs ${plain(q.b.kind, q.b.value)} · you said ${r[1]} · `, link(q.a, "A"), " · ", link(q.b, "B")); li.append(sub); ol.appendChild(li);
@@ -247,7 +349,7 @@ function renderEnd(rec) {
   for (const [k, v] of [["Played", played], ["Day streak", stats.streak || 1], ["Best score", stats.best ?? rec.score], ["Avg right", ((stats.sumCorrect ?? correct) / played).toFixed(1)]]) {
     const d = document.createElement("div"), dt = document.createElement("dt"), dd = document.createElement("dd"); dt.textContent = k; dd.textContent = v; d.append(dd, dt); sd.appendChild(d);
   }
-  $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · run ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nboardread.news/play/face-the-figure`;
+  $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nboardread.news/play/face-the-figure`;
   $("credit").textContent = data.credit;
   // the tickets become two tallies on the pans: misses weigh down A, right calls weigh down B
   for (const [pl, n, name, what] of [[pa, miss, "Missed", "Calls that slipped"], [pb, correct, "Called it", "Right calls"]]) {
@@ -291,13 +393,16 @@ async function boot() {
   document.fonts?.ready.then(() => { equalize(); relayout(); });
 
   $("issue").textContent = `No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;
-  if (stats.streak && stats.last) $("intro-fine").textContent = `Day streak ${stats.streak}. Best score ${stats.best}. Same ten for everyone each UTC day.`;
+  if (stats.streak && stats.last) $("intro-fine").textContent = `Day streak ${stats.streak}. Best score ${stats.best}. Same chain for everyone each UTC day.`;
 
   const sb = $("sound");
   const setSound = (on) => { const v = snd.setEnabled(on); sb.setAttribute("aria-pressed", v); sb.setAttribute("aria-label", v ? "Sound on" : "Sound off"); try { localStorage.setItem("ftf:sound", v ? "1" : "0"); } catch { /* ignore */ } };
   sb.addEventListener("click", () => { setSound(!snd.isOn()); if (snd.isOn()) snd.ding(2); });
 
-  $("start").addEventListener("click", () => { if (localStorage.getItem("ftf:sound") === "1" && !snd.isOn()) setSound(true); startRound(0); });
+  R = data.rounds;
+  $("start").addEventListener("click", () => { if (phase !== "intro") return; if (localStorage.getItem("ftf:sound") === "1" && !snd.isOn()) setSound(true); startRound(0); });
+  $("practice").addEventListener("click", startPractice);
+  $("back").addEventListener("click", backToDaily);
   $("k-up").addEventListener("click", () => pick("higher"));
   $("k-down").addEventListener("click", () => pick("lower"));
   $("next").addEventListener("click", next);
@@ -314,14 +419,18 @@ async function boot() {
   const saved = stats.days?.[data.date];
   fillTicket(pa, data.rounds[0].a, false); fillTicket(pb, data.rounds[0].b, true);
   equalize(); seatTape(); rig.set(IDLE);
-  if (saved && !params.has("fresh")) {
-    points = saved.score; bestRun = saved.run;
-    results = saved.res.map((r) => ({ ok: !!r[0], pick: r[1], pts: r[2], gap: r[3] }));
-    streak = 0; for (let i = results.length - 1; i >= 0 && results[i].ok; i--) streak++;
-    renderEnd(saved);
-  }
+  // a record from before today's chain was dealt (another build of the day) does not fit these rounds: play again
+  if (saved && !params.has("fresh") && (saved.sig || "") === (data.sig || "")) restore(saved);
   else { phase = "intro"; show("intro"); pipsRender(); hud(); }
   requestAnimationFrame(() => requestAnimationFrame(() => { app.dataset.phase = panel.dataset.s === "play" || panel.dataset.s === "result" ? "play" : panel.dataset.s; relayout(); }));
-  window.__ff = { get state() { return { idx, streak, points, phase, results }; }, data, pick, next, startRound };
+  window.__ff = { get state() { return { idx, streak, points, phase, results, mode, R }; }, data, pick, next, startRound, startPractice };
 }
-boot();
+// The next day's puzzle goes up with the first site build after midnight UTC. A page left open over midnight, or
+// opened in those first minutes, asks for it once a minute and loads it when it is there (never in mid-game).
+function watchNextDay() {
+  setInterval(async () => {
+    if (document.hidden || new Date().toISOString().slice(0, 10) <= data.date || !(phase === "end" || phase === "intro")) return;
+    try { const d = await (await fetch("assets/data/today.json", { cache: "no-store" })).json(); if (d.date > data.date) location.reload(); } catch { /* offline: try again next minute */ }
+  }, 60000);
+}
+boot().then(watchNextDay);

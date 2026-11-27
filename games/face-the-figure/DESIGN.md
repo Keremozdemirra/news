@@ -156,3 +156,13 @@ The HUD has no loop: no pulse, no shimmer, no idle bob. The only motion at rest 
 
 **Do** build every depth object in Blender and ship it as frames; keep the accent to the needle and one button; set measurements in Barlow and signage, printed things in Courier Prime; place tickets from the exported pan coordinates.
 **Don't** round a rectangle; draw brass, glass, tile or enamel in CSS; set type on the tiles; add a glow, gradient or bevel; loop anything on the HUD; spend lacquer on a second emphasis.
+
+## The chain (2026-11-27)
+
+- **One chain a day.** The figure just revealed stays on the balance as A of the next round. The ticket crosses from pan B to pan A in six stepped frames, a sealed ticket is set down in B, and the beam returns to rest with one overshoot.
+- **A new column turns the ticket over.** When the next round is another kind of figure, the same company stays in pan A and its ticket turns to that column; the label above the question says "New column".
+- **No company comes back, no pair is a tie**, and never more than three of the same answer in a row (`build_data.py` `chain`).
+- **A miss breaks the chain count, not the day.** The daily game always runs its ten links; the practice chain ends at the first miss.
+- **A story's figure only meets another story's figure.** "10,000 job cuts" is not a headcount.
+- **Progress is saved after every link**, so a reload resumes at the next sealed ticket.
+

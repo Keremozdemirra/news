@@ -202,11 +202,14 @@ def build(date: dt.date, queue: Path):
                 break
     # Boardread closes the round when present
     prompts.sort(key=lambda p: p["id"] == "boardread")
+    # the practice building draws from every list, today's or not
+    have = {p["id"]: p for p in prompts}
+    pool = [x for x in (have.get(pid) or from_list(pid) for pid, _, _ in POOL) if x]
     return {"v": 2, "date": date.isoformat(), "no": (date - LAUNCH).days + 1,
             "match": {"legal": LEGAL, "stop": sorted(STOP), "fuzz": FUZZ_MIN},
             "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-            "seconds": 25, "tiers": TIERS, "prompts": prompts,
-            "credit": "Answer lists: Wikidata (CC0), every instance of the class and its subclasses with a Wikipedia article. Rarity: Wikipedia sitelink percentile per prompt."}, report
+            "seconds": 25, "tiers": TIERS, "prompts": prompts, "pool": pool,
+            "credit": "Answer lists: Wikidata (CC0), the class, its subclasses and its industry, plus chains added by hand. Rarity: Wikipedia sitelink percentile per prompt."}, report
 
 
 def main():

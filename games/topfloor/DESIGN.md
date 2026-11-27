@@ -60,6 +60,14 @@ Nothing on the header, the card or the dial loops. Reduced motion: doors, needle
 - **A kind of thing is not an answer.** "supermarket" or "investment bank" is refused; `extras.json` `drop` keeps the list of them.
 - **Examples read as names.** The rare example shown after a miss is drawn by date from the top tier's plain names, with its tier named.
 
+## Keyboard up, reload, practice (2026-11-27)
+
+- **The question card is never clipped.** With the phone keyboard open the card keeps its height and the dial and car shrink to stand in what is left; the header stays 44 px.
+- **Each answer is saved as it lands**; a reload resumes on the next question at the floor reached.
+- **A valid answer typed when the clock runs out counts.**
+- **Practice building.** Seven prompts from the other lists, the same lift, nothing counted or shared.
+- **Lists are wider than Wikidata's classes**: restaurant, pizzeria, bakery and cafe chains, beer brands, convenience chains, and `extras.json` `names` for real answers Wikidata has no item for.
+
 ## Do not
 
 Brass or glass drawn in CSS, text-shadow, rounded rectangles, a vignette, a second accent colour, a tween on the needle or the doors.

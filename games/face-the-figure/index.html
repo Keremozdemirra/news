@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Face the Figure | Boardread</title>
-<meta name="description" content="A daily higher-or-lower game on real business figures. Ten rounds, one shared set a day, every number sourced.">
+<meta name="description" content="A daily higher-or-lower chain on real business figures. The figure you just weighed meets the next one. One shared chain a day, every number sourced.">
 <link rel="canonical" href="https://boardread.news/play/face-the-figure/">
 <meta property="og:site_name" content="Boardread"><meta property="og:type" content="website">
-<meta property="og:title" content="Face the Figure · boardread."><meta property="og:description" content="A daily higher-or-lower game on real business figures. Ten rounds, one shared set a day, every number sourced.">
+<meta property="og:title" content="Face the Figure · boardread."><meta property="og:description" content="A daily higher-or-lower chain on real business figures. The figure you just weighed meets the next one. One shared chain a day, every number sourced.">
 <meta property="og:url" content="https://boardread.news/play/face-the-figure/"><meta property="og:image" content="https://boardread.news/play/face-the-figure/assets/share.jpg">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Face the Figure · boardread.">
-<meta name="twitter:description" content="A daily higher-or-lower game on real business figures. Ten rounds, one shared set a day, every number sourced."><meta name="twitter:image" content="https://boardread.news/play/face-the-figure/assets/share.jpg">
+<meta name="twitter:description" content="A daily higher-or-lower chain on real business figures. The figure you just weighed meets the next one. One shared chain a day, every number sourced."><meta name="twitter:image" content="https://boardread.news/play/face-the-figure/assets/share.jpg">
 <meta name="theme-color" content="#e9e7df">
 <link rel="preload" href="assets/fonts/bigshouldersdisplay-900-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/barlow-400-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -33,9 +33,9 @@
     </header>
 
     <div class="status" id="status">
-      <span class="stat">Streak <b id="streak">0</b></span>
+      <span class="stat">Chain <b id="streak">0</b></span>
       <ol class="pips" id="pips" aria-label="Rounds"></ol>
-      <span class="stat r">Score <b id="score">0</b></span>
+      <span class="stat r"><span id="score-l">Score</span> <b id="score">0</b></span>
     </div>
 
     <section class="ask" id="ask" aria-live="polite">
@@ -71,9 +71,9 @@
       <div class="screen" data-s="intro" aria-labelledby="t-intro">
         <p class="eyebrow" id="issue">Daily puzzle</p>
         <h1 class="title" id="t-intro">Face the Figure</h1>
-        <p class="lede">Two real business figures on a balance. The first is printed, the second is sealed. Will it weigh higher or lower? Ten rounds; every right call in a row is worth one more point.</p>
+        <p class="lede">Two real business figures on a balance. The first is printed, the second is sealed. Will it weigh higher or lower? The figure you just weighed stays on the balance for the next one: a chain of ten, and every right call in a row is worth one more point.</p>
         <button class="btn" id="start" type="button"><span>Open the ledger</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4"/></svg></button>
-        <p class="fine" id="intro-fine">Everyone gets the same ten each UTC day. Every figure is sourced.</p>
+        <p class="fine" id="intro-fine">Everyone gets the same chain each UTC day. Every figure is sourced.</p>
         <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
       </div>
 
@@ -88,7 +88,8 @@
           <p class="v-pts" id="v-pts">+3</p>
         </div>
         <p class="v-line" id="v-line"></p>
-        <button class="btn" id="next" type="button"><span id="next-label">Next figure</span><kbd aria-hidden="true">Enter</kbd></button>
+        <button class="btn" id="next" type="button"><span id="next-label">Next link</span><kbd aria-hidden="true">Enter</kbd></button>
+        <button class="linkbtn" id="back" type="button" hidden>Today’s result</button>
       </div>
 
       <div class="screen endcard" data-s="end" aria-labelledby="e-score" hidden>
@@ -99,12 +100,14 @@
           <p class="e-line" id="e-line"></p>
         </div>
         <ol class="e-best" id="e-best" aria-label="Closest calls"></ol>
-        <ol class="e-rows" id="e-rows" aria-label="All ten rounds"></ol>
+        <ol class="e-rows" id="e-rows" aria-label="Every link of the chain"></ol>
         <dl class="stats" id="stats"></dl>
         <div class="share">
           <pre class="share-text" id="share-text" aria-label="Share text"></pre>
           <button class="btn" id="share" type="button"><span id="share-label">Share your result</span></button>
-          <p class="next-in">Next ten in <b class="mono" id="countdown">00:00:00</b></p>
+          <p class="next-in">Next chain in <b class="mono" id="countdown">00:00:00</b></p>
+          <button class="btn ghost" id="practice" type="button"><span>Practice chain</span></button>
+          <p class="fine">Practice deals a fresh chain from today’s figures and ends at the first miss. It does not touch your daily result.</p>
         </div>
         <p class="credit" id="credit"></p>
         <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>

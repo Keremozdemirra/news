@@ -22,6 +22,7 @@ let data, answer = "", L = 5, valid = new Set();
 let tiles = [], rowEls = [], keyEls = {}, ansTiles = [];
 let guesses = [], cur = "", phase = "loading", busy = false, helpOpen = false, won = false;
 let store = load();
+let wordLists = [], extraNo = 0, daily = null;      // extraNo > 0: an extra board from today's news, not the counted one
 
 // ---- scoring: two passes so repeated letters are counted once each
 function score(guess, target) {
@@ -181,8 +182,13 @@ function lightClue() {
 
 // ---- persistence of the day in progress
 function persistDay(status) {
+  if (extraNo) {      // an extra board only remembers that it was finished
+    if (status !== "play") { store.extras = { d: data.date, done: [...new Set([...(store.extras?.d === data.date ? store.extras.done : []), extraNo])] }; save(store); }
+    return;
+  }
   store.days = store.days || {};
-  store.days[data.date] = { g: guesses, s: status };
+  store.days[data.date] = { g: guesses, s: status, L, sig: data.a };
+  for (const d of Object.keys(store.days).sort().slice(0, -60)) delete store.days[d];
   save(store);
 }
 
@@ -218,6 +224,7 @@ async function showAnswerRow(instant) {
   $("ans").setAttribute("aria-label", `The word was ${word}`);
 }
 function recordStats(win) {
+  if (extraNo) return;
   const s = store.stats || (store.stats = { played: 0, wins: 0, streak: 0, best: 0, lastWin: "", dist: [0, 0, 0, 0, 0, 0, 0], counted: {} });
   if (s.counted[data.date]) return;
   s.counted[data.date] = 1;
@@ -243,7 +250,7 @@ const hl = (headline, word) => {
 };
 function renderEnd(win) {
   const n = guesses.length, d = new Date(data.date + "T12:00:00Z");
-  $("e-issue").textContent = `Tickerflip No. ${data.no} · ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+  $("e-issue").textContent = (extraNo ? `Extra board ${extraNo} · not counted · ` : `Tickerflip No. ${data.no} · `) + `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
   $("e-title").textContent = win ? (n === 1 ? "First flip. Boarded." : `Boarded on guess ${n}`) : "The board closed";
   $("e-sub").textContent = win ? `${answer.toUpperCase()} was ${data.clue}.` : `The word was ${answer.toUpperCase()}, ${data.clue}.`;
   // articles behind the word
@@ -275,13 +282,17 @@ function renderEnd(win) {
     bar.appendChild(num); row.append(lab, bar); dist.appendChild(row);
   });
   $("share-text").textContent = shareText(win);
+  const done = store.extras?.d === data.date ? store.extras.done : [], left = (daily.more || []).map((m, k) => k + 1).filter((k) => !done.includes(k));
+  $("extra").hidden = !left.length; $("extra").dataset.k = left[0] || "";
+  $("extra-label").textContent = left.length ? `Another board from today’s news (${left.length} left)` : "";
+  $("to-daily").hidden = !extraNo;
   $("credit").textContent = data.credit;
   $("end").hidden = false; $("kb").hidden = true;
   clearInterval(cdT); cdT = setInterval(countdown, 1000); countdown();
 }
 function shareText(win) {
   const rows = guesses.map((g) => score(g, answer).map((x) => SYM[x]).join(""));
-  return `Tickerflip No. ${data.no}  ${win ? guesses.length : "X"}/${ROWS}\n${L} letters\n${rows.join("\n")}\nboardread.news/play/tickerflip`;
+  return `Tickerflip ${extraNo ? "extra board" : "No. " + data.no}  ${win ? guesses.length : "X"}/${ROWS}\n${L} letters\n${rows.join("\n")}\nboardread.news/play/tickerflip`;
 }
 let cdT = 0;
 function countdown() {
@@ -356,6 +367,32 @@ function closeIntro() {
   if (phase === "intro") setPhase("play");
 }
 
+// ---- which word is on the board
+function setWord(d) {
+  data = d;
+  answer = atob(d.a).split("").reverse().join("").toUpperCase();
+  L = answer.length;
+  valid = new Set();
+  for (const text of wordLists) for (const w of text.split("\n")) if (w.length === L) valid.add(w.trim());
+  for (const w of daily.extra) if (w.length === L) valid.add(w);
+  valid.add(answer.toLowerCase());
+  $("plate-len").textContent = `${L} letters`; $("d-len").textContent = `${L} letters`;
+}
+let clue0 = "";
+function startExtra(k) {
+  const m = daily.more?.[k - 1]; if (!m) return;
+  extraNo = k;
+  setWord({ ...daily, ...m });
+  guesses = []; cur = ""; won = false; busy = false;
+  app.classList.remove("won", "lost");
+  $("ans").hidden = true; $("ans").innerHTML = ""; $("end").hidden = true; $("kb").hidden = false;
+  $("clue").classList.remove("on"); $("clue-text").textContent = clue0;
+  document.querySelector(".plate-k").textContent = `Extra board ${k}`;
+  buildBoard(); buildKeyboard();
+  setPhase("play");
+  live(`Extra board ${k}. ${L} letters.`);
+}
+
 // ---- boot
 async function boot() {
   let words = "", more = "";
@@ -367,21 +404,16 @@ async function boot() {
     $("stage").innerHTML = '<p class="fail">Today’s board did not load. Reload to try again.</p>';
     app.dataset.phase = "play"; return;
   }
-  answer = atob(data.a).split("").reverse().join("").toUpperCase();
-  L = answer.length;
-  for (const w of words.split("\n")) if (w.length === L) valid.add(w.trim());
-  for (const w of more.split("\n")) if (w.length === L) valid.add(w.trim());
-  for (const w of data.extra) if (w.length === L) valid.add(w);
-  valid.add(answer.toLowerCase());
+  daily = data; wordLists = [words, more];
 
   buildClock(); tickClock(); setInterval(tickClock, 1000);
+  setWord(daily);
   buildBoard(); buildKeyboard();
+  clue0 = $("clue-text").textContent;
   $("legend-side").appendChild(legend());
   $("legend-intro").appendChild(legend());
-  $("plate-len").textContent = `${L} letters`;
   const d = new Date(data.date + "T12:00:00Z");
   $("issue").textContent = `No. ${data.no} · ${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;
-  $("d-len").textContent = `${L} letters`;
   const st = store.stats;
   if (st && st.played) {
     const y = new Date(Date.parse(data.date + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
@@ -396,6 +428,8 @@ async function boot() {
   $("help").addEventListener("click", () => (helpOpen ? closeIntro() : openIntro(false)));
   $("start").addEventListener("click", () => { if (localStorage.getItem("tickerflip:sound") === "1" && !snd.isOn()) setSound(true); closeIntro(); });
   $("share").addEventListener("click", share);
+  $("extra").addEventListener("click", () => startExtra(+$("extra").dataset.k));
+  $("to-daily").addEventListener("click", () => location.assign(location.pathname));
   $("kb").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     const k = b.dataset.key;
@@ -404,14 +438,19 @@ async function boot() {
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || helpOpen) { if (helpOpen && e.key === "Escape" && phase !== "intro") closeIntro(); return; }
     if (phase !== "play") return;
-    if (e.key === "Enter") { e.preventDefault(); enter(); }
-    else if (e.key === "Backspace") { e.preventDefault(); backspace(); }
-    else if (/^[a-zA-Z]$/.test(e.key)) { e.preventDefault(); typeLetter(e.key.toUpperCase()); }
+    // a Turkish keyboard sends ı and İ for the I key; the board has one I
+    const key = e.key === "ı" || e.key === "İ" ? "I" : e.key;
+    if (key === "Enter") { e.preventDefault(); if (!e.repeat) enter(); }
+    else if (key === "Backspace") { e.preventDefault(); backspace(); }
+    else if (/^[a-zA-Z]$/.test(key)) { e.preventDefault(); typeLetter(key.toUpperCase()); }
   });
   addEventListener("resize", fit); window.visualViewport?.addEventListener("resize", fit); fit();
 
   // restore a day already played or in progress
-  const day = !params.has("fresh") && store.days?.[data.date];
+  let day = !params.has("fresh") && store.days?.[data.date];
+  // guesses kept from another word of the same day (the day's board was rebuilt) do not fit this board: start clean
+  if (day && (day.g || []).some((g) => g.length !== L || !/^[A-Z]+$/.test(g))) day = null;
+  if (day && day.L && day.sig !== data.a) day = null;
   if (day && day.g?.length) {
     for (let r = 0; r < day.g.length; r++) { guesses.push(day.g[r]); await reveal(r, day.g[r], score(day.g[r], answer), true); }
     if (guesses.length >= 3) lightClue();
@@ -430,4 +469,12 @@ function fit() {
   const vv = window.visualViewport;
   app.style.setProperty("--vh", (vv ? vv.height : innerHeight) + "px");
 }
-boot();
+// The next day's puzzle goes up with the first site build after midnight UTC. A page left open over midnight, or
+// opened in those first minutes, asks for it once a minute and loads it when it is there (never in mid-game).
+function watchNextDay() {
+  setInterval(async () => {
+    if (document.hidden || new Date().toISOString().slice(0, 10) <= data.date || !(phase === "end" || phase === "intro")) return;
+    try { const d = await (await fetch("assets/data/today.json", { cache: "no-store" })).json(); if (d.date > data.date) location.reload(); } catch { /* offline: try again next minute */ }
+  }, 60000);
+}
+boot().then(watchNextDay);

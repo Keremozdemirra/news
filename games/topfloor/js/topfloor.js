@@ -30,9 +30,15 @@ function fit() {
   S = Math.max(0.62, Math.min(1.3, Math.min(w / 390, h / 844)));
   app.style.setProperty("--vh", h + "px");
   app.style.setProperty("--s", S.toFixed(4));
+  // With the phone keyboard up the screen is half as tall. The question card keeps its full height (it is what the
+  // player is reading), and the dial and the car shrink to stand in what is left above it.
+  if (card.dataset.screen === "prompt") {
+    const sat0 = parseFloat(getComputedStyle(app).getPropertyValue("--sat")) || 0, room = card.getBoundingClientRect().top - sat0 - 44;
+    if (room < 402 * S) { S = Math.max(0.3, room / 402); app.style.setProperty("--s", S.toFixed(4)); }
+  }
   // The gauge and the car stand as low as the open card allows, so the street meets the card and the sky gets the room.
   const sat = parseFloat(getComputedStyle(app).getPropertyValue("--sat")) || 0;
-  const natural = sat + (44 + 232 + 156) * S, cardTop = card.getBoundingClientRect().top;
+  const natural = sat + Math.max(44, 44 * S) + (232 + 156) * S, cardTop = card.getBoundingClientRect().top;
   const drop = Math.max(0, Math.min(h * 0.3, cardTop - 14 * S - natural));
   app.style.setProperty("--drop", drop.toFixed(1) + "px");
   world.layout(S, natural + drop - 8 * S, h, w);
@@ -130,13 +136,13 @@ function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add
 
 // ---- prompt phase
 function startPrompt(i) {
-  idx = i; phase = "prompt"; arrived = true;
+  idx = i; phase = "prompt"; arrived = true; promptAt = performance.now();
   const p = data.prompts[i];
   show("prompt");
   $("q-count").textContent = `Question ${i + 1} of ${data.prompts.length}`;
   $("q-text").textContent = p.text;
   $("ans").value = ""; $("ride").classList.remove("ready");
-  $("q-note").textContent = `${p.n} valid answers on file. Rare ones count more.`; $("q-note").classList.remove("bad");
+  $("q-note").textContent = `${p.entries.length} valid answers on file. Rare ones count more.`; $("q-note").classList.remove("bad");
   $("q-time").textContent = `0:${pad(SECS)}`; $("q-time").classList.remove("hot");
   doors.alarm.classList.remove("hot");
   pipsRender();
@@ -157,7 +163,11 @@ function tick(now) {
   const hot = left <= 6;
   $("q-time").classList.toggle("hot", hot); $("fuse").classList.toggle("hot", hot);
   doors.alarm.classList.toggle("hot", hot);
-  if (leftMs <= 0) return timeout();
+  if (leftMs <= 0) {
+    // the doors close on what is in the slot: a valid answer typed in time is not thrown away for a missing Enter
+    const typed = $("ans").value.trim(), hit = typed ? find(idx, typed) : null;
+    return hit === null ? timeout() : success(hit);
+  }
   raf = requestAnimationFrame(tick);
 }
 document.addEventListener("visibilitychange", () => {
@@ -169,8 +179,9 @@ document.addEventListener("visibilitychange", () => {
 function find(i, raw) {
   return raw.trim() ? maps[i](raw) : null;
 }
+let promptAt = 0;
 function submit() {
-  if (phase !== "prompt") return;
+  if (phase !== "prompt" || performance.now() - promptAt < 400) return;     // a held Enter from the last card is not an answer
   const raw = $("ans").value.trim();
   const note = $("q-note");
   if (!raw) { nope("Type an answer first."); return; }
@@ -208,13 +219,15 @@ function success(entryIdx) {
   resultCommon();
   answers[idx] = { label: nice(e[0]), tier, pts, rank: entryIdx, n: p.entries.length };
   total += pts;
+  progress(false);
   const st = $("stamp");
   st.style.setProperty("--c", `var(--t${tier})`);
   $("st-tier").textContent = data.tiers[tier].name; $("st-pts").textContent = `+${pts}`;
   lampsRun(tier);
   $("r-answer").textContent = nice(e[0]);
-  const share = entryIdx / p.entries.length;
-  $("r-rare").textContent = share < 0.03 ? `One of the best known of ${p.entries.length} answers on file.` : tier === 4 ? `As rare as answers get on this list of ${p.entries.length}.` : `Rarer than ${Math.round(share * 100)}% of the ${p.entries.length} answers on file.`;
+  // what the tier means in words; a percentile would mislead, because most of any list is names few people know
+  const N = p.entries.length;
+  $("r-rare").textContent = [`One of the best known of ${N} answers on file.`, `A familiar name among the ${N} answers on file.`, `Past most people’s first thought.`, `Few people would name it.`, `As rare as answers get on this list of ${N}.`][entryIdx / N < 0.03 ? 0 : Math.max(1, tier)];
   if (e[5]) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${e[5]}”`; }
   pipsRender();
   arrived = false;
@@ -234,6 +247,7 @@ function timeout() {
   const p = data.prompts[idx];
   resultCommon();
   answers[idx] = { label: null, tier: -1, pts: 0 };
+  progress(false);
   const st = $("stamp");
   st.style.setProperty("--c", "var(--muted)");
   $("st-tier").textContent = "Doors closed"; $("st-pts").textContent = "+0";
@@ -260,22 +274,54 @@ function next() {
 }
 
 // ---- end
+const sigOf = () => data.prompts.map((p) => p.id).join(",");
+// Each answer is saved as it lands, so a reload picks the building up at the next question instead of starting over.
+function progress(done) {
+  if (practice) return;
+  if (!stats.days) stats.days = {};
+  const had = stats.days[data.date];
+  stats.days[data.date] = { sig: sigOf(), done, floor: Math.min(MAXF, Math.round(total / 7)), total, ans: answers.filter(Boolean).map((a) => [a.label, a.tier, a.pts]), counted: !!(had && had.counted) };
+  for (const d of Object.keys(stats.days).sort().slice(0, -60)) delete stats.days[d];
+  save(stats);
+}
 function finish() {
   phase = "end";
   const F = Math.min(MAXF, Math.round(total / 7));
-  const rec = { floor: F, total, ans: answers.map((a) => [a.label, a.tier, a.pts]) };
-  if (!stats.days) stats.days = {};
-  if (!stats.days[data.date] || params.has("fresh")) {
+  if (practice) { renderEnd({ floor: F, total, ans: answers.map((a) => [a.label, a.tier, a.pts]) }); return; }
+  const had = stats.days?.[data.date];
+  progress(true);
+  if (!had || !had.counted) {
     stats.played = (stats.played || 0) + 1;
     stats.sum = (stats.sum || 0) + F;
     stats.best = Math.max(stats.best || 0, F);
     const y = new Date(Date.parse(data.date + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
-    stats.streak = stats.last === y ? (stats.streak || 0) + 1 : 1;
+    stats.streak = stats.last === y ? (stats.streak || 0) + 1 : stats.last === data.date ? (stats.streak || 1) : 1;
     stats.last = data.date;
-    stats.days[data.date] = rec;
+    stats.days[data.date].counted = true;
     save(stats);
   }
-  renderEnd(rec);
+  renderEnd(stats.days[data.date]);
+}
+
+// ---- practice: seven prompts from the other lists, the same lift, nothing written to the day's record
+let practice = false, daily = null;
+async function startPractice() {
+  const btn = $("practice"); btn.disabled = true;
+  try {
+    daily = daily || data.prompts;
+    const today = new Set(daily.map((p) => p.id));
+    const mix = (l) => l.map((p) => [Math.random(), p]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+    const pick = [...mix((data.pool || []).filter((p) => !today.has(p.id))), ...mix((data.pool || []).filter((p) => today.has(p.id)))].slice(0, 7);
+    if (pick.length < 7) { toast("No practice building today."); return; }
+    await Promise.all(pick.map(async (p) => { if (!p.entries) p.entries = (await (await fetch(p.list)).json()).entries; }));
+    practice = true; data.prompts = pick;
+    maps = pick.map((p) => matcher(p.entries, p.generic || [], data.match));
+    idx = 0; total = 0; floor = 0; answers = [];
+    setLiftMs(1); applyPalette(0); world.setFloor(0, true); world.setProgress(0); world.setLitFloors(0); setOdometer(0); needle.set(0);
+    clearInterval(cdT);
+    startPrompt(0);
+  } catch { toast("The practice lists did not load."); }
+  finally { btn.disabled = false; }
 }
 function mini(rec) {
   const svg = $("mini"); svg.innerHTML = "";
@@ -323,7 +369,9 @@ function mini(rec) {
 function renderEnd(rec) {
   show("end");
   const F = rec.floor, b = bandOf(F);
-  $("e-issue").textContent = `Topfloor No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+  $("e-issue").textContent = practice ? "Practice building · not counted" : `Topfloor No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+  $("practice-label").textContent = practice ? "Another practice building" : "Practice building";
+  $("to-daily").hidden = !practice; $("share").hidden = practice; $("share-text").hidden = practice;
   $("e-floor").textContent = `Floor ${F}`;
   $("e-tier").textContent = BANDS[b][0];
   $("e-tier").style.setProperty("--tier-c", `var(--t${b})`);
@@ -427,7 +475,7 @@ async function boot() {
   sb.addEventListener("click", () => { setSound(!snd.isOn()); if (snd.isOn()) snd.ding(1); });
 
   // wiring
-  $("start").addEventListener("click", () => { if (localStorage.getItem("topfloor:sound") === "1" && !snd.isOn()) setSound(true); startPrompt(0); });
+  $("start").addEventListener("click", () => { if (phase !== "intro") return; if (localStorage.getItem("topfloor:sound") === "1" && !snd.isOn()) setSound(true); startPrompt(0); });
   $("form").addEventListener("submit", (e) => { e.preventDefault(); submit(); });
   $("ride").addEventListener("mousedown", (e) => e.preventDefault());
   $("ride").addEventListener("pointerdown", () => $("ride").classList.add("press"));
@@ -435,18 +483,36 @@ async function boot() {
   $("ans").addEventListener("input", () => {
     const slot = $("slot"); slot.classList.remove("tick", "nope"); void slot.offsetWidth; slot.classList.add("tick");
     $("ride").classList.toggle("ready", $("ans").value.trim().length > 0);
-    if ($("q-note").classList.contains("bad")) { $("q-note").classList.remove("bad"); $("q-note").textContent = `${data.prompts[idx].n} valid answers on file. Rare ones count more.`; }
+    if ($("q-note").classList.contains("bad")) { $("q-note").classList.remove("bad"); $("q-note").textContent = `${data.prompts[idx].entries.length} valid answers on file. Rare ones count more.`; }
     snd.click();
   });
   $("next").addEventListener("click", next);
   $("share").addEventListener("click", share);
+  $("practice").addEventListener("click", startPractice);
+  $("to-daily").addEventListener("click", () => location.assign(location.pathname));
   document.addEventListener("keydown", (e) => { if (e.key === "Enter" && phase === "result" && !e.repeat) { e.preventDefault(); next(); } });
 
   const saved = stats.days?.[data.date];
-  if (saved && !params.has("fresh")) { total = saved.total; phase = "end"; app.dataset.phase = "end"; renderEnd(saved); }
+  if (saved && !params.has("fresh") && (!saved.sig || saved.sig === sigOf())) {
+    total = saved.total;
+    if (saved.done === false && saved.ans.length < data.prompts.length) {
+      // a day left half way: the lift waits at the floor it had reached, on the next question
+      answers = saved.ans.map((a) => ({ label: a[0], tier: a[1], pts: a[2] }));
+      const F = saved.floor; floor = F; setLiftMs(1); applyPalette(F / MAXF); world.setFloor(F, true); world.setProgress(total / 700); world.setLitFloors(F); setOdometer(F); needle.set(F);
+      startPrompt(answers.length);
+    } else { phase = "end"; app.dataset.phase = "end"; renderEnd(saved); }
+  }
   else { phase = "intro"; show("intro"); pipsRender(); }
   requestAnimationFrame(() => requestAnimationFrame(() => { app.dataset.phase = card.dataset.screen; }));
   if (localStorage.getItem("topfloor:sound") === "1") $("sound").title = "Sound is on after your first tap";
   window.__tf = { get state() { return { idx, total, floor, phase, answers }; }, data, next, submit };
 }
-boot();
+// The next day's puzzle goes up with the first site build after midnight UTC. A page left open over midnight, or
+// opened in those first minutes, asks for it once a minute and loads it when it is there (never in mid-game).
+function watchNextDay() {
+  setInterval(async () => {
+    if (document.hidden || new Date().toISOString().slice(0, 10) <= data.date || !(phase === "end" || phase === "intro")) return;
+    try { const d = await (await fetch("assets/data/today.json", { cache: "no-store" })).json(); if (d.date > data.date) location.reload(); } catch { /* offline: try again next minute */ }
+  }, 60000);
+}
+boot().then(watchNextDay);

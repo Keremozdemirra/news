@@ -18,7 +18,7 @@ GAMES_DIR = Path(__file__).resolve().parent.parent / "games"
 GAMES = [
     ("topfloor", "Topfloor", "Seven business prompts, 25 seconds each. The rarer your answer, the higher the lift climbs.", True),
     ("tickerflip", "Tickerflip", "One word from today's stories on a split-flap departure board. Six guesses.", True),
-    ("face-the-figure", "Face the Figure", "Two real business figures on a balance. Is the sealed one higher or lower? Ten rounds.", True),
+    ("face-the-figure", "Face the Figure", "Real business figures on a balance. Is the sealed one higher or lower? Each answer carries into the next: a chain of ten.", True),
 ]
 SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", "lockup.html", "extras.json", ".DS_Store")
 

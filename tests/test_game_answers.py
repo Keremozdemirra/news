@@ -38,7 +38,7 @@ KNOWN = {
     "publisher": {"EA": "Electronic Arts", "Activision Blizzard": "Activision Blizzard", "Take-Two": "Take-Two", "Take Two Interactive": "Take-Two",
                   "SEGA": "Sega", "Bandai Namco": "Bandai Namco", "Nintendo": "Nintendo", "Ubisoft": "Ubisoft"},
     "brewery": {"Efes": "Efes", "Anadolu Efes": "Efes", "Tuborg": "Tuborg", "Hofbräu München": "Hofbräuhaus", "Hofbrau": "Hofbräuhaus", "Becks": "Beck's",
-                "Augustiner-Bräu": "Augustiner", "Heineken": "Heineken", "Pilsner Urquell": "Prazdroj", "Guinness": "Guinness"},
+                "Augustiner-Bräu": "Augustiner", "Heineken": "Heineken", "Pilsner Urquell": "Pils", "Guinness": "Guinness"},
 }
 UNKNOWN = {"bank": ["xyzzy bank", "pizza", "qq"], "carmaker": ["spoon motors"], "airline": ["banana air"], "supermarket": ["banana mart"],
            "currency": ["flurbo"], "brewery": ["zzyzx brewing"], "exchange": ["narnia stock exchange"], "central-bank": ["Bank of Narnia"]}
@@ -55,7 +55,49 @@ def entries(pid):
     return json.loads((TOP / "assets" / "data" / "lists" / f"{pid}.json").read_text())["entries"]
 
 
+# Regional chains and brands a player from Turkey, Germany or anywhere else gives first, in the spellings a phone
+# keyboard produces: upper case with dotted and dotless i, with and without the accents. Each must be on file.
+REGIONAL = {
+    "fast-food": ["KÖFTECİ YUSUF", "KÖFTECI YUSUF", "köfteci yusuf", "Kofteci Yusuf", "Simit Sarayı", "SİMİT SARAYI", "simit sarayi", "Tavuk Dünyası",
+                  "TAVUK DUNYASI", "Baydöner", "Usta Dönerci", "Komagene", "Oses Çiğköfte", "HD İskender", "HD ISKENDER", "Nordsee", "Kochlöffel",
+                  "Kochloeffel", "Hans im Glück", "Peter Pane", "Dean & David", "Backwerk", "Jollibee", "Nando's", "Nandos", "Chick-fil-A", "In-N-Out",
+                  "Tim Hortons", "Pollo Campero", "Shake Shack", "Telepizza", "Greggs", "Pret a Manger", "Starbucks", "Costa Coffee", "Hesburger"],
+    "supermarket": ["Migros", "BİM", "BIM", "A101", "Şok", "ŞOK", "Sok", "CarrefourSA", "Hakmar", "Onur Market", "Mopaş", "Rewe", "Edeka", "Netto", "Penny",
+                    "Aldi Süd", "Aldi Sued", "Lidl", "Kaufland", "tegut", "Alnatura", "Denn's", "Spar", "Billa", "Mercadona", "Monoprix", "Albert Heijn",
+                    "Tesco", "Sainsbury's", "Kroger", "Trader Joe's", "Biedronka", "Żabka", "Zabka", "Pyaterochka", "Coles", "Pick n Pay"],
+    "brewery": ["Efes", "Tuborg", "Bomonti", "Gara Guzu", "Paulaner", "Augustiner", "Hofbräu", "Hofbraeu", "Löwenbräu", "Lowenbrau", "Krombacher",
+                "Bitburger", "Beck's", "Becks", "Astra", "Störtebeker", "Corona", "Stella Artois", "Leffe", "Estrella Damm", "Mahou", "Singha", "Chang",
+                "Tyskie", "Żywiec", "Zywiec", "Gaffel", "Andechs", "Guinness", "Heineken", "Asahi", "Tsingtao", "BrewDog", "Sierra Nevada"],
+    "crypto": ["Bitcoin", "BTC", "Ethereum", "ETH", "XRP", "Ripple", "Solana", "SOL", "Dogecoin", "DOGE", "Cardano", "Polkadot", "Avalanche", "AVAX",
+               "Chainlink", "Stellar", "Tether", "USDT", "USDC", "Toncoin", "Shiba Inu", "Arbitrum", "Aptos", "Sui", "Hedera", "Chiliz", "Pepe"],
+    "index": ["BIST 100", "XU100", "BIST 30", "DAX", "MDAX", "S&P 500", "SP500", "Dow Jones", "Nasdaq 100", "FTSE 100", "CAC 40", "Euro Stoxx 50",
+              "Nikkei 225", "Hang Seng", "Sensex", "Nifty 50", "IBEX 35", "SMI", "ATX", "Kospi", "VIX", "MOEX", "TSX"],
+    "publisher": ["EA", "Electronic Arts", "Ubisoft", "Take-Two", "Rockstar", "Nintendo", "Sega", "Capcom", "Square Enix", "Bandai Namco", "THQ Nordic",
+                  "Paradox", "Devolver Digital", "Peak Games", "Dream Games", "TaleWorlds", "Crytek", "Good Job Games", "Spyke", "Supercell", "CD Projekt"],
+    "bank": ["Ziraat Bankası", "ZİRAAT BANKASI", "ZIRAAT BANKASI", "İş Bankası", "IS BANKASI", "Garanti BBVA", "Akbank", "Yapı Kredi", "YAPI KREDİ",
+             "Halkbank", "Vakıfbank", "VAKIFBANK", "Denizbank", "Kuveyt Türk", "Ziraat Katılım", "Sparkasse", "Commerzbank", "DKB", "N26", "Sparda-Bank",
+             "Volksbank", "Raiffeisen", "Wise", "Revolut", "Monzo", "Nubank", "Santander", "UBS", "BNP Paribas"],
+    "carmaker": ["Togg", "TOGG", "Tofaş", "TOFAŞ", "Tofas", "Otokar", "Karsan", "Temsa", "Anadol", "Devrim", "Trabant", "Opel", "Porsche", "Škoda", "Skoda",
+                 "Citroën", "Citroen", "BYD", "Dacia", "Cupra", "Koenigsegg", "Rimac", "Borgward", "Wiesmann", "Mahindra", "Rolls Royce"],
+    "airline": ["THY", "Türk Hava Yolları", "TÜRK HAVA YOLLARI", "Turk Hava Yollari", "Pegasus", "SunExpress", "AJet", "Corendon", "Eurowings", "Condor",
+                "Ryanair", "easyJet", "Wizz Air", "Aegean", "flydubai", "IndiGo", "LATAM", "airBaltic", "AZAL"],
+    "currency": ["TL", "Türk lirası", "TÜRK LİRASI", "Turk lirasi", "lira", "euro", "dolar", "dollar", "sterlin", "yen", "zloty", "forint", "hryvnia",
+                 "Deutsche Mark", "D-Mark", "guilder", "kuruş", "rupee", "won", "manat"],
+    "central-bank": ["TCMB", "Merkez Bankası", "MERKEZ BANKASI", "ECB", "EZB", "Fed", "Bundesbank", "BoE", "BoJ", "SNB", "PBoC", "Riksbank", "BIS"],
+    "exchange": ["BIST", "Borsa İstanbul", "BORSA İSTANBUL", "Borsa Istanbul", "NYSE", "Nasdaq", "LSE", "Deutsche Börse", "Deutsche Boerse", "Xetra",
+                 "Euronext", "HKEX", "Cboe", "ICE", "Wiener Börse", "Börse Stuttgart", "Tadawul"],
+}
+
+
 class TopfloorAnswers(unittest.TestCase):
+    def test_regional_chains_and_turkish_keyboard_spellings_are_on_file(self):
+        missing = [f"{pid}: {g}" for pid, cases in REGIONAL.items() for g in cases if names.find(entries(pid), pid, g) is None]
+        self.assertEqual(missing, [], "real answers that were not recognised")
+
+    def test_turkish_letters_fold_the_same_whatever_the_case(self):
+        for a, b in [("KÖFTECİ YUSUF", "kofteci yusuf"), ("KÖFTECI YUSUF", "köfteci yusuf"), ("IŞIK", "ışık"), ("İŞ BANKASI", "is bankasi"), ("ÇAĞDAŞ", "cagdas"), ("ŞOK", "sok"), ("ÜLKER", "ulker")]:
+            self.assertEqual(names.norm(a), names.norm(b), (a, b))
+
     def test_every_prompt_has_a_list_and_it_is_not_thin(self):
         from build_lists import POOL
         for pid, _, _ in POOL:
@@ -97,7 +139,7 @@ class TopfloorAnswers(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_the_players_device_agrees(self):
-        cases = [[pid, g] for pid, c in KNOWN.items() for g in c] + [[pid, g] for pid, c in UNKNOWN.items() for g in c]
+        cases = [[pid, g] for pid, c in KNOWN.items() for g in c] + [[pid, g] for pid, c in UNKNOWN.items() for g in c] + [[pid, g] for pid, c in REGIONAL.items() for g in c]
         js = """
 import { readFileSync } from 'node:fs';
 import { matcher } from '%s/js/match.js';

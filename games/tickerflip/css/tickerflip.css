@@ -253,3 +253,6 @@ button { font: inherit; color: inherit; }
 .brand-logo { width: 30px; height: 30px; flex: none; border: 2px solid var(--brass); }
 /* phone: the hall is only a dark wall behind the board; the lamps and the lit rail belong to the wide view */
 @media (max-width: 1039px) { .hall { background-image: none; background-color: #100a08; } }
+.btn.ghost { background: transparent; color: var(--cream, #f2e9d3); margin-top: 10px; height: auto; min-height: 52px; padding: 8px 16px; white-space: normal; text-align: center; line-height: 1.25; }
+.textbtn { display: block; margin: 8px auto 0; background: none; border: 0; padding: 8px 0; color: var(--brass, #c9a05a); font: inherit; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.btn[hidden], .textbtn[hidden] { display: none !important; }

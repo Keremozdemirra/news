@@ -24,6 +24,7 @@ LAUNCH = dt.date(2026, 11, 27)  # puzzle No. 1
 MIN_LEN, MAX_LEN = 5, 6   # five or six cells: the size a phone can show big
 MIN_CANDIDATES = 8    # widen the window one day at a time until there are this many
 MAX_WINDOW = 4        # days, today included
+MORE_BOARDS = 5       # extra boards a player can open after the day's word
 SITE = "https://boardread.news/s/{}/"
 LIVE = {"published", "web"}
 
@@ -140,6 +141,19 @@ def build(date: dt.date, queue: Path, words: Path):
     by_id = {p["id"]: p for p in posts}
     arts = [{"id": k, "h": by_id[k]["head"], "src": by_id[k]["src"], "url": SITE.format(k)} for k in pool[answer]["ids"][:3]]
 
+    # extra boards for the same day: the next words round the list, a different length or story where there is one
+    stop_hint = {"company": "a company in the news", "ticker": "a stock ticker", "headline": "a word from a headline"}
+    more, used_ids = [], set(pool[answer]["ids"])
+    for k in range(1, len(names)):
+        w = names[(i + k * 7) % len(names)]
+        if w == answer or any(m["w"] == w for m in more) or (set(pool[w]["ids"]) <= used_ids and len(names) > 12):
+            continue
+        used_ids |= set(pool[w]["ids"])
+        more.append({"w": w, "a": base64.b64encode(w[::-1].encode()).decode(), "len": len(w), "kind": pool[w]["kind"], "clue": stop_hint[pool[w]["kind"]],
+                     "articles": [{"id": x, "h": by_id[x]["head"], "src": by_id[x]["src"], "url": SITE.format(x)} for x in pool[w]["ids"][:3]]})
+        if len(more) == MORE_BOARDS:
+            break
+
     extra = set()
     for p in posts:
         for w, _ in tokens(p["text"]):
@@ -153,15 +167,15 @@ def build(date: dt.date, queue: Path, words: Path):
                 if ok_len(w):
                     extra.add(w.lower())
     extra.add(answer)
+    extra |= {m.pop("w") for m in more}
     extra -= dic  # the browser already has the dictionary
-    stop_hint = {"company": "a company in the news", "ticker": "a stock ticker", "headline": "a word from a headline"}
     data = {
         "v": 1, "date": date.isoformat(), "no": (date - LAUNCH).days + 1,
         "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "len": len(answer), "tries": 6,
         "a": base64.b64encode(answer[::-1].encode()).decode(),
         "kind": pool[answer]["kind"], "clue": stop_hint[pool[answer]["kind"]],
-        "articles": arts, "extra": sorted(extra),
+        "articles": arts, "extra": sorted(extra), "more": more,
         "credit": "Word list: SCOWL via Hunspell en_US (see words-NOTICE.txt), plus every word in Boardread's articles.",
     }
     report = [f"window {span} d, {len(pool)} candidates from {sum(1 for p in posts if p['day'] in days)} articles",

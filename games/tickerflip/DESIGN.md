@@ -58,6 +58,11 @@ Every move is held frames, not one eased tween (see art notes from the studio: a
 
 HUD, keys, panels and the clock never loop or tween. Only the cells move. Reduced motion: no flaps, states appear at once, no shake, no hop.
 
+## After the day's word (2026-11-27)
+
+- **Extra boards.** Up to five more words from the same day's stories, opened one at a time from the end card. They are not counted in the record and their share text says "extra board".
+- **A saved day that does not fit the board is dropped** (the day's word was rebuilt with another length): the player gets a clean board, never a row of misplaced letters.
+
 ## Do not
 
 Brass gradients in CSS, glow, text-shadow, rounded rectangles, pills, emoji, a second accent colour, a centred hero. Do not put the answer anywhere the page can read before the finish (the data file stores it base64-reversed, which is obscurity, not secrecy).
