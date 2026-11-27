@@ -1,0 +1,86 @@
+{
+ "id": "2026-11-27-1848-1",
+ "batch": "2026-11-27-1848",
+ "n": 1,
+ "created": "2026-11-27T18:48:51+00:00",
+ "layout": "type",
+ "photos": [
+  {
+   "file": "Two iPhones (1091302).jpg",
+   "credit": "Photo: Dariusz Sankowski, CC0, via Wikimedia Commons",
+   "name": ""
+  }
+ ],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "OpenAI countersues Apple for stealing trade secrets\n\nOpenAI also accuses Apple of coercing and threatening suppliers that work with both companies. The legal battle between the two companies is escalating, the Financial Times reported. OpenAI is the maker of ChatGPT.\n\nReported by CNA; Financial Times.\n\nSend this to a colleague who covers OpenAI.\n\n#business #news\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.channelnewsasia.com/business/openai-countersues-apple-stealing-trade-secrets-ft-reports-6588456"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/business/openai-countersues-apple-stealing-trade-secrets-ft-reports-6588456",
+  "https://www.ft.com/content/af599e07-d44c-4068-ab84-6ee3c85551d4?syn-25a6b1a6=1"
+ ],
+ "headlines": [
+  "OpenAI countersues Apple for stealing trade secrets"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "Two iPhones (1091302).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Two smartphones on a dark surface",
+ "score": 8.121,
+ "figure": "",
+ "company": "OpenAI",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Apple Park",
+ "orgs": [
+  "OpenAI",
+  "Apple"
+ ],
+ "venue": "",
+ "logo_names": [
+  "OpenAI",
+  "Apple"
+ ],
+ "dek": "OpenAI also accuses Apple of coercing and threatening suppliers that work with both companies.",
+ "body": "The legal battle between the two companies is escalating, the Financial Times reported. OpenAI is the maker of ChatGPT.",
+ "supported": "bfe04b965df2",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "CNA",
+  "Financial Times"
+ ],
+ "source_urls": [
+  "https://www.channelnewsasia.com/business/openai-countersues-apple-stealing-trade-secrets-ft-reports-6588456",
+  "https://www.ft.com/content/af599e07-d44c-4068-ab84-6ee3c85551d4?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: Dariusz Sankowski, CC0, via Wikimedia Commons",
+ "credit_file": "Two iPhones (1091302).jpg",
+ "video": {
+  "shape": "card",
+  "file": "video.mp4",
+  "cover": "cover.jpg",
+  "spec": [],
+  "headline": "OpenAI countersues Apple for stealing trade secrets",
+  "photo_file": "Two iPhones (1091302).jpg",
+  "credit": "Photo: Dariusz Sankowski, CC0, via Wikimedia Commons",
+  "focus": [
+   0.5,
+   0.5
+  ],
+  "seconds": 8.0
+ },
+ "status": "queued",
+ "publish_after": "2026-11-27T19:16:34+00:00",
+ "story": ""
+}
