@@ -332,7 +332,7 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .covered{margin-top:30px}
 
 /* new since your last visit; set by the script, so a reader without it sees nothing */
-.new{font:600 12.5px/1 var(--f);color:var(--paper);background:var(--ink);padding:3px 6px 3px;margin-right:8px;}
+.new,.latest span.new{display:inline-block;vertical-align:.15em;font:600 12.5px/1 var(--f);color:var(--paper);background:var(--ink);padding:3px 6px 3px;margin-right:8px;}
 .since{font:600 14.5px var(--f);margin:0 0 18px;padding:10px 14px;background:var(--wash)}
 .since[hidden]{display:none}
 .cur{outline:2px solid var(--ink);outline-offset:6px;}

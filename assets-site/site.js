@@ -43,7 +43,8 @@
     document.querySelectorAll("a[href*='/s/']").forEach(function (a) {
       var tm = a.querySelector("time[datetime]");
       if (!tm || Date.parse(tm.getAttribute("datetime")) <= prev) return;
-      var m = a.querySelector(".meta") || a, tag = document.createElement("span");
+      // the tag goes into the meta line, else in front of the headline: as a child of a grid row it became a column of its own
+      var m = a.querySelector(".meta") || (tm.parentNode === a ? tm.nextElementSibling : tm.parentNode) || a, tag = document.createElement("span");
       tag.className = "new"; tag.textContent = "New"; m.insertBefore(tag, m.firstChild);
       if (!seen[a.getAttribute("href")]) { seen[a.getAttribute("href")] = 1; count++; }
     });
