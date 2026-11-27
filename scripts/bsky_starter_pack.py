@@ -16,7 +16,7 @@ from aidaily import platforms  # noqa: E402
 
 NAME = "Business & Markets News"
 DESCRIPTION = "Business, markets, economy and tech news from newsrooms on Bluesky, plus Boardread."
-MEMBERS = ["boardread.bsky.social", "financialtimes.com", "theverge.com", "reuters.com", "techcrunch.com",
+MEMBERS = ["boardread.news", "financialtimes.com", "theverge.com", "reuters.com", "techcrunch.com",
            "wsj.com", "economist.com", "axios.com", "businessinsider.com", "cnbc.com", "opinion.bloomberg.com",
            "fortune.com", "hbr.org", "marketwatch.com"]
 PUBLIC = "https://public.api.bsky.app/xrpc"

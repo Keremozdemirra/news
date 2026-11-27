@@ -388,7 +388,7 @@ class ChannelText(unittest.TestCase):
     def test_digest_closes_with_cross_links(self):
         t = platforms.digest_text([self.p()])
         self.assertIn("Every story: ", t)
-        self.assertIn("Bluesky https://bsky.app/profile/boardread.bsky.social", t)
+        self.assertIn("Bluesky https://bsky.app/profile/boardread.news", t)
         self.assertNotIn("Telegram https://t.me", t)
 
     def test_threads_topic_tag_override(self):

@@ -24,7 +24,7 @@ Sources in every post.
 | Threads | from Instagram | Boardread | one tap from the Instagram profile |
 | Facebook Page | Boardread | Boardread | link it to the Instagram account |
 | X | `@boardread` | Boardread | turn on the Automated label; add the line below to the bio |
-| Bluesky | `boardread.bsky.social` | Boardread | create an app password for the desk |
+| Bluesky | `boardread.news` (was boardread.bsky.social) | Boardread | create an app password for the desk |
 | Telegram | `t.me/boardread` | Boardread | a channel, plus a bot from @BotFather added as admin |
 
 X bio, last line (X requires automated accounts to say who runs them):
