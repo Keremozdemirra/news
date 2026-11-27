@@ -381,8 +381,21 @@ def figure_ok(fig, seen):
     return not QUALIFIED.search(seen[:m.start()]) and not seen[m.end():m.end() + 1] == "+"
 
 
+# a full stop that ends an abbreviation ends no sentence: "found on Nov. 3." is one sentence, not two
+ABBR = re.compile(r"(?:^|\s)(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec|Mr|Mrs|Ms|Dr|St|Gov|Sen|Rep|Gen|Lt|"
+                  r"Col|Corp|Inc|Ltd|No|vs|[A-Z]\.[A-Z]|U\.S|U\.K|U\.N)\.$")
+
+
 def sentences(text):
-    return [x for x in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"“‘'])", text or "") if x.strip()]
+    out = []
+    for x in re.split(r"(?<=[.!?])\s+(?=[A-Z0-9\"“‘'])", text or ""):
+        if not x.strip():
+            continue
+        if out and ABBR.search(out[-1]):
+            out[-1] += " " + x
+        else:
+            out.append(x)
+    return out
 
 
 def drop_restated_lead(post, headline):
@@ -421,7 +434,12 @@ def drop_repeats(post, deks, headline):
     both = " ".join([headline] + [d for d in deks if d])
     kept, cut = [], False
     for x in sents:
-        if any(d and said(x, d) for d in deks) or (deks and repeats(x, both, share=0.6)):
+        # a number the headline and dek do not have is a new fact, whatever words carry it: "Muse commands 51 percent
+        # of all agentic shopping orders" was cut for sharing its other words with them
+        if _numbers(x) - _numbers(both):
+            kept.append(x)
+            cut = False
+        elif any(d and said(x, d) for d in deks) or (deks and repeats(x, both, share=0.6)):
             cut = True
         # a sentence that leans on the one just cut, or that opens the report leaning on nothing, goes with it: "It
         # concerns the removal and blocking of political content." and "Markets are also tracking U.S. inventories."

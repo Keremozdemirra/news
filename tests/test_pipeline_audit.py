@@ -43,6 +43,20 @@ class Orphans(unittest.TestCase):
         self.assertEqual(out, "Brent rose 2% to $64 a barrel.")
 
 
+class Splitting(unittest.TestCase):
+    def test_an_abbreviation_ends_no_sentence(self):
+        self.assertEqual(copy.sentences("The boat was found off Ulleungdo on Nov. 3. It was towed to port."),
+                         ["The boat was found off Ulleungdo on Nov. 3.", "It was towed to port."])
+        self.assertEqual(len(copy.sentences("The U.S. economy grew. Jobs rose.")), 2)
+
+    def test_a_new_number_is_a_new_fact(self):
+        out = copy.drop_repeats("Amazon's ad business generates $68.6 billion a year, and Muse commands 51 percent of all "
+                                "agentic shopping orders.",
+                                ["The sides are stuck on ad revenue; Amazon's ad business generates $68.6 billion a year."],
+                                "Amazon and Meta talk about lifting the block on Meta's Muse shopping agent")
+        self.assertIn("51 percent", out)
+
+
 class Thin(unittest.TestCase):
     def test_no_dek_takes_the_reports_first_sentence(self):
         s = {"title": "Argentina's Senate approves bill to suspend primaries", "source": "BA Times",
