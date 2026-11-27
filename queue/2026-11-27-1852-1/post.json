@@ -92,5 +92,14 @@
  "attempted": "2026-11-27T21:50:11+00:00",
  "published": "2026-11-27T21:52:25+00:00",
  "media_id": "18129154324901522",
- "permalink": "https://www.instagram.com/p/DgQsBt5jY_0/"
+ "permalink": "https://www.instagram.com/p/DgQsBt5jY_0/",
+ "platforms": {
+  "telegram": {
+   "id": "40",
+   "url": "https://t.me/boardread/40",
+   "at": "2026-11-27T22:00:16+00:00",
+   "video": true,
+   "format": "video"
+  }
+ }
 }

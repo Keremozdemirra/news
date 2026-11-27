@@ -57,5 +57,13 @@
  "credit_file": "Glass office tower seen from below, São Paulo.jpg",
  "status": "web",
  "published": "2026-11-27T21:12:24+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3d6rsojzz2y",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3d6rsojzz2y",
+   "at": "2026-11-27T22:00:18+00:00",
+   "format": "link"
+  }
+ }
 }
