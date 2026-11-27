@@ -275,6 +275,50 @@ def _aspect(uri):
         return 4.0
 
 
+# One logo chip everywhere (feed cards, the video card, stories): white, square like every brand v2 surface, the same
+# padding on all four sides as a share of its height, the logo centred in the box left inside. Logos are sized
+# optically, to about the same inked area: a square symbol takes the box's full height, a long wordmark less. Kerem,
+# 2026-11-27: a wordmark sat 44 px tall in a 96 px chip beside a symbol 76 px tall, so the white around them differed.
+CHIP_H, CHIP_PAD, CHIP_AREA = 96, 0.22, 2.6  # area: a logo covers about CHIP_AREA squares of the box height
+
+
+def logo_size(aspect, box):
+    """(width, height) of a logo of this width/height ratio in a box `box` px tall."""
+    aspect = max(aspect, 0.2)
+    h = min(box, round((CHIP_AREA * box * box / aspect) ** 0.5))
+    w = round(h * aspect)
+    if w > box * 5:  # a very long wordmark is capped by width
+        w, h = box * 5, round(box * 5 / aspect)
+    return w, h
+
+
+def _raster_aspect(uri):
+    from urllib.parse import unquote, urlparse
+    from . import focus
+    path = unquote(urlparse(uri).path) if uri.startswith("file:") else ""
+    try:
+        with open(path, "rb") as f:
+            head_ = f.read(32)
+        if head_[:8] == b"\x89PNG\r\n\x1a\n":
+            w, h = int.from_bytes(head_[16:20], "big"), int.from_bytes(head_[20:24], "big")
+            return w / h if h else 1.0
+    except OSError:
+        return 1.0
+    size = focus.jpeg_size(path)
+    return size[0] / size[1] if size else 1.0
+
+
+def logo_chip(uri, h=CHIP_H):
+    """The logo chip, `h` px tall. Same padding on every side; width follows the logo."""
+    pad = round(h * CHIP_PAD)
+    box = h - 2 * pad
+    aspect = _aspect(uri) if uri.endswith(".svg") else _raster_aspect(uri)
+    w, lh = logo_size(aspect, box)
+    return (f'<div data-chip style="box-sizing:border-box;height:{h}px;padding:{pad}px;background:#fff;display:inline-flex;'
+            f'align-self:flex-start;align-items:center;justify-content:center;flex:none">'
+            f'<img src="{uri}" style="width:{w}px;height:{lh}px;object-fit:contain;display:block"></div>')
+
+
 def _logo_block(uri, name, h=60, invert=False):
     """A vector logo sits as a wordmark; a raster site icon gets a tile."""
     if not uri:
@@ -325,10 +369,7 @@ def card(story, brand=BRAND, motion=False, height=1350, place="bottom"):
     kind = layout(story)
     if kind == "photo":
         # the photo fills the card; logos of every organisation in the story sit on white chips over it
-        chips = "".join(
-            f'<div style="height:96px;padding:0 26px;background:#fff;display:flex;align-items:center">'
-            f'<img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
-            f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
+        chips = "".join(logo_chip(u) for u in a.get("logos", []))
         tall = height > 1350
         # tall: clear of the bands Instagram Reels and YouTube Shorts draw over (no official numbers for organic
         # posts; third-party estimates put the right-hand action column at 96-192 px and the caption bar at 300+ px)
@@ -639,11 +680,9 @@ def story_number(figure, headline, label, unit="", qualifier="", photo="", credi
                   align="flex-end" if photo else "center")
 
 
-def _logo_chip(uri, h=110, pad="30px 40px"):
-    if not uri:
-        return ""
-    return (f'<div style="display:inline-flex;align-self:flex-start;align-items:center;background:#fff;border-radius:22px;padding:{pad}">'
-            f'<img src="{uri}" style="height:{h}px;max-width:620px;object-fit:contain"></div>')
+def _logo_chip(uri, h=110, pad=None):
+    """A story's logo chip: the one chip spec (logo_chip) at the story's size."""
+    return logo_chip(uri, round(h / (1 - 2 * CHIP_PAD))) if uri else ""
 
 
 def story_company(logo_uri, name, rows, label, photo="", credit=""):
@@ -833,7 +872,7 @@ def story_today(logo_uris, label):
     n = len(logo_uris)
     cols = 2 if n <= 4 else 3
     side = (936 - 24 * (cols - 1)) // cols
-    tiles = "".join(f'<div style="width:{side}px;height:{side}px;background:#fff;border-radius:22px;'
+    tiles = "".join(f'<div style="width:{side}px;height:{side}px;background:#fff;'
                     f'display:flex;align-items:center;justify-content:center"><img src="{u}" style="max-width:72%;max-height:56%;object-fit:contain"></div>'
                     for u in logo_uris)
     body = (f'{_story_head("In the news<br>today.", 140)}<div style="flex:1;min-height:40px"></div>'

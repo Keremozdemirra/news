@@ -127,12 +127,15 @@ COMPANY_DESC = re.compile(r"\b(company|companies|corporation|conglomerate|firm|s
                           r"producer|retailer|airline|carrier|bank|insurer|lender|brand|platform|provider|operator|group|"
                           r"chain|publisher|studio|enterprise|business|holding|automaker|carmaker|chipmaker|laborator(?:y|ies)|"
                           r"exchange|network|service|software|games?|website|app|marketplace|fund|investment|asset manager)\b", re.I)
+STRONG_COMPANY = re.compile(r"\b(company|corporation|conglomerate|firm|manufacturer|retailer|airline|bank|startup|"
+                            r"start-up|chain|automaker|carmaker|chipmaker|publisher|developer|operator|insurer)\b", re.I)
 NOT_COMPANY = re.compile(r"\b(television channel|tv channel|youtube channel|television station|legislature|parliament|chamber|city|town|"
                          r"village|country|state of|province|river|mountain|film|novel|album|song|band|given name|surname|"
-                         r"family name|genus|species|disambiguation|episode|character)\b", re.I)
+                         r"family name|genus|species|disambiguation|episode|character|recording|track|single|video game series|game series|television series|film series|book series|"
+                         r"handheld|game console|competition|tournament)\b|\b\d{4} (?:video game|film|song)|video game for\b", re.I)
 
 
-def company_entity(name):
+def company_entity(name, domain=""):
     """(label, claims) of the Wikidata entity for a company name, or LookupError when none of the top hits is it.
 
     The top search hit can be a neighbour of the company: "S&P" finds the S&P 500 index. Logos and tickers
@@ -140,8 +143,12 @@ def company_entity(name):
     when its description says it is a company and not a channel, a legislature or a place."""
     q = urllib.parse.quote(name)
     hits = _get(f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=7&search={q}")["search"]
-    hit = next((h for h in hits if _fold(h.get("label", "")).lower().startswith(_fold(name).lower())
-                and COMPANY_DESC.search(h.get("description", "")) and not NOT_COMPANY.search(h.get("description", ""))), None)
+    ok = [h for h in hits if _named(h.get("label", ""), name)
+          and COMPANY_DESC.search(h.get("description", "")) and not NOT_COMPANY.search(h.get("description", ""))]
+    # the entity named exactly so goes first: "Nintendo DS" came before "Nintendo" in one search
+    # ... when it says it is a company: an exact "Target" is a 1997 video game, after Target Corporation
+    hit = next((h for h in ok if _fold(h.get("label", "")).lower() == _fold(name).lower()
+                and STRONG_COMPANY.search(h.get("description", ""))), ok[0] if ok else None)
     if hit is None:
         raise LookupError(f"no company named {name!r} on Wikidata")
     ent = _get(f"https://www.wikidata.org/wiki/Special:EntityData/{hit['id']}.json")["entities"][hit["id"]]
@@ -150,9 +157,51 @@ def company_entity(name):
     # words may follow the name ("Norse Atlantic Airways", "Meta Platforms") but not precede it, unless they are a
     # legal form: "Congress" found the United States Congress and its seal went on a car-import post as a logo
     starts = (label or "").lower().startswith(name.lower())
-    if extra is None or re.search(r"\d", extra) or not (starts or LEGAL_FORM.match(extra)):
+    if extra is None or re.search(r"\d", extra) or not (starts or LEGAL_FORM.match(extra)) or not _named(label, name):
         raise LookupError(f"Wikidata's {label!r} is not {name!r}")
+    # words beyond the name and a legal form ("Norse Atlantic Airways" for "Norse Atlantic") need the entity's own
+    # website to carry the name: a longer label is another organisation as often as the same one
+    if not LEGAL_FORM.match(extra or "") and not (GENERIC_TAIL.match(extra or "") and _site_has(claims, name)):
+        raise LookupError(f"Wikidata's {label!r} is not certainly {name!r}")
+    if domain and _sites(claims) and not any(_host(u).endswith(_host(domain)) or _host(domain).endswith(_host(u)) for u in _sites(claims)):
+        raise LookupError(f"Wikidata's {label!r} has another website than {domain!r}")
     return label, claims
+
+
+def _named(label, name):
+    """The label is the name, whole: equal, or the name followed by a space or punctuation and more words. "OpenAIRE"
+    starts with "OpenAI" and is another organisation; its logo went on an OpenAI post on 2026-11-27."""
+    lab, nm = _fold(label or "").lower().strip(), _fold(name or "").lower().strip()
+    # a space or comma must follow: "Disney+" is the streaming service, not the Walt Disney Company
+    return bool(nm) and (lab == nm or (lab.startswith(nm) and lab[len(nm)] in " ,"))
+
+
+def _sites(claims):
+    """Official websites (P856) of an entity."""
+    out = []
+    for c in claims.get("P856", []):
+        v = c.get("mainsnak", {}).get("datavalue", {}).get("value")
+        if isinstance(v, str):
+            out.append(v)
+    return out
+
+
+def _host(url):
+    host = urllib.parse.urlparse(url if "://" in url else "https://" + url).netloc.lower()
+    return host[4:] if host.startswith("www.") else host
+
+
+def _site_has(claims, name):
+    """The entity's own website is the name: its domain's main label spells it ("meta" in meta.com for Meta
+    Platforms). A domain that merely contains it does not count: disney.com's studios and disneyplus.com are
+    other entities than the Walt Disney Company."""
+    joined = "".join(w for w in re.split(r"[^a-z0-9]+", _fold(name).lower()) if w)
+    for u in _sites(claims):
+        parts = _host(u).split(".")
+        label = parts[-3] if len(parts) >= 3 and parts[-2] in ("co", "com", "org", "ac") else parts[-2] if len(parts) >= 2 else ""
+        if label.replace("-", "") == joined:
+            return True
+    return False
 
 
 def pick_logo(label, claims):
@@ -235,7 +284,7 @@ def logo(name, domain="", fetch=True):
     if not fetch:
         return None
     try:
-        label, claims = company_entity(name)
+        label, claims = company_entity(name, domain)
         # a place has a population; its coat of arms is not a company logo ("Alberta", "New York" on 2026-11-27).
         # Wikidata then says nothing about the company; only the company's own site, if the copy gave it, may
         if "P1082" in claims:
@@ -277,6 +326,11 @@ EXCHANGES = {
 GOOGLE_SUFFIX = {name: suffix for name, suffix in EXCHANGES.values()}
 SYMBOL = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,9}$")
 # what may follow the company name in Wikidata's label: "Apple Inc." is Apple, "Apple Music" is not
+# words a company's full name adds to the short one ("Meta Platforms", "Samsung Electronics"); anything else
+# ("Interactive Studios", "Music") names a part or a product of it
+GENERIC_TAIL = re.compile(r"^[\s,.]*(platforms|technologies|technology|electronics|airways|airlines|motors|"
+                          r"motor company|systems|industries|energy|pharmaceuticals|entertainment|labs|financial|"
+                          r"inc|corp|corporation|group|holdings?|plc|ltd|limited|co|company|ag|se|sa|nv|[.,&\s])+$", re.I)
 LEGAL_FORM = re.compile(r"^[\s,.]*(inc|incorporated|corp|corporation|plc|ltd|limited|llc|ag|se|nv|sa|"
                         r"co|company|group|holdings?|spa|ab|asa|oyj|kk|\s|[.,&])*$", re.I)
 
