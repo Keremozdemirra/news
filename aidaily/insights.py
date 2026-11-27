@@ -669,6 +669,11 @@ def day_table(rows, followers, day, shorts_state=None):
         for label, keys in (("views", VIEW_KEYS), ("likes", LIKE_KEYS), ("comments", COMMENT_KEYS), ("shares", SHARE_KEYS)):
             vals = [v for v in (_first(m, keys) for m in sent) if v is not None]
             row[label] = sum(vals) if vals else None
+        if name == "threads" and row["comments"]:
+            # each Threads post carries our own "Sources:" reply, which Threads counts as a reply
+            own = sum(1 for p in rows if (((p.get("platforms") or {}).get("threads") or {}).get("reply") or {}).get("id")
+                      and ((p.get("platforms") or {}).get("threads") or {}).get("at", "").startswith(day))
+            row["comments"] = max(0, row["comments"] - own)
         out[name] = row
     st = shorts_state if shorts_state is not None else desk._load(desk.STATE / "shorts.json", {})
     made = [v for v in (st.get("attempted") or {}).values() if (v.get("at") or "").startswith(day) and v.get("video_id")]

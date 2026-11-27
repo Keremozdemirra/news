@@ -205,14 +205,14 @@ class DailyMetrics(Tmp):
         from aidaily import insights
         day = "2026-11-27"
         rows = [{"id": "a", "media_id": "1", "published": f"{day}T10:00:00+00:00",
-                 "metrics": {"instagram": {"views": 120, "likes": 9}, "threads": {"views": 40, "likes": 2}},
-                 "platforms": {"threads": {"id": "t", "at": f"{day}T10:20:00+00:00"},
+                 "metrics": {"instagram": {"views": 120, "likes": 9}, "threads": {"views": 40, "likes": 2, "replies": 3}},
+                 "platforms": {"threads": {"id": "t", "at": f"{day}T10:20:00+00:00", "reply": {"id": "r"}},
                                "telegram": {"id": "38", "at": f"{day}T10:05:00+00:00", "removed": "x"}}},
                 {"id": "b", "media_id": "2", "published": "2026-11-26T10:00:00+00:00", "metrics": {"instagram": {"views": 999}}}]
         t = insights.day_table(rows, {"instagram": 500, "threads": 30}, day,
                                {"attempted": {"s": {"at": f"{day}T17:00:00+00:00", "video_id": "v", "narrated": True}}})
         self.assertEqual((t["instagram"]["posts"], t["instagram"]["views"], t["instagram"]["followers"]), (1, 120, 500))
-        self.assertEqual((t["threads"]["posts"], t["threads"]["likes"]), (1, 2))
+        self.assertEqual((t["threads"]["posts"], t["threads"]["likes"], t["threads"]["comments"]), (1, 2, 2))  # our reply off
         self.assertEqual(t["telegram"]["posts"], 0)  # a removed copy does not count
         self.assertEqual((t["youtube"]["posts"], t["youtube"]["narrated"], t["youtube"]["views"]), (1, 1, None))
 
