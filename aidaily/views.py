@@ -185,7 +185,7 @@ def front(shown, cos, m, sport=()):
         blocks += (f'<section class="sect"><h2 class="sh"><a href="{S.BASE}{S.topic_path(t)}">{t}</a></h2>'
                    f'<article class="slead"><a href="{S.href(top)}">{photo}<h3>{E(top["headlines"][0])}</h3></a><div class="mt">{rel_time(top)} &middot; {nroom(top)}</div></article>'
                    + "".join(f'<article class="srow"><a href="{S.href(p)}"><h3>{E(p["headlines"][0])}</h3><div class="mt">{rel_time(p)}</div></a></article>' for p in rest) + "</section>")
-    return ('<p class="since" id="since" role="status" hidden></p>' + S.updated_line() + f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else "")
+    return (S.updated_line(since=True) + f'<div class="front">{lead_html}{rail}</div>' + (f'<div class="sects">{blocks}</div>' if blocks else "")
             + sport_block(section_rows(list(sport), S.dt(sport[0]["published"]) if sport else None, 4), ph))
 
 

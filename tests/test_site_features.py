@@ -423,6 +423,15 @@ class FrontBuilt(Features):
             self.assertNotIn("<img", block)  # headline and time only
         self.assertGreater(seen, 0)
 
+    def test_the_markets_ticker_runs_only_on_the_pages_about_markets_and_the_news_list(self):
+        with mock.patch.object(site.markets, "strip", return_value='<div class="mstrip"></div>'):
+            for path, front in (("/", True), ("/latest/", False), ("/numbers/", False), ("/t/markets/", False)):
+                self.assertIn('class="mstrip"', site.page("t", "", "d", path, front=front), path)
+            for path in ("/about/", "/t/tech/", "/404.html", "/s/2026-11-26-0900-1/", "/play/", "/contact/"):
+                h = site.page("t", "", "d", path)
+                self.assertNotIn('class="mstrip"', h, path)
+                self.assertIn(f'href="{site.BASE}/t/markets/">Markets</a>', h, path)  # the plain link stays in the sections row
+
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)

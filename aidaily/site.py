@@ -198,10 +198,12 @@ def today():
     return desk.now().strftime("%Y-%m-%d")
 
 
-def updated_line():
-    """"Updated 12:29 UTC" from the time of this build, not of the cache. data-built lets the script say when the build is late."""
+def updated_line(since=False):
+    """"Updated 12:29 UTC" from the time of this build, not of the cache. data-built lets the script say when the build is late.
+    since: the front page's one line also carries the reader's own "3 new since your last visit", which the script fills and shows."""
     built = desk.now()
-    return f'<p class="upd" data-built="{built.strftime("%Y-%m-%dT%H:%M:%SZ")}">Updated {stamp(built.isoformat())}</p>'
+    tail = '<span id="since" role="status" hidden></span>' if since else ""
+    return f'<p class="upd" data-built="{built.strftime("%Y-%m-%dT%H:%M:%SZ")}">Updated {stamp(built.isoformat())}{tail}</p>'
 
 
 def stamp(iso, utc=True, ref=None):
@@ -372,6 +374,8 @@ def section_nav(active):
     return f'<nav class="sections" aria-label="Sections">{links}</nav>'
 
 
+# the markets ticker moves above the headline while people read, so only the pages about markets and the news list carry it
+TICKER_PAGES = ("/t/markets/", "/numbers/", "/latest/")
 SEARCH_LINK = (f'<a class="iconbtn" href="{{b}}/search/" aria-label="Search"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" '
                f'stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="5.5"/><path d="m13.2 13.2 4 4"/></svg></a>')
 
@@ -430,7 +434,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 {word}
 <div class="br"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</div>
 </div></div>
-<div class="wrap">{section_nav(active)}{markets.strip(MARKETS, BASE)}</div></header>
+<div class="wrap">{section_nav(active)}{markets.strip(MARKETS, BASE) if front or path in TICKER_PAGES else ""}</div></header>
 <main id="main" class="wrap {main_class}">{body}</main>
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">

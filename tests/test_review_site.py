@@ -390,7 +390,9 @@ class Built(Features):
 
     def test_front_and_latest_say_when_they_were_built(self):
         for page in ("index.html", "latest/index.html"):
-            self.assertRegex(self.read(page), r'<p class="upd" data-built="\d{4}-\d\d-\d\dT[\d:]+Z">Updated (\d+ \w+, )?\d\d:\d\d UTC</p>')
+            self.assertRegex(self.read(page), r'<p class="upd" data-built="\d{4}-\d\d-\d\dT[\d:]+Z">Updated (\d+ \w+, )?\d\d:\d\d UTC(<span id="since" role="status" hidden></span>)?</p>')
+        self.assertEqual(self.read("index.html").count('id="since"'), 1)  # one status line: the time, then the reader's own count
+        self.assertNotIn('class="since"', self.read("index.html"))
         self.assertIn("3 * 36e5", (site.ASSETS / "site.js").read_text())
 
     def test_sources_sit_under_the_date_line_one_newsroom_is_called_single_source_and_ld_cites_them(self):

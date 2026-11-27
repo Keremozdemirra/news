@@ -67,7 +67,7 @@
       break;
     }
     var since = document.getElementById("since");
-    if (since && count) { since.textContent = count + (count === 1 ? " article" : " articles") + " since your last visit."; since.hidden = false; }
+    if (since && count) { since.textContent = " \u00b7 " + count + " new since your last visit"; since.hidden = false; }
   }
 
   // keyboard: j and k step through the stories on the page (on a story, to the older and newer one), o opens, / searches, ? helps
@@ -153,7 +153,7 @@
   // "Updated 12:29 UTC" is the build time; past three hours the page says the desk is behind, so a quiet front page is not read as a quiet day
   document.querySelectorAll(".upd[data-built]").forEach(function (u) {
     var late = Date.now() - Date.parse(u.getAttribute("data-built")) > 3 * 36e5;
-    if (late) { u.textContent += ". The next update is late."; u.classList.add("late"); }
+    if (late) { u.firstChild.textContent += ". The next update is late."; u.classList.add("late"); }
   });
 
   // quiz: the answer is in the page (inside a details element, so it works without this script); a click only marks the choice
