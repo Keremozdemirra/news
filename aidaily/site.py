@@ -606,8 +606,11 @@ def share_links(p):
              ("Bluesky", f"https://bsky.app/intent/compose?text={q(h + ' ' + u)}"),
              ("LinkedIn", f"https://www.linkedin.com/sharing/share-offsite/?url={q(u)}"),
              ("WhatsApp", f"https://wa.me/?text={q(h + ' ' + u)}"))
-    return ('<div class="share">' + f'<button type="button" data-copy="{E(u)}" aria-label="Copy link" hidden>{mark("copy")}<span class="t">Copy link</span></button>'
-            + "".join(f'<a href="{E(h2)}" target="_blank" rel="noopener noreferrer" aria-label="Share on {n}">{mark(n)}<span class="t">{n}</span></a>' for n, h2 in items) + "</div>")
+    web = "".join(f'<a class="web" href="{E(h2)}" target="_blank" rel="noopener noreferrer" aria-label="Share on {n}">{n}</a>' for n, h2 in items)
+    # the script shows "Copy link", or on a phone with a share sheet the one "Share" button in place of the four links
+    return ('<div class="share" role="group" aria-label="Share this article">'
+            f'<button type="button" class="web" data-copy="{E(u)}" aria-label="Copy link" hidden>Copy link</button>{web}'
+            f'<button type="button" data-share data-url="{E(u)}" data-title="{E(h)}" hidden>Share</button></div>')
 
 
 def og_image(photo, dest, at=None, size=None):
@@ -940,7 +943,7 @@ def story(p, rows, cos=None, counts=None):
 <p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work</a>. <a href="{report_link(p)}" rel="noopener nofollow">Report an error</a>.</p>
 <div class="reportedby">{insta}</div>
 {ctx}{number_box(p)}
-<section class="sharebox"><h2 class="sh">Share</h2>{share_links(p)}</section>
+{share_links(p)}
 {how_made(p, counts)}</div>
 {more}{prevnext}</article>"""
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [

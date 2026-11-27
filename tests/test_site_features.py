@@ -172,6 +172,12 @@ class Features(Tmp):
         for name in ("X", "Bluesky", "LinkedIn", "WhatsApp"):
             self.assertIn(f'aria-label="Share on {name}"', share)
         self.assertNotIn("<img", share)
+        self.assertNotIn("<svg", share)  # labelled text links, no row of identical icon squares
+        self.assertLess(share.index("Copy link"), share.index(">X<"))  # Copy link first
+        self.assertIn("data-share", share)  # the phone share sheet, shown by the script when it exists
+        art = self.read("s/2026-11-26-0900-1/index.html")
+        self.assertNotIn('>Share</h2>', art)  # no separate Share heading
+        self.assertIn('class="share"', art)
 
     def test_share_card_page_has_headline_meter_and_address(self):
         h = site.card_html({"headlines": ["Headline here"], "sources": ["CNBC", "FT"], "topic": "Tech"})

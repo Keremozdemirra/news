@@ -8,10 +8,17 @@
     b.hidden = false;
     b.addEventListener("click", function () {
       navigator.clipboard.writeText(b.dataset.copy).then(function () {
-        var l = b.querySelector(".t") || b, t = l.textContent; l.textContent = "Copied"; b.setAttribute("aria-label", "Link copied");
+        var l = b, t = l.textContent; l.textContent = "Copied"; b.setAttribute("aria-label", "Link copied");
         setTimeout(function () { l.textContent = t; b.setAttribute("aria-label", "Copy link"); }, 1800);
       });
     });
+  });
+
+  // a phone with a share sheet: one "Share" button replaces the links
+  document.querySelectorAll("[data-share]").forEach(function (b) {
+    if (!navigator.share || !window.matchMedia || !matchMedia("(pointer:coarse)").matches) return;
+    b.hidden = false; b.parentNode.classList.add("native");
+    b.addEventListener("click", function () { navigator.share({ title: b.dataset.title, url: b.dataset.url }).catch(function () {}); });
   });
 
   // on a phone the current section may sit off screen in the sideways row; bring it into view

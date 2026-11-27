@@ -143,10 +143,6 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .src li a b{display:block;font:600 16px/1.3 var(--f)}
 .src li a span{display:block;font:400 13px/1.4 var(--f);color:var(--faint);overflow-wrap:anywhere}
 .src li a:hover b{text-decoration:underline;text-underline-offset:3px}
-.share{display:flex;flex-wrap:wrap;gap:8px}
-.share a,.share button{font:600 14px/1 var(--f);min-height:44px;padding:0 14px;display:inline-flex;align-items:center;border:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer}
-.share a:hover,.share button:hover{border-color:var(--ink)}
-.share button[hidden]{display:none}
 .under{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:calc(var(--gut) * 2)}
 .related{padding-top:40px;grid-column:1/-1}
 .related-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--gut);margin-top:16px}
@@ -359,12 +355,8 @@ a:hover>.h-xl,a:hover>.h-l,a:hover>.h-m,a:hover>.h-s,a:hover .hl{text-decoration
 .foot li a.chan{display:flex}
 .follow li a .who{display:inline-flex;align-items:center;gap:10px}
 .follow li a .who span{font:600 15px var(--f);color:var(--ink)}
-.share a,.share button{gap:8px}
 @media (max-width:720px){
   .chans{display:none}
-  .share a .t,.share button .t{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-  .share a,.share button{width:48px;min-height:48px;justify-content:center;padding:0}
-  .share{gap:10px}
 }
 .timeline a,.brief a,.from li>a{text-decoration:none}
 .prose .timeline a:hover .h-m,.prose .brief a:hover .h-m{text-decoration:underline}
