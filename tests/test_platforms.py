@@ -665,6 +665,67 @@ class Digest(Env):
         state = json.loads((desk.STATE / "digest.json").read_text())
         self.assertEqual((state["date"], state["id"]), (f"{desk.now():%Y-%m-%d}", "d1"))
 
+    def test_two_runs_on_stale_state_send_one_digest(self):
+        # 2026-11-27: a dispatch run and a scheduled run both checked out the commit from before either recorded the
+        # digest, and both sent it (t.me/boardread/36 and /37). The second run now finds the first in the channel.
+        import shutil
+        import threading
+        self.seed(5)
+        channel, lock, first_sent = [], threading.Lock(), threading.Event()
+
+        class TG:
+            def find_digest(self_, since):
+                with lock:
+                    return {"id": channel[0], "url": f"https://t.me/boardread/{channel[0]}"} if channel else None
+
+            def digest(self_, posts):
+                with lock:
+                    channel.append(str(36 + len(channel)))
+                    mid = channel[-1]
+                first_sent.set()
+                return {"id": mid}
+        stale = Path(self.tmp.name) / "stale-state"
+        shutil.copytree(desk.STATE, stale) if desk.STATE.exists() else stale.mkdir()
+        errors = []
+
+        def run(state_dir, wait):
+            try:
+                if wait:
+                    first_sent.wait(5)
+                with mock.patch.object(desk, "STATE", state_dir):
+                    desk.evening_digest({"telegram": TG})
+            except Exception as e:  # noqa: BLE001
+                errors.append(e)
+        with self.at(19):
+            a = threading.Thread(target=run, args=(desk.STATE, False))
+            b = threading.Thread(target=run, args=(stale, True))  # its own checkout, from before run a's send
+            a.start(); b.start(); a.join(); b.join()
+        self.assertEqual(errors, [])
+        self.assertEqual(channel, ["36"])
+        self.assertTrue(json.loads((stale / "digest.json").read_text())["found_live"])
+
+    def test_a_channel_that_cannot_be_checked_gets_no_digest(self):
+        self.seed(5)
+
+        class TG:
+            def find_digest(self_, since):
+                raise platforms.PlatformError("telegram channel page: HTTP 502")
+
+            def digest(self_, posts):
+                raise AssertionError("must not send")
+        with self.at(19):
+            desk.evening_digest({"telegram": TG})
+        self.assertFalse((desk.STATE / "digest.json").exists())  # tried again on the next run
+
+    def test_find_digest_reads_todays_title_from_the_channel_page(self):
+        now = desk.now()
+        page = (f'<div data-post="boardread/37"><div class="tgme_widget_message_text js-message_text">'
+                f'<b>Today on Boardread</b><br/><br/>1. <a href="x">Head</a></div><time datetime="{now.isoformat()}"></time></div>').encode()
+        tg = platforms.Telegram(opener=Fake({"t.me/s/chan": page}))
+        got = tg.find_digest(now.replace(hour=0, minute=0, second=0, microsecond=0))
+        self.assertEqual(got, {"id": "37", "url": "https://t.me/chan/37"})
+        self.assertIsNone(tg.find_digest(now + timedelta(hours=1)))
+
     def test_sent_again_the_next_day(self):
         self.seed(3)
         desk._save(desk.STATE / "digest.json", {"date": "2000-01-01"})

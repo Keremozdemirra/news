@@ -22,7 +22,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
+      # main as it is when the job starts, not the commit the run was queued on: a run that waited behind another
+      # read the state from before that run's sends and posted the evening digest a second time (2026-11-27)
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
       - name: Withdraw
         env:
           THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}

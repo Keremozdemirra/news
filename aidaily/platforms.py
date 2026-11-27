@@ -885,6 +885,28 @@ class Telegram(Client):
                 return {"id": mid, "url": f"https://t.me/{name}/{mid}"}
         return None
 
+    def find_digest(self, since):
+        """Today's evening digest already in the channel (its first line is the digest title), or None. Read from the
+        public web preview, like find(): two runs that both read the state before either recorded a send each posted
+        the digest on 2026-11-27 (t.me/boardread/36 and /37)."""
+        import html as html_
+        chat = self.env["TG_CHANNEL"]
+        name = chat.lstrip("@") if chat.startswith("@") else (self.call("getChat", {"chat_id": chat}).get("username") or "")
+        if not name:
+            raise PlatformError("telegram: a private channel cannot be checked for an earlier digest")
+        page = self._open(urllib.request.Request(f"{self.PUBLIC}/s/{name}", headers={"User-Agent": "Mozilla/5.0"}),
+                          "telegram channel page").decode("utf-8", "replace")
+        title = re.sub(r"<[^>]+>", "", digest_text([]).split("\n", 1)[0])
+        for block in page.split('data-post="')[1:]:
+            mid = block.split('"', 1)[0].rsplit("/", 1)[-1]
+            when = re.search(r'<time[^>]*datetime="([^"]+)"', block)
+            seen = desk._stamp(when.group(1)) if when else None
+            text = re.search(r'class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', block, re.S)
+            first = html_.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<br\s*/?>", "\n", text.group(1)) if text else "")).strip()
+            if seen and seen >= since and first.split("\n", 1)[0].strip() == title:
+                return {"id": mid, "url": f"https://t.me/{name}/{mid}"}
+        return None
+
     def check(self):
         """Reads the bot and the channel and posts nothing; fails if the bot cannot post there."""
         bot = self.call("getMe", {})

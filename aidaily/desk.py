@@ -2194,6 +2194,18 @@ def evening_digest(factories=None):
         client = (factories or platforms.CLIENTS)["telegram"]()
     except platforms.Missing:
         return
+    # the channel itself is the record: a run that read stale state must find the digest another run already sent.
+    # When the channel cannot be read, nothing is sent: an unknown is never a reason to post twice
+    if hasattr(client, "find_digest"):
+        try:
+            found = client.find_digest(now().replace(hour=0, minute=0, second=0, microsecond=0))
+        except Exception as e:  # noqa: BLE001
+            print(f"evening digest not sent: the channel could not be checked ({str(e)[:160]})")
+            return
+        if found:
+            _save(STATE / "digest.json", {"date": today, "posts": [p["id"] for p in top], **found, "found_live": True})
+            print(f"evening digest already in the channel ({found['url']}), recorded")
+            return
     state = {"date": today, "attempted": now().isoformat(timespec="seconds"), "posts": [p["id"] for p in top]}
     _save(STATE / "digest.json", state)
     try:
