@@ -51,6 +51,21 @@ for _pid, _c in KINDS.items():
     UNKNOWN.setdefault(_pid, []).extend(_c)
 
 
+# Reported 27 Nov: these one-word guesses were each read as some obscure entry and paid the top tier. A category noun,
+# a little word, a legal form or an everyday word names nothing.
+FILLER = {"carmaker": ["car", "cars", "motor", "the", "new", "first", "national", "top", "best"], "airline": ["airline", "airlines", "air", "the", "inc", "one", "sky"],
+          "publisher": ["new", "banana", "game", "games", "great"], "supermarket": ["group", "market", "store", "food", "the market"],
+          "fast-food": ["pizza", "burger", "chicken"], "crypto": ["coin", "token"], "bank": ["bank", "the bank", "first", "city"],
+          "brewery": ["beer", "king"], "exchange": ["stock exchange", "exchange", "national"], "currency": ["gold", "top", "coin"]}
+# ... and these are names all the same: a well-known entry's whole name, or the best known ones without the category word.
+PLAIN_NAMES = {"publisher": {"King": "King"}, "airline": {"United": "United Airlines", "American Airlines": "American Airlines", "Jet Airways": "Jet Airways"},
+               "carmaker": {"General Motors": "General Motors"}, "fast-food": {"Burger King": "Burger King", "Max": "Max Hamburgers"},
+               "currency": {"dollar": "dollar"},
+               "supermarket": {"Lucky Stores": "Lucky Stores", "Grand Union": "Grand Union", "Fresh & Easy": "Fresh & Easy"}, "bank": {"First National Bank": "First National Bank"}}
+for _pid, _c in PLAIN_NAMES.items():
+    KNOWN.setdefault(_pid, {}).update(_c)
+
+
 def entries(pid):
     return json.loads((TOP / "assets" / "data" / "lists" / f"{pid}.json").read_text())["entries"]
 
@@ -118,6 +133,26 @@ class TopfloorAnswers(unittest.TestCase):
             for guess in cases:
                 self.assertIsNone(names.find(e, pid, guess), f"{pid}: {guess!r}")
 
+    def test_category_words_little_words_and_fragments_name_nothing(self):
+        for pid, cases in FILLER.items():
+            e = entries(pid)
+            for guess in cases:
+                i = names.find(e, pid, guess)
+                self.assertIsNone(i, f"{pid}: {guess!r} was read as {e[i][0] if i is not None else None!r}")
+
+    def test_a_little_known_entry_has_no_dictionary_word_that_is_not_in_its_name(self):
+        words = {"banana", "ten", "ass", "hat", "team", "paper", "portal", "orbit", "plan", "cook", "flag", "food", "use", "pea"}
+        for pid in FILLER:
+            for e in entries(pid):
+                self.assertEqual(names.stray(e, pid, words), [], f"{pid}: {e[0]!r}")
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_both_sides_hold_the_same_word_lists(self):
+        js = "import { KIND, COMMON } from '%s/js/match.js'; console.log(JSON.stringify([[...KIND].sort(), [...COMMON].sort()]));" % TOP
+        r = subprocess.run(["node", "--input-type=module", "-e", js], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertEqual(json.loads(r.stdout), [sorted(names.KIND), sorted(names.COMMON)])
+
     def test_folding(self):
         self.assertEqual(names.variants("Müller & Söhne GmbH"), ["mullersohnegmbh", "mullersohne", "muellersoehnegmbh", "muellersoehne"])
         self.assertEqual(names.variants("Bayern LB"), names.variants("BayernLB"))
@@ -139,7 +174,7 @@ class TopfloorAnswers(unittest.TestCase):
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_the_players_device_agrees(self):
-        cases = [[pid, g] for pid, c in KNOWN.items() for g in c] + [[pid, g] for pid, c in UNKNOWN.items() for g in c] + [[pid, g] for pid, c in REGIONAL.items() for g in c]
+        cases = [[pid, g] for pid, c in KNOWN.items() for g in c] + [[pid, g] for pid, c in UNKNOWN.items() for g in c] + [[pid, g] for pid, c in REGIONAL.items() for g in c] + [[pid, g] for pid, c in FILLER.items() for g in c]
         js = """
 import { readFileSync } from 'node:fs';
 import { matcher } from '%s/js/match.js';

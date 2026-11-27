@@ -3,6 +3,7 @@
 
 Run by hand when the lists should be refreshed (it asks Wikidata a few hundred questions and takes minutes):
     python3 build_lists.py [id ...]
+    python3 build_lists.py --scrub      (apply extras.json and the stray-key rule to the lists on disk, no Wikidata)
 The daily build (build_data.py) only reads these files, so a site build never waits on Wikidata for them.
 
 An answer is every Wikidata item that is an instance of the prompt's class or of any subclass of it and has at
@@ -12,7 +13,7 @@ below, as long as a Latin keyboard can type them. names.py turns the names into 
 """
 import json, ssl, sys, time, urllib.parse, urllib.request
 from pathlib import Path
-from names import variants, spaced, core, latin, norm
+from names import variants, spaced, core, latin, norm, stray
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "assets" / "data" / "lists"
@@ -48,6 +49,9 @@ ROUTES = {
     "airline": {"P452": ["Q2055808", "Q46970"]},
 }
 EXTRAS = json.loads((HERE / "extras.json").read_text())
+# the system word list (lower-case headwords), for names.stray(); without it no stray key is found, so say so
+_DICT = Path("/usr/share/dict/words")
+WORDS = {w.strip() for w in _DICT.read_text().split("\n") if w[:1].islower()} if _DICT.exists() else set()
 TIER_CUTS = [0.10, 0.30, 0.60, 0.85]   # share of the well-known entries more familiar than this one, per tier edge
 KNOWN = 3                              # sitelinks from which an entry is ranked; below it, it is simply rare
 
@@ -166,20 +170,39 @@ def unkind(pid, entries):
         banned.update(variants(label))
         banned.update(c for c in (core(sp, pid) for sp in spaced(label)) if c)
     drop = set(EXTRAS.get(pid, {}).get("drop", []))
+    kept = {k for row in EXTRAS.get(pid, {}).get("names", []) for n in row for k in variants(n)}
+    kept |= {k for al in EXTRAS.get(pid, {}).get("alias", {}).values() for n in al for k in variants(n)}
     out = []
     for e in entries:
         if e[0] in drop:
             continue
-        e[3] = [k for k in e[3] if k not in banned]
-        e[4] = [c for c in e[4] if c not in banned]
+        gone = banned | (set(stray(e, pid, WORDS)) - kept)
+        e[3] = [k for k in e[3] if k not in gone]
+        e[4] = [c for c in e[4] if c not in gone]
         if e[3]:
             out.append(e)
     return {"n": len(out), "entries": out}
 
 
+def scrub(pid):
+    """Apply unkind() to a list already on disk, without asking Wikidata again."""
+    f = OUT / f"{pid}.json"
+    d = json.loads(f.read_text())
+    before = sum(len(e[3]) + len(e[4]) for e in d["entries"])
+    d.update(unkind(pid, d["entries"]))
+    f.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")))
+    print(f"{pid}: {before - sum(len(e[3]) + len(e[4]) for e in d['entries'])} stray keys out, {d['n']} answers", flush=True)
+
+
 
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
+    if not WORDS:
+        print("no /usr/share/dict/words: stray dictionary-word keys are left in", flush=True)
+    if sys.argv[1:2] == ["--scrub"]:       # python3 build_lists.py --scrub: re-filter the lists on disk
+        for pid, _, _ in POOL:
+            scrub(pid)
+        sys.exit(0)
     want = set(sys.argv[1:])
     for pid, text, qid in POOL:
         if want and pid not in want:

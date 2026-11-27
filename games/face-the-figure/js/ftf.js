@@ -1,4 +1,4 @@
-import { createRig, tiltFor, score as keyed, ease } from "./rig.js";
+import { createRig, tiltFor, score as keyed, ease, rankOf } from "./rig.js";
 import * as snd from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -7,7 +7,6 @@ const params = new URLSearchParams(location.search);
 const RM = matchMedia("(prefers-reduced-motion: reduce)").matches || params.has("rm");
 const STORE = "ftf:v1";
 const IDLE = -2.2;     // sealed B is the lighter pan until it is weighed
-const RANKS = [[0, "Apprentice"], [3, "Junior clerk"], [5, "Senior clerk"], [7, "Chief cashier"], [9, "Auditor"], [10, "Comptroller"]];
 const pad = (n) => String(n).padStart(2, "0");
 
 const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
@@ -275,7 +274,6 @@ function next() {
 }
 
 // ---------------------------------------------------------------- end
-const rankOf = (c) => RANKS.filter(([n]) => c >= n).pop()[1];
 const record = (done) => ({ sig: data.sig, done, score: points, run: bestRun, res: results.map((r) => [r.ok ? 1 : 0, r.pick, r.pts, +r.gap.toFixed(4)]) });
 // every answered link is saved at once, so a reload resumes the chain instead of dealing the same sealed figure again
 function progress(done) {
@@ -325,7 +323,7 @@ function renderEnd(rec) {
   const res = rec.res, correct = res.filter((r) => r[0]).length, rounds = data.rounds, miss = rounds.length - correct;
   $("e-issue").textContent = `Face the Figure No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
   $("e-score").innerHTML = `${correct}<small>/${rounds.length}</small>`;
-  $("e-rank").textContent = rankOf(correct);
+  $("e-rank").textContent = rankOf(correct, rounds.length);
   $("e-line").textContent = correct ? `Score ${rec.score} of ${rounds.length * (rounds.length + 1) / 2}. Longest chain ${rec.run}.` : "No call landed.";
   const mk = (cls, txt) => { const s = document.createElement("span"); s.className = cls; s.textContent = txt; return s; };
   const best = res.map((r, i) => ({ r, i })).filter((x) => x.r[0] && rounds[x.i]).sort((x, y) => x.r[3] - y.r[3]).slice(0, 3);

@@ -32,6 +32,29 @@ GENERIC = {
 }
 
 
+# Category nouns of any prompt, and everyday words. A guess made only of these, the little words and the legal forms
+# names nothing: "car", "airline", "new", "group", "pizza". js/match.js carries the same two lists; a test compares them.
+KIND = set("""pizza pizzeria burger burgers hamburger hamburgers chicken coffee cafe grill kitchen sandwich sandwiches taco tacos fries
+    bakery donut donuts beer bier ale lager pils wine drink drinks pub bar car cars truck trucks bus bike bikes auto autos motor motors
+    bank banks banking money cash coin coins token tokens crypto currency stock stocks share shares index exchange market markets
+    store stores shop shops mart food foods grocery groceries supermarket game games gaming play video studio studios publisher
+    air airline airlines airways aviation flight flights fly plane planes brewery breweries brewing brewer brewers restaurant
+    restaurants fast automobile automobiles automotive vehicle vehicles works manufacturing manufacturer lines savings trust financial
+    finance commercial reserve monetary authority federal securities composite entertainment interactive software publishing network
+    protocol cryptocurrency supermarkets hypermarket""".split())
+COMMON = set("""new old big small little great grand best good better super top max mini maxi mega plus pro one two three four five six seven
+    eight nine ten first second third last next all any every some more most much many only own same other another this that these those
+    it its are was be to on at by with from up out off over under no not yes we us our you your my me he she they them
+    red blue green black white gold golden silver yellow orange pink brown grey gray dark light bright north south east west northern
+    southern eastern western central middle upper lower inner outer national international global world worldwide universal general
+    royal imperial united union american european asian african british english french german italian spanish turkish people peoples
+    city town state states country county land island home house family friends free open fresh fast quick easy simple real true pure
+    jet star sun moon sky sea ocean river lake mountain earth fire water king queen prince crown time day night week year today now
+    happy lucky love life live go get make made use see look come good bad high low long short hot cold young happy
+    express direct premium prime classic original standard special modern future smart digital online net web tech service services
+    banana apple test name thing things stuff nothing something anything none idk dunno what which who how why""".split())
+
+
 def norm(s: str, umlaut=False) -> str:
     """Case, accents and punctuation folded. umlaut=True writes ä ö ü as ae oe ue instead of a o u."""
     s = s.lower()
@@ -120,18 +143,45 @@ def dl1(a: str, b: str) -> bool:
 FUZZ_MIN = 7   # a typo is forgiven only on a name at least this long
 
 
+def sig(name: str, pid: str) -> str:
+    """What is left of a name once the little words, legal forms and category nouns are out."""
+    gen = set(GENERIC.get(pid, "").split())
+    return "".join(t for t in norm(name).split() if t not in STOP and t not in LEGAL and t not in gen and t not in KIND)
+
+
+def names_it(entry, pid: str, guess: str) -> bool:
+    """False when the guess is only category nouns and everyday words and so cannot be told from a random one.
+    Such a guess counts as an entry's whole name of several words ("Lucky Stores", "Burger King"), as a well-known
+    entry's one-word name ("King"), or as a best-known name without its category words ("United" for United Airlines)."""
+    toks = norm(guess).split()
+    # the prompt's own filler words are not on this side: "Sparkasse" and "Merkez Bankası" are filler in a name and answers alone
+    if any(t not in STOP and t not in LEGAL and t not in KIND and t not in COMMON for t in toks):
+        return True
+    s, whole = sig(guess, pid), solid(norm(guess)) in (solid(norm(entry[0])), solid(norm(entry[0], True)))
+    if not s:
+        return False                    # "car", "the bank", "stock exchange", whoever is called that
+    if len(toks) > 1:                   # several words: the entry's whole name, or a well-known one without its category words
+        return whole or (entry[2] <= 1 and s == sig(entry[0], pid))
+    return (whole and entry[2] <= 1) or (entry[2] == 0 and s == sig(entry[0], pid))
+
+
 def find(entries, pid, guess):
     """Index of the entry a guess means, or None. Order: exact key, core, one typo. Entries are most familiar first,
     so the first hit is the best known one. js/match.js does the same on the player's device."""
-    if not hasattr(find, "_idx") or find._idx[0] is not entries:
+    i = lookup(entries, pid, guess)
+    return i if i is not None and names_it(entries[i], pid, guess) else None
+
+
+def lookup(entries, pid, guess):
+    if not hasattr(lookup, "_idx") or lookup._idx[0] is not entries:
         keys, cores = {}, {}
         for i, e in enumerate(entries):
             for k in e[3]:
                 keys.setdefault(k, i)
             for c in (e[4] if len(e) > 4 and isinstance(e[4], list) else []):
                 cores.setdefault(c, i)
-        find._idx = (entries, keys, cores)
-    _, keys, cores = find._idx
+        lookup._idx = (entries, keys, cores)
+    _, keys, cores = lookup._idx
     vs = variants(guess)
     for v in vs:
         if v in keys:
@@ -150,3 +200,12 @@ def find(entries, pid, guess):
             if abs(len(k) - len(v)) <= 1 and len(k) >= FUZZ_MIN and (best is None or i < best) and dl1(v, k):
                 best = i
     return best
+
+
+def stray(entry, pid: str, words) -> list:
+    """Keys of a little-known entry that are dictionary words and no word of its name: airline codes and odd aliases
+    ("banana" for Ronimo Games, "ten" for Tennessee Airways). Nobody means the entry by them; a random word hits them."""
+    if entry[2] < 2:
+        return []
+    own = set(norm(entry[0]).split()) | set(norm(entry[0], True).split()) | {solid(norm(entry[0])), sig(entry[0], pid)}
+    return [k for k in entry[3] + (entry[4] if len(entry) > 4 else []) if len(k) >= 3 and k in words and k not in own]

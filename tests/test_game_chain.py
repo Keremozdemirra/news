@@ -1,5 +1,5 @@
 """Face the Figure deals one chain a day: the figure just revealed is A of the next round."""
-import hashlib, importlib.util, json, random, sys, unittest
+import hashlib, importlib.util, json, random, shutil, subprocess, sys, unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -146,3 +146,32 @@ class Selection(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class Ranks(unittest.TestCase):
+    """Reported 27 Nov: the ladder was cut for ten links, the day had eight, and a perfect run read Chief cashier."""
+    def ladder(self, n):
+        js = "import { rankOf } from '%s/js/rig.js'; console.log(JSON.stringify([...Array(%d + 1).keys()].map((c) => rankOf(c, %d))));" % (GAME, n, n)
+        r = subprocess.run(["node", "--input-type=module", "-e", js], capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        return json.loads(r.stdout)
+
+    def test_a_perfect_run_is_the_top_rank_whatever_the_chain_length(self):
+        order = ["Apprentice", "Junior clerk", "Senior clerk", "Chief cashier", "Auditor", "Comptroller"]
+        for n in (6, 7, 8, 9, 10):
+            got = self.ladder(n)
+            self.assertEqual(got[n], "Comptroller", n)
+            self.assertEqual(got[n - 1], "Auditor", n)
+            self.assertEqual(got[0], "Apprentice", n)
+            self.assertEqual(sorted(set(got), key=order.index), order, f"{n} links: a rank cannot be earned")
+            self.assertEqual([order.index(r) for r in got], sorted(order.index(r) for r in got), n)
+
+    def test_todays_chain_reaches_every_rank(self):
+        n = len(json.loads((GAME / "assets" / "data" / "today.json").read_text())["rounds"])
+        self.assertEqual(self.ladder(n)[n], "Comptroller")
+        self.assertEqual(self.ladder(8), ["Apprentice", "Apprentice", "Apprentice", "Junior clerk", "Senior clerk", "Senior clerk", "Chief cashier", "Auditor", "Comptroller"])
+
+    def test_the_page_uses_the_chain_length(self):
+        src = (GAME / "js" / "ftf.js").read_text()
+        self.assertIn("rankOf(correct, rounds.length)", src)
