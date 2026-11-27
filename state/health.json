@@ -1,12 +1,10 @@
 {
  "since": {
-  "ig-failed": "2026-11-26T23:00:17+00:00",
-  "site": "2026-11-27T04:50:22+00:00"
+  "ig-failed": "2026-11-26T23:00:17+00:00"
  },
  "issue": 9,
  "reported": [
-  "ig-failed",
-  "site"
+  "ig-failed"
  ],
  "clear_since": null
 }
