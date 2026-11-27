@@ -23,7 +23,7 @@
   "sport"
  ],
  "topic": "Sport",
- "photo_file": "Boxing ring, MGM Grand.jpg",
+ "photo_file": "Hinchliffe Stadium (Paterson, NJ).jpg",
  "score": 9.473,
  "figure": "five",
  "company": "Bournemouth",
@@ -39,10 +39,11 @@
  "source_urls": [
   "https://www.bbc.co.uk/sport/football/articles/cmq5v84vw818o?at_medium=RSS&at_campaign=rss"
  ],
- "credit": "Photo: Alan Kotok, CC BY 2.0, via Wikimedia Commons",
+ "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
  "photo_kind": "scene",
  "status": "web",
  "published": "2026-11-26T23:41:58+00:00",
  "story": "",
- "photo_alt": "A boxing ring"
+ "photo_alt": "A football stadium seen from above",
+ "credit_file": "Hinchliffe Stadium (Paterson, NJ).jpg"
 }
