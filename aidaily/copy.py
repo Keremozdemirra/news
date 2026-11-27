@@ -660,14 +660,24 @@ def _words(text):
     return re.findall(r"[a-z0-9]+(?:['’][a-z]+)?", _fold(text).lower())
 
 
+LINKING = {"the", "of", "for", "and", "from", "in", "on", "to", "a", "an", "at", "by", "with"}
+
+
 def copied_run(sentence, source, n=VERBATIM_WORDS):
     """The first run of `n` words the sentence takes word for word from the source, or "". Quoted statements are
     judged apart (see strip_copied); the rest must be the writer's own words (the EU press publishers' right allows
     very short extracts only)."""
-    words, src = _words(QUOTE.sub(" ", sentence)), _words(source)
+    plain = QUOTE.sub(" ", sentence)
+    words, src = _words(plain), _words(source)
+    cased = re.findall(r"[A-Za-z0-9]+(?:['\u2019][A-Za-z]+)?", _fold(plain))
     grams = {tuple(src[i:i + n]) for i in range(len(src) - n + 1)}
     for i in range(len(words) - n + 1):
         if tuple(words[i:i + n]) in grams:
+            # a run that is mostly capitalised names ("the Office for National Statistics and the Home Office") is a
+            # list of proper nouns, which cannot be reworded
+            core = [w for w in cased[i:i + n] if w.lower() not in LINKING]
+            if len(cased) == len(words) and core and sum(w[0].isupper() for w in core) * 2 > len(core):
+                continue
             return " ".join(words[i:i + n])
     return ""
 

@@ -588,3 +588,13 @@ class CompanyTag(unittest.TestCase):
         s.update({"headline": "Bank of America profit rises", "company": "", "orgs": ["Bank of America"]})
         copy.tag_company(s)
         self.assertEqual(s["company"], "Bank of America")
+
+
+class CopiedRuns(unittest.TestCase):
+    def test_a_run_of_proper_nouns_is_not_a_copy(self):
+        src = "Figures come from the Office for National Statistics and the Home Office, the department said."
+        self.assertEqual(copy.copied_run("It comes from the Office for National Statistics and the Home Office.", src), "")
+
+    def test_a_copied_plain_run_is_still_cut(self):
+        src = "The minister said prices would keep rising through the winter because of weak supply."
+        self.assertNotEqual(copy.copied_run("Prices would keep rising through the winter because of weak supply, he said.", src), "")
