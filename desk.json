@@ -29,7 +29,7 @@
   "story_spacing_minutes": 40,
   "daily_posts_start": 10,
   "daily_posts_step": 2,
-  "daily_posts_max": 20,
+  "daily_posts_max": 12,
   "daily_posts_ramp_days": 1,
   "max_hours_ahead": 2,
   "api_daily_limit": 45,

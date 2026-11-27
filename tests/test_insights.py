@@ -336,7 +336,8 @@ class DeskUsesLearned(Tmp):
         desk.ramp()
         self.assertEqual(desk.pace()["cap"], 12)
         self.learned(ramp_hold=False)
-        desk.ramp()
+        with mock.patch.dict(desk.CONFIG, {"daily_posts_max": 40}):  # independent of the live ceiling in desk.json
+            desk.ramp()
         self.assertEqual(desk.pace()["cap"], 12 + desk.CONFIG["daily_posts_step"])
 
     def test_story_url_carries_utm_only_with_the_switch(self):
