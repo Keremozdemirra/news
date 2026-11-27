@@ -109,12 +109,16 @@ def fetch(clip, dest, seconds):
     raise RuntimeError(f"footage {clip['id']}: {p.stderr[-200:]}")
 
 
-def background(src_w, src_h, w, h, seconds, fps=30, fx=0.5):
+def background(src_w, src_h, w, h, seconds, fps=30, fx=0.5, src="[0:v]", out="[bg]"):
     """The filter chain that fills the canvas with input 0: cover-crop around fx, held to `seconds`, RGBA. The
     footage moves on its own; no camera move is added."""
     aw = min(src_w, src_h * w / h)
     ah = aw * h / w
     ax = min(max(fx * src_w - aw / 2, 0), src_w - aw)
     ay = (src_h - ah) / 2
-    return (f"[0:v]crop={int(aw)}:{int(ah)}:{int(ax)}:{int(ay)},fps={fps},scale={w}:{h}:flags=lanczos,setsar=1,"
-            f"trim=duration={seconds},setpts=PTS-STARTPTS,format=rgba[bg]")
+    return (f"{src}crop={int(aw)}:{int(ah)}:{int(ax)}:{int(ay)},fps={fps},scale={w}:{h}:flags=lanczos,setsar=1,"
+            f"trim=duration={seconds},setpts=PTS-STARTPTS,format=rgba{out}")
+
+
+def usable(clip):
+    return clip.get("seconds", 0) - clip.get("start", 0)

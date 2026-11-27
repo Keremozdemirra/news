@@ -160,7 +160,8 @@ def choose_footage(post, seconds, fetch=True):
     if not fetch or not (desk.CONFIG.get("video") or {}).get("footage"):
         return None
     from . import broll
-    clip = broll.pick(post["headlines"][0], min_seconds=seconds, seed=post["id"])
+    # a clip shorter than the Short opens it and hands over to the moving photo
+    clip = broll.pick(post["headlines"][0], min_seconds=min(seconds, 8), seed=post["id"])
     if not clip:
         return None
     ok, why = broll.still_ok(clip)
@@ -191,14 +192,18 @@ def build(post, out_mp4, fetch=True, clip=None):
         if why:
             raise ValueError(why)
         clip = clip if clip is not None else choose_footage(post, total, fetch)
-        footage = None
+        footage, span, photo_story = None, total, story
         if clip:
             from . import broll
+            span = min(total, broll.usable(clip))
             try:
-                footage = broll.fetch(clip, tmp / "clip.mp4", total)
+                footage = broll.fetch(clip, tmp / "clip.mp4", span)
                 story, credit = CV.with_footage(story, clip), broll.credit(clip)
+                if span < total:
+                    credit = f"{credit}. {entities_clean(post.get('credit', ''))}"  # both works are on screen
             except Exception as e:  # noqa: BLE001  no footage this time: the photo moves instead
                 print(f"shorts: footage {clip['id']} not fetched, photo instead: {str(e)[:160]}")
+        handover = footage is not None and span < total  # footage first, then the moving photo
         layers = []  # (png, t_in, t_out, rise, fade_in)
         t = 0.0
         for name, d in plan:
@@ -206,8 +211,14 @@ def build(post, out_mp4, fetch=True, clip=None):
                 for part in CV.LAYERS:
                     png = tmp / f"head-{part}.png"
                     CV.shoot_layer(CV.layer_html(story, "reel", part), png, CV.W, h)
-                    if part == "base":  # gradient, wordmark and photo credit: on screen for every photo beat
-                        layers.append((png, 0.0, total - END_SECONDS + 0.4, 0, 0.01))
+                    if part == "base":  # gradient, wordmark and credit: on screen for every picture beat
+                        if handover:
+                            layers.append((png, 0.0, span, 0, 0.01))  # the footage credit while the clip plays
+                            png2 = tmp / "head-base-photo.png"
+                            CV.shoot_layer(CV.layer_html(photo_story, "reel", "base"), png2, CV.W, h)
+                            layers.append((png2, span - 0.3, total - END_SECONDS + 0.4, 0, 0.3))
+                        else:
+                            layers.append((png, 0.0, total - END_SECONDS + 0.4, 0, 0.01))
                     else:
                         t0, fd, rise = CV.REVEAL[part]
                         layers.append((png, t0, d, rise, fd))
@@ -227,27 +238,41 @@ def build(post, out_mp4, fetch=True, clip=None):
             t += d
         sw, sh = CV.probe_size(photo)
         fx, fy = CV.focus(story)
-        if footage:
+        if footage and not handover:
             cmd = ["ffmpeg", "-y", "-loglevel", "error", "-t", f"{total}", "-i", str(footage)]
         else:
             cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(photo)]
+        first = 1
+        if handover:
+            cmd += ["-t", f"{span}", "-i", str(footage)]
+            first = 2
         for png, *_ in layers:
             cmd += ["-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(png)]
         cmd += ["-f", "lavfi", "-t", f"{total}", "-i", "anullsrc=r=48000:cl=mono"]
-        if footage:
-            from . import broll
+        from . import broll
+        if footage and not handover:
             chain, last = [broll.background(*CV.probe_size(footage), CV.W, h, total, CV.FPS)], "bg"
+        elif handover:
+            cam = CV.camera(sw, sh, h, fx, fy, total, PUSH).replace("[bg]", "[bgp]")
+            clipf = broll.background(*CV.probe_size(footage), CV.W, h, span, CV.FPS, src="[1:v]", out="[fv0]")
+            chain = [cam, clipf, f"[fv0]fade=t=out:st={span - 0.6:.2f}:d=0.6:alpha=1[fv];[bgp][fv]overlay=0:0:format=auto:eof_action=pass[bg]"]
+            last = "bg"
         else:
             chain, last = [CV.camera(sw, sh, h, fx, fy, total, PUSH)], "bg"
-        for i, (png, t_in, t_out, rise, fade_in) in enumerate(layers, start=1):
+        for i, (png, t_in, t_out, rise, fade_in) in enumerate(layers, start=first):
             f, y = overlay(i, t_in, t_out, rise, fade_in)
             chain.append(f"[{i}:v]{f}[l{i}];[{last}][l{i}]overlay=x=0:y='{y}':format=auto:eval=frame[v{i}]")
             last = f"v{i}"
         chain.append(f"[{last}]scale=out_color_matrix=bt709:out_range=tv:flags=lanczos,format=yuv420p[v]")
-        cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(layers) + 1}:a",
+        cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(layers) + first}:a",
                 "-t", f"{total}", "-r", str(CV.FPS)] + CV.ENCODE + [str(out_mp4)]
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=900)
     return out_mp4, credit
+
+
+def entities_clean(credit):
+    from . import entities
+    return entities.clean_credit(credit)
 
 
 # metadata

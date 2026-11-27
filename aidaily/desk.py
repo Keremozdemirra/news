@@ -402,11 +402,12 @@ def video_elsewhere():
 
 
 def videos_last_24h():
-    """Video posts published in the last 24 hours plus those queued: the daily cap counts both."""
+    """Moving-photo video posts published in the last 24 hours plus those queued: the daily cap counts both. Footage
+    videos are not counted: a fitting clip always replaces the still."""
     cut = now() - timedelta(hours=24)
     n = 0
     for p, _ in posts():
-        if not p.get("video"):
+        if not p.get("video") or p["video"].get("footage"):
             continue
         if p.get("status") == "queued" or (p.get("status") == "published" and (_stamp(p.get("published", "")) or cut) > cut):
             n += 1
@@ -466,7 +467,7 @@ def check_video(post):
     return bool(problems)
 
 
-def make_video(s, img, post_id):
+def make_video(s, img, post_id, clip=None):
     """Render the story's video card into the media folder. Returns the post's video record, or None (and why it
     was skipped is printed); a failed render never touches the still card."""
     from . import cardvideo as CV
@@ -476,7 +477,7 @@ def make_video(s, img, post_id):
         return None
     shape = video_shape()
     seconds = float(video_cfg("seconds", CV.SECONDS))
-    clip, footage = pick_footage(s, post_id, seconds), None
+    footage = None
     try:
         if clip:
             from . import broll
@@ -1509,11 +1510,14 @@ def queue(day_dir, batch=None, render=True):
             src = s.get("_assets", {}).get("photo", "")
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
-            # videos_last_24h reads the queue on disk, which already holds this run's earlier posts
-            # while Instagram is blocked a video is rendered only when the lead path will carry it to another platform
-            if (not web and video_cfg("on") and (not cooldown_until() or video_elsewhere())
-                    and videos_last_24h() < int(video_cfg("per_day", 0))):
-                video = make_video(s, img, out.name)
+            # A fitting archive clip replaces the still wherever the post goes, web tier included (Threads and
+            # Bluesky carry web posts). Without a clip, the moving photo is the A/B test: Instagram-tier posts only,
+            # per_day a day (videos_last_24h reads the queue on disk, this run's earlier posts included).
+            # While Instagram is blocked a video is rendered only when the lead path or a web post will carry it.
+            if video_cfg("on") and (web or not cooldown_until() or video_elsewhere()):
+                clip = pick_footage(s, out.name, float(video_cfg("seconds", 8)))
+                if clip or (not web and videos_last_24h() < int(video_cfg("per_day", 0))):
+                    video = make_video(s, img, out.name, clip=clip)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
                 "cards": ["card.jpg", "detail.jpg"] + [f"{n}.jpg" for n, _ in extra_slides(m, s, web, ctas)],

@@ -3,6 +3,7 @@ import unittest
 from unittest import mock
 
 from aidaily import broll, desk
+from test_desk import Tmp
 
 OIL = {"id": "pumpjack", "file": "Pumpjack.webm", "path": "a/ab", "source": "commons", "licence": "CC0", "author": "T. Farley",
        "page": "https://commons.wikimedia.org/wiki/File:Pumpjack.webm", "start": 2, "seconds": 30, "people": False,
@@ -95,17 +96,25 @@ class MakeVideo(unittest.TestCase):
             return Path(out)
         s = {"title": "Oil prices rise", "headline": "Oil prices rise", "_assets": {"credit": "Photo: A, CC0", "file": "P.jpg"}}
         with tempfile.TemporaryDirectory() as tmp, \
-                mock.patch.object(desk, "pick_footage", return_value=OIL), mock.patch.object(CV, "eligible", return_value=""), \
+                mock.patch.object(CV, "eligible", return_value=""), \
                 mock.patch.object(CV, "build", side_effect=fake_build), mock.patch.object(CV, "cover"), \
                 mock.patch.object(CV, "audit_file", return_value=[]), mock.patch.object(CV, "focus", return_value=(0.5, 0.5)), \
                 mock.patch.object(broll, "fetch", side_effect=RuntimeError("429")), mock.patch.object(desk, "video_shape", return_value="card"):
-            rec = desk.make_video(s, Path(tmp), "a")
+            rec = desk.make_video(s, Path(tmp), "a", clip=OIL)
         self.assertEqual(built, [(None, "Photo: A, CC0")])
         self.assertNotIn("footage", rec)
 
     def test_off_switch(self):
         with mock.patch.dict(desk.CONFIG, {"video": {"footage": False}}):
             self.assertIsNone(desk.pick_footage({"title": "Oil prices rise"}, "a", 8))
+
+
+class Cap(Tmp):
+    def test_footage_videos_do_not_use_the_moving_photo_cap(self):
+        rec = {"shape": "card", "file": "video.mp4"}
+        self.write_post("a", video=rec)
+        self.write_post("b", video=dict(rec, footage={"id": "container-ship-at-sea"}))
+        self.assertEqual(desk.videos_last_24h(), 1)
 
 
 if __name__ == "__main__":
