@@ -3,7 +3,7 @@
  "kind": "story",
  "created": "2026-11-27T18:55:24+00:00",
  "publish_after": "2026-11-27T18:55:24+00:00",
- "status": "queued",
+ "status": "published",
  "story": "story.jpg",
  "urls": [],
  "headlines": [
@@ -18,5 +18,8 @@
   "id": "1114316458307467",
   "url": "https://www.facebook.com/1114316458307467",
   "at": "2026-11-27T19:02:27+00:00"
- }
+ },
+ "attempted": "2026-11-27T19:30:12+00:00",
+ "published": "2026-11-27T19:30:12+00:00",
+ "media_id": "18112114796255368"
 }
