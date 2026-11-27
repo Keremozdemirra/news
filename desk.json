@@ -145,7 +145,8 @@
     "per_day": 2,
     "format": "alternate",
     "trial": "",
-    "seconds": 8
+    "seconds": 8,
+    "platforms": {"threads": true, "bluesky": true, "telegram": true, "facebook": true}
   },
   "growth": {
     "so_what": false,

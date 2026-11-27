@@ -394,6 +394,12 @@ def video_cfg(name, default=None):
     return (CONFIG.get("video") or {}).get(name, default)
 
 
+def video_elsewhere():
+    """A video card would reach a platform other than Instagram: the lead path is on and a platform takes video."""
+    return lead_active() and any((video_cfg("platforms") or {}).get(n) and CONFIG.get("platforms", {}).get(n)
+                                 for n in LEAD_ORDER)
+
+
 def videos_last_24h():
     """Video posts published in the last 24 hours plus those queued: the daily cap counts both."""
     cut = now() - timedelta(hours=24)
@@ -1438,8 +1444,9 @@ def queue(day_dir, batch=None, render=True):
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
             # videos_last_24h reads the queue on disk, which already holds this run's earlier posts
-            # no render while Instagram is blocked: the post would expire on Instagram before it could go out
-            if not web and video_cfg("on") and not cooldown_until() and videos_last_24h() < int(video_cfg("per_day", 0)):
+            # while Instagram is blocked a video is rendered only when the lead path will carry it to another platform
+            if (not web and video_cfg("on") and (not cooldown_until() or video_elsewhere())
+                    and videos_last_24h() < int(video_cfg("per_day", 0))):
                 video = make_video(s, img, out.name)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",

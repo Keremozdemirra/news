@@ -180,6 +180,23 @@ def bluesky_text(post):
     return _with_ticker(post, text, 300)
 
 
+def bluesky_video_text(post):
+    """(text, facets) for a video post: there is no link card, so the story address goes in the text as a link
+    facet (docs.bsky.app/docs/advanced-guides/post-richtext: byteStart and byteEnd count UTF-8 bytes). 300
+    graphemes, the headline kept whole before the sentence."""
+    url = story_page(post, "bluesky")
+    tail = f"Sources: {url}"
+    dek = post.get("dek") or ""
+    extra = (why_it_matters(post) or _sentences(dek))[:1]
+    text = _fit(_head(post), " ".join(extra), tail, 300)
+    if not text.endswith(tail):
+        text = _fit(_head(post), "", tail, 300)
+    start = len(text.encode("utf-8")) - len(url.encode("utf-8"))
+    facets = [{"index": {"byteStart": start, "byteEnd": start + len(url.encode("utf-8"))},
+               "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]}] if text.endswith(url) else []
+    return text, facets
+
+
 def bluesky_description(post):
     return post.get("dek") or post.get("body") or ""
 
@@ -267,6 +284,29 @@ def _images(post):
     return [desk.media_url(post["id"], c) for c in post["cards"]]
 
 
+def video_for(post, name):
+    """The post's video card for this platform, or None (the stills go). The same record and checks Instagram uses
+    (desk.video_problems): the post's own licensed photo, the file that passed the spec when it was rendered."""
+    v = post.get("video")
+    if not v or not desk.video_cfg("on") or not (desk.video_cfg("platforms") or {}).get(name) or desk.video_problems(post):
+        return None
+    return {"url": desk.video_url(post["id"], v["file"]), "cover": desk.media_url(post["id"], v["cover"]),
+            "height": CV_HEIGHT.get(v.get("shape"), 1350)}
+
+
+CV_HEIGHT = {"card": 1350, "reel": 1920}
+
+
+class VideoFailed(PlatformError):
+    """The video was refused before anything was published: the stills go out in the same send."""
+
+
+def refused(e):
+    """An HTTP 4xx answer is a refusal: nothing went out. A network error or a 5xx may have reached the platform,
+    so it is never treated as safe to send again."""
+    return bool(re.search(r"HTTP 4\d\d", str(e)))
+
+
 # http
 
 class Client:
@@ -313,6 +353,21 @@ class Client:
     def fetch(self, url):
         return self._open(urllib.request.Request(url), "fetch image")
 
+    name = ""
+
+    def post(self, post):
+        """The video card when the post has one and this platform takes video (desk.json video.platforms), else the
+        stills. A video refused before publishing falls back to the stills in the same send, never a second post."""
+        v = video_for(post, self.name)
+        if not v:
+            return self.post_stills(post)
+        try:
+            return {**self.post_video(post, v), "video": True}
+        except VideoFailed as e:
+            got = self.post_stills(post)
+            got["video_error"] = self._scrub(str(e))[:300]
+            return got
+
 
 # Threads
 # Docs read 2026-11-26: developers.facebook.com/docs/threads/posts (container + threads_publish, text 500
@@ -322,6 +377,7 @@ class Client:
 # developers.facebook.com/docs/threads/threads-media (permalink field; token as access_token parameter).
 
 class Threads(Client):
+    name = "threads"
     secrets = ("THREADS_TOKEN", "THREADS_USER_ID")
     host = os.environ.get("THREADS_API_HOST", "https://graph.threads.com/v1.0")
 
@@ -371,7 +427,7 @@ class Threads(Client):
         me = self.call("GET", self.env["THREADS_USER_ID"], {"fields": "id,username"})
         return f"token reaches @{me.get('username')}"
 
-    def post(self, post):
+    def post_stills(self, post):
         uid = self.env["THREADS_USER_ID"]
         # text first, one image only: the card. No is_made_with_ai label: it marks the media as AI-made, and the
         # photos are real.
@@ -380,7 +436,24 @@ class Threads(Client):
             params["topic_tag"] = threads_tag(post)
         container = self.call("POST", f"{uid}/threads", params)["id"]
         self.wait(container)
-        media = self.publish(container)
+        return self._published(post, self.publish(container))
+
+    def post_video(self, post, v):
+        """A VIDEO container with video_url (docs read 2026-11-27: developers.facebook.com/docs/threads/posts; video
+        spec: MP4, no edit lists, moov first, H.264 closed GOP 4:2:0, AAC 48 kHz, 23-60 fps, up to 1920 columns,
+        5 minutes, 1 GB; ours is the Instagram-spec file). A refused or failed container publishes nothing."""
+        uid = self.env["THREADS_USER_ID"]
+        params = {"media_type": "VIDEO", "video_url": v["url"], "text": threads_text(post)}
+        if threads_tag(post):
+            params["topic_tag"] = threads_tag(post)
+        try:
+            container = self.call("POST", f"{uid}/threads", params)["id"]
+            self.wait(container, tries=10)  # video processing takes longer than an image
+        except PlatformError as e:
+            raise VideoFailed(f"threads video: {e}") from None
+        return self._published(post, self.publish(container))
+
+    def _published(self, post, media):
         try:
             link = self.call("GET", media, {"fields": "permalink"}).get("permalink", "")
         except PlatformError:
@@ -407,7 +480,9 @@ class Threads(Client):
 # Page access token, permissions pages_manage_posts, pages_read_engagement, pages_show_list).
 
 class Facebook(Client):
+    name = "facebook"
     secrets = ("FB_PAGE_TOKEN", "FB_PAGE_ID")
+    video_host = os.environ.get("FB_VIDEO_HOST", "https://graph-video.facebook.com")
     host = os.environ.get("FB_API_HOST", "https://graph.facebook.com")
     version = os.environ.get("FB_API_VERSION", "v27.0")
 
@@ -476,7 +551,25 @@ class Facebook(Client):
         at = lambda k: datetime.fromtimestamp(got[k], timezone.utc) if got.get(k) else None  # noqa: E731
         return {"expires": at("expires_at"), "data_access": at("data_access_expires_at")}
 
-    def post(self, post):
+    def post_video(self, post, v):
+        """A Page video from a public URL: POST graph-video.facebook.com/{page-id}/videos with file_url and
+        description (docs read 2026-11-27: developers.facebook.com/docs/graph-api/reference/page/videos/, file_url
+        "Accessible URL of a video file", published defaults to true; Page token with pages_manage_posts). The text
+        is the link post's message, so the story address is in it and find() still sees the post."""
+        self.page_token()
+        page = self.env["FB_PAGE_ID"]
+        try:
+            got = self.form("POST", f"{self.video_host}/{self.version}/{page}/videos",
+                            {"file_url": v["url"], "description": facebook_text(post), "title": _head(post)[:255],
+                             "access_token": self.page_token()}, "facebook POST videos")
+        except PlatformError as e:
+            if refused(e):
+                raise VideoFailed(str(e)) from None
+            raise
+        vid = got["id"]
+        return {"id": vid, "url": f"https://www.facebook.com/{page}/videos/{vid}"}
+
+    def post_stills(self, post):
         """A link post: the message and the article address; Facebook builds the preview card from the page's Open
         Graph tags (POST /{page-id}/feed with message and link, developers.facebook.com/docs/pages-api/posts)."""
         self.page_token()
@@ -492,7 +585,9 @@ class Facebook(Client):
 # The two pages disagree on the per-image cap (1,000,000 bytes and 2 MB); the stricter one is used for the thumb.
 
 class Bluesky(Client):
+    name = "bluesky"
     secrets = ("BSKY_HANDLE", "BSKY_APP_PASSWORD")
+    VIDEO = os.environ.get("BSKY_VIDEO", "https://video.bsky.app")
     host = os.environ.get("BSKY_PDS", "https://bsky.social")
     MAX_BYTES = 1_000_000
 
@@ -520,13 +615,70 @@ class Bluesky(Client):
                         {"actor": self.env["BSKY_HANDLE"], "limit": 30, "filter": "posts_no_replies"}, "bluesky getAuthorFeed")
         for item in got.get("feed", []):
             p = item.get("post") or {}
-            ext = ((p.get("record") or {}).get("embed") or {}).get("external") or {}
-            if ext.get("uri") == url:
+            rec = p.get("record") or {}
+            ext = (rec.get("embed") or {}).get("external") or {}
+            # a video post has no link card: its story address is a link facet in the text
+            links = [f.get("uri", "") for fc in rec.get("facets") or [] for f in fc.get("features") or []]
+            if ext.get("uri") == url or any(u.split("?")[0] == url for u in links):
                 rkey = p.get("uri", "").rsplit("/", 1)[-1]
                 return {"id": p.get("uri", ""), "url": f"https://bsky.app/profile/{self.env['BSKY_HANDLE']}/post/{rkey}"}
         return None
 
-    def post(self, post):
+    def post_video(self, post, v):
+        """app.bsky.embed.video through the video service, the method the docs recommend so the post never shows
+        before its video is ready (docs read 2026-11-27: docs.bsky.app/docs/tutorials/video: a service token from
+        com.atproto.server.getServiceAuth, audience the PDS's did:web, lxm com.atproto.repo.uploadBlob, 30 minutes;
+        POST video.bsky.app app.bsky.video.uploadVideo; poll app.bsky.video.getJobStatus for the blob; lexicon
+        app.bsky.embed.video: video/mp4 up to 300 MB, with alt and aspectRatio). Bluesky-hosted accounts need a
+        verified email and have a daily video allowance; a refusal anywhere before createRecord posts nothing."""
+        sess = self.xrpc("com.atproto.server.createSession",
+                         {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
+        jwt, did = sess["accessJwt"], sess["did"]
+        try:
+            pds = next(s["serviceEndpoint"] for s in (sess.get("didDoc") or {}).get("service", [])
+                       if s.get("id", "").endswith("#atproto_pds"))
+            aud = "did:web:" + urllib.parse.urlparse(pds).hostname
+            exp = int(time.time()) + 1800
+            tok = self._service_auth(jwt, aud, exp)
+            data = self.fetch(v["url"])
+            q = urllib.parse.urlencode({"did": did, "name": f"{post['id']}.mp4"})
+            req = urllib.request.Request(f"{self.VIDEO}/xrpc/app.bsky.video.uploadVideo?{q}", data=data, method="POST",
+                                         headers={"Authorization": f"Bearer {tok}", "Content-Type": "video/mp4"})
+            job = json.loads(self._open(req, "bluesky uploadVideo"))
+            job = job.get("jobStatus", job)
+            blob = job.get("blob")
+            for _ in range(90):
+                if blob:
+                    break
+                if job.get("state") == "JOB_STATE_FAILED":
+                    raise PlatformError(f"bluesky video job failed: {job.get('error') or job.get('message', '')}")
+                self.sleep(2)
+                job = self.form("GET", f"{self.VIDEO}/xrpc/app.bsky.video.getJobStatus", {"jobId": job["jobId"]},
+                                "bluesky getJobStatus").get("jobStatus", {})
+                blob = job.get("blob")
+            if not blob:
+                raise PlatformError("bluesky video not processed after 3 minutes")
+        except (PlatformError, KeyError, StopIteration, TypeError) as e:
+            raise VideoFailed(f"bluesky video: {e}") from None
+        text, facets = bluesky_video_text(post)
+        record = {"$type": "app.bsky.feed.post", "text": text, "facets": facets, "langs": ["en"],
+                  "createdAt": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                  "embed": {"$type": "app.bsky.embed.video", "video": blob, "alt": _head(post),
+                            "aspectRatio": {"width": 1080, "height": v["height"]}}}
+        got = self.xrpc("com.atproto.repo.createRecord",
+                        {"repo": did, "collection": "app.bsky.feed.post", "record": record}, jwt)
+        rkey = got["uri"].rsplit("/", 1)[-1]
+        return {"id": got["uri"], "url": f"https://bsky.app/profile/{self.env['BSKY_HANDLE']}/post/{rkey}"}
+
+    def _service_auth(self, jwt, aud, exp):
+        q = urllib.parse.urlencode({"aud": aud, "lxm": "com.atproto.repo.uploadBlob", "exp": exp})
+        req = urllib.request.Request(f"{self.host}/xrpc/com.atproto.server.getServiceAuth?{q}",
+                                     headers={"Authorization": f"Bearer {jwt}"})
+        tok = json.loads(self._open(req, "bluesky getServiceAuth"))["token"]
+        self.env["_service_token"] = tok  # scrubbed from this client's errors
+        return tok
+
+    def post_stills(self, post):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         jwt, did = sess["accessJwt"], sess["did"]
@@ -558,6 +710,7 @@ class Bluesky(Client):
 # The bot must be an administrator of the channel with permission to post.
 
 class Telegram(Client):
+    name = "telegram"
     secrets = ("TG_BOT_TOKEN", "TG_CHANNEL")
     host = os.environ.get("TG_API_HOST", "https://api.telegram.org")
 
@@ -576,7 +729,24 @@ class Telegram(Client):
             raise PlatformError(f"telegram: @{bot.get('username')} is not allowed to post in {chat.get('title')}")
         return f"bot @{bot.get('username')} can post in {chat.get('title')} (@{chat.get('username') or 'private'})"
 
-    def post(self, post):
+    def post_video(self, post, v):
+        """sendVideo by HTTP URL (docs read 2026-11-27: core.telegram.org/bots/api#sendvideo, MPEG4, caption 0-1024
+        after entities, cover by URL, supports_streaming; "Sending files": by URL up to 20 MB for non-photo files and
+        the file must carry the right MIME type, which jsDelivr serves as video/mp4). A refusal sends nothing."""
+        chat = self.env["TG_CHANNEL"]
+        try:
+            first = self.call("sendVideo", {"chat_id": chat, "video": v["url"], "cover": v["cover"],
+                                            "caption": telegram_caption(post), "parse_mode": "HTML",
+                                            "supports_streaming": True, "width": 1080, "height": v["height"],
+                                            "disable_notification": not is_breaking(post)})
+        except PlatformError as e:
+            if refused(e) or '"ok": false' in str(e):  # an answer that says no; a network error may have sent
+                raise VideoFailed(str(e)) from None
+            raise
+        username = (first.get("chat") or {}).get("username") or (chat.lstrip("@") if chat.startswith("@") else "")
+        return {"id": str(first["message_id"]), "url": f"https://t.me/{username}/{first['message_id']}" if username else ""}
+
+    def post_stills(self, post):
         urls = _images(post)[:10]
         chat, caption = self.env["TG_CHANNEL"], telegram_caption(post)
         # routine posts are silent; only a breaking story (score at the desk's breaking bar) notifies subscribers
