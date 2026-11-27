@@ -50,7 +50,7 @@ button { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 9px; font-family: var(--plate); font-weight: 800; font-size: 25px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--brass-hi); text-decoration: none; padding: 8px 4px; }
 .brand-mark { width: 12px; height: 12px; border-radius: 50%; background: var(--amber); }
 .tools { display: flex; }
-.icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 2px solid var(--brass-lo); background: var(--cab); color: var(--brass-hi); border-radius: 0; cursor: pointer; margin-left: 6px; }
+.icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 2px solid transparent; background: transparent; color: var(--brass-hi); border-radius: 0; cursor: pointer; margin-left: 6px; }
 .icon-btn:active { background: var(--brass); color: #1c1206; }
 .icon-btn .wave { display: none; }
 .icon-btn[aria-pressed="true"] .wave { display: block; }
@@ -63,7 +63,7 @@ button { font: inherit; color: inherit; }
 .side { display: none; }
 .app[data-phase="intro"] .stage { pointer-events: none; }
 
-.frame { position: relative; width: 100%; border: 10px solid transparent; border-image: url("../assets/art/frame.png") 56 fill / 10px stretch; padding: 0 0 4px; background: var(--cab); }
+.frame { position: relative; width: 100%; border: 8px solid transparent; border-image: url("../assets/art/frame.png") 56 fill / 8px stretch; padding: 0 0 4px; background: var(--cab); }
 .plate { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 4px 7px 8px; margin-bottom: 6px; border-bottom: 3px solid var(--brass-lo); font-family: var(--plate); font-weight: 800; text-transform: uppercase; }
 .plate-main { display: flex; flex-direction: column; line-height: 1; }
 .plate-k { font-size: 12px; letter-spacing: 0.2em; color: #b99a5d; }
@@ -73,8 +73,10 @@ button { font: inherit; color: inherit; }
 .plate-clue.on { color: var(--amber-hi); }
 .plate-clue.on .lamp { background: var(--amber); border-color: var(--amber); }
 
-.board { --tw: min(60px, calc((min(100vw - 8px, 560px) - 20px - 6px - (var(--L) - 1) * var(--gap)) / var(--L)), calc(((var(--vh) - 330px) / 6 - var(--gap)) / 1.5));
-  --th: calc(var(--tw) * 1.5); display: flex; flex-direction: column; align-items: center; gap: var(--gap); }
+/* a phone gets the biggest cell the row and the column allow: 5 letters come out near 66 x 80 at 390 x 844 */
+.board { --hl: calc((var(--vh) - 198px - 3 * var(--kh)) / 6 - var(--gap));   /* the row height the screen has left for a cell */
+  --tw: min(68px, calc((min(100vw - 8px, 560px) - 16px - 6px - (var(--L) - 1) * var(--gap)) / var(--L)), calc(var(--hl) / 1.1));
+  --th: min(calc(var(--tw) * 1.4), var(--hl)); display: flex; flex-direction: column; align-items: center; gap: var(--gap); }
 .row { display: flex; align-items: center; gap: var(--gap); }
 .rn { display: none; width: 12px; text-align: right; margin-right: 2px; font-family: var(--plate); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; color: #a58a52; }
 .rlamp { display: none; width: 7px; height: 7px; border-radius: 50%; margin-left: 4px; background: #241b13; }
@@ -127,18 +129,19 @@ button { font: inherit; color: inherit; }
 .msg.show { opacity: 1; }
 .msg.bad { color: #ffb48a; }
 
-.kb { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 6px; padding: 0 0 4px; margin-top: auto; }
+.kb { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 6px; padding: 8px 0 4px; margin-top: auto; position: relative; }
+.kb::before { content: ""; position: absolute; inset: 0 -100vw calc(-8px - var(--sab)); background: var(--cab); z-index: -1; }
 .krow { display: flex; justify-content: center; gap: 5px; }
-.key { position: relative; flex: 1 1 0; min-width: 0; height: var(--kh); border: 2px solid var(--brass-lo); border-radius: 0; cursor: pointer; padding: 0; background: #2a221c; font-weight: 600; font-size: 16px; color: var(--cream); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.key { position: relative; flex: 1 1 0; min-width: 0; height: var(--kh); border: 2px solid #2a221c; border-radius: 0; cursor: pointer; padding: 0; background: #2a221c; font-weight: 600; font-size: 16px; color: var(--cream); -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .key.wide { flex: 1.55 1 0; font-size: 13px; letter-spacing: 0.04em; }
 .key:active { transform: translateY(2px); }
 .key .kmark { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; opacity: 0; }
 .key[data-k] .kmark { opacity: 1; }
 .key[data-k="correct"] { background: #f6b73c; color: #1c1206; border-color: #ffe0a0; }
 .key[data-k="correct"] .kmark { background: #1c1206; }
-.key[data-k="present"] { background: #231a0f; color: #ffcb5e; border: 3px solid var(--amber); }
+.key[data-k="present"] { background: #231a0f; color: #ffcb5e; border: 2px solid var(--amber); }
 .key[data-k="present"] .kmark { background: #ffcb5e; top: 2px; right: 2px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-.key[data-k="absent"] { background: transparent; color: #5a5247; border: 2px dashed #3a3128; text-decoration: line-through; text-decoration-thickness: 2px; }
+.key[data-k="absent"] { background: #130e0b; color: #5a5247; border-color: #130e0b; text-decoration: line-through; text-decoration-thickness: 2px; }
 .key[data-k="absent"] .kmark { display: none; }
 @media (hover: hover) { .key:hover:not([data-k]) { border-color: var(--brass); } }
 
@@ -248,3 +251,5 @@ button { font: inherit; color: inherit; }
 .home a { color: #b99a5d; text-underline-offset: 3px; }
 .home a:hover { color: var(--amber-hi); }
 .brand-logo { width: 30px; height: 30px; flex: none; border: 2px solid var(--brass); }
+/* phone: the hall is only a dark wall behind the board; the lamps and the lit rail belong to the wide view */
+@media (max-width: 1039px) { .hall { background-image: none; background-color: #100a08; } }

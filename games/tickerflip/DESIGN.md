@@ -33,7 +33,7 @@ A departure board in an old exchange hall, seen straight on. A lacquered wall, a
 ## Rules (strict)
 
 1. **Depth comes only from rendered art.** The hall wall and lamps, the brass frame, the flap cell housing and the shadow a falling flap throws are rendered in Blender (art/build_art.py) and shipped as sprites in assets/art/. CSS never draws a gradient fill, glow, bevel or drop shadow. The only CSS gradients are hard-stop hatch stripes, which are a pattern, not a surface.
-2. **Flat plates for everything else.** Keys, buttons, the clue stamp, article cards, the share box: zero radius, 2 to 3px brass trim, flat fill. Circles are for lamps only.
+2. **Flat plates for everything else.** Buttons, the clue stamp, article cards, the share box: zero radius, 2 to 3px brass trim, flat fill. Keys are plain dark plates with no trim, so the board is the only lit thing on a phone; a used key goes dim, a found one goes amber. Circles are for lamps only.
 3. **One lit colour.** Amber means lit: a correct cell, a correct key, the primary button, the clue lamp. It is never used for anything decorative.
 4. **State is colour plus shape plus text.** Correct = solid lit amber flap + square. Present = half-lit flap (top amber, bottom dark, amber keyline) + diamond. Absent = recessed black flap + bar. Keys: used-absent are dashed and struck through. Every cell has an aria-label in words; the share line uses the same three shapes.
 5. **The frame holds the board only** (and the intro card). Nothing else gets the brass frame.
@@ -51,7 +51,7 @@ Every move is held frames, not one eased tween (see art notes from the studio: a
 | Cycling flap | squash 1, .67, .03 then .03, .7, 1 on held frames, 15 ms each, with the matching shading frame; the drum steps through the alphabet |
 | Landing flap | lifts 2px (anticipation), squash .96, .64, .03, then rises .03, .47, .87, .99, overshoots 1.04, contact .97 with a 1px body nudge, settles 1.01, 1 (follow-through); the clack fires on contact |
 | Flap light | one of six Blender-rendered shading frames, stepped with the squash |
-| Row | tiles start 150 ms apart, 4 to 6 cycling flaps each, so the row lands as a ripple, not a block |
+| Row | one cell at a time, left to right: two flaps, the landing, then the next cell starts. Nothing else on the screen moves |
 | Invalid word | four-beat shake on held frames |
 | Win | the row hops once, tile by tile, 90 ms apart (secondary beat); the board never loops anything |
 | Clue | the plate lamp lights; no motion |
@@ -61,3 +61,7 @@ HUD, keys, panels and the clock never loop or tween. Only the cells move. Reduce
 ## Do not
 
 Brass gradients in CSS, glow, text-shadow, rounded rectangles, pills, emoji, a second accent colour, a centred hero. Do not put the answer anywhere the page can read before the finish (the data file stores it base64-reversed, which is obscurity, not secrecy).
+
+## Calm (the bar is NYT Wordle)
+
+The word is five or six letters, never seven, so a 390px phone shows cells of about 57 x 76 (six letters) or 68 x 76 (five); Wordle's are 62 x 62. On a phone the hall is a plain dark wall: the lamps and the lit rail belong to the wide view. One thing moves at a time, and only because the player did something.

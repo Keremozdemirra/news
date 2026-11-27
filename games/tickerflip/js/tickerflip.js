@@ -123,7 +123,6 @@ function typeLetter(ch) {
   const r = guesses.length, c = cur.length - 1, t = tiles[r][c];
   t.flip(ch, "typed", { steps: 1, quick: true });
   t.el.setAttribute("aria-label", `Row ${r + 1}, letter ${c + 1}, ${ch}`);
-  t.el.classList.remove("pop"); void t.el.offsetWidth; if (!REDUCED) t.el.classList.add("pop");
 }
 function backspace() {
   if (busy || phase !== "play" || !cur.length) return;
@@ -159,15 +158,16 @@ async function enter() {
 }
 async function reveal(r, word, res, instant = false) {
   const row = tiles[r], announce = [];
-  const jobs = row.map(async (t, i) => {
-    if (!instant) await wait(i * 150);
+  // One cell at a time, left to right: each runs two flaps and lands before the next one starts. The eye follows
+  // a single moving thing; the rest of the board, the keys and the plate stay still.
+  for (let i = 0; i < row.length; i++) {
+    const t = row[i];
     if (instant || REDUCED) t.set(word[i], res[i]);
-    else await t.flip(word[i], res[i], { steps: 4 + ((i * 5) % 3), onStep: (k, last) => { if (!last) snd.flap(); }, onContact: () => { snd.clack(); t.el.dataset.done = "1"; } });
+    else await t.flip(word[i], res[i], { steps: 2, onStep: (k, last) => { if (!last) snd.flap(); }, onContact: () => { snd.clack(); t.el.dataset.done = "1"; } });
     t.el.dataset.done = "1";
     t.el.setAttribute("aria-label", `Row ${r + 1}, letter ${i + 1}, ${word[i]}, ${WORDS_IN[res[i]]}`);
     keyState(word[i], res[i]);
-  });
-  await Promise.all(jobs);
+  }
   if (!instant) {
     rowEls[r].dataset.done = "1";
     live(`Guess ${r + 1}, ${word}. ` + word.split("").map((ch, i) => `${ch} ${WORDS_IN[res[i]]}`).join("; ") + ".");

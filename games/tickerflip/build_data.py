@@ -5,11 +5,11 @@ The answer is one word taken from Boardread's own articles for the UTC day:
   - the featured company's name (one word, or one word of a longer name),
   - the verified ticker (post["ticker"], when the desk has set one), or
   - a key headline word.
-All are 4-7 letters, letters only, and no stopwords. The pick is deterministic: candidates are
+All are 5-6 letters, letters only, and no stopwords. The pick is deterministic: candidates are
 sorted alphabetically and indexed by a SHA-256 of the date, so the same queue gives the same word.
 
 Valid guesses = the bundled English list (assets/data/words.txt, SCOWL, see words-NOTICE.txt)
-plus every 4-7 letter word, company name and ticker in any published or web article.
+plus every 5-6 letter word, company name and ticker in any published or web article.
 Only the extras go into today.json; the browser loads words.txt itself.
 
 Usage: python3 build_data.py [--date YYYY-MM-DD] [--queue ../../queue] [--out assets/data/today.json]
@@ -21,7 +21,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 LAUNCH = dt.date(2026, 11, 27)  # puzzle No. 1
-MIN_LEN, MAX_LEN = 4, 7
+MIN_LEN, MAX_LEN = 5, 6   # five or six cells: the size a phone can show big
 MIN_CANDIDATES = 8    # widen the window one day at a time until there are this many
 MAX_WINDOW = 4        # days, today included
 SITE = "https://boardread.news/s/{}/"
