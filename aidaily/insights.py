@@ -108,7 +108,12 @@ class Instagram(Source):
         except IGError as e:
             if desk.BLOCKED.search(str(e)):
                 raise
-            got = {k: v for k, v in self.client.media_insights(post["media_id"], metrics=self.METRICS).items() if k != "_errors"}
+            raw = self.client.media_insights(post["media_id"], metrics=self.METRICS)
+            got = {k: v for k, v in raw.items() if k != "_errors"}
+            if not got and raw.get("_errors"):
+                # every metric refused: say why (a missing instagram_manage_insights permission shows here), never
+                # an empty row that looks like zero (no Instagram post had a single metric before 2026-11-28)
+                raise RuntimeError(f"instagram insights refused: {raw['_errors'][0]}")
         return got or None
 
     def followers(self):
@@ -147,8 +152,20 @@ class Facebook(Source):
         if not (self.token and self.page):
             raise LookupError("FB_PAGE_TOKEN, FB_PAGE_ID")
         self.base = f"{os.environ.get('FB_API_HOST', 'https://graph.facebook.com')}/{os.environ.get('FB_API_VERSION', 'v27.0')}"
+        self._resolved = False
+
+    def _resolve(self):
+        """The Page id and Page token as the publishing client reads them from the stored token: FB_PAGE_ID may be a
+        placeholder, and every read with it failed (11 x HTTP 400 in the first daily table, 2026-11-27)."""
+        if self._resolved:
+            return
+        from . import platforms as P
+        c = P.Facebook(opener=self.opener)
+        self.token, self.page = c.page_token(), c.page_id()
+        self._resolved = True
 
     def fetch(self, post):
+        self._resolve()
         slot = (post.get("platforms") or {}).get("facebook") or {}
         if not slot.get("id"):
             return None
@@ -167,6 +184,7 @@ class Facebook(Source):
         return out
 
     def followers(self):
+        self._resolve()
         return self.get_json(f"{self.base}/{self.page}", {"fields": "followers_count", "access_token": self.token}).get("followers_count")
 
 

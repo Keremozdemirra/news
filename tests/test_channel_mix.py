@@ -2,6 +2,7 @@
 a format mix per platform, and text that does not repeat what the card already shows."""
 import json
 import os
+import unittest
 import urllib.parse
 from datetime import timedelta
 from unittest import mock
@@ -225,3 +226,14 @@ class TrialReels(Tmp):
                                                      "trial_layouts": ["plain"]}}):
             pick = lambda layout: desk.video_cfg("trial", "") if layout in (desk.video_cfg("trial_layouts") or []) else ""  # noqa: E731
             self.assertEqual((pick("plain"), pick("lower")), ("SS_PERFORMANCE", ""))
+
+
+class FacebookMetricsId(unittest.TestCase):
+    def test_the_metrics_reader_resolves_a_placeholder_page_id(self):
+        from aidaily import insights
+        from test_platforms import Fake
+        fake = Fake({"me/accounts": {"data": [{"id": "777", "name": "Boardread", "access_token": "pt"}]},
+                     "/777?": {"followers_count": 42}})
+        with mock.patch.dict(os.environ, {"FB_PAGE_TOKEN": "x", "FB_PAGE_ID": "BURAYA_ID"}):
+            self.assertEqual(insights.Facebook(opener=fake).followers(), 42)
+        self.assertFalse([r for r in fake.seen if "BURAYA_ID" in r.full_url])
