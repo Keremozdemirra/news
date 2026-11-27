@@ -16,7 +16,7 @@
   "card.jpg",
   "detail.jpg"
  ],
- "caption": "OpenAI countersues Apple for stealing trade secrets\n\nOpenAI also accuses Apple of coercing and threatening suppliers that work with both companies. The legal battle between the two companies is escalating, the Financial Times reported. OpenAI is the maker of ChatGPT.\n\nReported by CNA; Financial Times.\n\nSend this to a colleague who covers OpenAI.\n\n#business #news\n\nWritten by AI from named newsrooms.",
+ "caption": "OpenAI countersues Apple for stealing trade secrets\n\nOpenAI also accuses Apple of coercing and threatening suppliers that work with both companies. The legal battle between the two companies is escalating, the Financial Times reported. OpenAI is the maker of ChatGPT.\n\nReported by CNA; Financial Times.\n\nSend this to a colleague who covers OpenAI.\n\n#business\n\nWritten by AI from named newsrooms.",
  "source_cta": false,
  "urls": [
   "https://www.channelnewsasia.com/business/openai-countersues-apple-stealing-trade-secrets-ft-reports-6588456"
@@ -80,8 +80,12 @@
   ],
   "seconds": 8.0
  },
- "status": "queued",
+ "status": "published",
  "publish_after": "2026-11-27T19:16:34+00:00",
  "story": "",
- "issue": 15
+ "issue": 15,
+ "attempted": "2026-11-27T20:10:19+00:00",
+ "published": "2026-11-27T20:12:05+00:00",
+ "media_id": "18135603385666925",
+ "permalink": "https://www.instagram.com/p/DgQgj2RAnWH/"
 }
