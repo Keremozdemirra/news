@@ -114,6 +114,17 @@ def shared_run(a, b, n=RUN_WORDS):
     return copy.copied_run(a, b, n)
 
 
+GENERIC = set(copy._stems("data official figures statistics published release report survey year years percent number people "
+                          "latest first second third found shows show data said says new more most also over under about"))
+
+
+def relevant(story, text):
+    """A fact taken from a document is about the story: it uses a word of the story's headline, or two words of its text,
+    beyond the generic ones. "Defra added the datasets on 6 November" under a story about milk sales is padding."""
+    mine = copy._stems(text, short=True) - GENERIC
+    return bool(mine & copy._stems(story.get("title", ""), short=True)) or len(mine & copy._stems(copy.source_text(story), short=True)) >= 2
+
+
 def fact_problems(story, fact):
     """Why a fact may not be shown, or []. Every fact must be a sentence of our own: numbers from its evidence,
     no habit of machine copy, no run of the newsroom's words, and something the newsroom text did not say."""
@@ -134,6 +145,8 @@ def fact_problems(story, fact):
     for rx, why in ((desk.SLOP, "stock phrase"), (copy.HYPE, "hype"), (copy.NOT_BUT, "not X but Y")):
         if rx.search(text):
             out.append(why)
+    if fact.get("kind") == "release" and not relevant(story, text):
+        out.append("not about the story")
     run = shared_run(text, rss)
     if run:
         out.append(f"copies the newsroom: {run!r}")
@@ -286,31 +299,50 @@ def bls(ctx, series):
     return out
 
 
-FRED = {  # series -> (agency behind it, what it measures, unit, freshness days, phrase)
-    "FEDFUNDS": ("Federal Reserve Board via FRED", "The effective federal funds rate", "", 75),
-    "DGS10": ("Federal Reserve Board via FRED", "The 10-year Treasury yield", "", 12),
-    "DGS2": ("Federal Reserve Board via FRED", "The 2-year Treasury yield", "", 12),
-    "DCOILBRENTEU": ("U.S. Energy Information Administration via FRED", "The Brent crude spot price", "", 14),
-    "DCOILWTICO": ("U.S. Energy Information Administration via FRED", "The WTI crude spot price", "", 14),
-    "A191RL1Q225SBEA": ("U.S. Bureau of Economic Analysis via FRED", "U.S. real GDP growth at an annual rate", "", 200),
+# Daily market prices (yields, oil) are deliberately absent: FRED prints them two to seven days late, and a "latest" price
+# from Tuesday beside a story about Friday's session reads as a contradiction (found in the 2026-11-28 samples).
+FRED = {  # series -> (agency behind it, what it measures, freshness days)
+    "FEDFUNDS": ("Federal Reserve Board via FRED", "The effective federal funds rate", 75),
+    "A191RL1Q225SBEA": ("U.S. Bureau of Economic Analysis via FRED", "U.S. real GDP growth at an annual rate", 200),
 }
+
+
+def _fred_rows(ctx, series):
+    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
+    return url, [l.split(",")[:2] for l in ctx.text(url).splitlines()[1:] if "," in l and l.split(",")[1] not in (".", "")]
 
 
 def fred(ctx, series):
     """FRED's public CSV download: no key is needed or stored (checked 2026-11-28: no FRED secret exists)."""
-    label, what, unit, days = FRED[series]
-    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
-    rows = [l.split(",") for l in ctx.text(url).splitlines()[1:] if "," in l and l.split(",")[1] not in (".", "")]
+    label, what, days = FRED[series]
+    url, rows = _fred_rows(ctx, series)
     if len(rows) < 2 or not fresh(rows[-1][0], ctx.now, days):
         ctx.note(f"fred {series}: no fresh print")
         return []
-    (pd, pv), (dt, v) = rows[-2][:2], rows[-1][:2]
-    amt = (lambda x: f"${float(x):.2f} a barrel") if series.startswith("DCOIL") else (lambda x: f"{x}%")
-    prep, when = ("in", month_year) if series == "FEDFUNDS" else ("for", lambda d: f"the quarter that began {day(d)}") \
-        if series == "A191RL1Q225SBEA" else ("on", day)
-    text = f"{what} was {amt(v)} {prep} {when(dt)}, against {amt(pv)} {prep} {when(pd)}."
-    ev = f"FRED {series}: {pd} {pv}; {dt} {v}"
-    return [_fact(text, label, f"https://fred.stlouisfed.org/series/{series}", ev, "stat", url)]
+    (pd, pv), (dt, v) = rows[-2], rows[-1]
+    prep, when = ("in", month_year) if series == "FEDFUNDS" else ("for", lambda d: f"the quarter that began {day(d)}")
+    text = f"{what} was {v}% {prep} {when(dt)}, against {pv}% {prep} {when(pd)}."
+    return [_fact(text, label, f"https://fred.stlouisfed.org/series/{series}", f"FRED {series}: {pd} {pv}; {dt} {v}", "stat", url)]
+
+
+def fed_target(ctx):
+    """The Federal Reserve's target range for the federal funds rate and the day it last moved (FRED DFEDTARL/DFEDTARU:
+    the range stands until the FOMC changes it, so a print from a few days ago is still the current one)."""
+    (ul, up), (ll, lo) = _fred_rows(ctx, "DFEDTARU"), _fred_rows(ctx, "DFEDTARL")
+    if len(up) < 2 or len(lo) < 2 or not fresh(up[-1][0], ctx.now, 10):
+        ctx.note("fred DFEDTAR: no fresh print")
+        return []
+    i = len(up) - 1
+    while i > 0 and up[i - 1][1] == up[-1][1]:
+        i -= 1
+    since, before = up[i][0], (up[i - 1][1] if i else None)
+    low_before = next((r[1] for r in lo if r[0] == up[i - 1][0]), None) if i else None
+    text = f"The Federal Reserve's target range for the federal funds rate is {lo[-1][1]}% to {up[-1][1]}%, in place since {day(since)}."
+    ev = f"FRED DFEDTARL {lo[-1][0]} {lo[-1][1]}; DFEDTARU {up[-1][0]} {up[-1][1]}; the upper limit changed on {since}"
+    if before and low_before:
+        text = text[:-1] + f", up from {low_before}% to {before}%." if float(up[-1][1]) > float(before) else text[:-1] + f", down from {low_before}% to {before}%."
+        ev += f" from {before}; lower limit before {low_before}"
+    return [_fact(text, "Federal Reserve Board via FRED", "https://fred.stlouisfed.org/series/DFEDTARU", ev, "stat", f"https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFEDTARU")]
 
 
 def ons_cpi(ctx):
@@ -355,14 +387,8 @@ def macro_plan(story):
     if re.search(r"\bECB\b|European Central Bank|Lagarde", t):
         plans["ecb"] = ecb_rates
     if re.search(r"\bFed\b|Federal Reserve|FOMC|fed funds|Powell", t):
+        plans["target"] = fed_target
         plans["fed"] = lambda c: fred(c, "FEDFUNDS")
-        plans["dgs2"] = lambda c: fred(c, "DGS2")
-    if re.search(r"treasury yields?|10-year (?:yield|note|treasury)|bond yields", t, re.I) and not geo:
-        plans["dgs10"] = lambda c: fred(c, "DGS10")
-        plans["dgs2"] = lambda c: fred(c, "DGS2")
-    if re.search(r"\b(?:brent|wti|crude|opec\+?|barrels?)\b|\boil (?:prices?|futures|market|benchmark)|\b(?:prices? of|price of) oil", t, re.I):
-        plans["brent"] = lambda c: fred(c, "DCOILBRENTEU")
-        plans["wti"] = lambda c: fred(c, "DCOILWTICO")
     if re.search(r"\bGDP\b|economic growth|economy (?:grew|shrank|contracted)", t) and us and not uk:
         plans["gdp"] = lambda c: fred(c, "A191RL1Q225SBEA")
     plans = list(plans.values())
@@ -532,7 +558,18 @@ def release_text(ctx, url):
     return page_text(main.group(0) if main else html), site_name(html, url)
 
 
+# how a primary source is named on the page: its agency or company, not its host
+NAMES = {"ons.gov.uk": "UK Office for National Statistics", "nrf.com": "National Retail Federation", "sec.gov": "U.S. Securities and Exchange Commission",
+         "federalreserve.gov": "Federal Reserve Board", "ecb.europa.eu": "European Central Bank", "ec.europa.eu": "European Commission",
+         "ftc.gov": "U.S. Federal Trade Commission", "bafin.de": "BaFin", "bankofengland.co.uk": "Bank of England", "bls.gov": "U.S. Bureau of Labor Statistics",
+         "bea.gov": "U.S. Bureau of Economic Analysis", "eurostat.eu": "Eurostat", "gov.uk": "UK government (GOV.UK)"}
+
+
 def site_name(html, url):
+    host = (urlsplit(url).hostname or "").removeprefix("www.")
+    for h, name in NAMES.items():
+        if host == h or host.endswith("." + h):
+            return name
     m = re.search(r'property=["\']og:site_name["\'][^>]*content=["\']([^"\']+)', html) or re.search(r'content=["\']([^"\']+)["\'][^>]*property=["\']og:site_name', html)
     return feeds.html.unescape(m.group(1)).strip() if m else (urlsplit(url).hostname or "").removeprefix("www.")
 
@@ -542,7 +579,8 @@ story from a newsroom, shown below. Return a JSON array of at most 4 objects {{"
 document adds nothing solid.
 - fact: ONE plain sentence of at most 28 words, in your own words. It adds something the newsroom text lacks: a figure,
   a date, the legal basis, a named party, a stated next step. Never a run of six words copied from the document or from
-  the newsroom text. American English, no em or en dashes, no opinion, no adjective the document does not use, no
+  the newsroom text. About the story's own subject: skip site furniture, update dates, file formats and anything the
+  story is not about. American English, no em or en dashes, no opinion, no adjective the document does not use, no
   "amid", "signals", "underscores".
 - quote: the exact words of the document the fact rests on, at most 30 words, copied character for character. Every
   number in the fact is in the quote.
@@ -554,6 +592,20 @@ DOCUMENT ({label}):
 {doc}
 
 Return the JSON array only."""
+
+
+def _sentences_around(doc, quote):
+    """The quote widened to the whole sentence or sentences of the document that hold it (at most 80 words): a model
+    quotes the clause and leaves a number in the sentence's other half."""
+    squeezed = re.sub(r"\s+", " ", doc)
+    i = squeezed.lower().find(re.sub(r"\s+", " ", quote).lower())
+    if i < 0:
+        return quote
+    start = max(squeezed.rfind(". ", 0, i) + 2, 0) if squeezed.rfind(". ", 0, i) >= 0 else 0
+    end = squeezed.find(". ", i + len(quote))
+    end = len(squeezed) if end < 0 else end + 1
+    out = squeezed[start:end].strip()
+    return out if len(out.split()) <= 80 else quote
 
 
 def extract_facts(ctx, story, doc, label, url, kind="release"):
@@ -576,18 +628,22 @@ def extract_facts(ctx, story, doc, label, url, kind="release"):
         fact, quote_ = r["fact"].translate(copy.DASHES).strip(), r["quote"].strip()
         if len(quote_.split()) < 3 or squeeze(quote_) not in low or shared_run(fact, doc) or shared_run(fact, quote_):
             continue
-        out.append(_fact(fact, label, url, quote_, kind))
+        out.append(_fact(fact, label, url, _sentences_around(doc, quote_), kind))
     return out
 
 
 def primary_links(hrefs):
     """The links an RSS item carries that lead to a primary source: a wire release, a regulator, a company's own
     investor or newsroom page. Nothing else is ever fetched from an item."""
+    from . import outlets
+    news = set(outlets._domain_map())  # registrable domains of the newsrooms we read: their pages are never fetched
     out = []
     for u in hrefs or []:
         p = urlsplit(u)
         host = (p.hostname or "").removeprefix("www.")
         first = host.split(".")[0]
+        if p.scheme != "https" or re.fullmatch(r"[\d.:]+|localhost", host) or ".".join(host.split(".")[-2:]) in news:
+            continue
         if any(host == w or host.endswith("." + w) for w in WIRES) or any(host == r[4] or host.endswith("." + r[4]) for r in REGULATORS) \
                 or first in ("investor", "investors", "ir", "newsroom", "pressroom") \
                 or re.search(r"/(?:investors?|newsroom|press-?releases?|pressroom|media-center)(?:/|$)", p.path):
@@ -751,11 +807,11 @@ def check_context(story, rows):
 
 
 def primary_sources(rows):
-    """[(label, url)] one per distinct link, in order of first use."""
+    """[(label, url)] one per agency or company, in order of first use; each line of the section links its own page."""
     seen, out = set(), []
     for r in rows or []:
-        if r.get("url") and r["url"] not in seen:
-            seen.add(r["url"])
+        if r.get("url") and r["label"] not in seen:
+            seen.add(r["label"])
             out.append((r["label"], r["url"]))
     return out
 

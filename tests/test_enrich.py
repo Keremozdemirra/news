@@ -19,7 +19,7 @@ from test_site_features import post
 
 FX = Path(__file__).parent / "fixtures" / "enrich"
 ROUTES = (("MRR_FR", "ecb_mrr.json"), ("KR.DFR", "ecb_dfr.json"), ("prc_hicp_manr", "eurostat_hicp_fr.json"), ("CUUR0000SA0", "bls_cpi.json"),
-          ("DCOILBRENTEU", "fred_brent.csv"), ("DCOILWTICO", "fred_wti.csv"), ("d7g7", "ons_cpi.json"),
+          ("DFEDTARU", "fred_dfedtaru.csv"), ("DFEDTARL", "fred_dfedtarl.csv"), ("id=FEDFUNDS", "fred_fedfunds.csv"), ("d7g7", "ons_cpi.json"),
           ("company_tickers", "sec_tickers.json"), ("CIK0001999001/us-gaap/Revenues", "sec_concept_revenues.json"),
           ("CIK0001999001/us-gaap/NetIncomeLoss", "sec_concept_netincome.json"), ("submissions/CIK0001999001", "sec_submissions.json"),
           ("competition-and-markets-authority", "cma.atom"), ("cma-study-reveals", "cma_release.html"),
@@ -107,11 +107,21 @@ class MacroSources(NoNetwork):
             self.assertEqual(enrich.number_problems(f["text"], f["evidence"]), [])
             self.assertEqual(enrich.fact_problems(s, f), [])
 
-    def test_fred_oil_prices_are_named_for_the_agency_behind_them(self):
-        s = story("Oil Futures Settle Lower Ahead of OPEC+ Policy Meeting")
-        facts = enrich.macro(s, ctx())
-        self.assertEqual({f["label"] for f in facts}, {"U.S. Energy Information Administration via FRED"})
-        self.assertIn("Brent crude spot price was $91.80 a barrel on Nov 24, 2026, against $91.20 a barrel on Nov 23, 2026", facts[0]["text"])
+    def test_the_feds_target_range_and_effective_rate_are_named_for_the_fed(self):
+        s = story("Hawkish Fed poised to raise rates despite stock market turmoil", "Inflation is top concern for US central bank officials.")
+        facts = [f for f in enrich.macro(s, ctx(now=datetime(2026, 11, 28, tzinfo=timezone.utc))) if f["label"].startswith("Federal Reserve")]
+        self.assertEqual([f["text"] for f in facts], [
+            "The Federal Reserve's target range for the federal funds rate is 3.75% to 4.00%, in place since Sep 17, 2026, up from 3.50% to 3.75%.",
+            "The effective federal funds rate was 3.88% in October 2026, against 3.75% in September 2026."])
+        self.assertTrue(all(enrich.fact_problems(s, f) == [] for f in facts))
+
+    def test_daily_market_prices_are_never_enriched(self):
+        # FRED prints them days late; a Tuesday price beside a story about Friday's session reads as a contradiction
+        for title in ("Oil Futures Settle Lower Ahead of OPEC+ Policy Meeting", "Treasury Yields Gain As U.S. Equities Rally"):
+            calls = []
+            self.assertEqual(enrich.macro_plan(story(title)), [])
+            self.assertEqual(enrich.run([story(title)], ctx(calls=calls), log=False), [])
+            self.assertEqual(calls, [])
 
     def test_ons_inflation_for_a_british_story(self):
         facts = enrich.macro(story("UK inflation rises as Bank of England weighs its next rate move"), ctx())
@@ -126,9 +136,9 @@ class MacroSources(NoNetwork):
     def test_one_dead_api_never_stops_the_others(self):
         c = ctx()
         real = c.get
-        c.get = lambda url, ua="": (_ for _ in ()).throw(OSError("down")) if "DCOILBRENTEU" in url else real(url, ua)
-        facts = enrich.macro(story("Oil settles as OPEC+ meets"), c)
-        self.assertEqual(len(facts), 1)
+        c.get = lambda url, ua="": (_ for _ in ()).throw(OSError("down")) if "id=FEDFUNDS" in url else real(url, ua)
+        facts = enrich.macro(story("Fed holds rates as officials weigh inflation"), c)
+        self.assertTrue(any("target range" in f["text"] for f in facts) and not any("effective" in f["text"] for f in facts))
         self.assertTrue(any("OSError" in n for n in c.notes))
 
 
@@ -201,13 +211,19 @@ class TextSources(NoNetwork):
             {"fact": "The CMA says 70% of patients pay privately.", "quote": "around 60% of patients now paying privately for at least some dental care"},  # number not in its quote
             {"fact": "The CMA has published interim findings into the private dentistry market for patients across the UK.",
              "quote": "The CMA has published interim findings into the private dentistry market"},                                      # six or more words copied
-            {"fact": "The CMA study draws on statutory powers including financial information.", "quote": "information acquired through statutory powers including internal financial information"}])
+            {"fact": "The CMA's private dentistry study uses data providers had to hand over under the regulator's statutory powers.",
+             "quote": "information acquired through statutory powers including internal financial information"}])
         facts = enrich.regulator(self.CMA, ctx(bad))
         # the quote that is not in the document and the six-word copy never leave the extractor; the number the quote lacks stops at the gate
         self.assertEqual(len(facts), 2)
         kept, dropped = enrich.gate_facts(self.CMA, facts)
-        self.assertEqual([f["text"] for f in kept], ["The CMA study draws on statutory powers including financial information."])
+        self.assertEqual([f["text"] for f in kept], ["The CMA's private dentistry study uses data providers had to hand over under the regulator's statutory powers."])
         self.assertEqual(dropped[0]["why"], ["numbers not in the primary text ['70']"])
+
+    def test_a_fact_that_is_not_about_the_story_is_padding_and_is_dropped(self):
+        f = enrich._fact("The department added the datasets carrying the latest figures to the page on 6 November.", "UK government (GOV.UK)", "https://www.gov.uk/x",
+                         "added the datasets carrying the 2024 figures to the page on 6 November", "release")
+        self.assertEqual(enrich.fact_problems(self.CMA, f), ["not about the story"])
 
     def test_a_release_the_story_does_not_match_is_not_used(self):
         other = story("Oil settles as OPEC+ meets", "The Competition and Markets Authority has nothing to do with it.")
@@ -246,7 +262,7 @@ class NoCopying(NoNetwork):
     def test_no_fact_built_from_a_fixture_shares_a_six_word_run_with_its_story(self):
         stories = [(story("France's inflation slows to 2.9% in November", "France's annual inflation rate slowed to 2.9% in November from 3.1% in October, as energy prices fell."),
                     datetime(2026, 1, 20, tzinfo=timezone.utc)),
-                   (story("Oil settles as OPEC+ meets", "Oil fell for a second day before the producers' meeting."), NOW), (story("UK inflation rises to 3.6%", "UK consumer price inflation rose to 3.6% in October from 3.5% in September."), NOW)]
+                   (story("Fed holds rates as officials weigh inflation", "Policymakers left borrowing costs unchanged on Wednesday."), NOW), (story("UK inflation rises to 3.6%", "UK consumer price inflation rose to 3.6% in October from 3.5% in September."), NOW)]
         n = 0
         for s, now in stories:
             for f in enrich.macro(s, ctx(now=now)):
@@ -332,7 +348,7 @@ class WriterSection(NoNetwork):
 
 class Run(NoNetwork):
     def stories(self, n=5):
-        return [story(f"Oil Futures Settle Lower Ahead of OPEC+ Policy Meeting {i}", score=10 - i, url=f"https://x.test/{i}") for i in range(n)]
+        return [story(f"ECB policymakers weigh another rate move {i}", score=10 - i, url=f"https://x.test/{i}") for i in range(n)]
 
     def test_at_most_a_few_stories_an_hour_and_the_top_ones_first(self):
         with tempfile.TemporaryDirectory() as d, mock.patch.object(enrich, "STATE", Path(d) / "enrich.json"):
@@ -346,10 +362,10 @@ class Run(NoNetwork):
             self.assertEqual(len(enrich.run(ss, ctx(now=NOW + timedelta(minutes=61)), limit=2)), 2)
 
     def test_a_story_with_fewer_than_two_solid_facts_stays_as_it_is(self):
-        s = story("Oil settles as OPEC+ meets", score=9)
+        s = story("ECB policymakers weigh another rate move", score=9)
         c = ctx()
         real = c.get
-        c.get = lambda url, ua="": (_ for _ in ()).throw(OSError("down")) if "WTI" in url or "WTICO" in url else real(url, ua)
+        c.get = lambda url, ua="": (_ for _ in ()).throw(OSError("down")) if "KR.DFR" in url else real(url, ua)
         enrich.run([s], c, log=False)
         self.assertNotIn("enrich", s)
 
