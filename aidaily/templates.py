@@ -807,8 +807,11 @@ def _qa(options, label, *, title, prompt="", prompt_size=60, kind="text", photo=
         fig = (f'<span style="position:absolute;right:32px;top:30px;font-size:72px;font-weight:800;letter-spacing:-0.03em">{e(figs[i])}</span>'
                if right is not None and i < len(figs) and figs[i] else "")
         sub_c = "#3a3a3a" if on else MUTE
+        # the headline under a figure only when it fits its one line: cut short with an ellipsis it was clipped text,
+        # which the visual gate holds (gate.py)
         sub = (f'<div style="position:absolute;left:32px;right:32px;bottom:26px;font-size:34px;font-weight:600;line-height:1.2;color:{sub_c};'
-               f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{e(subs[i])}</div>' if right is not None and i < len(subs) and subs[i] else "")
+               f'white-space:nowrap">{e(subs[i])}</div>' if right is not None and i < len(subs) and subs[i]
+               and len(subs[i]) * 34 * 0.5 <= cell_w - 64 else "")
         kind_l = (f'<div style="margin-top:12px;font-size:44px;font-weight:700;color:{sub_c if on else DIM}">{e(kinds[i])}</div>'
                   if i < len(kinds) and kinds[i] else "")
         if kind == "bigger":
@@ -861,9 +864,44 @@ def quiz_pair(title, options, right, label, *, hint="", headline="", mark="", ki
     common = dict(prompt_size=size, kind=kind, photo=photo, figs=figs, subs=subs, kinds=kinds, text_px=px)
     q = _qa(options, label, title=title, prompt=e(hint).replace("___", BLANK), credit=q_credit, **common)
     chip = _logo_chip(logo_uri, 64, "18px 28px") if logo_uri else ""
-    a = _qa(options, label, title=f'<span style="white-space:nowrap">Answer {"ABCD"[right]}</span>', prompt=_marked(headline, mark),
+    title_a = f'<span style="white-space:nowrap">Answer {"ABCD"[right]}</span>'
+    if kind == "bigger" and len(figs) == 2 and len(options) == 2:
+        # made to be shared: the result as a sentence in the title slot, the options lit in place as on every answer
+        title_a = f'<span data-result style="font-size:0.62em;line-height:1.04;letter-spacing:-0.02em;display:block">{bigger_result(options, right, figs, kinds)}</span>'
+    a = _qa(options, label, title=title_a, prompt=_marked(headline, mark),
             credit=a_credit, chip=chip, right=right, cta=CTA_ARTICLE, **common)
     return q, a
+
+
+def _money(fig):
+    """(currency, value) of "$6B" or "€5.3 billion", or None."""
+    m = re.match(r"^\s*([$€£])\s?(\d[\d,]*(?:\.\d+)?)\s?(B|M|K|T|bn|billion|million|thousand|trillion)?\s*$", fig or "", re.I)
+    if not m:
+        return None
+    mult = {"b": 1e9, "bn": 1e9, "billion": 1e9, "m": 1e6, "million": 1e6, "k": 1e3, "thousand": 1e3, "t": 1e12,
+            "trillion": 1e12}.get((m.group(3) or "").lower(), 1)
+    return m.group(1), float(m.group(2).replace(",", "")) * mult
+
+
+def times(a, b):
+    """How many times the bigger figure is the smaller, said plainly ("20 times"), or "" when the two are not money
+    in the same currency or the gap is under 1.5 times (then "bigger" says enough)."""
+    x, y = _money(a), _money(b)
+    if not x or not y or x[0] != y[0] or not y[1]:
+        return ""
+    r = x[1] / y[1]
+    if r < 1.5:
+        return ""
+    return f"{r:.1f}".rstrip("0").rstrip(".") + " times" if r < 10 else f"{round(r):,} times"
+
+
+def bigger_result(options, right, figs, kinds):
+    """The answer to Which is bigger? as a sentence a screenshot carries on its own: "Verizon’s deal value is 20 times
+    bigger." (Kerem, 2026-11-27: the answer should be easy to screenshot and pass on.)"""
+    win = right
+    gap = times(figs[win], figs[1 - win])
+    kind = (kinds[win] if kinds else "") or "figure"
+    return f"{e(options[win])}&rsquo;s {e(kind)} is {gap + ' ' if gap else ''}bigger."
 
 
 def story_quiz(hint, label, options=(), title="Guess the<br>company."):

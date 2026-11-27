@@ -663,7 +663,9 @@ class Facebook(Client):
         self.page_token()
         page = self.page_id()
         if (desk.platform_formats("facebook") or ["photo"])[-1] == "link":
-            got = self.call(f"{page}/photos", {"url": _images(post)[0], "caption": facebook_text(post)})
+            alts = desk.alt_texts(post) or []
+            got = self.call(f"{page}/photos", {"url": _images(post)[0], "caption": facebook_text(post),
+                                               **({"alt_text_custom": alts[0]} if alts else {})})
             pid = got.get("post_id") or got["id"]
             return {"id": pid, "url": f"https://www.facebook.com/{pid}", "format": "photo"}
         pid = self.call(f"{page}/feed", {"message": facebook_link_text(post), "link": story_page(post, "facebook")})["id"]
@@ -678,14 +680,16 @@ class Facebook(Client):
         stamps = [int(x["creation_time"]) for x in got.get("data", []) if str(x.get("creation_time", "")).isdigit()]
         return datetime.fromtimestamp(max(stamps), timezone.utc) if stamps else None
 
-    def post_story(self, image_url):
+    def post_story(self, image_url, alt=""):
         """A photo story on the Page (docs read 2026-11-27: developers.facebook.com/docs/page-stories-api/). The photo
         is uploaded unpublished with POST /{page-id}/photos (url, published=false), then POST /{page-id}/photo_stories
         with photo_id makes it the story. Same Page token and pages_manage_posts as a feed post. A story takes no
         caption, sticker or link through this API, and a photo already used in a published post cannot be reused."""
         self.page_token()  # resolves FB_PAGE_ID to the Page the token manages
         page = self.page_id()
-        photo = self.call(f"{page}/photos", {"url": image_url, "published": "false"})["id"]
+        # alt_text_custom: "accessible alternative description for an image" (Graph API photo reference, read 2026-11-28)
+        photo = self.call(f"{page}/photos", {"url": image_url, "published": "false",
+                                              **({"alt_text_custom": alt[:1000]} if alt else {})})["id"]
         got = self.call(f"{page}/photo_stories", {"photo_id": photo})
         if not got.get("success") or not got.get("post_id"):
             raise PlatformError(f"facebook: photo_stories did not confirm the story: {str(got)[:200]}")

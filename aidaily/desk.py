@@ -1454,6 +1454,20 @@ def _s_ranked(day, slot, label):
                          f"Most {metric if metric == 'saved' else 'shared'} this week", refs=[p["id"] for p in rows[:3]], **_photo_of(rows[:3], lead))]
 
 
+def _s_week(day, label):
+    """Top of the week: the week's five highest-scored posts, on a Sunday when neither "Most shared" nor "Most saved"
+    could be built (Instagram's own counts are the better signal; this is the fallback when there are none)."""
+    if (QUEUE / f"{day}-shared" / "post.json").exists() or (QUEUE / f"{day}-saved" / "post.json").exists():
+        return []
+    top = _mixed(sorted(_published(24 * 7), key=lambda p: -_score(p)), 5)
+    if len(top) < 3:
+        return []
+    lead = _lead(top)
+    return [_queue_story(f"{day}-week", R.T.story_list("Top of<br>the week.", [_head(p) for p in top], label,
+                                                      kicker="Top of the week", **lead), "Top of the week",
+                         refs=[p["id"] for p in top], **_photo_of(top, lead))]
+
+
 def _s_numbers(day, label):
     figs = sorted([(p, m) for p in _mixed(sorted(_published(24 * 7), key=lambda p: -_score(p)), 99) if (m := _meaningful(p))],
                   key=lambda x: -_score(x[0]))[:4]  # five overflowed the frame at a readable size (gate.py)
@@ -1697,6 +1711,7 @@ STORY_SLOTS = {
     "numbers": ((4,), lambda d, s, l: _s_numbers(d, l)),
     "shared": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     "saved": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
+    "week": (SUN, lambda d, s, l: _s_week(d, l)),
     # data stories: the markets close every weekday (the ECB fixes Monday to Friday), the chart on Sunday; with the
     # close taking the eighth weekday place, the follow story moves to Saturday
     "markets": (range(5), lambda d, s, l: _s_markets(d, l)),
@@ -1710,7 +1725,7 @@ QUIZ_SLOTS = ("bigger", "whois", "quiz", "fill")
 # stories for the Facebook Page alone: Instagram keeps its nine a day, the Page gets these on top
 FB_ONLY_SLOTS = ("games",)
 FEATURE_SLOTS = ("company", "board", "person")
-WEEKLY_SLOTS = ("shared", "saved", "numbers", "board")  # the ones whose date label reads "Week 48"
+WEEKLY_SLOTS = ("shared", "saved", "numbers", "board", "week")  # the ones whose date label reads "Week 48"
 
 
 def _story_label(slot, t):
@@ -2883,6 +2898,18 @@ def fb_story_due():
     return None
 
 
+def story_alt(post):
+    """Alt text for a story frame where the platform takes one (Facebook; Instagram stories take none): its title and
+    the headlines it lists."""
+    heads = []
+    for r in post.get("refs") or []:
+        q = _load(QUEUE / r / "post.json", {})
+        if q.get("headlines"):
+            heads.append(q["headlines"][0])
+    title = (post.get("headlines") or [""])[0]
+    return (f"{title}: " + "; ".join(heads) + ".") if heads else title
+
+
 def fb_stories(factory=None):
     """One story frame to the Facebook Page per run (fb_story_due). Marked before the call, like every send: a
     story cannot be looked up afterwards, so one whose result is unknown is never sent again. Returns 1 or 0."""
@@ -2912,7 +2939,7 @@ def fb_stories(factory=None):
     post["fb_story"] = {"attempted": now().isoformat(timespec="seconds")}
     _save(path, post)
     try:
-        got = client.post_story(media_url(post["id"], post["story"]))
+        got = client.post_story(media_url(post["id"], post["story"]), alt=story_alt(post))
         post["fb_story"] = {"id": got["id"], "url": got.get("url", ""), "at": now().isoformat(timespec="seconds")}
         print(f"{post['id']}: facebook story posted {got.get('url', '')}")
     except Exception as e:  # noqa: BLE001

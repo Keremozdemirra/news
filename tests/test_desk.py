@@ -873,7 +873,13 @@ LIT = re.compile(r'data-opt="([ABCD])" data-on(?:(?!data-opt).)*?<span data-t[^>
 
 def answer_of(html):
     """(letter, text) of an answer slide: the "Answer D" line, and the option that is lit, which must be that letter."""
-    letter, lit = ANS_LETTER.search(html).group(1), LIT.search(html)
+    lit = LIT.search(html)
+    m = ANS_LETTER.search(html)
+    if m is None:  # Which is bigger? states its result as a sentence (templates.bigger_result) over the lit option
+        assert "data-result" in html and lit and lit.group(2) in html[html.index("data-result"):html.index("data-result") + 400], \
+            "the result sentence does not name the lit option"
+        return lit.group(1), lit.group(2)
+    letter = m.group(1)
     assert lit and lit.group(1) == letter, "the lit option is not the answer"
     return letter, lit.group(2)
 
@@ -1588,6 +1594,18 @@ class Formats(Tmp):
         self.assertIn("The week<br>in numbers.", out["numbers"])
         self.assertIn("Week 48", out["numbers"])
         self.assertEqual(self.run_at(_at(6, 16), "numbers"), {})
+
+    def test_top_of_the_week_only_when_instagram_gave_no_counts(self):
+        w = _at(6, 15, 50)  # Sunday, after Most saved's hour
+        for i in range(4):
+            self.pub(f"w{i}", f"Week story {i}", w, 20 + i * 10, score=12 - i)
+        out = self.run_at(w, "week")
+        self.assertEqual(list(out), ["week"])
+        self.assertIn("Top of<br>the week.", out["week"])
+        self.assertIn("Week 48", out["week"])
+        (desk.QUEUE / "2026-11-29-week").rename(desk.QUEUE / "2026-11-29-week-old")
+        self.write_post("2026-11-29-saved", kind="story", status="queued", story="story.jpg", urls=[])
+        self.assertEqual(self.run_at(w, "week"), {})  # the better signal ran: no fallback
 
     def test_follow_asks_for_a_plain_mention_and_needs_no_data(self):
         out = self.run_at(_at(5, 18), "follow")  # Saturday

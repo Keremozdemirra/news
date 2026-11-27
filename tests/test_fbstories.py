@@ -17,7 +17,8 @@ class FakePage:
     def last_story_at(self):
         return self.last
 
-    def post_story(self, url):
+    def post_story(self, url, alt=""):
+        self.alts = getattr(self, "alts", []) + [alt]
         if self.fail:
             raise platforms.PlatformError(self.fail)
         self.sent.append(url)
@@ -72,6 +73,13 @@ class Stories(Tmp):
     def test_an_instagram_tag_frame_never_reaches_the_page(self):
         self.story("2026-11-25-follow", 10, user_tags=[{"username": "boardread", "x": 0.5, "y": 0.5}])
         self.assertIsNone(desk.fb_story_due())
+
+    def test_a_story_carries_alt_text_from_its_headlines(self):
+        self.write_post("2026-11-2x-a", status="published", headlines=["Fed holds rates"], published=self.t.isoformat())
+        self.story("2026-11-25-last12", 10, headlines=["Last 12 hours"], refs=["2026-11-2x-a"])
+        page = FakePage()
+        desk.fb_stories(lambda: page)
+        self.assertEqual(page.alts, ["Last 12 hours: Fed holds rates."])
 
     def test_it_does_not_wait_for_instagram(self):
         self.story("2026-11-25-last12", 30, status="expired", error="too old to go out")
@@ -162,6 +170,11 @@ class Client(Tmp):
             return {"id": "555"} if path.endswith("/photos") else {"success": True, "post_id": "777"}
         fb.call = call
         got = fb.post_story("https://raw.example/r/main/x/story.jpg")
+        fb.post_story("https://raw.example/r/main/x/story.jpg", alt="Last 12 hours: A; B.")
+        self.assertEqual(calls[-2], ("123/photos", {"url": "https://raw.example/r/main/x/story.jpg", "published": "false",
+                                                   "alt_text_custom": "Last 12 hours: A; B."}))
+        calls.clear()
+        fb.post_story("https://raw.example/r/main/x/story.jpg")
         self.assertEqual(calls, [("123/photos", {"url": "https://raw.example/r/main/x/story.jpg", "published": "false"}),
                                  ("123/photo_stories", {"photo_id": "555"})])
         self.assertEqual(got["id"], "777")
