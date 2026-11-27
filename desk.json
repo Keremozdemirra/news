@@ -162,7 +162,7 @@
     "reel_seconds": 3,
     "reel_trial": "",
     "utm": false,
-    "shorts": true,
+    "shorts": false,
     "shorts_per_day": 2,
     "shorts_spacing_minutes": 180,
     "shorts_max_age_hours": 12,
