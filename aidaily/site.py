@@ -125,7 +125,7 @@ def corrections_page(rows):
     flat = sorted((c for v in rows.values() for c in v), key=lambda c: dt(c["time"]), reverse=True)
     items = "".join(f'<li><time datetime="{iso(c["time"])}">{when(c["time"])}</time> <a href="{BASE}/s/{E(c["id"])}/">{E(c["id"])}</a> '
                     f'<span>{E(correction_text(c))}</span></li>' for c in flat)
-    return pagehead("Corrections", "Errors we have fixed and articles we have withdrawn.") + (
+    return pagehead("Corrections", "Every fix and withdrawal, newest first.") + (
         f'<div class="prose"><ol class="timeline">{items}</ol></div>' if items else '<div class="prose"><p>No corrections yet.</p></div>')
 
 
@@ -588,7 +588,7 @@ def follow_block():
                     + "</a></li>" for a in accounts())
     letter = f'<a class="nl" href="{E(nl)}">Get the weekly Top 10 by email</a>' if nl else ""
     return (f'<section class="follow" aria-labelledby="fh"><h2 id="fh">Follow Boardread</h2>'
-            f'<p>The same news on the channels you already use, each with its sources.</p><ul>{links}</ul>{letter}</section>')
+            f'<p>The same stories on the channels you already use.</p><ul>{links}</ul>{letter}</section>')
 
 
 def row_time(p):
@@ -953,18 +953,18 @@ def how_made(p, counts):
     passed them (copy.verify and desk.audit run before a post is queued and again before it is published)."""
     rooms = outlets.newsrooms(p)
     fig = (p.get("figure") or "").strip()
-    checks = ["Numbers: every number in the text appears in the source text."
+    checks = ["Numbers: each one appears in the source text."
               + (f" The figure {fig} is stated in the text." if figure_stated(p) else ""),
-              "Names: each sentence is compared with the source text; a sentence whose words are mostly missing from it is rejected.",
-              "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this article has no photo."),
-              "Audit: topic, photo, hashtag and stock-phrase checks passed."]
+              "Sentences: each is compared with the source text, and any that is mostly absent from it is rejected.",
+              "Photo: " + ("licensed for reuse, with the credit shown." if p.get("credit") else "none on this article."),
+              "Audit: topic, photo, hashtags and stock phrases."]
     return (f'<details class="made"><summary>How this article was made</summary><div class="made-body">'
             f'<p>An AI model wrote it from the text of {len(rooms)} newsroom{"" if len(rooms) == 1 else "s"}{", plus the primary sources listed under Primary sources," if p.get("context") else ""} and had no other input. '
-            f'Fixed code checked it before it went up.</p>'
+            f'Code checked it before it went up.</p>'
             f'<dl><dt>Feeds scanned</dt><dd>{counts["feeds"]} feeds, every 30 minutes</dd>'
             f'<dt>Newsrooms used</dt><dd>{E(", ".join(rooms)) or "none listed"}</dd>'
             f'<dt>Checks passed</dt><dd><ul>{"".join(f"<li>{E(c)}</li>" for c in checks)}</ul></dd></dl>'
-            f'<p><a href="{BASE}/how-it-works/">How the desk works, with live counts</a></p></div></details>')
+            f'<p><a href="{BASE}/how-it-works/">How the desk works</a></p></div></details>')
 
 
 def story(p, rows, cos=None, counts=None):
@@ -1098,7 +1098,7 @@ def contact_lines():
 
 def about_page():
     return pagehead("About Boardread", "Business news written by AI, with every source linked.") + f"""<div class="prose">
-<p>Boardread covers markets, the economy, politics, world affairs, technology and AI. Each story takes a minute to read and links to the original reporting.</p>
+<p>Boardread covers markets, the economy, politics, world affairs, technology and AI. Every story links to the original reporting.</p>
 <h2>How it works</h2>
 <ol class="steps">
 <li><div><b>Read.</b> Every 30 minutes the desk fetches {feeds_scanned()} feeds from newsrooms and research labs.</div></li>
@@ -1125,7 +1125,7 @@ def standards_page():
 <li><b>No original reporting.</b> Boardread summarises named reporting and has no anonymous sources of its own.</li>
 <li><b>Photos are credited.</b> Images are licensed and credited under the picture. A photo shows the topic. It may not show the event.</li>
 <li><b>Times are UTC.</b></li>
-<li><b>Topics we skip.</b> The desk skips stories about deaths, violence and abuse.</li>
+<li><b>Topics we skip.</b> The desk does not cover deaths, violence or abuse.</li>
 </ul>
 <h2>Corrections</h2>
 <p>Every fix and withdrawal is on the <a href="{BASE}/corrections/">corrections page</a>. If an article gets a fact, name or number wrong, send the link and the correct information. We check the source first. If the source disagrees with the article, the article is corrected or withdrawn. If the source was corrected, the article follows.</p>
@@ -1162,7 +1162,7 @@ def privacy_page():
 <h2>Who is responsible</h2>
 <p>{E(o["name"])}, {E(o["street"])}, {E(o["city"])}, {E(o["country"])}. Email: <a href="mailto:{E(o["email"])}">{E(o["email"])}</a>. Write to that address about anything on this page. There is no data protection officer; a site of this size does not need one. (Art. 4 No. 7 and Art. 13 (1)(a) GDPR.) The full details are in the {imp}.</p>
 <h2>What this site does not do</h2>
-<p>No analytics. No advertising. No tracking pixel, no embeds, no social buttons that load anything (the share buttons are plain links and send nothing until you click one). The site sets no cookie, so there is no cookie banner. Fonts, photos and scripts all come from boardread.news itself, so opening a page does not send your address to Google or anyone else. Every request a page makes goes to boardread.news itself. I checked this by loading the front page, an article, the games, search and the numbers page and listing every request.</p>
+<p>No analytics. No advertising. No tracking pixel, no embeds, no social buttons that load anything (the share buttons are plain links and send nothing until you click one). The site sets no cookies and has no cookie banner. Fonts, photos and scripts all come from boardread.news itself. Opening a page does not send your address to Google or anyone else, and every request a page makes goes to boardread.news. I checked this by loading the front page, an article, the games, search and the numbers page and listing every request.</p>
 <h2>Hosting</h2>
 <p>Boardread is served by GitHub Pages, run by GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA. GitHub documents that <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages" rel="noopener">when a GitHub Pages site is visited, the visitor's IP address is logged and stored for security purposes</a>. I never see those logs. The reason is having a website that stays up and is safe from abuse (Art. 6 (1)(f) GDPR). GitHub is in the United States and is certified under the EU-U.S. Data Privacy Framework (Art. 45 GDPR); see the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">GitHub Privacy Statement</a>. Subscribing to the RSS feeds is an ordinary request and is logged the same way.</p>
 <h2>What your browser remembers</h2>
@@ -1214,7 +1214,7 @@ def contact_page():
 
 
 def search_page():
-    return pagehead("Search", "Search Boardread.") + f"""<div class="searchwrap">
+    return pagehead("Search", "Every article, by headline, company or topic.") + f"""<div class="searchwrap">
 <form class="sbox" role="search" action="{BASE}/search/" method="get" data-index="{BASE}/search.json">
 <input type="search" name="q" id="q" placeholder="Search the news" aria-label="Search the news" autocomplete="off" autofocus>
 <button type="submit">Search</button></form>
@@ -1431,7 +1431,7 @@ def build(out=desk.HERE / "_site"):
     for p in news:
         weeks.setdefault(week_of(p["published"]), []).append(p)
     this_week = datetime.now(timezone.utc).strftime("%G-W%V")
-    wdesc = "The week's ten leading articles."
+    wdesc = "The week’s top stories."
 
     def top_list(rows, heading, sub, active):
         body = pagehead(heading, sub) + (f'<div class="prose" style="max-width:50rem">{ranked(rows, 10)}</div>' if rows
@@ -1451,7 +1451,7 @@ def build(out=desk.HERE / "_site"):
     past = "".join(f'<li><a href="{BASE}/week/{w}/">Week {w[-2:]}, {w[:4]}</a></li>' for w in sorted(weeks, reverse=True) if w != this_week)
     mc = covered_list(news, companies(news), 10)
     put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=lambda p: (views.front_score(p), p["published"]), reverse=True)[:10], "This week",
-                                                                       f"The ten leading articles, {span}, by news value.", "week")
+                                                                       f"{span}, ranked by news value.", "week")
         + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many articles named them in the last seven days.</p>{mc}</div>' if mc else "")
         + (f'<div class="prose"><h2>Past weeks</h2><ul>{past}</ul></div>' if past else ""), wdesc, "/week/", active="week"))
     sm.append((SITE + "/week/", iso(shown[0]["published"]) if shown else None))
@@ -1468,7 +1468,7 @@ def build(out=desk.HERE / "_site"):
     sm.append((SITE + "/corrections/", iso(max((c["time"] for v in CORRECTIONS.values() for c in v), key=dt)) if CORRECTIONS else (iso(shown[0]["published"]) if shown else None)))
     for i, c in withdrawn.items():  # the address stays: a tombstone, out of the index and out of every list
         put(out, f"/s/{i}/", page("Withdrawn · boardread.", tombstone(c), "This article was withdrawn.", f"/s/{i}/", noindex=True))
-    (out / "404.html").write_text(page("Page not found · boardread.", not_found(shown), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
+    (out / "404.html").write_text(page("Page not found · boardread.", not_found(shown), "That page is not here. Try the front page or search.", "/404.html", noindex=True))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(dt(p["published"])), p.get("dek", ""),
          {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,

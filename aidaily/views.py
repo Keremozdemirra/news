@@ -146,7 +146,7 @@ def front(shown, cos, m, sport=()):
                  f'{S.meta(S.row_time(lead), S.cover(lead))}{shot}{photo_cap(lead) if shot else ""}</a></div>')
     rows = f'<ol>{"".join(S.listing_row(p) for p in top[1:])}</ol>' if top[1:] else ""
     inner = (S.updated_line() + f'<div class="topstories">{lead_html}{rows}'
-             f'<p class="earlier"><a href="{S.BASE}/latest/">All latest</a></p></div>')
+             f'<p class="earlier"><a href="{S.BASE}/latest/">All latest news</a></p></div>')
     return f'<div class="frontgrid">{panel(inner)}{rail(shown)}</div>' + puzzles_block("inrow")
 
 
@@ -155,7 +155,7 @@ def rail(shown):
     the rest), ending with "All latest". The panel is already in importance order, so the rail is only the clock. A phone drops it."""
     latest = sorted(shown, key=lambda p: p["published"], reverse=True)[:8]
     return (f'<aside class="frail latest" aria-label="Latest"><h2 class="sh"><a href="{S.BASE}/latest/">Latest</a></h2>{latest_list(latest)}'
-            f'<p class="earlier"><a href="{S.BASE}/latest/">All latest</a></p></aside>' if shown else "")
+            f'<p class="earlier"><a href="{S.BASE}/latest/">All latest news</a></p></aside>' if shown else "")
 
 
 def panel(inner):
@@ -291,11 +291,10 @@ def board(shown, m):
     names_sec = (f'<section id="names" class="bsec"><div class="sec"><span>Names</span><span class="dm">People and companies, by newsroom pickups</span></div>'
                  f'<div class="tape" aria-hidden="true"><div class="tape-in">{tape}{tape}</div></div>{nrows}</section>') if nm else ""
     wire = (f'<section id="wire" class="bsec"><div class="sec"><span>The wire</span><span class="dm">A dot: that newsroom reported it</span></div>'
-            f'<p class="vsub">Read across to see how widely an article was reported, down to see what a newsroom led with. The wire shows who reported, not when.</p>'
+            f'<p class="vsub">Read across for an article, down for a newsroom.</p>'
             f'{matrix(rows)}</section>')
     hdr = ('<div class="vh"><div class="cap dm">Departures, newest first</div><h1 class="cd">The Board</h1>'
-           f'<p class="vsub">{PLURAL(len(rows), "business article")} from {PLURAL(len({n.lower() for p in rows for n in outlets.newsrooms(p)}), "newsroom")}. '
-           'Coverage is the newsrooms that reported it.</p>'
+           '<p class="vsub">Every business story and the newsrooms that reported it.</p>'
            '<nav class="jumps cap" aria-label="On this page"><a href="#river">River</a><a href="#names">Names</a><a href="#wire">Wire</a></nav></div>')
     head_row = '<div class="bh"><span>Time</span><span>Sec</span><span>Headline</span><span>Newsrooms</span><span>Coverage</span><span>Age</span><span></span></div>'
     return hdr + hero + f'<section id="river" class="bsec board" aria-label="Departures">{head_row}{board_rows([p for p in rows if p is not top])}</section>' + names_sec + wire
@@ -336,7 +335,7 @@ def cover_page(shown):
     unfinished = wk == datetime.now(timezone.utc).strftime("%G-W%V")
     unfinished = wk == datetime.now(timezone.utc).strftime("%G-W%V")
     photo = S.photo_img(lead, False, "4/3", load="eager", box=False) if photo_ok(lead) and lead.get("_hires") else ""
-    return (head(f"Week {wk[-2:]}, {wk[:4]}" + (", so far" if unfinished else ""), "The cover", "The week's top articles as one card, ready to share.")
+    return (head(f"Week {wk[-2:]}, {wk[:4]}" + (", so far" if unfinished else ""), "The cover", "The week’s top stories on one card.")
             + f'<div class="cover4"><a class="cv-card" href="{S.href(lead)}">{photo}<span class="cin"><span class="cg">boardread. &middot; Week {wk[-2:]}</span>'
               f'<h2>{E(lead["headlines"][0])}</h2></span></a>'
               f'<div class="cside"><h2 class="sh">Also this week</h2><ol class="cl">{lines}</ol>'
@@ -374,13 +373,12 @@ def numbers_page(shown, m):
     official = ""
     if m:
         curve = markets.curve_svg(m, 640, 300, 13)
-        official = (f'<section class="msec"><h2 class="sh">Markets</h2><p class="olead">Prices and rates from the offices that publish them. '
-                    f'Each card shows its date and source.</p>{markets.cards(m)}</section>'
+        official = (f'<section class="msec"><h2 class="sh">Markets</h2><p class="olead">Prices and rates from the offices that publish them.</p>{markets.cards(m)}</section>'
                     + markets.crypto_section(m)  # daily, so it sits above the monthly metals
                     + (f'<section class="msec"><h2 class="sh">Metals</h2><p class="olead">Monthly averages from the World Bank, each against the month before. '
                        f'Daily metal prices are licensed and not shown.</p>{markets.cards(m, markets.METALS)}</section>' if any(k in m.get("series", {}) for k in markets.METALS) else "")
                     + (f'<section class="msec"><h2 class="sh">US Treasury yield curve</h2><div class="cvbig">{curve}</div>'
-                       f'<p class="what"><b>What it is.</b> Yields on US government debt from one month to thirty years; a curve that slopes down can signal expected rate cuts or a slowdown.</p>'
+                       f'<p class="what">Yields on US government debt from one month to thirty years; a curve that slopes down can signal expected rate cuts or a slowdown.</p>'
                        f'<p class="attr">Solid: {markets.dmy(m["curve"][-1]["date"])}' + (f', dashed: {markets.dmy(m["curve"][-2]["date"])}' if len(m["curve"]) > 1 else "") + f'. Per cent. {markets.SRC_UST}</p></section>' if m.get("curve") else ""))
     sub = "Figures from the news, then the official rate series." if grid else "The official rate series."
     return head(S.day_label(S.day_of(shown[0]["published"])), "The numbers", sub) + grid + official
@@ -494,7 +492,7 @@ def paper_page(shown, m, day, days, main=False):
             f'<div class="stage" data-labels="{E("|".join(labels))}"><div class="book" data-s="0">{leaves}</div><div class="mob" tabindex="0" aria-label="Pages, swipe sideways">{mob}</div></div>'
             f'{edition_list(rows, m)}'
             f'<div class="arch"><div class="sec cap"><span>Editions</span></div><ul>{arch}</ul>'
-            f'<p class="attr">Turn the pages with the arrow keys, the buttons or a swipe. With reduced motion set, pages change without the turn.</p></div></div>')
+            f'<p class="attr">Turn the pages with the arrow keys, the buttons or a swipe.</p></div></div>')
 
 
 def paper_title(day, main=False):

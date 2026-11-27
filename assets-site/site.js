@@ -182,7 +182,7 @@
       p.className = "dek"; p.textContent = it.dek;
       box.appendChild(m); box.appendChild(h); box.appendChild(p); a.appendChild(box); li.appendChild(a); out.appendChild(li);
     });
-    status.textContent = !q ? index.length + " articles. Type to search." :
+    status.textContent = !q ? "Type to search." :
       list.length ? list.length + (list.length === 1 ? " article" : " articles") + " for “" + q + "”" : "No article matches “" + q + "”. Try a company, a topic or a shorter word.";
   }
   function run() {
@@ -201,12 +201,12 @@
   input.addEventListener("input", run);
   var start = new URLSearchParams(location.search).get("q");
   if (start) input.value = start;
-  status.textContent = "Loading the index";
+  status.textContent = "Loading";
   fetch(form.dataset.index).then(function (r) { return r.json(); }).then(function (data) {
     index = data.map(function (it) {
       it._h = norm(it.headline); it._d = norm(it.dek); it._t = norm(it.topic); it._c = norm(it.company); it._s = norm(it.sources);
       return it;
     });
     run();
-  }).catch(function () { status.textContent = "The search index could not be loaded."; });
+  }).catch(function () { status.textContent = "Search could not load."; });
 })();

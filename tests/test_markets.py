@@ -78,7 +78,7 @@ class Markets(unittest.TestCase):
         self.assertLess(strip.index("EUR/USD"), strip.index("Brent"))
         self.assertLess(strip.index("Brent"), strip.index("US 10-year"))
         self.assertNotIn("USD/CNY", markets.rates_box(m))  # on the numbers page only
-        self.assertIn("What it is.", markets.cards(m))
+        self.assertIn("How many US dollars one euro buys", markets.cards(m))
 
     def test_load_keeps_last_good_blocks_and_does_not_replace_a_series_with_older_data(self):
         with tempfile.TemporaryDirectory() as d:

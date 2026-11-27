@@ -227,7 +227,7 @@ function success(hit) {
   $("r-answer").textContent = nice(hit.label);
   // what the tier means in words; a percentile would mislead, because most of any list is names few people know
   const n = N.toLocaleString("en-US");
-  $("r-rare").textContent = [`One of the best known of ${n} answers on file.`, `A familiar name among the ${n} answers on file.`, "Past most people’s first thought.", "Few people would name it.", `As rare as answers get on this list of ${n}.`][hit.rank / N < 0.03 ? 0 : Math.max(1, tier)];
+  $("r-rare").textContent = ["One of the best known answers.", "A familiar name.", "Past most people’s first thought.", "Few people would name it.", "As rare as answers get."][hit.rank / N < 0.03 ? 0 : Math.max(1, tier)];
   if (hit.extra) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${hit.extra}”`; }
   snd.ding(tier);
   setFloor(Math.min(MAXF, Math.round(total / 7)), true, tier === 4);
@@ -311,7 +311,7 @@ function renderEnd(rec) {
   $("e-num").textContent = F;
   $("e-tier").textContent = BANDS[b][0];
   const best = rec.ans.map((a, i) => ({ a, i })).filter((x) => x.a[1] >= 0).sort((x, y) => y.a[1] - x.a[1])[0];
-  $("e-line").textContent = best ? `Of 100. Best answer: ${best.a[0]}, ${data.tiers[best.a[1]].name}.` : "No answers landed.";
+  $("e-line").textContent = best ? `Of 100. Best answer: ${best.a[0]}, ${data.tiers[best.a[1]].name}.` : "Nothing scored.";
   // the seven answers as seven columns, as tall as their tier: what the share text carries, drawn
   const bars = $("bars"); bars.textContent = "";
   rec.ans.forEach((a, i) => { const c = mk("i", a[1] >= 0 ? "t" + a[1] : "tx"); c.style.setProperty("--h", a[1] >= 0 ? (a[1] + 1) / 5 : 0); c.style.setProperty("--i", i); bars.appendChild(c); });

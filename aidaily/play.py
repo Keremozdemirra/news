@@ -125,14 +125,14 @@ def hub_body():
                         f'<span class="gd">{S.E(blurb)}</span><span class="gm">Play today</span></a></li>')
         else:
             rows.append(f'<li><div class="game soon"><span class="gt">{S.E(title)}</span><span class="gm">Coming soon</span></div></li>')
-    return (S.pagehead("Play", "Three games. New every day.")
+    return (S.pagehead("Play", "A new puzzle every day.")
             + f'<ul class="games">{"".join(rows)}</ul>')
 
 
 def build(out, shown, sm):
     """Called by sitepages.build once 'play' is in SHIPPED."""
     latest = S.iso(shown[0]["published"]) if shown else None
-    S.put(out, "/play/", S.page("Play · boardread.", hub_body(), "Daily games from Boardread: a new puzzle every day.", "/play/",
+    S.put(out, "/play/", S.page("Play · boardread.", hub_body(), "Daily puzzles from Boardread.", "/play/",
                                 active="play", styles=("views", "play")))
     sm.append((S.SITE + "/play/", latest))
     for slug in copy_games(out):

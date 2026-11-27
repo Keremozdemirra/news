@@ -543,7 +543,7 @@ def attribution(m, keys=None):
     names = [n for t, n in (("ecb", "ECB statistics"), ("ust", "U.S. Department of the Treasury"), ("eia", "U.S. Energy Information Administration"),
                     ("wb", "World Bank, Commodity Price Data (The Pink Sheet), CC BY 4.0"))
              if t in tags or (t == "ecb" and "calc" in tags)]
-    line = ("Sources: " + "; ".join(names) + ". Series dates as shown; for information only.") if names else ""
+    line = ("Sources: " + "; ".join(names) + ". For information only.") if names else ""
     if "wb" in tags:
         line += " Metals: monthly averages as published; changes are against the previous month and calculated by Boardread."
     crosses = [SERIES[k][0] for k in ("usdjpy", "gbpusd", "usdcny") if k in have_series and (not keys or k in keys)]
@@ -640,7 +640,7 @@ def crypto_section(m):
     rows_html = "".join(f'<div class="rt"><span class="rl">{E(c["name"])} <small>{E(c["sym"])}</small></span><b>{E(coin_price(c["price"]))}</b>'
                         f'<span class="rc">{coin_change(c["pct"])}</span></div>' for c in cr["coins"])
     return (f'<section class="msec" id="crypto"><h2 class="sh">Crypto</h2><p class="olead">The five largest coins by market value, stablecoins left out. '
-            f'Price in US dollars and change over 24 hours, read at {E(cr.get("at", "")[11:16])} UTC when this page was built.</p>'
+            f'Prices in US dollars, change over 24 hours, read at {E(cr.get("at", "")[11:16])} UTC.</p>'
             f'<div class="rtgrid cxb">{rows_html}</div><p class="attr"><a href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a></p></section>')
 
 
@@ -714,8 +714,8 @@ def cards(m, keys=MARKET_CARDS):
         last90 = [x for _, x in pts[-(36 if monthly else 90):]]
         unit = SERIES[k][1]
         out += (f'<article class="mcard" id="{k}"><h2>{E(label)}</h2><p class="mv"><b>{E(fmt(k, v))}</b>{f"<small>{E(unit)}</small>" if unit not in ("", "%") else ""} {change_html(k, ch, pct)}{vs}</p>'
-                f'<div class="mch">{chart(pts, n=36, monthly=True) if monthly else chart(pts)}</div><p class="what"><b>What it is.</b> {E(SERIES[k][4])}</p>'
-                f'<p class="meta">Last {len(last90)} {"monthly averages" if monthly else "weekly observations" if weekly else "daily observations"}: low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))}. {E(dlabel(k, d)) if monthly else "Series date " + dmy(d)}{", changes against the previous month" if monthly else ", change against the previous week" if weekly else ""}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
+                f'<div class="mch">{chart(pts, n=36, monthly=True) if monthly else chart(pts)}</div><p class="what">{E(SERIES[k][4])}</p>'
+                f'<p class="meta">Low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))} over the last {len(last90)} {"monthly averages" if monthly else "weekly readings" if weekly else "readings"}. {E(dlabel(k, d)) if monthly else "As of " + dmy(d)}{", changes against the previous month" if monthly else ", change against the previous week" if weekly else ""}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
     return f'<div class="mcards">{out}</div><p class="attr">{E(attribution(m, keys))}</p>' if out else ""
 
 

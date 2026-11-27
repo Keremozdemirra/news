@@ -38,7 +38,7 @@ class Ranking(unittest.TestCase):
         for gone in ('class="sect"', 'class="sportblk"', 'class="top5"', 'class="rates', 'class="chips"'):
             self.assertNotIn(gone, html)  # no section blocks: the sections are in the masthead
         self.assertEqual(html.count('class="leadrow"'), 1)
-        self.assertIn('href="/latest/">All latest</a>', html)
+        self.assertIn('href="/latest/">All latest news</a>', html)
 
     def test_the_rail_is_latest_only_as_tall_as_the_panel_and_ends_with_all_latest(self):
         rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=2 + i % 4, score=5 + i % 7, hours=i * 0.3) for i in range(20)]
@@ -50,7 +50,7 @@ class Ranking(unittest.TestCase):
         self.assertEqual(rail.count("data-age"), 8)
         self.assertNotIn("Most important", rail)  # the panel is already in importance order
         self.assertNotIn("<img", rail)
-        self.assertTrue(rail.endswith('All latest</a></p></aside>'))
+        self.assertTrue(rail.endswith('All latest news</a></p></aside>'))
         css = (site.ASSETS / "views.css").read_text()
         self.assertIn(".frail{height:0;min-height:100%;overflow:hidden;", css)  # its box is the panel's row and no more
         self.assertIn(".newspanel{height:var(--ph)}", css)
@@ -143,8 +143,8 @@ class Numbers(unittest.TestCase):
         m = data(True)
         m["series"]["gold"] = [["2026-09-01", 4319.0], ["2026-10-01", 4105.0]]
         self.assertIn("vs Sep", markets.cards(m, ("gold",)))
-        self.assertIn("weekly observations", markets.cards(m, ("gasoline",)))
-        self.assertIn("daily observations", markets.cards(m, ("brent",)))
+        self.assertIn("weekly readings", markets.cards(m, ("gasoline",)))
+        self.assertIn("readings. As of", markets.cards(m, ("brent",)))
 
 
 class Companies(unittest.TestCase):

@@ -45,7 +45,7 @@ def brief_page(shown, day, m=None):
     more = len([p for p in shown if S.day_of(p["published"]) == day]) - len(rows)
     stop = (f'<div class="stop"><b>&ndash; 30 &ndash;</b><p>That’s the brief.{f" {more} more from today on the Board." if more > 0 else ""}</p>'
             f'<a class="btn" href="{S.BASE}/board/">The Board</a> {f'<a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a>' if "play" in S.SHIPPED else ""}</div>')
-    head = V.head(S.day_label(day), "In brief", f"The top {len(rows)} of the day.")
+    head = V.head(S.day_label(day), "In brief", "The day’s top stories.")
     return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
@@ -83,15 +83,15 @@ def _question(i, q):
     return (f'<section class="q" data-answer="{q["answer"]}" aria-labelledby="q{i}"><h2 id="q{i}" class="lab">{i}. {E(q["title"])}</h2>'
             f'{photo}<p class="prompt">{prompt}</p><ol class="opts">{opts}</ol>'
             f'<details class="ans"><summary>Show the answer</summary><p class="right">{ans}</p>'
-            f'<p class="meta">The article and where it was reported:</p><ul class="from">{links}</ul></details></section>')
+            f'<p class="meta">The story and who reported it:</p><ul class="from">{links}</ul></details></section>')
 
 
 def quiz_page(shown):
     qs = quiz_questions(shown)
     if not qs:
-        return S.pagehead("Quiz", "Today's questions.") + '<div class="empty">No quiz yet. It needs more articles with figures and names.</div>'
+        return S.pagehead("Quiz", "Today's questions.") + '<div class="empty">No quiz yet.</div>'
     day = S.day_label(S.day_of(shown[0]["published"]))
-    return (S.pagehead("Today's quiz", f"{day}. {len(qs)} question{'' if len(qs) == 1 else 's'}, each from an article on this site.")
+    return (S.pagehead("Today's quiz", f"{day}. Every question comes from a story on the site.")
             + f'<div class="quiz" data-quiz>{"".join(_question(i, q) for i, q in enumerate(qs, 1))}'
               f'<p class="tally" aria-live="polite"></p></div>')
 
@@ -103,11 +103,11 @@ def how_page(shown, everything=None):
     sport = [p for p in everything if S.is_sport(p)]
     c = S.desk_counts(everything)
     share = round(100 * c["three_plus"] / c["stories"]) if c["stories"] else 0
-    return S.pagehead("How it works", "How the desk works.") + f"""<div class="prose">
+    return S.pagehead("How it works", "From feed to article.") + f"""<div class="prose">
 <h2>Live numbers</h2>
 <dl>
 <dt>Feeds scanned</dt><dd>{c['feeds']} feeds, fetched every 30 minutes</dd>
-<dt>Newsrooms on the site</dt><dd>{c['newsrooms']} different newsrooms across {c['stories']} articles{f", {len(sport)} of them Sport" if sport else ""}</dd>
+<dt>Newsrooms on the site</dt><dd>{c['newsrooms']} newsrooms across {c['stories']} articles{f", {len(sport)} of them Sport" if sport else ""}</dd>
 <dt>Articles with three or more newsrooms</dt><dd>{c['three_plus']} of {c['stories']} ({share}%)</dd>
 <dt>Companies with a page</dt><dd>{len(S.companies(shown))}, each with at least two articles</dd>
 <dt>Articles with a credited photo</dt><dd>{c['photos']}</dd>
@@ -172,9 +172,9 @@ def build_views(out, shown, sm, m, days):
     if not shown:
         return
     latest = S.iso(shown[0]["published"])
-    pages = (("/board/", "The Board · boardread.", lambda: V.board(shown, m), "Every article as a departure: the newest first, who reported it, the names in the news and a wire.", "board"),
-             ("/feed/", "The Feed · boardread.", lambda: V.feed(shown), "The news as cards: photo cards and text cards, the biggest first.", "feed"),
-             ("/cover/", "The weekly cover · boardread.", lambda: V.cover_page(shown), "The week's top articles as one shareable card.", "feed"),
+    pages = (("/board/", "The Board · boardread.", lambda: V.board(shown, m), "The news as a departures board: newest first, who reported it, the names in the news.", "board"),
+             ("/feed/", "The Feed · boardread.", lambda: V.feed(shown), "The news as cards, biggest first.", "feed"),
+             ("/cover/", "The weekly cover · boardread.", lambda: V.cover_page(shown), "The week’s top stories on one card.", "feed"),
              ("/numbers/", "The numbers · boardread.", lambda: V.numbers_page(shown, m), "The figures in the news and the official rate series behind them.", "numbers"))
     for path, title, body, desc, active in pages:
         if active not in S.SHIPPED:  # a page is built only once it has shipped, so no menu or link points at a missing page
@@ -191,8 +191,8 @@ def build_views(out, shown, sm, m, days):
     for path, day, main in [("/paper/", ed, True)] + [(f"/paper/{d}/", d, False) for d in eds]:
         label = S.day_label(day)
         title = "Yesterday's paper" if main and day < S.today() else f"The paper, {label}{', so far' if day >= S.today() else ''}"
-        desc = (f"Yesterday's news in six pages: the edition of {label}." if main
-                else f"The paper of {label}{', so far' if day >= S.today() else ''}, six pages.")
+        desc = (f"Yesterday’s news as a paper: the edition of {label}." if main
+                else f"The paper of {label}{', so far' if day >= S.today() else ''}.")
         S.put(out, path, S.page(f"{title} · boardread.", V.paper_page(shown, m, day, eds, main), desc, path, active="paper",
                                 styles=("views", "paper"), scripts=("paper",), body_class="v-paper",
                                 canonical=f"/paper/{day}/" if main else None))
@@ -209,14 +209,14 @@ def build(out, shown, sm, cos, everything=None):
         earlier = ('<div class="prose past-wrap"><h2>Earlier briefs</h2><ul class="past">'
                    + "".join(f'<li><a href="{S.BASE}/brief/{d}/">{S.day_label(d)}</a></li>' for d in days[1:30]) + "</ul></div>") if days[1:] else ""
         S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, brief_day(shown, days), m) + earlier,
-              "The day's top articles in about a minute, one block each.", "/brief/", active="brief"))
+              "The day’s top stories, one block each.", "/brief/", active="brief"))
         for d in days:
             S.put(out, f"/brief/{d}/", S.page(f"The brief, {S.day_label(d)} · boardread.", brief_page(shown, d, m),
                                               f"The top articles of {S.day_label(d)}, one block each.", f"/brief/{d}/", active="brief"))
             sm.append((f"{S.SITE}/brief/{d}/", S.iso(brief_rows(shown, d)[0]["published"])))
     else:
         S.put(out, "/brief/", S.page("The brief · boardread.", S.pagehead("The brief") + '<div class="empty">No brief yet.</div>',
-                                     "The day's top articles in about a minute.", "/brief/", active="brief"))
+                                     "The day’s top stories.", "/brief/", active="brief"))
     build_views(out, shown, sm, m, days)
     if "play" in S.SHIPPED:
         play.build(out, shown, sm)
