@@ -75,6 +75,39 @@ FRANCE = story("France inflation slows more than expected in November",
                "slowed to 2.9% from 3.2% a year earlier, Insee said Friday.", source="Bloomberg")
 
 
+class DekSubject(unittest.TestCase):
+    def test_a_dek_about_another_subject_is_dropped_and_the_report_stays(self):
+        s = story("Mandelson tried to influence Starmer's cabinet reshuffle, report says",
+                  "Sources say Peter Mandelson pressed Keir Starmer on who should get which job. Starmer turned down the "
+                  "suggestion during a Monday phone call. The Liberal Democrats want an immigration plan, spokesperson Paul "
+                  "Kohler said.", source="Politico")
+        rows = [row(headline="Mandelson tried to influence Starmer's cabinet reshuffle",
+                    dek="The Liberal Democrats want an immigration plan, spokesperson Paul Kohler said.", x_post="x",
+                    linkedin_post="Mandelson pressed the prime minister on cabinet jobs. Starmer declined during a phone call "
+                                  "on Monday.\n\nSource: Politico")]
+        copy.apply([s], rows)
+        self.assertEqual(s["copy_status"], "ok")
+        self.assertNotIn("Liberal Democrats", s["dek"])
+        self.assertIn("Starmer", s["dek"] + s["linkedin_post"])
+
+    def test_a_dek_that_names_only_what_the_story_names_stays(self):
+        s = story("SAP explores at least 10,000 job cuts", "The German software group is weighing a large restructuring. Talks are at an early stage.",
+                  source="FT")
+        rows = [row(headline="SAP explores at least 10,000 job cuts", dek="The software group is weighing a large restructuring.",
+                    x_post="x", linkedin_post="Talks are at an early stage, the people said.\n\nSource: FT")]
+        copy.apply([s], rows)
+        self.assertIn("restructuring", s["dek"])
+
+    def test_the_tokyo_dek_about_the_bank_of_japan_gives_way_to_the_reading_itself(self):
+        s = story("Tokyo core inflation hits 16-month high", "Tokyo's core consumer price index rose 2.9% in November. Economists say "
+                  "it strengthens expectations that the Bank of Japan will raise rates in December.", source="Reuters")
+        rows = [row(headline="Tokyo core inflation hits 16-month high", dek="The reading backs the case for a Bank of Japan rate "
+                    "increase in December.", x_post="x", linkedin_post="The consumer price index excluding fresh food rose 2.9% in "
+                    "November. Economists expect the Bank of Japan to move in December.\n\nSource: Reuters")]
+        copy.apply([s], rows)
+        self.assertEqual(s["dek"], "The consumer price index excluding fresh food rose 2.9% in November.")
+
+
 class Periods(unittest.TestCase):
     def apply(self, headline, dek, post):
         s = dict(FRANCE)

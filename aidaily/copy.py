@@ -1078,6 +1078,10 @@ def apply(stories, reply_rows):
             s["linkedin_post"] = drop_offtopic(s["linkedin_post"], s["headline"], s.get("dek", ""),
                                                s.get("title", "") + " " + s.get("summary", ""))
             s["linkedin_post"] = drop_restated_lead(s["linkedin_post"], s["headline"])
+            # a dek about another subject than the headline's ("Separately, the Liberal Democrats ...") is no dek: the
+            # story keeps its report, whose first sentence moves up below
+            if s.get("dek") and headline_gap(s["headline"], s["dek"], "", s):
+                s["dek"] = ""
             # a dek that only says the headline again is no dek ("Congress passed the overhaul ... in its final vote")
             if s.get("dek") and repeats(s["dek"], s["headline"]):
                 s["dek"] = ""
