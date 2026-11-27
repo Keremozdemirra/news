@@ -1,0 +1,74 @@
+{
+ "id": "2026-11-27-1738-2",
+ "batch": "2026-11-27-1738",
+ "n": 2,
+ "created": "2026-11-27T17:38:33+00:00",
+ "layout": "number",
+ "photos": [
+  {
+   "file": "Office Building Off Old Street (215200145).jpeg",
+   "credit": "Photo: Francisco Anzola, CC BY 3.0, via Wikimedia Commons",
+   "name": ""
+  }
+ ],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Poland signs $300 million Palantir deal to use AI in defense\n\nPalantir Technologies · Business\n\nThe software will analyze battlefield data, and some European allies are pushing to cut reliance on US technology. Palantir Technologies Inc. supplies the artificial intelligence-based software under the contract. The minister made the remarks while defending the deal against concerns over reliance on American technology.\n\nReported by Politico Europe; Bloomberg; CNA.\n\nSend this to whoever on your team covers Palantir Technologies.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.politico.eu/article/wed-be-stupid-not-to-poland-defends-300m-military-ai-deal-with-palantir/?utm_source=RSS_Feed&utm_medium=RSS&utm_campaign=RSS_Syndication"
+ ],
+ "links": [
+  "https://news.google.com/rss/articles/CBMiggFBVV95cUxPdklvOHFDZ3BGbXQzTUpSYXh3Mml1WjZBdDZJbk1zUnFpSk9xa3RJUlIzUjFjcTFJem9tSzdPc2hOaGtTVHRDY2NJZElkNUVlY0N1YW5xMER3el9EeWdudElRYXFVTVMxWjRUX0VPWG1YZnB6OE1SNHZYWEFvajl3cU93?oc=5",
+  "https://www.bloomberg.com/news/articles/2026-11-27/poland-signs-300-million-palantir-deal-to-use-ai-for-defense",
+  "https://www.channelnewsasia.com/business/poland-signs-contract-palantir-worth-300-million-over-5-years-6587816",
+  "https://www.politico.eu/article/wed-be-stupid-not-to-poland-defends-300m-military-ai-deal-with-palantir/?utm_source=RSS_Feed&utm_medium=RSS&utm_campaign=RSS_Syndication"
+ ],
+ "headlines": [
+  "Poland signs $300 million Palantir deal to use AI in defense"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Business",
+ "photo_file": "Office Building Off Old Street (215200145).jpeg",
+ "photo_kind": "scene",
+ "photo_alt": "An office block lit at dusk",
+ "score": 9.388,
+ "figure": "$300M",
+ "company": "Palantir Technologies",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Polish Army",
+ "orgs": [
+  "Palantir Technologies"
+ ],
+ "venue": "Ministry of National Defence (Poland)",
+ "logo_names": [
+  "Palantir Technologies"
+ ],
+ "dek": "The software will analyze battlefield data, and some European allies are pushing to cut reliance on US technology.",
+ "body": "Palantir Technologies Inc. supplies the artificial intelligence-based software under the contract. The minister made the remarks while defending the deal against concerns over reliance on American technology.",
+ "supported": "59b9b8300481",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "Politico Europe",
+  "Bloomberg",
+  "CNA"
+ ],
+ "source_urls": [
+  "https://www.politico.eu/article/wed-be-stupid-not-to-poland-defends-300m-military-ai-deal-with-palantir/?utm_source=RSS_Feed&utm_medium=RSS&utm_campaign=RSS_Syndication",
+  "https://www.bloomberg.com/news/articles/2026-11-27/poland-signs-300-million-palantir-deal-to-use-ai-for-defense",
+  "https://www.channelnewsasia.com/business/poland-signs-contract-palantir-worth-300-million-over-5-years-6587816"
+ ],
+ "credit": "Photo: Francisco Anzola, CC BY 3.0, via Wikimedia Commons",
+ "credit_file": "Office Building Off Old Street (215200145).jpeg",
+ "status": "queued",
+ "publish_after": "2026-11-27T18:31:34+00:00",
+ "story": ""
+}
