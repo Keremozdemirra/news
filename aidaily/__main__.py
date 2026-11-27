@@ -170,6 +170,9 @@ def main(argv=None):
     en.add_argument("--dry", action="store_true")
     rl = sub.add_parser("reel", help="the daily recap Reel (switch growth.daily_reel): stage due, build or send")
     rl.add_argument("stage", choices=["due", "build", "send"])
+    wd = sub.add_parser("withdraw", help="take a post down from the mirrored platforms (owner's request); dry run unless --delete")
+    wd.add_argument("post")
+    wd.add_argument("--delete", action="store_true")
     sh = sub.add_parser("shorts", help="YouTube Shorts (switch growth.shorts): stage due, run, or render a post locally")
     sh.add_argument("stage", choices=["due", "run", "render"])
     sh.add_argument("post", nargs="?", help="render: the queue id")
@@ -292,6 +295,10 @@ def main(argv=None):
             return 0 if reel.build() else 1
         reel.send()
         return 0
+    if args.cmd == "withdraw":
+        from . import withdraw
+        rows = withdraw.run(args.post, delete=args.delete)
+        return 1 if any(r[3].startswith("NOT deleted") and r[0] != "youtube" for r in rows) else 0
     if args.cmd == "shorts":
         from . import shorts
         if args.stage == "due":

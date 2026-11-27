@@ -162,3 +162,33 @@ class Withdrawn(Tmp):
     def test_a_withdrawn_post_goes_nowhere_else(self):
         self.assertFalse(desk.social_allowed({"topic": "Tech", "withdrawn": {"at": "x"}}))
         self.assertTrue(desk.social_allowed({"topic": "Tech"}))
+
+
+class WithdrawRun(Tmp):
+    def test_dry_run_lists_then_delete_removes_each_and_reports_the_rest(self):
+        from aidaily import withdraw
+        self.write_post("w", status="published", permalink="https://instagram.com/p/x", media_id="1",
+                        platforms={"telegram": {"id": "38", "url": "https://t.me/boardread/38"},
+                                   "threads": {"id": "t1", "url": "u"}})
+        rows = withdraw.run("w")
+        self.assertEqual({r[0]: r[3] for r in rows}["telegram"], "would delete")
+        calls = []
+
+        class TG:
+            env = {"TG_CHANNEL": "@boardread"}
+
+            def call(self, method, params):
+                calls.append((method, params))
+
+        class TH:
+            def call(self, method, path, params):
+                raise platforms.PlatformError("threads DELETE: HTTP 403")
+        rows = withdraw.run("w", delete=True, factories={"telegram": TG, "threads": TH})
+        out = {r[0]: r[3] for r in rows}
+        self.assertEqual(out["telegram"], "deleted")
+        self.assertEqual(calls, [("deleteMessage", {"chat_id": "@boardread", "message_id": 38})])
+        self.assertTrue(out["threads"].startswith("NOT deleted"))
+        self.assertIn("left to the owner", out["instagram"])
+        saved = desk._load(desk.QUEUE / "w" / "post.json", {})
+        self.assertIn("removed", saved["platforms"]["telegram"])
+        self.assertEqual([c[0] for c in withdraw.copies(saved)], ["threads"])  # a removed copy is never tried again

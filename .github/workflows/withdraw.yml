@@ -1,0 +1,42 @@
+name: withdraw
+# Manual only: takes one post down from Threads, Bluesky, Telegram and the Facebook Page when the owner asks
+# (python3 -m aidaily withdraw). Instagram is left to the owner in the app; YouTube is reported, never deleted (the
+# token is upload-only). A dry run lists the copies; delete=true removes them. Never on a schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      post:
+        description: "post id, e.g. 2026-11-27-1848-1"
+        required: true
+      delete:
+        description: "delete (false lists only)"
+        type: boolean
+        default: false
+permissions:
+  contents: write
+concurrency:
+  group: desk
+  cancel-in-progress: false
+jobs:
+  withdraw:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Withdraw
+        env:
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
+          POST: ${{ inputs.post }}
+        run: |
+          case "$POST" in 20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*) ;; *) echo "bad post id"; exit 1;; esac
+          if [ "${{ inputs.delete }}" = "true" ]; then python3 -m aidaily withdraw "$POST" --delete; else python3 -m aidaily withdraw "$POST"; fi
+      - name: Record
+        if: ${{ inputs.delete && !cancelled() }}
+        run: scripts/commit.sh "desk: withdraw ${{ inputs.post }}"
