@@ -551,20 +551,27 @@ def make_video(s, img, post_id, clip=None, shape=None):
         return None
     shape = shape or video_shape()
     seconds = float(video_cfg("seconds", CV.SECONDS))
-    footage = None
+    footage = layout = None
+    reels = shape == "reel" and video_cfg("reel_layouts", True)
+    if reels:  # the sequenced Reel (reelcard.py): its length comes from what it has to say
+        seconds = CV.reel_seconds(s)
     try:
         if clip:
             from . import broll
             try:
                 with tempfile.TemporaryDirectory() as tmp:
                     src = broll.fetch(clip, Path(tmp) / "clip.mp4", seconds)
-                    mp4 = CV.build(CV.with_footage(s, clip), img / "video.mp4", shape, seconds=seconds, footage=src)
+                    fs = CV.with_footage(s, clip)
+                    layout = CV.reel_layout(fs, post_id, footage=True, avoid=last_reel_layout()) if reels else None
+                    mp4 = CV.build(fs, img / "video.mp4", shape, seconds=seconds, footage=src, layout=layout)
                 footage = {"id": clip["id"], "credit": broll.credit(clip), "page": clip["page"], "licence": clip["licence"]}
             except Exception as e:  # noqa: BLE001  footage that will not fetch or render: the photo moves instead
                 print(f"{post_id}: footage {clip['id']} failed, moving photo instead: {str(e)[:200]}")
-                mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds)
+                layout = CV.reel_layout(s, post_id, avoid=last_reel_layout()) if reels else None
+                mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
         else:
-            mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds)
+            layout = CV.reel_layout(s, post_id, avoid=last_reel_layout()) if reels else None
+            mp4 = CV.build(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
         CV.cover(mp4, img / "cover.jpg")
     except Exception as e:  # noqa: BLE001  a render failure costs the video, never the post
         print(f"{post_id}: video render failed, stills only: {str(e)[:300]}")
@@ -574,7 +581,18 @@ def make_video(s, img, post_id, clip=None, shape=None):
     a = s.get("_assets") or {}
     return {"shape": shape, "file": "video.mp4", "cover": "cover.jpg", "spec": CV.audit_file(mp4, shape),
             "headline": s.get("headline") or s["title"], "photo_file": a.get("file", ""), "credit": a.get("credit", ""),
-            "focus": list(CV.focus(s)), "seconds": seconds, **({"footage": footage} if footage else {})}
+            "focus": list(CV.focus(s)), "seconds": seconds, **({"footage": footage} if footage else {}),
+            **({"layout": layout} if layout else {})}
+
+
+def last_reel_layout():
+    """The layout of the newest Reel in the queue, so the next one takes another (reelcard.pick)."""
+    best = ("", None)
+    for p, _ in posts():
+        v = p.get("video") or {}
+        if v.get("shape") == "reel" and v.get("layout") and p.get("created", "") > best[0]:
+            best = (p["created"], v["layout"])
+    return best[1]
 
 
 def pick_footage(s, post_id, seconds):

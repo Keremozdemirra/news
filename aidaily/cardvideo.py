@@ -150,14 +150,54 @@ def with_footage(story, clip):
     return dict(story, _assets=a)
 
 
-def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None):
+def reel_focus(story):
+    """(fx, fy, is_face, head) for the Reel: a pinned point first, else focus.py on the photo itself (the head it finds
+    in a photo of a named person, or the framing prior), so the text can be kept off the face. head: the found head's
+    height as a share of the photo's height, or None when no head was measured (pinned, prior or a scene)."""
+    pinned = story.get("focus") or (story.get("_assets") or {}).get("focus")
+    if pinned:
+        fx, fy = focus(story)
+        return fx, fy, True, None
+    from . import focus as F
+    a = story.get("_assets") or {}
+    src = photo_path(story)
+    post = {"person": story.get("person", ""), "photo_file": a.get("file", "")}
+    (fx, fy), face = F.for_post(post, src)
+    head = None
+    if face and F.about_a_face(post):
+        size = probe_size(src)
+        found = F.detect_face(src, size)
+        if found:  # a head is about 1.35 times as tall as it is wide, hair to chin
+            head = min(found[2] * size[0] * 1.35 / size[1], 1.0)
+    return fx, fy, face, head
+
+
+def reel_layout(story, seed, footage=False, avoid=None):
+    """The Reel's layout (reelcard.LAYOUTS): one whose text stays off the subject, not the last Reel's when another fits."""
+    from . import reelcard as RC
+    if footage:
+        return RC.pick(seed, RC.allowed(None, None, False), avoid)
+    fx, fy, face, head = reel_focus(story)
+    src = photo_path(story)
+    return RC.pick(seed, RC.allowed(probe_size(src), (fx, fy), face, src, head), avoid)
+
+
+def reel_seconds(story):
+    from . import reelcard as RC
+    return RC.plan(story)[1]
+
+
+def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=None):
     """Render one video card. Returns the output path; raises when ffmpeg or Chrome fail. footage: a local clip file
-    (broll.fetch) that replaces the moving photo; the story must already carry its credit (with_footage)."""
+    (broll.fetch) that replaces the moving photo; the story must already carry its credit (with_footage).
+    A reel with a `layout` is the sequenced 9:16 card (build_reel); its length comes from its plan, not `seconds`."""
     why = eligible(story)
     if why:
         raise ValueError(why)
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
+    if shape == "reel" and layout:
+        return build_reel(story, out_mp4, layout, footage)
     h = HEIGHT[shape]
     src = photo_path(story)
     sw, sh = probe_size(src)
@@ -191,6 +231,57 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None):
         chain.append(f"[{last}]scale=out_color_matrix=bt709:out_range=tv:flags=lanczos,format=yuv420p[v]")
         cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(LAYERS) + 1}:a",
                 "-t", f"{seconds}", "-r", str(FPS)] + ENCODE + [str(out_mp4)]
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+    return out_mp4
+
+
+def build_reel(story, out_mp4, layout, footage=None):
+    """The sequenced Reel (reelcard): the picture fills its layout's band (the rest black), and the layers come and go
+    on the plan's clock: headline, fact, who reported it, end frame."""
+    from . import audio
+    from . import reelcard as RC
+    parts, total = RC.plan(story)
+    y0, y1 = RC.GEO[layout]["band"]
+    band = y1 - y0
+    h = HEIGHT["reel"]
+    out_mp4 = Path(out_mp4)
+    out_mp4.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        pngs = []
+        for name, _, _ in parts:
+            png = Path(tmp) / f"{name}.png"
+            shoot_layer(RC.layer(story, layout, name), png, W, h)
+            pngs.append(png)
+        src = Path(footage) if footage else photo_path(story)
+        cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+        cmd += ["-t", f"{total}", "-i", str(src)] if footage else ["-loop", "1", "-framerate", str(FPS), "-t", f"{total}", "-i", str(src)]
+        for png in pngs:
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{total}", "-i", str(png)]
+        cmd += ["-i", str(audio.track(Path(tmp) / "sound.wav", total, footage))]
+        if footage:
+            from . import broll
+            # a clip shorter than the Reel holds its last frame; the end frame covers the tail anyway
+            chain = [broll.background(*probe_size(src), W, band, total, FPS, out="[clip]"),
+                     f"[clip]tpad=stop_mode=clone:stop_duration={total},trim=duration={total},setpts=PTS-STARTPTS[cam]"]
+        else:
+            fx, fy, _, _ = reel_focus(story)
+            chain = [camera(*probe_size(src), band, fx, fy, total).replace("[bg]", "[cam]")]
+        chain.append(f"[cam]pad={W}:{h}:0:{y0}:color=black,format=rgba[v0]" if band != h else "[cam]null[v0]")
+        last = "v0"
+        for i, (name, t_in, t_out) in enumerate(parts, start=1):
+            if name == "base":
+                f, y = "format=rgba", "0"
+            else:
+                f = f"format=rgba,fade=t=in:st={t_in:.2f}:d={RC.FADE_IN}:alpha=1"
+                if t_out is not None:
+                    f += f",fade=t=out:st={t_out - RC.FADE_OUT:.2f}:d={RC.FADE_OUT}:alpha=1"
+                p = f"min(max((t-{t_in:.2f})/{RC.FADE_IN},0),1)"
+                y = f"{RC.RISE}*pow(1-{p},3)" if name in ("meta", "head", "fact", "source") else "0"
+            chain.append(f"[{i}:v]{f}[l{i}];[{last}][l{i}]overlay=x=0:y='{y}':format=auto:eval=frame[v{i}]")
+            last = f"v{i}"
+        chain.append(f"[{last}]scale=out_color_matrix=bt709:out_range=tv:flags=lanczos,format=yuv420p[v]")
+        cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(parts) + 1}:a",
+                "-t", f"{total}", "-r", str(FPS)] + ENCODE + [str(out_mp4)]
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
     return out_mp4
 
