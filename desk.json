@@ -151,6 +151,7 @@
     "platforms": {"threads": true, "bluesky": true, "telegram": true, "facebook": true}
   },
   "growth": {
+    "games_post": false,
     "so_what": false,
     "carousel_extended": false,
     "send_prompt": true,

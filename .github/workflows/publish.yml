@@ -67,6 +67,15 @@ jobs:
             [ -d media ] || scripts/media.sh pull
             python3 -m aidaily shorts run
           fi
+      # Off unless desk.json growth.games_post is true. One Telegram message a day with the three puzzle numbers, sent
+      # once the day's puzzles are on the site; the channel is checked first, so a second run sends nothing.
+      - name: Games post
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
+        run: python3 -m aidaily games-post --send
       # what will not fix itself goes to one "Desk health" issue (opened, updated, closed by the check); never fails the run
       - name: Health
         if: ${{ !cancelled() }}

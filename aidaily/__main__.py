@@ -176,6 +176,8 @@ def main(argv=None):
     sub.add_parser("insights", help="weekly numbers from every connected platform, weights and learned timing")
     so = sub.add_parser("seo", help="audit a built site directory for Google News, Discover and Search")
     so.add_argument("dir", nargs="?", default="_site")
+    gp = sub.add_parser("games-post", help="the daily games post for Telegram (switch growth.games_post); --send posts it once a day")
+    gp.add_argument("--send", action="store_true")
     tp = sub.add_parser("telegram-pin", help="print the Telegram pinned post; --send posts it silently and pins it")
     tp.add_argument("--send", action="store_true")
     ix = sub.add_parser("indexnow", help="after a deploy: send the pages new since LIVE_SITEMAP to IndexNow (Bing, Yandex)")
@@ -345,6 +347,10 @@ def main(argv=None):
     if args.cmd == "seo":
         from . import seo, site
         return seo.main(args.dir, site.SITE)
+    if args.cmd == "games-post":
+        from . import games_post
+        games_post.run(send=args.send)
+        return 0
     if args.cmd == "telegram-pin":
         from . import distribution
         distribution.pin(send=args.send)
