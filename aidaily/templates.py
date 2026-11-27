@@ -181,7 +181,7 @@ def _headline_figure(story):
     """The headline's own figure, unless the copy step left the figure out on purpose (a word, or a number with a
     qualifier such as "more than £400m" that a giant "£400m" would drop)."""
     from . import copy
-    title = story.get("headline") or story["title"]
+    title = story.get("headline") or story.get("title") or ""
     fig = key_figure(title)
     return fig if fig and copy.figure_ok(fig, title) and copy.figure_ok(fig, story.get("dek", "")) else ""
 
@@ -550,7 +550,7 @@ def number_slide(story, brand=BRAND):
     size = min(360, int(936 / (0.64 * max(len(fig), 1))))
     inner = (f'<div class="num" style="margin-top:64px;font-size:{size}px;font-weight:800;line-height:0.86;letter-spacing:-0.045em">{e(fig)}</div>'
              f'<div style="flex:1;min-height:40px"></div>'
-             f'<div style="border-top:3px solid {BLACK};padding-top:40px">{FL._headline_fill(line, 520, BLACK, top=110)}</div>'
+             f'<div style="border-top:3px solid {BLACK};padding-top:40px">{FL._headline_fill(line, 520, BLACK, top=110, lines=4)}</div>'
              f'<div style="margin-top:36px;font-size:28px;color:{GREY}">{e(src)}</div><div style="flex:1;min-height:40px"></div>')
     return _slide(story, "The number", inner, brand)
 
@@ -576,9 +576,12 @@ def sources_slide(story, outlets, cta=False, brand=BRAND):
               f'border-top:1px solid {LINE};flex:1;display:flex;flex-direction:column;justify-content:space-evenly">'
               f'{rows}</ol>{more}') if len(names) > 1 else ""
     # one newsroom: its name is the slide, centred in the space a list would take
-    top = (f'<div style="margin-top:56px">{FL._headline_fill(head_, 260, BLACK, top=150)}</div>' if len(names) > 1 else
-           f'<div style="flex:1"></div>{FL._headline_fill(head_, 640, BLACK, top=240)}'
-           + (f'<div style="margin-top:56px;font-size:56px;font-weight:600;line-height:1.2">{e(ask)}</div>' if ask else "")
+    # two lines at most for "Reported by 3 newsrooms", three for one newsroom's name, which is set a step smaller
+    top = (f'<div style="margin-top:56px">{FL._headline_fill(head_, 260, BLACK, top=150, lines=2)}</div>' if len(names) > 1 else
+           f'<div style="flex:1"></div>{FL._headline_fill(head_, 640, BLACK, top=170, lines=3)}'
+           f'<div style="margin-top:36px;font-size:48px;font-weight:500;line-height:1.2;color:{GREY}">One newsroom has reported this so far.</div>'
+           + (f'<div style="margin-top:64px;padding-top:44px;border-top:3px solid {BLACK};font-size:76px;font-weight:700;'
+              f'line-height:1.12;letter-spacing:-0.02em">{e(ask)}</div>' if ask else "")
            + '<div style="flex:1"></div>')
     bottom = f'<div style="margin-top:40px;font-size:40px;font-weight:600;line-height:1.25">{e(ask)}</div>' if ask and len(names) > 1 else ""
     inner = f'{top}{listed}{bottom}'

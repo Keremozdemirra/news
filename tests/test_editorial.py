@@ -415,9 +415,11 @@ class ExtendedCarousel(unittest.TestCase):
              "_assets": {"photo": "", "logo": "", "backer": "", "logos": [], "logo_names": [], "credit": "", "file": ""}}
         return {"headline": s["headline"], "source": "The Guardian", "score": 9}, s
 
-    def test_off_by_default_two_slides(self):
-        self.assertFalse(desk.CONFIG["growth"].get("carousel_extended"))
-        self.assertEqual(desk.extra_slides(*self.rows("77,000"), web=False, ctas=0), [])
+    def test_shipped_on_and_off_gives_two_slides(self):
+        # on since 2026-11-27, once the number and sources slides passed the visual gate (gate.py)
+        self.assertTrue(desk.CONFIG["growth"].get("carousel_extended"))
+        with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": False}):
+            self.assertEqual(desk.extra_slides(*self.rows("77,000"), web=False, ctas=0), [])
 
     def test_on_four_slides_with_a_figure_three_without_none_on_the_web(self):
         with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": True}):
@@ -432,7 +434,8 @@ class ExtendedCarousel(unittest.TestCase):
                  linkedin_post="The clashes followed weeks of protests.\n\nSource: Al Jazeera")
         with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": True}):
             self.assertEqual(desk.detail_text(m, s, web=False, ctas=0), "The clashes followed weeks of protests.")
-        self.assertEqual(desk.detail_text(m, s, web=False, ctas=0), desk.report(s))  # two slides: dek and report
+        with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": False}):
+            self.assertEqual(desk.detail_text(m, s, web=False, ctas=0), desk.report(s))  # two slides: dek and report
 
     def test_alt_text_covers_every_slide(self):
         post = {"headlines": ["UK net migration falls to 77,000"], "dek": "", "figure": "77,000", "sources": ["The Guardian"],

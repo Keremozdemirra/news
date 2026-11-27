@@ -612,7 +612,9 @@ class ReportCap(unittest.TestCase):
         sents = [x[:-1] + ", according to figures released by the government and the pollsters on Friday." for x in self.SENTS]
         s = {"dek": "Voters go to the polls on Sunday.", "linkedin_post": " ".join(sents) + "\n\nSource: Reuters"}
         self.assertEqual(len(copy.sentences(copy.body_of(s["linkedin_post"]))), 5)
-        text = desk.detail_text({}, s, False, [])
+        from unittest import mock
+        with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": False}):  # the report cap, not the extra slides
+            text = desk.detail_text({}, s, False, [])
         self.assertLessEqual(len(text), copy.MAX_REPORT + 1)
         self.assertLess(len(copy.sentences(text)), 6)
         self.assertGreaterEqual(len(copy.sentences(text)), 2)

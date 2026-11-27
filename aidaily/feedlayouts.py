@@ -378,7 +378,9 @@ def _img(uri, w, h, about=None, extra=""):
 # fill_size is only the starting point (it left a fifth of some cards empty). A column that would overflow steps back,
 # and so does a headline whose longest word would run past the margin ("Johannesburg" did, caught by gate.py).
 FIT = """<script>document.fonts.ready.then(()=>{document.querySelectorAll('[data-fill]').forEach(h=>{
-const col=h.closest('[data-col]');if(!col)return;const fits=()=>col.scrollHeight<=col.clientHeight+1&&h.scrollWidth<=h.clientWidth+1;
+const col=h.closest('[data-col]');if(!col)return;const most=+(h.dataset.lines||99);
+const lines=()=>Math.round(h.getBoundingClientRect().height/parseFloat(getComputedStyle(h).lineHeight));
+const fits=()=>col.scrollHeight<=col.clientHeight+1&&h.scrollWidth<=h.clientWidth+1&&lines()<=most;
 let lo=40,hi=+h.dataset.max;while(hi-lo>1){const m=(lo+hi)>>1;h.style.fontSize=m+'px';fits()?lo=m:hi=m}
 h.style.fontSize=Math.floor(lo*0.985)+'px'});document.body.setAttribute('data-fitted','1')})</script>"""
 
@@ -464,9 +466,12 @@ def _dek_html(story, color, size=38):
             f'max-width:880px">{T.t(story["dek"].strip())}</div>')
 
 
-def _headline_fill(title, height, color, top=150):
+def _headline_fill(title, height, color, top=150, lines=None):
+    """A headline grown in the browser to fill its column (FIT); `lines` caps how many lines it may take, so a large
+    size does not break a short headline into ragged stubs ("Reported / by 3 / newsrooms")."""
     size = fill_size(title, W - 2 * FEED_SAFE, height, top=top)
-    return (f'<h1 data-text data-fill data-max="{top}" style="margin:0;font-family:{SERIF};font-weight:600;font-size:{size}px;line-height:1.06;'
+    cap = f' data-lines="{lines}"' if lines else ""
+    return (f'<h1 data-text data-fill data-max="{top}"{cap} style="margin:0;text-wrap:balance;font-family:{SERIF};font-weight:600;font-size:{size}px;line-height:1.06;'
             f'letter-spacing:-0.015em;color:{color}">{T.t(title)}</h1>')
 
 
