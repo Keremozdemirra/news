@@ -116,7 +116,8 @@ def layer_html(story, shape, only):
     """The card's text in one layer: every other part hidden (visibility keeps the layout, so the layers line up)."""
     html_ = T.card(story, motion=True, height=HEIGHT[shape])
     parts = {"base": (".c-meta", ".c-head", ".c-chips"), "meta": (".c-grad", ".c-head", ".c-chips", ".c-foot"),
-             "head": (".c-grad", ".c-meta", ".c-chips", ".c-foot"), "chips": (".c-grad", ".c-meta", ".c-head", ".c-foot")}[only]
+             "head": (".c-grad", ".c-meta", ".c-chips", ".c-foot"), "chips": (".c-grad", ".c-meta", ".c-head", ".c-foot"),
+             "foot": (".c-grad", ".c-meta", ".c-head", ".c-chips")}[only]
     css = ",".join(parts) + "{visibility:hidden}"
     return html_.replace("</body>", f"<style>{css}</style></body>")
 

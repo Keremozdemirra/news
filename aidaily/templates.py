@@ -296,6 +296,9 @@ def _size(text, big, mid, small):
     return big if n < 55 else mid if n < 85 else small
 
 
+REEL_SAFE_RIGHT, REEL_SAFE_BOTTOM = 180, 420  # px on 1080x1920; tests/test_safe_area.py measures every text layer against them
+
+
 def card(story, brand=BRAND, motion=False, height=1350):
     """4:5 card for every platform.
 
@@ -312,7 +315,9 @@ def card(story, brand=BRAND, motion=False, height=1350):
             f'<img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
             f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
         tall = height > 1350
-        top, side, bottom = (240, 150, 420) if tall else (64, 72, 64)
+        # tall: clear of the bands Instagram Reels and YouTube Shorts draw over (no official numbers for organic
+        # posts; third-party estimates put the right-hand action column at 96-192 px and the caption bar at 300+ px)
+        top, side, bottom = (240, REEL_SAFE_RIGHT, REEL_SAFE_BOTTOM) if tall else (64, 72, 64)
         grad = ("rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.84) 58%,rgba(0,0,0,.94) 100%" if tall else
                 "rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%")
         photo = "" if motion else (f'<img src="{a["photo"]}" style="position:absolute;inset:0;width:1080px;height:{height}px;object-fit:cover;'
