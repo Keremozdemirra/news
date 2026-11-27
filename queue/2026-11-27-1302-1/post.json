@@ -1,0 +1,51 @@
+{
+ "id": "2026-11-27-1302-1",
+ "batch": "2026-11-27-1302",
+ "n": 1,
+ "created": "2026-11-27T13:02:40+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Meta whistleblower urges Andy Burnham to go further on NDA ban\n\nSarah Wynn-Williams warns that tech insiders with concerns about AI development need to be protected. Wynn-Williams served as director of global public policy at Meta, then called Facebook. She made allegations about the social media company's treatment of teenagers. She says tech insiders with concerns about AI are being silenced in a system reminiscent of George Orwell's 1984.\n\nReported by The Guardian.\n\nSend this to whoever on your team covers Meta.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.theguardian.com/technology/2026/nov/27/meta-whistleblower-sarah-wynn-williams-calls-on-burnham-to-go-further-with-ban-on-non-disclosure-agreements"
+ ],
+ "links": [
+  "https://www.theguardian.com/technology/2026/nov/27/meta-whistleblower-sarah-wynn-williams-calls-on-burnham-to-go-further-with-ban-on-non-disclosure-agreements"
+ ],
+ "headlines": [
+  "Meta whistleblower urges Andy Burnham to go further on NDA ban"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "Office Building Off Old Street (215200145).jpeg",
+ "photo_kind": "scene",
+ "photo_alt": "An office block lit at dusk",
+ "score": 8.414,
+ "figure": "",
+ "company": "Meta",
+ "ticker": null,
+ "person": "Sarah Wynn-Williams",
+ "logo_names": [
+  "Meta"
+ ],
+ "dek": "Sarah Wynn-Williams warns that tech insiders with concerns about AI development need to be protected.",
+ "body": "Wynn-Williams served as director of global public policy at Meta, then called Facebook. She made allegations about the social media company's treatment of teenagers. She says tech insiders with concerns about AI are being silenced in a system reminiscent of George Orwell's 1984.",
+ "so_what": "",
+ "sources": [
+  "The Guardian"
+ ],
+ "source_urls": [
+  "https://www.theguardian.com/technology/2026/nov/27/meta-whistleblower-sarah-wynn-williams-calls-on-burnham-to-go-further-with-ban-on-non-disclosure-agreements"
+ ],
+ "credit": "Photo: Francisco Anzola, CC BY 3.0, via Wikimedia Commons",
+ "credit_file": "Office Building Off Old Street (215200145).jpeg",
+ "status": "web",
+ "published": "2026-11-27T13:02:40+00:00",
+ "story": ""
+}
