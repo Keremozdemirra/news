@@ -82,6 +82,26 @@
    "url": "https://t.me/boardread/36",
    "at": "2026-11-27T19:20:18+00:00",
    "found_live": true
+  },
+  "threads": {
+   "id": "18379836730209898",
+   "url": "https://www.threads.com/@boardread/post/DgQeGnklGBJ",
+   "at": "2026-11-27T19:51:25+00:00",
+   "format": "text",
+   "reply": {
+    "id": "18102324260452082"
+   }
+  },
+  "facebook": {
+   "check_error": "facebook GET posts: HTTP 400: {\"error\":{\"message\":\"Unsupported get request. Object with ID 'BURAYA_ID' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https:\\/\\/developers.facebook.com\\/docs\\/graph-api\",\"type",
+   "checked": "2026-11-27T19:51:28+00:00",
+   "checks": 2
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3cxlg5owp2m",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3cxlg5owp2m",
+   "at": "2026-11-27T19:51:28+00:00",
+   "format": "link"
   }
  }
 }
