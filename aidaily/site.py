@@ -580,8 +580,23 @@ def follow_block():
             f'<p>The same news on the channels you already use, each with its sources.</p><ul>{links}</ul>{letter}</section>')
 
 
-def listing_row(p):
-    return (f'<li><a class="row{"" if p.get("_thumb") else " text"}" href="{href(p)}"><div>{meta(E(topic(p)), t_tag(p), cover(p))}'
+def row_time(p):
+    """The time in a list row: "3 h ago" (the script works it out) for the last 24 hours, else the clock time, because the day heading above says the day."""
+    if desk.now() - dt(p["published"]) < timedelta(hours=24):
+        return f'<time class="rel" datetime="{iso(p["published"])}" data-age>{stamp(p["published"], utc=False)}</time>'
+    return f'<time datetime="{iso(p["published"])}">{hhmm(p["published"])} UTC</time>'
+
+
+def day_heading(day):
+    """"Today", "Yesterday", then "25 Nov": the day a group of rows belongs to."""
+    now = desk.now().date()
+    d = datetime.strptime(day, "%Y-%m-%d").date()
+    return "Today" if d == now else "Yesterday" if d == now - timedelta(days=1) else f"{d.day} {d.strftime('%b')}"
+
+
+def listing_row(p, own=False):
+    """own: the page is this article's own section, so the row does not say the section again."""
+    return (f'<li><a class="row{"" if p.get("_thumb") else " text"}" href="{href(p)}"><div>{meta(*([] if own else [E(topic(p))]), row_time(p), cover(p))}'
             f'<h2 class="h-l">{E(p["headlines"][0])}</h2><p class="dek">{E(p.get("dek", ""))}</p></div>{pic(p, thumb=True)}</a></li>')
 
 
@@ -593,14 +608,32 @@ def pager(path, n, total):
             f'<span>Page {n} of {total}</span>{link(n + 1, "Older &rarr;") if n < total else "<span class=ph></span>"}</nav>')
 
 
-def listing(rows, path, n, total, aside=""):
+def listing(rows, path, n, total, aside="", own=None, days=True):
+    """own: the section this page lists (its rows leave the section out); days: group the rows under Today, Yesterday, 25 Nov."""
     if not rows:
         return '<div class="empty">The first articles are on their way.</div>'
     first = rows[0] if n == 1 and rows[0].get("_hires") else None
-    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True, ratio="16/9")}{views.photo_cap(first) if pic(first, ratio="16/9") else ""}<span class="kick">{E(topic(first))}</span>'
+    # the headline comes first, then the picture, as on the front page; the picture is capped so it never fills the screen
+    shot = pic(first, eager=True, ratio="16/9") if first else ""
+    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}"><span class="kick">{E(topic(first))}</span>'
             f'<h2 class="h-xl">{E(first["headlines"][0])}</h2><p class="dek">{E(first.get("dek", ""))}</p>'
-            f'{meta(t_tag(first), cover(first))}</a></div>') if first else ""
-    body = lead + f'<ol>{"".join(listing_row(p) for p in rows if p is not first)}</ol>' + pager(path, n, total)
+            f'{meta(row_time(first), cover(first))}{shot}{views.photo_cap(first) if shot else ""}</a></div>') if first else ""
+    groups = []
+    for p in rows:
+        d = day_of(p["published"])
+        if days and groups and groups[-1][0] == d:
+            groups[-1][1].append(p)
+        elif groups and not days:
+            groups[-1][1].append(p)
+        else:
+            groups.append((d, [p]))
+    body = ""
+    for i, (d, ps) in enumerate(groups):
+        items = "".join(listing_row(p, bool(own)) for p in ps if p is not first)
+        body += (f'<h2 class="sh dayh">{day_heading(d)}</h2>' if days else "") + (lead if i == 0 else "") + (f"<ol>{items}</ol>" if items else "")
+    body += pager(path, n, total)
+    if n == total and days:
+        body += f'<p class="earlier"><a href="{BASE}/archive/">Earlier</a></p>'  # the days before these, one page each
     # a section with few articles has no "Most important" column; the column still holds its place, so the lead photo is
     # the same size on every listing page
     return f'<div class="listing{"" if aside else " solo"}"><div>{body}</div><aside aria-label="Most important"{"" if aside else " hidden"}>{aside}</aside></div>'
@@ -1123,7 +1156,7 @@ def put(out, path, html_):
     (d / "index.html").write_text(html_)
 
 
-def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, feed=None):
+def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, feed=None, own=None, days=True):
     """A listing at path, one page per PER articles: path, path/page/2/, ..."""
     total = max(1, -(-len(rows) // PER))
     for n in range(1, total + 1):
@@ -1134,7 +1167,7 @@ def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, fe
         if n < total:
             rel["next"] = f"{path}page/{n + 1}/"
         put(out, here, page(title + (f" · page {n}" if n > 1 else "") + " · boardread.",
-                            head + listing(rows[(n - 1) * PER:n * PER], path, n, total, aside if n == 1 else ""),
+                            head + listing(rows[(n - 1) * PER:n * PER], path, n, total, aside if n == 1 else "", own, days),
                             desc, here, active=active, rel=rel, feed=feed))
         if sitemap is not None and rows:
             sitemap.append((SITE + here, iso(max(p["published"] for p in rows))))
@@ -1265,11 +1298,11 @@ def build(out=desk.HERE / "_site"):
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Business, newest first. Sport has its own page.") + updated_line(), "latest", aside(news), sm)
+    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Business, newest first. Sport has its own page.") + updated_line(), "latest", aside(news), sm)  # mixed sections: each row says its own
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
         paged(out, topic_path(t), rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
-              feed=(f"boardread. {t}", f"{topic_path(t)}feed.xml"))
+              feed=(f"boardread. {t}", f"{topic_path(t)}feed.xml"), own=t)
     cos, counts = companies(news), desk_counts(shown)
     for p in shown:
         put(out, f"/s/{p['id']}/", story(p, sport if is_sport(p) else news, cos, counts))
@@ -1282,7 +1315,7 @@ def build(out=desk.HERE / "_site"):
         + "</div>", "Every day of Boardread.", "/archive/"))
     sm.append((SITE + "/archive/", iso(shown[0]["published"]) if shown else None))
     for d, ps in days.items():
-        paged(out, f"/archive/{d}/", ps, day_label(d), f"Boardread articles of {day_label(d)}.", pagehead(day_label(d), f"{len(ps)} articles, newest first."), "", "", sm)
+        paged(out, f"/archive/{d}/", ps, day_label(d), f"Boardread articles of {day_label(d)}.", pagehead(day_label(d), f"{len(ps)} articles, newest first."), "", "", sm, days=False)
     # weeks: one page per ISO week (the newsletter's issues), and /week/ for the last seven days
     weeks = {}
     for p in news:

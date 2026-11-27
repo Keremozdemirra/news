@@ -462,6 +462,23 @@ class FrontBuilt(Features):
         self.assertEqual(len(ids), len(set(ids)))  # the same article never sits in two blocks
         self.assertEqual(h.count('<div class="front">'), 1)
 
+    def test_section_pages_group_rows_by_day_and_do_not_repeat_the_section(self):
+        import re
+        h = self.read("t/business/index.html")
+        self.assertRegex(h, r'<h2 class="sh dayh">(Today|Yesterday|\d+ \w+)</h2>')
+        rows = re.findall(r'<a class="row[^"]*"[^>]*><div><span class="meta">(.*?)</span>', h)
+        self.assertTrue(rows)
+        for meta in rows:
+            self.assertNotIn("Business", meta)  # this is the Business page
+            self.assertRegex(meta, r'<time [^>]*>[^<]*</time>')
+        latest = self.read("latest/index.html")
+        self.assertIn("Business", re.search(r'<a class="row[^"]*"[^>]*><div><span class="meta">(.*?)</span>', latest).group(1))  # a mixed list names the section
+        self.assertIn('<p class="earlier"><a href="/archive/">Earlier</a></p>', h)
+        self.assertNotIn('class="earlier"', self.read("archive/2026-11-26/index.html"))
+        if "leadrow" in h:
+            self.assertLess(h.index('class="h-xl"'), h.index('<span class="pic"') if '<span class="pic"' in h else 10**9)  # headline above the picture
+        self.assertIn("max-height:480px", self.read("assets/views.css"))
+
     def test_front_has_no_byline_wall_and_no_quiz_link(self):
         h = self.read("index.html")
         self.assertNotIn("By the Boardread desk", h)

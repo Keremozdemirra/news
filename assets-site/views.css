@@ -327,7 +327,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 
 /* rows carry no image (v2); the lead of a listing is 16:9 */
 .listing .row{grid-template-columns:minmax(0,1fr)}.listing .row .pic,.row:not(.dep) .pic{display:none}
-.leadrow .pic{aspect-ratio:16/9}
+.leadrow .pic{aspect-ratio:16/9;max-height:480px;margin-top:var(--s2)}.dayh{margin-top:var(--s4)}.dayh:first-child{margin-top:var(--s2)}.earlier{margin:var(--s4) 0 0}.earlier a{font:600 15px var(--f);color:var(--ink);border-bottom:1px solid var(--ink)}
 @media(max-width:720px){.art-meta span+span::before{margin-right:var(--s1)}}
 .bside .rtgrid{grid-template-columns:1fr}.bside .rt{grid-template-columns:1fr auto}.bside .rt .rs{display:none}.bside .rt .rc{grid-column:2}
 
