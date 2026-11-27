@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-1006-4",
+ "batch": "2026-11-27-1006",
+ "n": 4,
+ "created": "2026-11-27T10:06:55+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Google to publish Android developers' addresses publicly worldwide\n\nGoogle is facing criticism for the decision, which it is taking to comply with European laws. Google plans to publish Android developers' identifying information around the world.\n\nReported by Engadget; The Verge.\n\nSend this to whoever on your team covers Google.\n\n#tech #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.engadget.com/2329389/google-will-soon-share-android-developers-addresses-publicly/"
+ ],
+ "links": [
+  "https://www.engadget.com/2329389/google-will-soon-share-android-developers-addresses-publicly/",
+  "https://www.theverge.com/tech/1043228/android-play-store-google-developer-address-eu"
+ ],
+ "headlines": [
+  "Google to publish Android developers' addresses publicly worldwide"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Tech",
+ "photo_file": "Google Head Office Kondapur Hyderabad.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.096,
+ "figure": "",
+ "company": "Google",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "Google"
+ ],
+ "dek": "Google is facing criticism for the decision, which it is taking to comply with European laws.",
+ "body": "Google plans to publish Android developers' identifying information around the world.",
+ "so_what": "",
+ "sources": [
+  "Engadget",
+  "The Verge"
+ ],
+ "source_urls": [
+  "https://www.engadget.com/2329389/google-will-soon-share-android-developers-addresses-publicly/",
+  "https://www.theverge.com/tech/1043228/android-play-store-google-developer-address-eu"
+ ],
+ "credit": "Photo: Kavali Chandrakanth KCK, CC0, via Wikimedia Commons",
+ "credit_file": "Google Head Office Kondapur Hyderabad.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:06:55+00:00",
+ "story": ""
+}

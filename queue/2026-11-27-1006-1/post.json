@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-1006-1",
+ "batch": "2026-11-27-1006",
+ "n": 1,
+ "created": "2026-11-27T10:06:52+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Guinea-Bissau's military rulers delay elections by two years to 2028\n\nBoth presidential and parliamentary votes are pushed back, delaying the promised return to civilian rule. The new date for the votes is 2028.\n\nReported by Africanews; BBC.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "http://www.africanews.com/2026/11/26/guinea-bissau-delays-elections-for-two-years-to-2028/"
+ ],
+ "links": [
+  "http://www.africanews.com/2026/11/26/guinea-bissau-delays-elections-for-two-years-to-2028/",
+  "https://www.bbc.co.uk/news/articles/cm879e5yxjq5o?at_medium=RSS&at_campaign=rss"
+ ],
+ "headlines": [
+  "Guinea-Bissau's military rulers delay elections by two years to 2028"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "Example voting booth.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A mechanical voting booth",
+ "score": 9.028,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Both presidential and parliamentary votes are pushed back, delaying the promised return to civilian rule.",
+ "body": "The new date for the votes is 2028.",
+ "so_what": "",
+ "sources": [
+  "Africanews",
+  "BBC"
+ ],
+ "source_urls": [
+  "http://www.africanews.com/2026/11/26/guinea-bissau-delays-elections-for-two-years-to-2028/",
+  "https://www.bbc.co.uk/news/articles/cm879e5yxjq5o?at_medium=RSS&at_campaign=rss"
+ ],
+ "credit": "Photo: Kenneth C. Zirkel, CC0, via Wikimedia Commons",
+ "credit_file": "Example voting booth.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:06:52+00:00",
+ "story": ""
+}

@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-1006-3",
+ "batch": "2026-11-27-1006",
+ "n": 3,
+ "created": "2026-11-27T10:06:54+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Zelenskyy compares Trump calling Putin a friend to befriending Hitler in WW2\n\nVolodymyr Zelenskyy · World\n\nUkraine's president calls the comments strange and urges Washington to increase pressure on Moscow. Overnight, Nato fighter jets and an interceptor drone were scrambled in Latvia after a drone briefly entered its airspace near the Russian border, the army said. Several countries bordering the conflict have reported incursions or drone and missile crashes since February 2022.\n\nReported by The Guardian; South China Morning Post.\n\nSend this to whoever on your team tracks global risk.\n\n#worldnews #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.theguardian.com/world/live/2026/nov/27/zelenskyy-putin-trump-comments-russia-ukraine-latest-news-updates"
+ ],
+ "links": [
+  "https://www.scmp.com/news/world/europe/article/3376046/zelensky-says-trump-calling-putin-my-friend-being-buddies-hitler-wwii",
+  "https://www.theguardian.com/world/live/2026/nov/27/zelenskyy-putin-trump-comments-russia-ukraine-latest-news-updates"
+ ],
+ "headlines": [
+  "Zelenskyy compares Trump calling Putin a friend to befriending Hitler in WW2"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "World",
+ "photo_file": "Volodymyr Zelensky Official portrait.jpg",
+ "photo_kind": "person",
+ "photo_alt": "",
+ "score": 8.106,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Volodymyr Zelenskyy",
+ "logo_names": [],
+ "dek": "Ukraine's president calls the comments strange and urges Washington to increase pressure on Moscow.",
+ "body": "Overnight, Nato fighter jets and an interceptor drone were scrambled in Latvia after a drone briefly entered its airspace near the Russian border, the army said. Several countries bordering the conflict have reported incursions or drone and missile crashes since February 2022.",
+ "so_what": "",
+ "sources": [
+  "The Guardian",
+  "South China Morning Post"
+ ],
+ "source_urls": [
+  "https://www.theguardian.com/world/live/2026/nov/27/zelenskyy-putin-trump-comments-russia-ukraine-latest-news-updates",
+  "https://www.scmp.com/news/world/europe/article/3376046/zelensky-says-trump-calling-putin-my-friend-being-buddies-hitler-wwii"
+ ],
+ "credit": "Photo: http://www.president.gov.ua/, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "Volodymyr Zelensky Official portrait.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:06:54+00:00",
+ "story": ""
+}

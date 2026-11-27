@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-1006-2",
+ "batch": "2026-11-27-1006",
+ "n": 2,
+ "created": "2026-11-27T10:06:53+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Russia extends jet fuel export ban by four months through March\n\nThe ban covers most jet fuel exports and aims to keep the domestic market supplied as Ukraine attacks refineries.\n\nReported by Bloomberg.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/russia-extends-jet-fuel-export-ban-to-march-on-refinery-attacks"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/russia-extends-jet-fuel-export-ban-to-march-on-refinery-attacks"
+ ],
+ "headlines": [
+  "Russia extends jet fuel export ban by four months through March"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Economy",
+ "photo_file": "Container ship in Koper 2013.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A container ship on a calm sea",
+ "score": 8.471,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The ban covers most jet fuel exports and aims to keep the domestic market supplied as Ukraine attacks refineries.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/russia-extends-jet-fuel-export-ban-to-march-on-refinery-attacks"
+ ],
+ "credit": "Photo: Martin Dörsch, CC0, via Wikimedia Commons",
+ "credit_file": "Container ship in Koper 2013.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:06:53+00:00",
+ "story": ""
+}
