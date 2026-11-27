@@ -50,5 +50,13 @@
  "attempted": "2026-11-27T16:10:21+00:00",
  "published": "2026-11-27T16:10:44+00:00",
  "media_id": "18114488312349634",
- "permalink": "https://www.instagram.com/p/DgQE-ALkle0/"
+ "permalink": "https://www.instagram.com/p/DgQE-ALkle0/",
+ "platforms": {
+  "telegram": {
+   "id": "34",
+   "url": "https://t.me/boardread/34",
+   "at": "2026-11-27T16:20:15+00:00",
+   "format": "photo"
+  }
+ }
 }
