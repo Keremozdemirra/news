@@ -24,23 +24,22 @@ STORY = {"title": "South Korean banks' net profit rises 2.1% to 21.5 trillion wo
 
 class Where(unittest.TestCase):
     def test_a_face_keeps_the_text_off_it(self):
-        high = RC.allowed(WIDE, (0.5, 0.25), face=True)  # a head in the upper part: text may go low, not high
-        self.assertIn("classic", high)
+        high = RC.allowed(WIDE, (0.5, 0.2), face=True)  # a head in the upper part: the text may go low, not high
+        self.assertIn("lower", high)
         self.assertNotIn("top", high)
-        low = RC.allowed(WIDE, (0.5, 0.75), face=True)
+        low = RC.allowed(WIDE, (0.5, 0.8), face=True)
         self.assertIn("top", low)
-        self.assertNotIn("classic", low)
+        self.assertNotIn("lower", low)
         mid = RC.allowed(WIDE, (0.5, 0.5), face=True)  # in the middle: only the band layouts, text never on the photo
         self.assertEqual(mid, ["photo-top", "photo-bottom"])
 
     def test_the_face_margin_is_measured_on_the_frame(self):
-        for fy in (0.1, 0.3, 0.42, 0.6, 0.9):
-            y = RC.subject_y(*WIDE, 0.5, fy)
+        for fy in (0.1, 0.2, 0.3, 0.42, 0.6, 0.8, 0.9):
+            y, m = RC.subject_y(*WIDE, 0.5, fy), RC.face_margin(WIDE, None)
             for name in RC.allowed(WIDE, (0.5, fy), face=True):
-                if name == "classic":
-                    self.assertLess(y + RC.face_margin(WIDE, None), RC.GEO["classic"]["box"][0])
-                if name == "top":
-                    self.assertGreater(y - RC.face_margin(WIDE, None), RC.GEO["top"]["box"][1])
+                if name in RC.PLACES:
+                    a, b = RC.GEO[name]["span"]
+                    self.assertTrue(b < y - m or a > y + m, f"{name} at fy={fy}")
 
     @unittest.skipUnless(shutil.which("ffmpeg"), "needs ffmpeg")
     def test_a_scene_puts_the_text_over_its_quieter_half(self):
@@ -51,24 +50,23 @@ class Where(unittest.TestCase):
                             "-i", "nullsrc=s=1600x600,geq=random(1)*255:128:128", "-filter_complex",
                             "[1:v]format=rgb24[n];[0:v][n]overlay=0:600", "-frames:v", "1", str(p)], check=True)
             got = RC.allowed((1600, 1200), (0.5, 0.4), face=False, path=p)
-            self.assertIn("top", got)
-            self.assertNotIn("classic", got)
+            self.assertEqual(got, ["top"])  # the sky, not the scaffolding: the Spain election Reel of 27 Nov
 
     def test_a_close_up_head_keeps_the_text_off_its_chin(self):
         # a head 56% of the photo's height, centred at 36%: the chin reaches far below the point
-        self.assertNotIn("classic", RC.allowed((2211, 2929), (0.5, 0.36), face=True, head=0.56))
-        self.assertIn("classic", RC.allowed((2211, 2929), (0.5, 0.15), face=True, head=0.28))
+        self.assertNotIn("lower", RC.allowed((2211, 2929), (0.5, 0.36), face=True, head=0.56))
+        self.assertIn("lower", RC.allowed((2211, 2929), (0.5, 0.15), face=True, head=0.28))
         self.assertGreater(RC.face_margin((2211, 2929), 0.56), RC.face_margin((2211, 2929), 0.28))
 
     def test_footage_allows_every_layout(self):
-        self.assertEqual(RC.allowed(None, None, False), list(RC.LAYOUTS))
+        self.assertEqual(RC.allowed(None, None, False), list(RC.PLACES))
 
     def test_the_next_reel_takes_another_layout(self):
         for seed in ("a", "b", "c", "2026-11-27-0641-3"):
             first = RC.pick(seed, RC.LAYOUTS)
             self.assertEqual(RC.pick(seed, RC.LAYOUTS), first)  # deterministic
             self.assertNotEqual(RC.pick(seed, RC.LAYOUTS, avoid=first), first)
-        self.assertEqual(RC.pick("a", ["classic"], avoid="classic"), "classic")  # nothing else fits: it repeats
+        self.assertEqual(RC.pick("a", ["lower"], avoid="lower"), "lower")  # nothing else fits: it repeats
 
 
 class Says(unittest.TestCase):
@@ -116,13 +114,17 @@ class SafeArea(unittest.TestCase):
                      _assets={"photo": photo.as_uri(), "credit": "Photo: K. Zirkel, CC BY 4.0, via Wikimedia Commons",
                               "file": "P.jpg", "kind": "photo", "logos": []})
             for name in RC.LAYOUTS:
-                for part in ("meta", "head", "fact", "source"):
+                for part in ("base", "meta", "head", "fact", "source"):
                     png = Path(tmp) / f"{name}-{part}.png"
-                    CV.shoot_layer(RC.layer(s, name, part), png, CV.W, CV.HEIGHT["reel"])
+                    page = RC.layer(s, name, part)
+                    if part == "base":  # the wordmark and credit only: the scrim and black ground run edge to edge
+                        page = page.replace("</body>", '<style>div[style*="background"]{visibility:hidden}</style></body>')
+                    CV.shoot_layer(page, png, CV.W, CV.HEIGHT["reel"])
                     x1, y1, x2, y2 = bbox(png)
                     where = f"{name}/{part}"
-                    self.assertGreaterEqual(x1, 48, where)
-                    self.assertLessEqual(x2, CV.W - max(T.REEL_SAFE_RIGHT, 140), f"{where} reaches x={x2}")
+                    # the player crops ~54 px a side on a tall phone: 120 px leaves ~6% of the screen; 880 clears the buttons
+                    self.assertGreaterEqual(x1, 112, where)
+                    self.assertLessEqual(x2, 885, f"{where} reaches x={x2}")
                     self.assertLessEqual(y2, CV.HEIGHT["reel"] - max(T.REEL_SAFE_BOTTOM, 380), f"{where} reaches y={y2}")
                     self.assertGreaterEqual(y1, 200, where)
                     if part == "head" and RC.GEO[name]["band"] != (0, CV.HEIGHT["reel"]):
