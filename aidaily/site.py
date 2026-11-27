@@ -664,16 +664,22 @@ def desk_counts(rows):
             "photos": sum(1 for p in rows if p.get("credit"))}
 
 
-def number_box(p):
-    """"The number": the figure the post carries, only when the headline or the dek states it. A figure the text
-    does not state is not set large on the page."""
+def figure_stated(p):
+    """The post's figure, when the headline or the dek states it; else "". A figure the text does not state is never set large."""
     fig = (p.get("figure") or "").strip()
-    if not fig:
+    return fig if fig and any(desk._in_text(fig, t) for t in (p["headlines"][0], p.get("dek") or "")) else ""
+
+
+def number_box(p):
+    """"The number": the figure the post carries, set large with the dek sentence that states it. Not when the headline
+    already carries it (the box would only repeat the headline), and never a figure the text does not state."""
+    fig = (p.get("figure") or "").strip()
+    if not fig or desk._in_text(fig, p["headlines"][0]):
         return ""
-    for text in (p["headlines"][0], p.get("dek") or ""):
-        if desk._in_text(fig, text):
-            return (f'<aside class="numbox" aria-labelledby="nb"><h2 id="nb">The number</h2><p class="big">{E(fig)}</p>'
-                    f'<p class="ncap">{E(text)}</p></aside>')
+    dek = p.get("dek") or ""
+    if desk._in_text(fig, dek):
+        return (f'<aside class="numbox" aria-labelledby="nb"><h2 id="nb">The number</h2><p class="big">{E(fig)}</p>'
+                f'<p class="ncap">{E(dek)}</p></aside>')
     return ""
 
 
@@ -683,7 +689,7 @@ def how_made(p, counts):
     rooms = outlets.newsrooms(p)
     fig = (p.get("figure") or "").strip()
     checks = ["Numbers: every number in the text appears in the source text."
-              + (f" The figure {fig} is in the headline." if number_box(p) else ""),
+              + (f" The figure {fig} is stated in the text." if figure_stated(p) else ""),
               "Names: each sentence is compared with the source text; a sentence whose words are mostly missing from it is rejected.",
               "Photo licence: " + ("the licence allows reuse and the credit line is shown." if p.get("credit") else "this article has no photo."),
               "Audit: topic, photo, hashtag and stock-phrase checks passed."]
@@ -728,11 +734,11 @@ def story(p, rows, cos=None, counts=None):
     ctx = markets.context_for(p, MARKETS, BASE)
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
-<h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>
+<h1>{E(p['headlines'][0])}</h1>{f'<p class="dek">{E(p["dek"])}</p>' if (p.get("dek") or "").strip() else ""}
 <div class="byline">{reported}<span>Boardread desk, written by AI</span></div>
 <div class="mt art-meta"><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div></header>
 {fig}
-<div class="art-body"><section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>
+<div class="art-body">{f'<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>' if paras else ""}
 <p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p>
 <div class="reportedby">{insta}</div>
 {ctx}{number_box(p)}
@@ -743,7 +749,9 @@ def story(p, rows, cos=None, counts=None):
         {"@type": "ListItem", "position": 1, "name": NAME, "item": SITE + "/"},
         {"@type": "ListItem", "position": 2, "name": topic(p), "item": f"{SITE}{topic_path(topic(p))}"},
         {"@type": "ListItem", "position": 3, "name": clip(p["headlines"][0], 110)}]}
-    return page(f'{p["headlines"][0]} · boardread.', body, p.get("dek", ""), f"/s/{p['id']}/", image, "article",
+    # no dek: the first sentence of the report, then the headline, so no page goes out without a description
+    desc = (p.get("dek") or "").strip() or next((x for x in (p.get("body") or "").split("\n") if x.strip()), "") or p["headlines"][0]
+    return page(f'{p["headlines"][0]} · boardread.', body, desc, f"/s/{p['id']}/", image, "article",
                 [article_ld(p, image), crumbs], p["headlines"][0], active=topic(p).lower())
 
 
@@ -764,7 +772,8 @@ def rss(title, link, items, self_path="/feed.xml"):
             'xmlns:media="http://search.yahoo.com/mrss/" xmlns:atom="http://www.w3.org/2005/Atom">'
             f'<channel><title>{E(title)}</title><link>{E(link)}</link><description>{TAGLINE}</description>'
             f'<atom:link href="{E(SITE + self_path)}" rel="self" type="application/rss+xml"/>'
-            f"<language>en</language>{''.join(one(*i) for i in items)}</channel></rss>")
+            f"<language>en</language><lastBuildDate>{datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S +0000')}</lastBuildDate>"
+            f"{''.join(one(*i) for i in items)}</channel></rss>")
 
 
 def urlset(rows):
@@ -807,7 +816,7 @@ def about_page():
 <p>Boardread reports what moves business: markets, the economy, politics, world affairs, technology and AI. It is written for consultants, managers and business students who need the day's developments in a minute, and want to open the original reporting when it matters.</p>
 <h2>How the desk works</h2>
 <ol class="steps">
-<li><div><b>It reads the news.</b> Every 30 minutes the desk fetches more than 80 feeds from newsrooms and research labs.</div></li>
+<li><div><b>It reads the news.</b> Every 30 minutes the desk fetches {feeds_scanned()} feeds from newsrooms and research labs.</div></li>
 <li><div><b>It ranks.</b> Coverage of the same event is grouped into one article and scored. Only articles above a fixed importance bar, and under a day old, are taken further.</div></li>
 <li><div><b>It writes.</b> An AI model writes a short report from the text of the sources. It has no other input and no tools.</div></li>
 <li><div><b>It checks.</b> Fixed code checks the text before anything is public: every number must appear in the source, sentences that read as commentary are rejected, and articles about deaths, violence and abuse are skipped.</div></li>
@@ -833,7 +842,7 @@ def standards_page():
 <li><b>Topics we skip.</b> Articles centred on deaths, violence, abuse and similar subjects are not published by the desk.</li>
 </ul>
 <h2>Corrections</h2>
-<p>If a article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
+<p>If an article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
 <ul>{contact_lines()}</ul>
 <h2>Who is responsible</h2>
 <p>The operator named in the <a href="{LEGAL['impressum']}">Impressum</a> is responsible for the site, including the output of its automated desk.</p>
@@ -1005,7 +1014,7 @@ def build(out=desk.HERE / "_site"):
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Every business and news article, newest first. Times are UTC. Sport has its own section."), "latest", aside(news), sm)
+    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Every article, newest first. Times are UTC."), "latest", aside(news), sm)
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
         paged(out, topic_path(t), rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
@@ -1028,7 +1037,7 @@ def build(out=desk.HERE / "_site"):
     for p in news:
         weeks.setdefault(week_of(p["published"]), []).append(p)
     this_week = datetime.now(timezone.utc).strftime("%G-W%V")
-    wdesc = "The ten most shared articles of the week, each with its sources."
+    wdesc = "The week's ten leading articles, each with its sources."
 
     def top_list(rows, heading, sub, active):
         body = pagehead(heading, sub) + (f'<div class="prose" style="max-width:50rem">{ranked(rows, 10)}</div>' if rows
@@ -1038,7 +1047,7 @@ def build(out=desk.HERE / "_site"):
     issues = []
     for wk in sorted(weeks, reverse=True):
         top = sorted(weeks[wk], key=shared, reverse=True)[:10]
-        put(out, f"/week/{wk}/", page(f"Top 10 · {wk} · boardread.", top_list(top, "Top 10", f"Week {wk[-2:]}, {wk[:4]}, most shared", "week"),
+        put(out, f"/week/{wk}/", page(f"Top 10 · {wk} · boardread.", top_list(top, "Top 10", f"Week {wk[-2:]}, {wk[:4]}", "week"),
                                       wdesc, f"/week/{wk}/", active="week"))
         sm.append((f"{SITE}/week/{wk}/", iso(max(p["published"] for p in weeks[wk]))))
         if wk != this_week:  # an unfinished week is not an issue yet
@@ -1046,7 +1055,7 @@ def build(out=desk.HERE / "_site"):
     last7 = [p for p in news if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or news[:10]
     past = "".join(f'<li><a href="{BASE}/week/{w}/">Week {w[-2:]}, {w[:4]}</a></li>' for w in sorted(weeks, reverse=True) if w != this_week)
     mc = covered_list(news, companies(news), 10)
-    put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten most shared articles of the last seven days", "week")
+    put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten leading articles of the last seven days", "week")
         + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many articles named them in the last seven days.</p>{mc}</div>' if mc else "")
         + (f'<div class="prose"><h2>Past weeks</h2><ul>{past}</ul></div>' if past else ""), wdesc, "/week/", active="week"))
     sm.append((SITE + "/week/", iso(shown[0]["published"]) if shown else None))

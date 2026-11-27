@@ -332,7 +332,7 @@ def figures(shown, n=9):
     out = []
     for p in shown:
         fig = (p.get("figure") or "").strip()
-        if fig and re.search(r"\d", fig) and S.number_box(p):  # "a million" is a phrase, not a figure to set large
+        if fig and re.search(r"\d", fig) and S.figure_stated(p):  # "a million" is a phrase, not a figure to set large
             out.append((fig, p))
     return out[:n]
 

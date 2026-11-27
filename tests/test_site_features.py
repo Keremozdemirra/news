@@ -77,8 +77,8 @@ class Features(Tmp):
     def test_story_has_what_happened_and_the_number_only_when_stated(self):
         h = self.read("s/2026-11-26-0900-1/index.html")
         self.assertIn("What happened", h)
-        self.assertIn("numbox", h)
-        self.assertIn('class="big">10,000<', h)
+        # the figure is in this headline, so the box would only repeat it
+        self.assertNotIn("numbox", h)
         self.assertNotIn("Why it matters", h)
         self.assertNotIn("numbox", self.read("s/2026-11-26-0800-1/index.html"))
 

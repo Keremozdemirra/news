@@ -225,6 +225,9 @@ class Copy(unittest.TestCase):
         p = {"headlines": ["UK Neet number falls below a million"], "dek": "", "figure": "a million"}
         self.assertEqual(site.number_box(p), "")
         p.update(headlines=["UK net migration falls to 77,000"], figure="77,000")
+        self.assertEqual(site.number_box(p), "")  # already in the headline: the box would repeat it
+        self.assertEqual(site.figure_stated(p), "77,000")
+        p.update(headlines=["UK net migration falls"], dek="It fell to 77,000.")
         self.assertIn("The number", site.number_box(p))
 
     def test_a_short_sentence_the_dek_already_holds_goes(self):

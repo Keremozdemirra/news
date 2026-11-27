@@ -186,7 +186,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .foot{margin-top:var(--s6);border-top:1px solid var(--ink)}
 .foot-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s4);padding:var(--s4) 0 var(--s3)}
 .foot h2{font:700 15px/1.3 var(--f);margin:0 0 var(--s1)}
-.foot li a{display:flex;align-items:center;min-height:36px;font:500 15px/1.3 var(--f);color:var(--soft)}
+.foot li a{display:flex;align-items:center;min-height:44px;font:500 15px/1.3 var(--f);color:var(--soft)}
 .foot li a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 .foot-base{border-top:1px solid var(--rule);padding:var(--s2) 0 var(--s4);font:400 13px/1.6 var(--f);color:var(--soft);display:flex;justify-content:space-between;flex-wrap:wrap;gap:var(--s1) var(--s3)}
 .foot-base a{text-decoration:underline;text-underline-offset:3px}
@@ -307,5 +307,5 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 /* rows carry no image (v2); the lead of a listing is 16:9 */
 .listing .row{grid-template-columns:minmax(0,1fr)}.listing .row .pic,.row:not(.dep) .pic{display:none}
 .leadrow .pic{aspect-ratio:16/9}
-@media(max-width:720px){.byline{flex-direction:column;gap:2px}.byline span+span::before{content:none}.art-meta span+span::before{margin-right:var(--s1)}}
+@media(max-width:720px){.byline{flex-direction:column;align-items:flex-start;gap:2px}.byline span+span::before{content:none}.art-meta span+span::before{margin-right:var(--s1)}}
 .bside .rtgrid{grid-template-columns:1fr}.bside .rt{grid-template-columns:1fr auto}.bside .rt .rs{display:none}.bside .rt .rc{grid-column:2}

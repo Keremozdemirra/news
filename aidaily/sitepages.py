@@ -43,7 +43,7 @@ def brief_page(shown, day, m=None):
     stop = (f'<div class="stop"><b>&ndash; 30 &ndash;</b><p>End of the brief. {V.PLURAL(len(rows), "article")}, {words} words, about {sec // 60} minute{"" if sec // 60 == 1 else "s"} '
             f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
             f'<a class="btn" href="{S.BASE}/board/">The Board</a> {f'<a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a>' if "play" in S.SHIPPED else ""}</div>')
-    head = V.head(S.day_label(day), "In<br>brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read. It ends.")
+    head = V.head(S.day_label(day), "In brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read.")
     return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
@@ -195,7 +195,7 @@ def build(out, shown, sm, cos):
         earlier = ('<div class="prose past-wrap"><h2>Earlier briefs</h2><ul class="past">'
                    + "".join(f'<li><a href="{S.BASE}/brief/{d}/">{S.day_label(d)}</a></li>' for d in days[1:30]) + "</ul></div>") if days[1:] else ""
         S.put(out, "/brief/", S.page("The brief · boardread.", brief_page(shown, days[0], m) + earlier,
-              "The day's top articles in about a minute, one block each. It ends.", "/brief/", active="brief"))
+              "The day's top articles in about a minute, one block each.", "/brief/", active="brief"))
         for d in days:
             S.put(out, f"/brief/{d}/", S.page(f"The brief, {S.day_label(d)} · boardread.", brief_page(shown, d, m),
                                               f"The top articles of {S.day_label(d)}, one block each.", f"/brief/{d}/", active="brief"))
