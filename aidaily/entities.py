@@ -978,7 +978,7 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
         place = len(subject) > 3 and subject[3] == "venue"
         if not text:
             continue
-        deferred = None
+        deferred, passed = None, []
         try:
             # the premises rule is for a company's photos; a place named in the headline (strict) and a sport ground
             # (teams) have their own checks
@@ -1037,10 +1037,34 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
                 if deferred is None and phrase_in(text, f) and not NEGATIVE.search(allow):
                     deferred = (info, credit, f)
                 continue
-            return _fetched(info, credit, f)
+            # relevance first: the subject's candidates come best first, so only the first few that pass every
+            # check are compared, and the strongest of them goes on the card (focus.visual_score)
+            passed.append((info, credit, f))
+            if len(passed) >= RANK_AMONG:
+                break
+        if passed:
+            return _strongest(passed)
         if deferred:
             return _fetched(*deferred)
     return None, "", ""
+
+
+RANK_AMONG = 3  # photos of one subject compared for strength; more would trade relevance for looks
+
+
+def _strongest(passed):
+    """The visually strongest of photos that all passed (the first on a tie: it ranked higher for relevance)."""
+    from . import focus
+    best, best_score = None, None
+    for info, credit, f in passed:
+        try:
+            got = _fetched(info, credit, f)
+        except Exception:  # noqa: BLE001  a file that will not load is skipped
+            continue
+        score = focus.visual_score(got[0])
+        if best is None or score > best_score + 0.05:
+            best, best_score = got, score
+    return best or (None, "", "")
 
 
 def _fetched(info, credit, f):

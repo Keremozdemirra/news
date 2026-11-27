@@ -61,6 +61,27 @@ def _decode(path, w, h):
     return r.stdout if len(r.stdout) == w * h * 3 else None
 
 
+def visual_score(path):
+    """How strong a photo reads on a card, from a 48 x 48 decode: contrast (the spread of brightness), a subject that
+    stands out from its surroundings (the centre's spread against the whole), and no clutter (busy edges everywhere
+    read as noise at phone size). Higher is better; about 0 to 1.5. Used only to choose among photos of the same
+    subject that all passed the licence and fit checks (entities.fresh_photo)."""
+    n = 48
+    raw = _decode(path, n, n)
+    if raw is None:
+        return 0.0
+    y = [0.299 * raw[i] + 0.587 * raw[i + 1] + 0.114 * raw[i + 2] for i in range(0, len(raw), 3)]
+
+    def spread(vals):
+        m = sum(vals) / len(vals)
+        return (sum((v - m) ** 2 for v in vals) / len(vals)) ** 0.5
+    sd = spread(y)
+    centre = [y[r * n + c] for r in range(12, 36) for c in range(12, 36)]
+    edges = sum(abs(y[r * n + c] - y[r * n + c + 1]) + abs(y[r * n + c] - y[(r + 1) * n + c])
+                for r in range(n - 1) for c in range(n - 1)) / ((n - 1) ** 2)
+    return min(sd, 70) / 70 + 0.3 * min(spread(centre) / (sd + 1), 1.5) - max(0.0, edges - 30) / 60
+
+
 def skin_mask(raw, w, h):
     """1 where the pixel is skin-toned (YCbCr box, plus red-dominant and not dark), as a list of rows."""
     rows = []

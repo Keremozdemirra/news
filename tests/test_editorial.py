@@ -400,7 +400,8 @@ class PostDesign(unittest.TestCase):
     def test_sources_slide_lists_every_newsroom_and_asks_only_when_told(self):
         html = T.sources_slide(self.story(), ["FT", "Bloomberg", "CNA"])
         self.assertIn("Reported by 3 newsrooms", html)
-        self.assertIn("Every link is on the article at boardread.news.", html)
+        self.assertIn("Full story and sources", html)  # the foot says where; the slide does not repeat it
+        self.assertNotIn("Every link is on the article", html)
         self.assertIn("Comment SOURCE", T.sources_slide(self.story(), ["FT"], cta=True))
         one = T.sources_slide(self.story(), ["Bloomberg"])
         self.assertIn("Reported by Bloomberg", one)

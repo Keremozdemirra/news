@@ -386,7 +386,7 @@ def card(story, brand=BRAND, motion=False, height=1350, place="bottom"):
 <div class="c-chips" style="position:absolute;left:64px;right:64px;top:{top}px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div style="position:absolute;left:72px;right:{side}px;bottom:{bottom}px;display:flex;flex-direction:column">
 <span class="c-meta" style="font-size:26px;color:#D6D6D6">{_breaking(story, True)}{_meta_html(_meta_card(story), WHITE)}</span>
-<h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1>
+<h1 class="c-head" style="margin:{22 if tall else 28}px 0 {56 if tall else 60}px;font-size:{_size(title, 88, 78, 66) if tall else _size(title, 98, 86, 72)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1>
 <div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div>'''}</div></body></html>"""
     if kind == "figure":
         # one way to set a big figure: "C$8.5 billion" from the copy step reads "C$8.5B", like every other card
@@ -418,7 +418,7 @@ def _top_text(story, title, brand, chips):
     return f"""<div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
 <div data-text style="position:absolute;left:72px;right:72px;top:72px;display:flex;flex-direction:column">
 <span class="c-meta" style="font-size:26px;color:#D6D6D6">{_breaking(story, True)}{_meta_html(_meta_card(story), WHITE)}</span>
-<h1 class="c-head" style="margin:22px 0 0;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1></div>
+<h1 class="c-head" style="margin:28px 0 0;font-size:{_size(title, 98, 86, 72)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1></div>
 <div data-text style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column;gap:28px">
 <div class="c-chips" style="display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div class="c-foot">{_foot(story, brand, dark=True)}</div></div>"""
@@ -505,16 +505,19 @@ def _detail_logo(story):
     return logo_chip(uri, 68).replace("background:#fff;", f"background:#fff;outline:1px solid {LINE};", 1)
 
 
-def _slide(story, kicker, inner, brand=BRAND):
-    """A paper slide of the extended carousel: kicker row on the 2px section rule, the content, the footer."""
+def _slide(story, kicker, inner, brand=BRAND, end=False):
+    """A paper slide of the extended carousel: kicker row on the 2px section rule, the content column (which may grow
+    its headline to fill, feedlayouts.FIT), and the foot: the wordmark, or on the last slide the follow and site ask."""
+    from . import feedlayouts as FL
+    foot = _end_cta(brand) if end else (
+        f'<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
+        f'<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>')
     return head() + f"""
-<div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
+<div data-col style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK};font-size:24px;color:{GREY};display:flex;align-items:center">{_meta_html(kicker + " · " + _meta(story), BLACK)}</div>
 {inner}
-<div style="flex:1"></div>
-<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
-<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
-</div></body></html>"""
+{foot}
+</div>{FL.FIT}</body></html>"""
 
 
 def number_line(story):
@@ -533,40 +536,53 @@ def number_line(story):
 
 
 def number_slide(story, brand=BRAND):
-    """The number and its context: the figure set large, the headline or dek sentence that states it, and who reported
-    it. None when the post has no figure its own text states (a figure the reader cannot find is not set large)."""
+    """The number and its context: the figure set as wide as the slide takes it, the headline or dek sentence that
+    states it grown to fill the space below (no empty band, gate.py), and who reported it. None when the post has no
+    figure its own text states (a figure the reader cannot find is not set large)."""
     from . import desk
+    from . import feedlayouts as FL
     line = number_line(story)
     if not line:
         return None
     fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
     names = desk.outlets(story, story)
     src = f"Source: {desk.reported_by(names)}" if names else ""
-    size = 300 if len(fig) <= 4 else 250 if len(fig) <= 6 else 190
-    inner = (f'<div class="num" style="margin-top:120px;font-size:{size}px;font-weight:800;line-height:0.86;letter-spacing:{TRACK}">{e(fig)}</div>'
-             f'<div style="margin-top:72px;font-size:52px;font-weight:700;line-height:1.16;letter-spacing:-0.01em">{t(line)}</div>'
-             f'<div style="margin-top:40px;font-size:26px;color:{GREY}">{e(src)}</div>')
+    size = min(360, int(936 / (0.64 * max(len(fig), 1))))
+    inner = (f'<div class="num" style="margin-top:64px;font-size:{size}px;font-weight:800;line-height:0.86;letter-spacing:-0.045em">{e(fig)}</div>'
+             f'<div style="flex:1;min-height:40px"></div>'
+             f'<div style="border-top:3px solid {BLACK};padding-top:40px">{FL._headline_fill(line, 520, BLACK, top=110)}</div>'
+             f'<div style="margin-top:36px;font-size:28px;color:{GREY}">{e(src)}</div><div style="flex:1;min-height:40px"></div>')
     return _slide(story, "The number", inner, brand)
 
 
 def sources_slide(story, outlets, cta=False, brand=BRAND):
-    """Every newsroom that reported it, in the order they ran it, and where the links are."""
+    """Every newsroom that reported it, in the order they ran it, and where the links are. The list is spread over the
+    slide's height (rows of 40 px left half of it empty, gate.py); the foot asks for the follow and names the site."""
+    from . import feedlayouts as FL
     names = list(outlets) or [story.get("source", "")]
     shown = names[:8]
-    rows = "".join(f'<li style="display:flex;gap:28px;padding:22px 0;border-bottom:1px solid {LINE}">'
-                   f'<span class="num" style="color:{GREY};width:44px">{i:02d}</span><span>{e(n)}</span></li>'
-                   for i, n in enumerate(shown, 1))
-    more = f'<div style="margin-top:20px;font-size:28px;color:{GREY}">and {len(names) - 8} more</div>' if len(names) > 8 else ""
+    n = len(shown)
+    fs = 84 if n <= 2 else 70 if n <= 3 else 56 if n <= 5 else 46
+    rows = "".join(f'<li style="display:flex;gap:32px;align-items:baseline;border-bottom:1px solid {LINE};padding:8px 0">'
+                   f'<span class="num" style="color:{GREY};width:60px;font-size:{fs * 0.6:.0f}px">{i:02d}</span><span>{e(nm)}</span></li>'
+                   for i, nm in enumerate(shown, 1))
+    more = f'<div style="margin-top:20px;font-size:30px;color:{GREY}">and {len(names) - 8} more</div>' if len(names) > 8 else ""
+    # the foot already says where the full story and its sources are; the slide adds only the comment ask
     ask = ("Comment SOURCE and we'll DM the links." if cta else
-           f"Every link is on the article at {domain()}.")
+           "The link to their report is on our article." if len(names) == 1 else "")
     head_ = f"Reported by {len(names)} newsrooms" if len(names) > 1 else f"Reported by {names[0]}"
     # one newsroom is named in the heading; a list of one would say it twice
-    listed = (f'<ol style="list-style:none;margin:48px 0 0;padding:0;font-size:40px;font-weight:700;border-top:1px solid {LINE}">'
+    listed = (f'<ol style="list-style:none;margin:44px 0 0;padding:0;font-size:{fs}px;font-weight:700;line-height:1.15;'
+              f'border-top:1px solid {LINE};flex:1;display:flex;flex-direction:column;justify-content:space-evenly">'
               f'{rows}</ol>{more}') if len(names) > 1 else ""
-    inner = (f'<h2 style="margin:64px 0 0;font-size:72px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{e(head_)}</h2>'
-             f'{listed}'
-             f'<div style="margin-top:48px;font-size:34px;font-weight:500;line-height:1.3">{e(ask)}</div>')
-    return _slide(story, "Sources", inner, brand)
+    # one newsroom: its name is the slide, centred in the space a list would take
+    top = (f'<div style="margin-top:56px">{FL._headline_fill(head_, 260, BLACK, top=150)}</div>' if len(names) > 1 else
+           f'<div style="flex:1"></div>{FL._headline_fill(head_, 640, BLACK, top=240)}'
+           + (f'<div style="margin-top:56px;font-size:56px;font-weight:600;line-height:1.2">{e(ask)}</div>' if ask else "")
+           + '<div style="flex:1"></div>')
+    bottom = f'<div style="margin-top:40px;font-size:40px;font-weight:600;line-height:1.25">{e(ask)}</div>' if ask and len(names) > 1 else ""
+    inner = f'{top}{listed}{bottom}'
+    return _slide(story, "Sources", inner, brand, end=True)
 
 
 # Instagram stories, 1080x1920. Brand v2 (brand/v2/BRAND.md): ink #121212 and paper only, Libre Franklin 800 headlines

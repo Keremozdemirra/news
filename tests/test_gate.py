@@ -91,6 +91,30 @@ class Gate(unittest.TestCase):
         self.assertTrue(any("face" in p for p in gate.check(html, "feed", face=(60, 60, 600, 600))))
 
 
+@unittest.skipUnless(HAVE, "needs ffmpeg and Chrome")
+class ExtraSlides(unittest.TestCase):
+    """The number and sources slides pass the gate before carousel_extended may be switched on: each left a third to
+    two thirds of the slide empty (2026-11-27)."""
+
+    def story(self):
+        return {"title": "Verizon is in talks to buy broadband operator Fidium for about $6 billion",
+                "headline": "Verizon is in talks to buy broadband operator Fidium for about $6 billion", "figure": "$6B",
+                "topic": "Business", "category": "business", "source": "Bloomberg", "published": "2026-11-27T18:56:00+00:00",
+                "outlets": ["Financial Times", "Bloomberg", "Mint"], "timeline": [0, 0, 0], "dek": "",
+                "_assets": {"photo": "", "logo": "", "logos": [], "logo_names": [], "credit": "", "file": "", "kind": ""}}
+
+    def test_number_and_sources_slides_pass(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(T, "domain", return_value="boardread.news"):
+            for name, html in (("number", T.number_slide(self.story())),
+                               ("sources-3", T.sources_slide(self.story(), ["Financial Times", "Bloomberg", "Mint"])),
+                               ("sources-1", T.sources_slide(self.story(), ["Fortune"])),
+                               ("sources-8", T.sources_slide(self.story(), [f"Newsroom {i}" for i in range(1, 11)], cta=True))):
+                png = Path(tmp) / f"{name}.png"
+                render.shoot(html, png, 1080, 1350)
+                with self.subTest(slide=name):
+                    self.assertEqual(gate.check(html, "feed", png), [])
+
+
 class Queue(unittest.TestCase):
     def test_a_failed_gate_holds_the_post(self):
         from aidaily import desk
