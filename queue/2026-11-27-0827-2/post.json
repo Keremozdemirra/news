@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-0827-2",
+ "batch": "2026-11-27-0827",
+ "n": 2,
+ "created": "2026-11-27T08:27:38+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "French inflation falls more than expected as fuel prices drop\n\nPrices still remain too high for the ECB, which is expected to raise its key interest rates again. Consumer prices in the eurozone's second-largest economy fell more than expected as fuel prices declined.\n\nReported by The Wall Street Journal.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.wsj.com/world/europe/french-inflation-slides-on-drop-in-fuel-prices-2bd7e78e?mod=rss_worldnews"
+ ],
+ "links": [
+  "https://www.wsj.com/world/europe/french-inflation-slides-on-drop-in-fuel-prices-2bd7e78e?mod=rss_worldnews"
+ ],
+ "headlines": [
+  "French inflation falls more than expected as fuel prices drop"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "Economy",
+ "photo_file": "Oil pumpjack in the Permian Basin.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "An oil pumpjack in a dry desert landscape",
+ "score": 8.463,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Prices still remain too high for the ECB, which is expected to raise its key interest rates again.",
+ "body": "Consumer prices in the eurozone's second-largest economy fell more than expected as fuel prices declined.",
+ "so_what": "",
+ "sources": [
+  "The Wall Street Journal"
+ ],
+ "source_urls": [
+  "https://www.wsj.com/world/europe/french-inflation-slides-on-drop-in-fuel-prices-2bd7e78e?mod=rss_worldnews"
+ ],
+ "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "Oil pumpjack in the Permian Basin.jpg",
+ "status": "web",
+ "published": "2026-11-27T08:27:38+00:00",
+ "story": ""
+}

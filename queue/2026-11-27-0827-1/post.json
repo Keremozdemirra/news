@@ -1,0 +1,50 @@
+{
+ "id": "2026-11-27-0827-1",
+ "batch": "2026-11-27-0827",
+ "n": 1,
+ "created": "2026-11-27T08:27:38+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Japan's Defense Ministry sets new AI vision, vows more use with human role\n\nConcerns have been raised that AI could be misused to generate disinformation.\n\nReported by The Straits Times.\n\nSend this to whoever on your team builds with AI.\n\n#ai #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/asia/east-asia/japan-defence-ministrys-new-ai-vision-vows-more-use-stresses-human-role"
+ ],
+ "links": [
+  "https://news.google.com/rss/articles/CBMiwAFBVV95cUxOT09NNVkwNktCMnhlSlVwYlZESHRsT2lGQkduM3VKQ3ZiOTloTjF0dnJ2eVRMM2dVUF90WUlWSXZfdlgzYVhDcVBYbzBiTU5wa3pMYzBzMUUwMEphX3RuR1YyNGFDNkk1VFhOcm1OMGxGS2p3VDhhMnZrVTlOVzgxU04zX0dqYXZIMUFINGY4QzJ3SU5kZlYxM0RTVE43TVZOQ0piRDl0a3VBcUxFZEprMXZJdC1VVkVYMlpiMkFBU08?oc=5",
+  "https://www.straitstimes.com/asia/east-asia/japan-defence-ministrys-new-ai-vision-vows-more-use-stresses-human-role"
+ ],
+ "headlines": [
+  "Japan's Defense Ministry sets new AI vision, vows more use with human role"
+ ],
+ "categories": [
+  "funding"
+ ],
+ "topic": "AI",
+ "photo_file": "GPU blade with glycol cooling (54685994424).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A liquid-cooled GPU server blade laid out in parts",
+ "score": 8.526,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Concerns have been raised that AI could be misused to generate disinformation.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Straits Times"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/asia/east-asia/japan-defence-ministrys-new-ai-vision-vows-more-use-stresses-human-role"
+ ],
+ "credit": "Photo: Steve Jurvetson, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "GPU blade with glycol cooling (54685994424).jpg",
+ "status": "web",
+ "published": "2026-11-27T08:27:38+00:00",
+ "story": ""
+}

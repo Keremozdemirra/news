@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0827-3",
+ "batch": "2026-11-27-0827",
+ "n": 3,
+ "created": "2026-11-27T08:27:39+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Investors pile back into equities as the AI trade rebounds\n\nChina stepped up support for its stock market as the holiday-shortened week ended.\n\nReported by Bloomberg; Financial Times.\n\nSend this to whoever on your team watches the markets.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/daybreak-europe-11-27-2026-video"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/daybreak-europe-11-27-2026-video",
+  "https://www.ft.com/content/b80e6259-dca8-4da3-962d-402106a3cd81?syn-25a6b1a6=1"
+ ],
+ "headlines": [
+  "Investors pile back into equities as the AI trade rebounds"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "Pile of Euro Notes (5856649637).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A pile of euro banknotes",
+ "score": 8.378,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "China stepped up support for its stock market as the holiday-shortened week ended.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Bloomberg",
+  "Financial Times"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/daybreak-europe-11-27-2026-video",
+  "https://www.ft.com/content/b80e6259-dca8-4da3-962d-402106a3cd81?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: Images Money, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Pile of Euro Notes (5856649637).jpg",
+ "status": "held",
+ "story": "",
+ "held": [
+  "scene 'Pile of Euro Notes (5856649637).jpg' does not fit the article (place or subject)"
+ ]
+}
