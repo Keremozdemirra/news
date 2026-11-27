@@ -58,6 +58,10 @@
    "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3be4anu2n2q",
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3be4anu2n2q",
    "at": "2026-11-27T04:30:18+00:00"
+  },
+  "threads": {
+   "attempted": "2026-11-27T06:10:12+00:00",
+   "error": "threads POST threads_publish: HTTP 400: {\"error\":{\"message\":\"The requested resource does not exist\",\"code\":24,\"type\":\"OAuthException\",\"error_subcode\":4279009,\"is_transient\":false,\"error_user_msg\":\"The media with id 18132427657699877 cannot be found.\",\"error_user_title\":\"Media Not Found\",\"fbtrace_id\""
   }
  }
 }
