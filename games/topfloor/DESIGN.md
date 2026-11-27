@@ -33,7 +33,7 @@ A lift in a Deco tower, seen from the street at dusk. Above the car hangs the fl
 2. **Print is flat.** What is printed on the dial face (ticks, numerals, the five tier bands, the word FLOOR) is SVG over the render, because print has no depth.
 3. **The backdrop is paint.** Sky, skyline, tower and street are flat vector shapes with one grain layer. The sky is the only gradient in the product.
 4. **Chrome is a plate.** The header bar, the card, the answer slot and the buttons are flat ink plates with 2 to 3px brass trim and square corners. Circles are for pips and the alarm lamp.
-5. **Colour means a tier.** The five tier colours appear on the dial band, the stamp, the pips and the end list, and nowhere as decoration.
+5. **Colour means a tier.** The five tier colours appear on the dial band, the floor lamps, the pips and the end list, and nowhere as decoration.
 
 ## Layout
 
@@ -51,6 +51,14 @@ The dial and the car hang as low as the open card allows, so the street meets th
 | Stamp | slams once at 1.9x with a twist |
 
 Nothing on the header, the card or the dial loops. Reduced motion: doors, needle and car jump to their final frame.
+
+## The round (measured against Krillion in play, 2026-11-27)
+
+- **Floor lamps.** Five lamps over the result (10, 30, 60, 85, 100) come on one at a time up to the answer's tier and stop there. The player sees where the answer landed and what was still above it.
+- **The clock waits.** The doors open and the prompt is read for 1.5 s before the 25 s run.
+- **One rule under the answer slot** runs out with the time; the closing doors say the same thing in the world.
+- **A kind of thing is not an answer.** "supermarket" or "investment bank" is refused; `extras.json` `drop` keeps the list of them.
+- **Examples read as names.** The rare example shown after a miss is drawn by date from the top tier's plain names, with its tier named.
 
 ## Do not
 

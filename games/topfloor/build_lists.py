@@ -114,12 +114,15 @@ def build(pid, text, qid):
     for q, al in EXTRAS.get(pid, {}).get("alias", {}).items():
         if q in nm:
             nm[q][1].extend(a for a in al if a not in nm[q][1])
+    drop = set(EXTRAS.get(pid, {}).get("drop", []))
     rows = []
     for q, (sl, st) in mem.items():
         en, names = nm.get(q, (None, []))
         label = en or (names[0] if names else None)
         if not label or label.lower().startswith(("list of", "lists of", "category:", "template:")) or norm(label) == q.lower():
             continue
+        if label in drop:
+            continue            # a kind of thing, not a name: extras.json says which
         rows.append({"id": q, "label": label, "sl": sl, "st": st, "names": names})
     rows.sort(key=lambda r: (-r["sl"], -r["st"], r["label"]))
     known = sum(r["sl"] >= KNOWN for r in rows) or 1

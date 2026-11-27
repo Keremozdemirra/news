@@ -27,6 +27,7 @@ try:
 except Exception:
     CTX = ssl.create_default_context()
 
+EXTRAS = json.loads((HERE / "extras.json").read_text())
 from names import variants, spaced, core, norm, LEGAL, STOP, GENERIC, FUZZ_MIN
 from build_lists import POOL
 
@@ -88,10 +89,21 @@ def pack(rows, extra=None):
     return entries
 
 
-def pick_rare(entries, k=2):
-    pool = [e for e in entries if e[2] == 4] or entries[-10:]
-    pool = sorted(pool, key=lambda e: (e[1], e[0]))[:12]
-    return [e[0] for e in pool[:k]]
+def pick_rare(entries, seed="", k=2):
+    # The example shown to the player comes from the highest tier on the list. Everything in that tier is
+    # equally obscure, so the day picks among the entries that read as a name (no initials, no catalogue rows).
+    top = max(e[2] for e in entries)
+    pool = [e for e in entries if e[2] == top]
+    plain = [e for e in pool if re.fullmatch(r"[A-Z][a-z]+(?: [A-Z][a-z]+){0,2}", e[0]) and 5 <= len(e[0]) <= 24] or pool
+    plain = sorted(plain, key=lambda e: (-e[1], e[0]))
+    best = [e for e in plain if e[1] == plain[0][1]]
+    random.Random(int(hashlib.sha256(f"rare|{seed}".encode()).hexdigest(), 16)).shuffle(best)
+    return [e[0] for e in best[:k]]
+
+
+def pick_easy(entries, pid, k=2):
+    hide = set(EXTRAS.get(pid, {}).get("noexample", []))
+    return [e[0] for e in entries if e[0] not in hide][:k]
 
 
 def boardread_names(queue: Path, date: dt.date):
@@ -151,7 +163,7 @@ def build(date: dt.date, queue: Path):
             return None
         e = d["entries"]
         report.append(f"kept {pid}: {d['n']} answers")
-        return {"id": pid, "text": d["text"], "src": d["src"], "n": d["n"], "rare": pick_rare(e), "easy": [x[0] for x in e[:2]],
+        return {"id": pid, "text": d["text"], "src": d["src"], "n": d["n"], "rare": pick_rare(e, f"{date}|{pid}"), "easy": pick_easy(e, pid),
                 "list": f"assets/data/lists/{pid}.json", "generic": GENERIC.get(pid, "").split()}
     for pid, text, qid in order:
         if len(prompts) == 6:
@@ -177,7 +189,7 @@ def build(date: dt.date, queue: Path):
     if len(rows) >= MIN_BOARDREAD:
         entries = pack(rows, heads)
         prompts.append({"id": "boardread", "text": "Name a company in today’s Boardread", "src": "boardread",
-                        "n": len(entries), "rare": pick_rare(entries), "easy": [e[0] for e in entries[:2]],
+                        "n": len(entries), "rare": pick_rare(entries, f"{date}|boardread"), "easy": [e[0] for e in entries[:2]],
                         "generic": [], "entries": entries})
         report.append(f"kept boardread: {len(entries)} companies (window {span} d)")
     else:

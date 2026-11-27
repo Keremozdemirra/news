@@ -43,6 +43,13 @@ KNOWN = {
 UNKNOWN = {"bank": ["xyzzy bank", "pizza", "qq"], "carmaker": ["spoon motors"], "airline": ["banana air"], "supermarket": ["banana mart"],
            "currency": ["flurbo"], "brewery": ["zzyzx brewing"], "exchange": ["narnia stock exchange"], "central-bank": ["Bank of Narnia"]}
 
+# A kind of thing is not a name: the industry and product routes bring these in, extras.json "drop" takes them out.
+KINDS = {"supermarket": ["supermarket", "hypermarket"], "bank": ["investment bank", "banking services"], "brewery": ["brewery", "brewing", "homebrewing"],
+         "carmaker": ["automobile manufacturer", "automotive industry", "kit car"], "publisher": ["video game publisher", "video game developer"],
+         "fast-food": ["fast casual restaurant"], "crypto": ["decentralized finance"]}
+for _pid, _c in KINDS.items():
+    UNKNOWN.setdefault(_pid, []).extend(_c)
+
 
 def entries(pid):
     return json.loads((TOP / "assets" / "data" / "lists" / f"{pid}.json").read_text())["entries"]

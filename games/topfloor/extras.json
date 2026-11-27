@@ -1,9 +1,11 @@
 {
-  "_": "Hand-kept additions to the Wikidata lists: items Wikidata files under another class (add), and spellings it does not carry (alias). build_lists.py reads this; add a line when a player's real answer was not on file.",
-  "bank": {"add": ["Q270363", "Q152106"], "alias": {"Q152106": ["Bayerische Bank", "Bayern LB", "Bayerische Landesbank"], "Q270363": ["SocGen", "Societe Generale"]}},
-  "brewery": {"add": ["Q2729871", "Q1295815", "Q1798652", "Q5280492", "Q697534", "Q113215"], "alias": {"Q2729871": ["Efes", "Anadolu Efes", "Efes Pilsen"], "Q697534": ["Hofbräu", "Hofbräu München", "Hofbräuhaus", "HB"], "Q1798652": ["Tuborg"]}},
-  "supermarket": {"add": ["Q19613992", "Q483551", "Q680727", "Q685967", "Q41171373", "Q715583"], "alias": {"Q19613992": ["Şok", "Şok Market", "Sok"], "Q685967": ["Kaufland"]}},
-  "carmaker": {"add": ["Q478214", "Q27586", "Q27530"], "alias": {"Q478214": ["Tesla", "Tesla Motors"], "Q27530": ["Daimler", "Mercedes"]}},
-  "publisher": {"add": ["Q344341", "Q94933"], "alias": {"Q94933": ["Take-Two", "Take Two", "2K"], "Q344341": ["Activision Blizzard"]}},
-  "currency": {"alias": {"Q172872": ["TL", "TRY"], "Q4917": ["USD", "US$", "buck"], "Q4916": ["EUR"], "Q25224": ["GBP", "quid"]}}
+  "_": "Hand-kept additions to the Wikidata lists: items Wikidata files under another class (add), and spellings it does not carry (alias). build_lists.py reads this; add a line when a player's real answer was not on file. drop: kinds of thing the industry and product routes bring in (\"supermarket\", \"investment bank\"), which are not answers. noexample: valid answers that should not be shown as the familiar ones.",
+  "bank": {"add": ["Q270363", "Q152106"], "alias": {"Q152106": ["Bayerische Bank", "Bayern LB", "Bayerische Landesbank"], "Q270363": ["SocGen", "Societe Generale"]}, "drop": ["investment bank", "issuing bank", "banking services", "boutique investment bank"]},
+  "brewery": {"add": ["Q2729871", "Q1295815", "Q1798652", "Q5280492", "Q697534", "Q113215"], "alias": {"Q2729871": ["Efes", "Anadolu Efes", "Efes Pilsen"], "Q697534": ["Hofbräu", "Hofbräu München", "Hofbräuhaus", "HB"], "Q1798652": ["Tuborg"]}, "drop": ["brewery", "brewing", "homebrewing", "brewer", "former brewery building", "former brewery of franciscan monastery", "gueuze blendery", "homebrewer", "otwieracz do butelek nr.811274", "beer brewing"]},
+  "supermarket": {"add": ["Q19613992", "Q483551", "Q680727", "Q685967", "Q41171373", "Q715583"], "alias": {"Q19613992": ["Şok", "Şok Market", "Sok"], "Q685967": ["Kaufland"]}, "drop": ["supermarket", "hypermarket"]},
+  "carmaker": {"add": ["Q478214", "Q27586", "Q27530"], "alias": {"Q478214": ["Tesla", "Tesla Motors"], "Q27530": ["Daimler", "Mercedes"]}, "drop": ["automotive industry", "automobile manufacturer", "automobile safety", "kit car", "coachbuilder", "car designer", "friction drive car", "cafe racer", "car production", "automotive supplier", "car factory", "towing service", "car manufacturing", "commercial vehicle manufacturer", "cubing model"], "noexample": ["Samsung Group"]},
+  "publisher": {"add": ["Q344341", "Q94933"], "alias": {"Q94933": ["Take-Two", "Take Two", "2K"], "Q344341": ["Activision Blizzard"]}, "drop": ["video game developer", "video game publisher", "video game company"], "noexample": ["Cartoon Network", "Studio Ghibli", "Panasonic Holdings Corporation", "Warner Bros. Entertainment"]},
+  "currency": {"alias": {"Q172872": ["TL", "TRY"], "Q4917": ["USD", "US$", "buck"], "Q4916": ["EUR"], "Q25224": ["GBP", "quid"]}},
+  "crypto": {"drop": ["decentralized finance", "proof of personhood"]},
+  "fast-food": {"drop": ["fast casual restaurant"]}
 }

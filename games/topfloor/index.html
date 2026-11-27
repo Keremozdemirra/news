@@ -83,6 +83,7 @@
         <label class="sr" for="ans">Your answer</label>
         <div class="slot" id="slot">
           <input id="ans" name="ans" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" maxlength="48" placeholder="Type an answer">
+          <i class="fuse" id="fuse" aria-hidden="true"></i>
         </div>
         <button class="call" id="ride" type="submit" aria-label="Send answer"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span></button>
       </form>
@@ -90,9 +91,10 @@
     </section>
 
     <section class="screen" data-s="result" aria-live="polite" hidden>
-      <div class="stamp-wrap">
-        <div class="stamp" id="stamp"><span class="stamp-tier" id="st-tier">Corner Office</span><span class="stamp-pts" id="st-pts">+60</span></div>
-      </div>
+      <ol class="lamps" id="lamps" aria-hidden="true">
+        <li style="--tc:var(--t0)">10</li><li style="--tc:var(--t1)">30</li><li style="--tc:var(--t2)">60</li><li style="--tc:var(--t3)">85</li><li style="--tc:var(--t4)">100</li>
+      </ol>
+      <p class="stamp" id="stamp"><span class="stamp-tier" id="st-tier">Corner Office</span><span class="stamp-pts" id="st-pts">+60</span></p>
       <p class="r-answer" id="r-answer">Banque de France</p>
       <p class="r-rare" id="r-rare">Rarer than 72% of the 190 answers on file.</p>
       <p class="r-extra" id="r-extra" hidden></p>

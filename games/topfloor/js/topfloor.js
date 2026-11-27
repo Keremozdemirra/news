@@ -19,6 +19,7 @@ const save = (o) => { try { localStorage.setItem(STORE, JSON.stringify(o)); } ca
 // ---- state
 let data, world, needle, doors, S = 1;
 let idx = 0, total = 0, floor = 0, phase = "loading", answers = [], maps = [];
+const GRACE = 1500;   // the doors open and the prompt is read before the clock runs
 let deadline = 0, leftMs = 0, raf = 0, SECS = 25, arrived = true, autoTimer = 0;
 const stats = load();
 
@@ -101,6 +102,29 @@ function pipsRender() {
 }
 const noun = (t) => t.replace(/^Name an? /, "").replace(/^./, (c) => c.toUpperCase());
 const pad = (n) => String(n).padStart(2, "0");
+// Wikidata writes some names (currencies above all) in lower case; on the card they are names.
+const nice = (s) => (s && s === s.toLowerCase() ? s.replace(/^\p{L}/u, (c) => c.toUpperCase()) : s);
+// the example of what scores high: a real entry with its own tier, never a claim about "the rarest"
+function rareLine(p) {
+  const e = p.entries.find((x) => x[0] === p.rare[0]);
+  return `${e ? data.tiers[e[2]].name : "Rare"} answer: ${nice(p.rare[0])}`;
+}
+// The floor indicator over the result: lamps come on one by one up to the answer's tier, so the player sees
+// both where the answer stopped and what was still above it.
+let lampT = [];
+function lampsRun(tier) {
+  lampT.forEach(clearTimeout); lampT = [];
+  const ls = [...$("lamps").children], st = $("stamp");
+  ls.forEach((l) => { l.className = ""; });
+  st.classList.remove("in");
+  if (tier < 0) { st.classList.add("in"); return; }
+  const step = REDUCED ? 0 : 130;
+  for (let i = 0; i <= tier; i++) lampT.push(setTimeout(() => {
+    if (i) ls[i - 1].className = "lamp-past";
+    ls[i].className = "lamp-on";
+    if (i === tier) { st.classList.add("in"); snd.stamp(); } else snd.click();
+  }, 90 + i * step));
+}
 let toastT = 0;
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2200); }
 
@@ -118,7 +142,7 @@ function startPrompt(i) {
   pipsRender();
   setDoors(1, REDUCED ? 0 : 520);
   leftMs = SECS * 1000;
-  deadline = performance.now() + leftMs + (REDUCED ? 0 : 520);
+  deadline = performance.now() + leftMs + GRACE;
   cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
   $("ans").focus({ preventScroll: true });
 }
@@ -128,9 +152,10 @@ function tick(now) {
   const left = Math.min(SECS * 1000, leftMs) / 1000;
   const open = REDUCED ? Math.ceil(left) / SECS : left / SECS;
   setDoors(open);
+  $("fuse").style.transform = `scaleX(${open.toFixed(4)})`;
   $("q-time").textContent = `0:${pad(Math.ceil(left))}`;
   const hot = left <= 6;
-  $("q-time").classList.toggle("hot", hot);
+  $("q-time").classList.toggle("hot", hot); $("fuse").classList.toggle("hot", hot);
   doors.alarm.classList.toggle("hot", hot);
   if (leftMs <= 0) return timeout();
   raf = requestAnimationFrame(tick);
@@ -181,17 +206,16 @@ function success(entryIdx) {
   const p = data.prompts[idx], e = p.entries[entryIdx];
   const tier = e[2], pts = data.tiers[tier].pts;
   resultCommon();
-  answers[idx] = { label: e[0], tier, pts, rank: entryIdx, n: p.entries.length };
+  answers[idx] = { label: nice(e[0]), tier, pts, rank: entryIdx, n: p.entries.length };
   total += pts;
   const st = $("stamp");
   st.style.setProperty("--c", `var(--t${tier})`);
   $("st-tier").textContent = data.tiers[tier].name; $("st-pts").textContent = `+${pts}`;
-  st.classList.remove("slam"); void st.offsetWidth; st.classList.add("slam");
-  $("r-answer").textContent = e[0];
+  lampsRun(tier);
+  $("r-answer").textContent = nice(e[0]);
   const share = entryIdx / p.entries.length;
-  $("r-rare").textContent = share < 0.03 ? `One of the best known of ${p.entries.length} answers on file.` : `Rarer than ${Math.round(share * 100)}% of the ${p.entries.length} answers on file.`;
+  $("r-rare").textContent = share < 0.03 ? `One of the best known of ${p.entries.length} answers on file.` : tier === 4 ? `As rare as answers get on this list of ${p.entries.length}.` : `Rarer than ${Math.round(share * 100)}% of the ${p.entries.length} answers on file.`;
   if (e[5]) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${e[5]}”`; }
-  snd.stamp();
   pipsRender();
   arrived = false;
   const F = Math.min(MAXF, Math.round(total / 7));
@@ -213,10 +237,10 @@ function timeout() {
   const st = $("stamp");
   st.style.setProperty("--c", "var(--muted)");
   $("st-tier").textContent = "Doors closed"; $("st-pts").textContent = "+0";
-  st.classList.remove("slam"); void st.offsetWidth; st.classList.add("slam");
+  lampsRun(-1);
   $("r-answer").textContent = "The lift left without you.";
-  $("r-rare").textContent = `Familiar answers: ${p.easy.join(", ")}.`;
-  $("r-extra").hidden = false; $("r-extra").textContent = `Rarest on file: ${p.rare[0]}.`;
+  $("r-rare").textContent = `Familiar answers: ${p.easy.map(nice).join(", ")}.`;
+  $("r-extra").hidden = false; $("r-extra").textContent = `${rareLine(p)}.`;
   setDoors(0, REDUCED ? 0 : 200);
   doors.alarm.classList.remove("hot");
   setTimeout(snd.thunk, 180);
@@ -315,7 +339,8 @@ function renderEnd(rec) {
     const sub = document.createElement("span"); sub.className = "sub";
     sub.append(`${noun(p.text)} · `);
     if (a[1] >= 0) { const em = document.createElement("em"); em.textContent = data.tiers[a[1]].name; sub.append(em, " · "); }
-    sub.append(`rarest on file: ${p.rare[0]}`);
+    const ex = p.entries.find((x) => x[0] === p.rare[0]);
+    if (!ex || a[1] < ex[2]) sub.append(rareLine(p)); else sub.lastChild.remove();   // no example for an answer already that high
     li.append(sub); ol.appendChild(li);
   });
   mini(rec);
