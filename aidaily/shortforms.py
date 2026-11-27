@@ -111,72 +111,97 @@ def choose(available, last):
 
 # timelines: [(html, t_in, t_out, kind)], total
 
-def timeline(base, beats, end):
-    """beats: [([html, ...], seconds)]. Stretched up to 1.35x to reach MIN_SECONDS, trailing beats dropped past
-    MAX_SECONDS; None when even stretched it is too short (the structure is then not used)."""
-    while beats and sum(d for _, d in beats) + END_SECONDS > MAX_SECONDS:
+class Plan(tuple):
+    """(pages, total), with .cues: [(t, spoken line)] for the narration, empty when nothing is spoken."""
+    cues = ()
+
+
+def timeline(base, beats, end, say=None, end_said=""):
+    """beats: [([html, ...], seconds)] or [([html, ...], seconds, spoken line)]. With `say` (a spoken line -> its
+    length in seconds) each beat holds at least as long as its line plus a breath. Then trailing beats are dropped
+    past MAX_SECONDS and short ones stretched up to 1.35x to reach MIN_SECONDS; None when even stretched it is too
+    short (the structure is then not used)."""
+    beats = [(b[0], b[1], b[2] if len(b) > 2 else "") for b in beats]
+    end_len = END_SECONDS
+    if say:
+        from . import voice
+        beats = [(h, max(d, say(w) + voice.GAP) if w else d, w) for h, d, w in beats]
+        if end_said:
+            end_len = max(END_SECONDS, say(end_said) + 0.5)
+    while beats and sum(d for _, d, _ in beats) + end_len > MAX_SECONDS:
         beats = beats[:-1]
-    t = sum(d for _, d in beats)
-    need = MIN_SECONDS - END_SECONDS
+    t = sum(d for _, d, _ in beats)
+    need = MIN_SECONDS - end_len
     if t < need:
         if t * 1.35 < need:
             return None
-        beats = [(h, math.ceil(d * need / t * 100) / 100) for h, d in beats]  # up, so the total reaches the floor
-    pages, t = [(base, 0.0, None, "base")], 0.0
-    for htmls, d in beats:
+        beats = [(h, math.ceil(d * need / t * 100) / 100, w) for h, d, w in beats]  # up, so the total reaches the floor
+    pages, cues, t = [(base, 0.0, None, "base")], [], 0.0
+    for htmls, d, w in beats:
         for h in htmls:
             pages.append((h, t, t + d, "text"))
+        if say and w:
+            cues.append((round(t + 0.25, 2), w))
         t = round(t + d, 2)
     pages.append((end, t, None, "end"))
-    return pages, round(t + END_SECONDS, 2)
+    if say and end_said:
+        cues.append((round(t + 0.2, 2), end_said))
+    plan = Plan((pages, round(t + end_len, 2)))
+    plan.cues = cues
+    return plan
 
 
-def post_timeline(name, post, story, layout, facts, outlets):
-    """The beats of a post-based structure on layout `layout`."""
+def post_timeline(name, post, story, layout, facts, outlets, say=None):
+    """The beats of a post-based structure on layout `layout`; `say` sizes the beats to a narration of the same words."""
     room = RC.room(layout)
-    head = ([RC.layer(story, layout, "meta"), RC.layer(story, layout, "head")], 5.0)
-    src = ([RC.page(layout, line(f"Reported by {outlets}", 84, room=room))], 2.8) if outlets else None
-    fact_beats = [([RC.page(layout, line(f, room=room))], read_seconds(f)) for f in facts]
+    head = ([RC.layer(story, layout, "meta"), RC.layer(story, layout, "head")], 5.0, story["headline"])
+    src = ([RC.page(layout, line(f"Reported by {outlets}", 84, room=room))], 2.8, f"Reported by {outlets}.") if outlets else None
+    fact_beats = [([RC.page(layout, line(f, room=room))], read_seconds(f), f) for f in facts]
     if name == "story":
         beats = [head] + fact_beats[:3]
     elif name == "figure":
         fig, sentence = figure_of(post, story)
         if sentence == story["headline"]:  # the headline follows: the number alone first, with its topic
-            first = ([RC.page(layout, label(f"The number · {post.get('topic') or 'News'}") + big(fig))], 3.6)
+            first = ([RC.page(layout, label(f"The number · {post.get('topic') or 'News'}") + big(fig))], 3.6,
+                     f"The number: {fig}.")
         else:
             first = ([RC.page(layout, label("The number") + big(fig) + line(sentence, 64, 500, 5, room - 420))],
-                     read_seconds(sentence, 4.5, 7.5))
+                     read_seconds(sentence, 4.5, 7.5), sentence)
         beats = [first, head] + [b for b, f in zip(fact_beats, facts) if f != sentence][:1]
     elif name == "quote":
         q = quote_of(post)
-        beats = [head, ([RC.page(layout, label("In their words") + line(q, 80, 500, 7, room - 80))], read_seconds(q, 4.5, 8))]
+        beats = [head, ([RC.page(layout, label("In their words") + line(q, 80, 500, 7, room - 80))], read_seconds(q, 4.5, 8), q)]
         beats += [b for b, f in zip(fact_beats, facts) if f != q][:1]
     elif name == "know":
         u = unknown_of(post)
         known = [f for f in facts if f != u][:2]
-        beats = [head] + [([RC.page(layout, label("What we know") + line(f, room=room - 80))], read_seconds(f)) for f in known]
-        beats.append(([RC.page(layout, label("What we don't know yet") + line(u, room=room - 80))], read_seconds(u)))
+        beats = [head] + [([RC.page(layout, label("What we know") + line(f, room=room - 80))], read_seconds(f),
+                           ("What we know. " if i == 0 else "") + f) for i, f in enumerate(known)]
+        beats.append(([RC.page(layout, label("What we don't know yet") + line(u, room=room - 80))], read_seconds(u),
+                      f"What we don't know yet. {u}"))
     else:
         raise ValueError(name)
     if src:
         beats.append(src)
-    return timeline(RC.layer(story, layout, "base"), beats, RC.layer(story, layout, "end"))
+    return timeline(RC.layer(story, layout, "base"), beats, RC.layer(story, layout, "end"), say,
+                    "Full story on boardread.news.")
 
 
-def brief_timeline(posts, outlets_of, markets=False):
+def brief_timeline(posts, outlets_of, markets=False, say=None):
     """Three of the day's stories on black: a title, then one headline each with who reported it."""
     title = "3 stories moving markets today" if markets else "3 stories to know today"
     room = RC.room("plain")
     from . import desk
-    beats = [([RC.page("plain", label(f"{desk.now():%-d %b %Y}") + line(title, 120, 800, 3, 600))], 3.4)]
+    beats = [([RC.page("plain", label(f"{desk.now():%-d %b %Y}") + line(title, 120, 800, 3, 600))], 3.4, title + ".")]
     for i, p in enumerate(posts[:3], start=1):
         h = p["headlines"][0]
         who = outlets_of(p)
         inner = (label(f"{i} of 3 · {p.get('topic') or 'News'}") + line(h, 104, 800, 5, room - 260, 60)
                  + (f'<div style="margin-top:36px;font-size:34px;color:{GREY}">Reported by {T.e(who)}</div>' if who else ""))
-        beats.append(([RC.page("plain", inner)], read_seconds(h, 5.0, 7.0)))
+        beats.append(([RC.page("plain", inner)], read_seconds(h, 5.0, 7.0), h))
     story = {"end_line": "Full stories on"}
-    return title, timeline(RC.layer(story, "plain", "base"), beats, RC.layer(story, "plain", "end"))
+    return title, timeline(RC.layer(story, "plain", "base"), beats, RC.layer(story, "plain", "end"), say,
+                           "Full stories on boardread.news.")
 
 
 # the number of the day
@@ -257,14 +282,17 @@ def chart_svg(pts, w=760, h=520):
             f'</svg>')
 
 
-def data_timeline(m, key, why, n=90):
+def data_timeline(m, key, why, n=90, say=None):
     from . import markets as M
     value, caption, title, src = data_text(m, key, why)
     pts = M.stat(m, key)[5][-n:]
     lo, hi = min(v for _, v in pts), max(v for _, v in pts)
-    beats = [([RC.page("plain", label("Number of the day") + big(value) + line(caption, 64, 500, 5, 500))], read_seconds(caption, 5, 7.5)),
+    beats = [([RC.page("plain", label("Number of the day") + big(value) + line(caption, 64, 500, 5, 500))],
+              read_seconds(caption, 5, 7.5), caption),
              ([RC.page("plain", label(f"Last {len(pts)} readings") + chart_svg(pts)
-                       + f'<div style="margin-top:20px;font-size:34px;color:{GREY}">Low {M.fmt(key, lo)} · High {M.fmt(key, hi)}</div>')], 6.0),
-             ([RC.page("plain", line(src, 84))], 3.0)]
+                       + f'<div style="margin-top:20px;font-size:34px;color:{GREY}">Low {M.fmt(key, lo)} · High {M.fmt(key, hi)}</div>')], 6.0,
+              f"Over the last {len(pts)} readings, the low was {M.fmt(key, lo)} and the high {M.fmt(key, hi)}."),
+             ([RC.page("plain", line(src, 84))], 3.0, src + ".")]
     story = {"end_line": "More numbers on"}
-    return title, caption, src, timeline(RC.layer(story, "plain", "base"), beats, RC.layer(story, "plain", "end"))
+    return title, caption, src, timeline(RC.layer(story, "plain", "base"), beats, RC.layer(story, "plain", "end"), say,
+                                         "More numbers on boardread.news.")

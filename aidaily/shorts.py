@@ -177,7 +177,20 @@ def choose_footage(post, seconds, fetch=True):
     return clip
 
 
-def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, info=None):
+def narrator(folder, narrate=None, voice_id=None):
+    """A voice.Narrator when narration is on (growth.shorts_voice, or narrate=True for a sample) and a key is set;
+    else None, and the Short stays silent."""
+    from . import voice
+    if not (voice.on() if narrate is None else narrate):
+        return None
+    key = voice.api_key()
+    if not key:
+        print("shorts: narration on but no ElevenLabs key; silent Short")
+        return None
+    return voice.Narrator(folder, key, voice_id)
+
+
+def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, info=None, narrate=None, voice_id=None):
     """Render a post-based Short in `structure` (shortforms.py). Returns (path, credit); raises when the post cannot
     be one or a tool fails. With a clip (choose_footage) the archive footage replaces the moving photo and its credit
     replaces the photo's. The text goes where the picture leaves room (reelcard layouts); `avoid` is the last Short's
@@ -209,9 +222,16 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             except Exception as e:  # noqa: BLE001  no footage this time: the photo moves instead
                 print(f"shorts: footage {clip['id']} not fetched, photo instead: {str(e)[:160]}")
         layout = CV.reel_layout(story, post["id"], footage=bool(footage), avoid=avoid)
+        nar = narrator(tmp, narrate, voice_id)
         plan = None
         for name in dict.fromkeys([structure, "story"]):
-            plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post))
+            try:
+                plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post),
+                                        say=nar.seconds if nar else None)
+            except Exception as e:  # noqa: BLE001  a refused or failed narration costs the voice, not the Short
+                print(f"shorts: narration failed, silent Short: {str(e)[:160]}")
+                nar = None
+                plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post))
             if plan:
                 structure = name
                 break
@@ -219,23 +239,32 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             raise ValueError("not enough published copy for a 20-second Short")
         pages, total = plan
         fx, fy = CV.reel_focus(story)[:2] if not footage else (0.5, 0.5)
-        CV.build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy), footage=footage)
+        CV.build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy), footage=footage,
+                          voice=nar.cues(plan.cues) if nar else None)
     if info is not None:
-        info.update(structure=structure, layout=layout, seconds=total)
+        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar))
     return out_mp4, credit
 
 
-def build_plain(job, out_mp4):
+def build_plain(job, out_mp4, narrate=None, voice_id=None):
     """Render a Short with no photo (the brief and the number of the day). Returns (path, "")."""
     from . import shortforms as SF
-    if job["structure"] == "brief":
-        _, plan = SF.brief_timeline(job["posts"], outlets_line, job["markets"])
-    else:
-        _, _, _, plan = SF.data_timeline(job["m"], job["series"], job["why"])
-    if not plan:
-        raise ValueError("too short")
-    pages, total = plan
-    CV.build_sequence(out_mp4, pages, total, (0, 0))
+
+    def make(say):
+        if job["structure"] == "brief":
+            return SF.brief_timeline(job["posts"], outlets_line, job["markets"], say=say)[1]
+        return SF.data_timeline(job["m"], job["series"], job["why"], say=say)[3]
+    with tempfile.TemporaryDirectory() as tmp:
+        nar = narrator(tmp, narrate, voice_id)
+        try:
+            plan = make(nar.seconds if nar else None)
+        except Exception as e:  # noqa: BLE001
+            print(f"shorts: narration failed, silent Short: {str(e)[:160]}")
+            nar, plan = None, make(None)
+        if not plan:
+            raise ValueError("too short")
+        pages, total = plan
+        CV.build_sequence(out_mp4, pages, total, (0, 0), voice=nar.cues(plan.cues) if nar else None)
     return Path(out_mp4), ""
 
 

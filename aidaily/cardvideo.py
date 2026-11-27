@@ -247,11 +247,12 @@ def build_reel(story, out_mp4, layout, footage=None):
                           footage=footage)
 
 
-def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5), footage=None):
+def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5), footage=None, voice=None):
     """A 1080x1920 video of transparent pages over a picture: footage (a clip, held on its last frame when short), else
     the photo with the camera move, else plain black. The picture fills `band` (y0, y1), black around it.
     pages: (html, t_in, t_out, kind); kind "base" is on screen throughout, "text" fades in rising and fades out,
-    "end" fades in and stays (an opaque end frame). Used by the Reel and the YouTube Short."""
+    "end" fades in and stays (an opaque end frame). voice: [(t, audio file)] spoken over the quiet bed (voice.mix).
+    Used by the Reel and the YouTube Short."""
     from . import audio
     from . import reelcard as RC
     h = HEIGHT["reel"]
@@ -274,7 +275,11 @@ def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5),
             cmd += ["-f", "lavfi", "-t", f"{total}", "-i", f"color=c=black:s={W}x{h}:r={FPS}"]
         for png in pngs:
             cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{total}", "-i", str(png)]
-        cmd += ["-i", str(audio.track(Path(tmp) / "sound.wav", total, footage))]
+        bed = audio.track(Path(tmp) / "sound.wav", total, footage)
+        if voice:
+            from . import voice as VO
+            bed = VO.mix(bed, voice, Path(tmp) / "voiced.wav", total)
+        cmd += ["-i", str(bed)]
         if footage:
             from . import broll
             # a clip shorter than the video holds its last frame; the end frame covers the tail anyway
