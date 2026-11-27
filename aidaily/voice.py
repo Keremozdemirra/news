@@ -70,9 +70,8 @@ def speak(text, out_mp3, key, voice=None, model=None, post=_post):
     voice = voice or cfg("shorts_voice_id", "")
     if not voice:
         raise VoiceError("no voice id (growth.shorts_voice_id)")
-    body = json.dumps({"text": spoken(text), "model_id": model or cfg("shorts_voice_model", "eleven_multilingual_v2"),
-                       "voice_settings": {"stability": 0.6, "similarity_boost": 0.75, "style": 0.0,
-                                          "use_speaker_boost": True}}).encode()
+    model = model or cfg("shorts_voice_model", "eleven_v3")
+    body = json.dumps({"text": spoken(text), "model_id": model, "voice_settings": settings(model)}).encode()
     code, raw = post(API.format(voice=voice), {"xi-api-key": key, "Content-Type": "application/json",
                                                "Accept": "audio/mpeg"}, body)
     if code != 200 or not raw or raw[:1] == b"{":
@@ -84,6 +83,14 @@ def speak(text, out_mp3, key, voice=None, model=None, post=_post):
         raise VoiceError(f"text-to-speech refused ({code}): {reason}")
     Path(out_mp3).write_bytes(raw)
     return Path(out_mp3)
+
+
+def settings(model):
+    """Natural delivery: v3 takes stability in three steps (0 creative, 0.5 natural, 1 robust) and reads the text's
+    own rhythm; multilingual_v2 needs lower stability and some style to stop sounding read (Kerem's review, 2026-11-27)."""
+    if model == "eleven_v3":
+        return {"stability": 0.5, "similarity_boost": 0.75}
+    return {"stability": 0.35, "similarity_boost": 0.75, "style": 0.3, "use_speaker_boost": True}
 
 
 def duration(path):
@@ -103,6 +110,11 @@ class Narrator:
         if text not in self.files:
             self.files[text] = self.speak_fn(text, self.folder / f"line{len(self.files)}.mp3", self.key, self.voice)
         return duration(self.files[text])
+
+    def say(self, text):
+        """One file for the whole script: (file, seconds)."""
+        f = self.speak_fn(text, self.folder / "script.mp3", self.key, self.voice)
+        return f, duration(f)
 
     def cues(self, timed):
         """[(t, file)] for [(t, text)]."""

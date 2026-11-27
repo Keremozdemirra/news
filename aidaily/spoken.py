@@ -13,21 +13,29 @@ A script that fails is never voiced; the Short stays silent.
 import json
 import re
 
-MIN_WORDS, MAX_WORDS, MAX_SENTENCE = 55, 85, 20
+MIN_WORDS, MAX_WORDS, MAX_SENTENCE = 45, 62, 20
+REPEAT = 0.6  # a sentence whose content words mostly appear in one earlier sentence restates it
 
-PROMPT = """You write the voice-over for a 30-second news video. Tell the story the way a calm person tells a friend
-what just happened, out loud. Use ONLY the facts in PUBLISHED below; add nothing, guess nothing.
+PROMPT = """You write the voice-over for a 20-second news video. Say it the way a calm person tells a friend what
+just happened. Use ONLY the facts in PUBLISHED; add nothing, guess nothing.
 
-Rules:
-- Start with what happened, in the first sentence. No lead-in, no scene-setting.
-- Short sentences. One idea each. Plain words. Contractions are good (it's, they've, didn't).
-- Say numbers the way people say them: "about two billion dollars", "nearly three percent", "point two percent". No symbols, no digits except a year. Say each number once.
-- One or two facts, then what it means for someone in plain terms, only if PUBLISHED says it. Otherwise end on the most concrete fact.
-- Each sentence adds something new; never restate an earlier sentence.
-- 60 to 80 words in total.
-- Never: questions, lists of three, "not just X but Y", dashes, a closing moral or lesson, "in a significant development",
-  "this comes as", "here's what you need to know", "let's dive in", "it remains to be seen", "only time will tell".
-- Name the newsroom once if it helps ("Reuters says..."), never as a sign-off.
+Write four or five short sentences, 45 to 60 words in all:
+1. What happened, plainly, with who said so folded in once and briefly ("France's stats office says...",
+   "Reuters reports..."). Never credit a source in a sentence of its own.
+2. One or two facts that add to it. Every sentence says something the earlier ones did not.
+3. Last: one plain, concrete sentence on why it matters to someone watching, drawn from PUBLISHED (what changes,
+   for whom, by how much). Not a moral, not a prediction PUBLISHED does not make. If PUBLISHED gives no reason it
+   matters, stop after the last new fact: four sentences are fine. Never close by summing up what you already said.
+Credit with "says": "France's stats office says", "Bloomberg says". Not "according to".
+Big numbers rounded the way people say them: "about twenty-one and a half trillion won", not "twenty one point five".
+
+Numbers: the way people say them. "zero point two percent", "about twenty-one trillion won, roughly fifteen billion
+dollars", "nearly three percent". Round where it reads naturally. A sum in another currency gets its dollar amount
+when PUBLISHED gives one or CONVERSIONS below has it. No symbols, no digits except a year. Each number once.
+
+Plain words, contractions welcome (it's, that's, they've). Never: questions, lists of three, "not just X but Y",
+dashes, "earlier on", "this time", "in money terms", "the numbers come from", "in a significant development",
+"this comes as", "here's what you need to know", "it remains to be seen", "only time will tell".
 
 Return JSON only: {{"script": "...", "facts": ["exact quote from PUBLISHED that each fact rests on", ...]}}
 
@@ -36,6 +44,9 @@ Headline: {headline}
 Summary: {dek}
 More: {body}
 Reported by: {sources}
+
+CONVERSIONS (today's ECB reference rates; use only if the script names one of these sums):
+{conversions}
 """
 
 # the humanizer skill, sections 12 (overused AI words), 13 (inflated significance), 16 (sales language)
@@ -57,10 +68,27 @@ SLOPCHECK = ["here's the thing", "heres the thing", "it turns out", "the truth i
 STOCK = ["in a significant development", "in a major development", "this comes as", "this comes after", "here's what you need to know",
          "what you need to know", "let's dive in", "let's take a look", "buckle up", "breaking news", "in a move that",
          "it remains to be seen", "only time will tell", "what does this mean", "the bottom line", "all eyes", "stay tuned",
-         "this is a reminder", "a reminder that", "this shows", "in other words", "make sure to", "don't forget"]
+         "this is a reminder", "a reminder that", "this shows", "in other words", "make sure to", "don't forget",
+         # stiff spoken links Kerem's review named (2026-11-27)
+         "earlier on", "this time", "in money terms", "the numbers come from", "the figures come from", "the data comes from",
+         "reported the figure", "the figure was reported", "according to the report", "the data shows", "the figure shows",
+         "the numbers show", "the data show"]
 BANNED = HUMANIZER + SLOPCHECK + STOCK
 CONTRAST = re.compile(r"\bnot (?:just|only|merely)\b[^.]{1,60}\bbut\b|\bit'?s not [^.]{1,40}\. it'?s\b", re.I)
 WRITTEN_NUMBER = re.compile(r"[$€£¥₩%]|\b\d+[.,]\d+\b|\b\d+\s?(?:bn|m|k)\b|\b(?!(?:19|20)\d\d\b)\d{2,}\b", re.I)
+
+
+NUMBER_WORDS = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+                "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty",
+                "forty", "fifty", "sixty", "seventy", "eighty", "ninety"}
+STOP = {"the", "a", "an", "and", "or", "of", "to", "in", "on", "at", "for", "from", "with", "by", "that", "this", "it",
+        "its", "it's", "is", "are", "was", "were", "be", "been", "has", "have", "had", "says", "said", "say", "about",
+        "than", "as", "so", "but", "up", "down", "over", "after", "before", "their", "they", "them", "which", "who",
+        "now", "also", "just", "into", "out", "more", "less", "year", "per", "cent", "percent", "that's", "there"}
+
+
+def content_words(sentence):
+    return {w for w in re.findall(r"[a-z][a-z'-]+", sentence.lower()) if w not in STOP and len(w) > 2}
 
 
 def sentences(text):
@@ -110,6 +138,20 @@ def gate(script, facts, published):
         problems.append("a dash")
     if CONTRAST.search(script):
         problems.append("not X but Y")
+    sents = sentences(script)
+    for i, sent in enumerate(sents[1:], start=1):
+        w = content_words(sent)
+        for prev in sents[:i]:
+            if w and len(w & content_words(prev)) / len(w) >= REPEAT:
+                problems.append(f"restates an earlier sentence: {sent[:60]}")
+                break
+    for sent in sents:
+        if re.match(r"(?i)(?:it'?s |this is )?(?:according to|reported by|the figures? (?:came|come)|that'?s (?:from|according))\b", sent) \
+                or re.fullmatch(r"(?i)[A-Z][\w' ]{0,40} (?:says|said|reported|reports)(?: (?:it|this|so|that))?\.", sent):
+            problems.append(f"a source credited in a sentence of its own: {sent[:60]}")
+    for m in re.finditer(r"(?i)(?:^|(?<=[\s,]))(\w+ )?point (?:one|two|three|four|five|six|seven|eight|nine)\b", script):
+        if not m.group(1) or m.group(1).strip().lower() not in NUMBER_WORDS:
+            problems.append(f"say 'zero point': {m.group(0).strip()!r}")
     m = WRITTEN_NUMBER.search(script)
     if m:
         problems.append(f"number not said as words: {m.group(0)!r}")
@@ -129,12 +171,45 @@ def published_text(post):
     return " ".join([post["headlines"][0], post.get("dek", ""), post.get("body", "") or "", " ".join(post.get("sources") or [])])
 
 
-def write(post, ask=None, tries=2):
-    """(script, problems). The model writes, the gate checks; one retry with the gate's findings. problems empty: voice it."""
+CURRENCY = {"yen": "JPY", "¥": "JPY", "pound": "GBP", "£": "GBP", "yuan": "CNY", "renminbi": "CNY", "euro": "EUR", "€": "EUR"}
+SCALE = {"thousand": 1e3, "million": 1e6, "billion": 1e9, "trillion": 1e12, "bn": 1e9, "m": 1e6}
+
+
+def conversions(text, m=None):
+    """Lines "<sum as written> = about <N> billion dollars" for sums in a currency today's ECB reference rates cover
+    (yen, pounds, yuan, euros), so the script can give the dollar amount without a guess. Other currencies (won,
+    rupees...) get none: the ECB file the desk keeps does not carry them."""
+    if m is None:
+        from . import markets as M
+        m = M.load(live=False) or {}
+    rates = (m.get("fx") or {}).get("rates") or {}
+    usd = rates.get("USD")
+    if not usd:
+        return ""
+    out = []
+    pat = r"(?:([€£¥])\s?([\d.,]+)\s?(thousand|million|billion|trillion|bn|m)?)|(?:([\d.,]+)\s?(thousand|million|billion|trillion)?\s?(yen|pounds?|yuan|renminbi|euros?))"
+    for g in re.finditer(pat, text, re.I):
+        sym, n1, sc1, n2, sc2, word = g.groups()
+        try:
+            n = float((n1 or n2).replace(",", ""))
+        except ValueError:
+            continue
+        code = CURRENCY.get(sym or (word or "").lower().rstrip("s"))
+        if not code:
+            continue
+        eur = n * SCALE.get((sc1 or sc2 or "").lower(), 1) / (rates.get(code, 1.0) if code != "EUR" else 1.0)
+        dollars = eur * usd
+        unit, div = ("billion", 1e9) if dollars >= 1e9 else ("million", 1e6) if dollars >= 1e6 else ("", 1)
+        out.append(f"{g.group(0).strip()} = about {dollars / div:,.1f} {unit} dollars".replace("  ", " "))
+    return "\n".join(dict.fromkeys(out))
+
+
+def write(post, ask=None, tries=3):
+    """(script, problems). The model writes, the gate checks; up to two retries with the gate's findings. problems empty: voice it."""
     if ask is None:
         from .copy import ask_text as ask
     prompt = PROMPT.format(headline=post["headlines"][0], dek=post.get("dek", ""), body=post.get("body", "") or "",
-                           sources=", ".join(post.get("sources") or []))
+                           sources=", ".join(post.get("sources") or []), conversions=conversions(published_text(post)) or "none")
     script, problems = "", ["not written"]
     for _ in range(tries):
         raw = ask(prompt)

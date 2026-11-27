@@ -196,7 +196,8 @@ def narrator(folder, narrate=None, voice_id=None):
     return voice.Narrator(folder, key, voice_id)
 
 
-def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, info=None, narrate=None, voice_id=None):
+def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, info=None, narrate=None, voice_id=None,
+          script=None):
     """Render a post-based Short in `structure` (shortforms.py). Returns (path, credit); raises when the post cannot
     be one or a tool fails. With a clip (choose_footage) the archive footage replaces the moving photo and its credit
     replaces the photo's. The text goes where the picture leaves room (reelcard layouts); `avoid` is the last Short's
@@ -228,25 +229,33 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             except Exception as e:  # noqa: BLE001  no footage this time: the photo moves instead
                 print(f"shorts: footage {clip['id']} not fetched, photo instead: {str(e)[:160]}")
         layout = CV.reel_layout(story, post["id"], footage=bool(footage), avoid=avoid)
-        nar = narrator(tmp, narrate, voice_id)
         plan = None
         for name in dict.fromkeys([structure, "story"]):
-            try:
-                plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post),
-                                        say=nar.seconds if nar else None)
-            except Exception as e:  # noqa: BLE001  a refused or failed narration costs the voice, not the Short
-                print(f"shorts: narration failed, silent Short: {str(e)[:160]}")
-                nar = None
-                plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post))
+            plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post))
             if plan:
                 structure = name
                 break
         if not plan:
             raise ValueError("not enough published copy for a 20-second Short")
+        # narration: a spoken script (spoken.py), never the screen text read out; a script that fails its gate, or a
+        # refused voice, leaves the Short silent
+        nar, voice_cues = narrator(tmp, narrate, voice_id), None
+        if nar:
+            try:
+                from . import spoken
+                text, problems = (script, []) if script else spoken.write(post)
+                if problems:
+                    raise ValueError("script failed its gate: " + "; ".join(problems)[:200])
+                f, secs = nar.say(text)
+                plan = SF.stretch(plan, secs + 0.6 + SF.END_SECONDS)
+                voice_cues = [(0.3, f)]
+            except Exception as e:  # noqa: BLE001
+                print(f"shorts: narration skipped, silent Short: {str(e)[:200]}")
+                nar = None
         pages, total = plan
         fx, fy = CV.reel_focus(story)[:2] if not footage else (0.5, 0.5)
         CV.build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy), footage=footage,
-                          voice=nar.cues(plan.cues) if nar else None)
+                          voice=voice_cues)
     if info is not None:
         info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar))
     return out_mp4, credit
@@ -261,12 +270,9 @@ def build_plain(job, out_mp4, narrate=None, voice_id=None, info=None):
             return SF.brief_timeline(job["posts"], outlets_line, job["markets"], say=say)[1]
         return SF.data_timeline(job["m"], job["series"], job["why"], say=say)[3]
     with tempfile.TemporaryDirectory() as tmp:
-        nar = narrator(tmp, narrate, voice_id)
-        try:
-            plan = make(nar.seconds if nar else None)
-        except Exception as e:  # noqa: BLE001
-            print(f"shorts: narration failed, silent Short: {str(e)[:160]}")
-            nar, plan = None, make(None)
+        # no spoken script exists yet for the brief and the number of the day; reading the screen text out sounded
+        # generated (Kerem, 2026-11-27), so they stay silent
+        nar, plan = None, make(None)
         if not plan:
             raise ValueError("too short")
         pages, total = plan

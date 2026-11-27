@@ -151,6 +151,19 @@ def timeline(base, beats, end, say=None, end_said=""):
     return plan
 
 
+def stretch(plan, total):
+    """The plan running `total` seconds: its text beats and end frame moved in proportion, so a narration that runs
+    longer than the beats is never cut off. A plan already long enough is returned as it is."""
+    pages, old = plan
+    if total <= old:
+        return plan
+    f = (total - END_SECONDS) / (old - END_SECONDS)
+    out = [(h, 0.0 if k == "base" else round(a * f, 2), None if b is None else round(b * f, 2), k) for h, a, b, k in pages]
+    new = Plan((out, round(total, 2)))
+    new.cues = [(round(t * f, 2), w) for t, w in getattr(plan, "cues", ())]
+    return new
+
+
 def post_timeline(name, post, story, layout, facts, outlets, say=None):
     """The beats of a post-based structure on layout `layout`; `say` sizes the beats to a narration of the same words."""
     room = RC.room(layout)
