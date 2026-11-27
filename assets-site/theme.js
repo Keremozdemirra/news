@@ -5,7 +5,8 @@
   var KEY = "br:theme", root = document.documentElement, saved = null;
   try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
   function apply(t) {
-    if (t === "dark") root.setAttribute("data-theme", "dark"); else root.removeAttribute("data-theme");
+    // light is set explicitly too: the CSS no-script fallback follows the device only while data-theme is absent
+    root.setAttribute("data-theme", t === "dark" ? "dark" : "light");
     var ms = document.querySelectorAll('meta[name="theme-color"]');
     for (var i = 0; i < ms.length; i++) ms[i].setAttribute("content", t === "dark" ? "#121212" : "#ffffff");
     var b = document.querySelector(".themebtn");

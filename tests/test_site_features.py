@@ -415,6 +415,9 @@ class FrontBuilt(Features):
         self.assertRegex(h, r'<script src="[^"]*theme\.js[^"]*"></script>')  # blocking, in the head, before first paint
         css = (self.out / "assets" / "site.css").read_text()
         self.assertRegex(css, r"@media\(prefers-color-scheme:dark\)\{:root:not\(\[data-theme\]\)\{color-scheme:dark;--paper:#121212")  # no script: the device decides
+        js = (ROOT / "assets-site" / "theme.js").read_text() if "ROOT" in globals() else open("assets-site/theme.js").read()
+        self.assertIn('root.setAttribute("data-theme", t === "dark" ? "dark" : "light")', js)  # a light choice must beat the no-script dark fallback
+        self.assertNotIn('removeAttribute("data-theme")', js)
         js = (self.out / "assets" / "theme.js").read_text()
         self.assertIn("br:theme", js)
         self.assertIn("prefers-color-scheme: dark", js)  # nothing stored: the device decides
