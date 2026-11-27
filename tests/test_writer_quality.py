@@ -70,5 +70,47 @@ class HeadlineSupport(unittest.TestCase):
         self.assertIn(gap, desk.audit(post))  # edited since: checked on the page's own words
 
 
+FRANCE = story("France inflation slows more than expected in November",
+               "Consumer prices fell 0.7% in November from October, after rising 0.4% a month earlier. Annual inflation "
+               "slowed to 2.9% from 3.2% a year earlier, Insee said Friday.", source="Bloomberg")
+
+
+class Periods(unittest.TestCase):
+    def apply(self, headline, dek, post):
+        s = dict(FRANCE)
+        rows = [row(headline=headline, dek=dek, x_post=headline, linkedin_post=post + "\n\nSource: Bloomberg")]
+        return s, copy.apply([s], rows)
+
+    def test_each_figure_names_its_period(self):
+        s, rejected = self.apply("French annual inflation slows to 2.9% in November",
+                                 "Consumer prices fell 0.7% on the month, Insee said.",
+                                 "Annual inflation was 3.2% a year earlier. Prices had risen 0.4% in October.")
+        self.assertEqual(rejected, [])
+        self.assertEqual(s["copy_status"], "ok")
+
+    def test_a_headline_figure_without_its_period_is_rejected(self):
+        s, rejected = self.apply("French inflation slows to 2.9% in November", "Consumer prices fell 0.7% in November.",
+                                 "Prices had risen 0.4% in October. Insee published the figures on Friday.")
+        self.assertEqual(s["copy_status"], "fallback")
+        self.assertIn("2.9%", rejected[0][1][0])
+
+    def test_a_report_sentence_without_its_period_is_cut_not_the_story(self):
+        s, rejected = self.apply("French annual inflation slows to 2.9% in November", "Consumer prices fell 0.7% on the month.",
+                                 "Prices had risen 0.4%. Insee published the figures on Friday.")
+        self.assertEqual(rejected, [])
+        self.assertEqual(s["copy_status"], "ok")
+        self.assertNotIn("0.4", s["linkedin_post"])
+
+    def test_a_period_the_source_does_not_give_is_rejected(self):
+        s, rejected = self.apply("French inflation slows to 2.9% year on year", "Consumer prices fell 0.7% year on year.",
+                                 "Prices had risen 0.4% in October. Insee published the figures on Friday.")
+        self.assertEqual(s["copy_status"], "fallback")
+
+    def test_one_percentage_needs_no_period(self):
+        s = story("Oil falls 3%", "Brent fell 3% on Friday.")
+        rows = [row(headline="Oil falls 3%", dek="Brent fell 3% on Friday.", x_post="x", linkedin_post="")]
+        self.assertEqual(copy.apply([s], rows), [])
+
+
 if __name__ == "__main__":
     unittest.main()

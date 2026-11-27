@@ -53,6 +53,8 @@ the reports from other newsrooms listed under it ("also reported").
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
 that sounds quotable. American English. No em or en dashes. No hype words. No "not X but Y" constructions.
+A percentage names its period as the source states it ("year on year", "on the month", "quarter on quarter",
+"in October"). When the headline, dek and report give percentages for different periods, each one names its own.
 
 Fields:
 - id: copy the id
@@ -203,6 +205,80 @@ def _numbers(text):
     return {n.replace(",", "") for n in NUM.findall(text or "")}
 
 
+PCT = re.compile(r"(\d+(?:[.,]\d+)?)\s?(?:%|percent\b|per cent\b|percentage points?\b)", re.I)
+_MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+PERIODS = {
+    "year": re.compile(r"\b(?:year[- ](?:on|over)[- ]year|on[- ]year|yoy|y/y|annual\w*|(?:a|the|last|previous|prior|this|full|per) "
+                       r"year|years?|(?:19|20)\d\d)\b|\bfull-year\b", re.I),
+    "quarter": re.compile(r"\b(?:quarter[- ]on[- ]quarter|q/q|sequential\w*|quarter\w*|Q[1-4])\b|\b(?:first|second|third|fourth)-quarter\b", re.I),
+    "month": re.compile(r"\b(?:month[- ]on[- ]month|on the month|m/m|month\w*|" + _MONTHS + r")\b", re.I),
+    "week": re.compile(r"\b(?:week[- ]on[- ]week|w/w|week\w*)\b", re.I),
+    "day": re.compile(r"\b(?:day|session|today|intraday|overnight|(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day)\b", re.I),
+}
+
+
+def _period_kinds(sentence):
+    return {k for k, rx in PERIODS.items() if rx.search(sentence)}
+
+
+def _percent_sentences(story, c):
+    """(figure, sentence, field) for every percentage the copy prints and every sentence of the source that has one."""
+    mine = []
+    for field in ("headline", "dek", "linkedin_post"):
+        text = "\n".join(l for l in str(c.get(field) or "").splitlines() if not l.startswith("Source:"))
+        for sent in ([text] if field == "headline" else sentences(" ".join(text.split("\n")))):
+            for m in PCT.finditer(sent):
+                mine.append((m.group(1).replace(",", ""), sent, field))
+    theirs = []
+    for title, summary in [(story.get("title", ""), story.get("summary", ""))] + [(r.get("title", ""), r.get("summary", "")) for r in story.get("reports") or []]:
+        for sent in [title] + sentences(summary):
+            theirs += [(m.group(1).replace(",", ""), sent) for m in PCT.finditer(sent)]
+    return mine, theirs
+
+
+def period_gaps(story, c):
+    """{figure: why} for percentages whose period the page leaves out. Only when the page prints two or more
+    different percentages: a lone figure cannot be mistaken for another period. The period must be the source's own
+    ("year on year" over a figure the source gives for the month is wrong), and a figure whose source sentence names
+    no period needs none."""
+    mine, theirs = _percent_sentences(story, c)
+    figs = {f for f, _, _ in mine}
+    if len(figs) < 2:
+        return {}
+    gaps = {}
+    for fig in figs:
+        needed = set().union(*[_period_kinds(sent) for f, sent in theirs if f == fig]) if any(f == fig for f, _ in theirs) else set()
+        if not needed:
+            continue
+        got = set().union(*[_period_kinds(sent) for f, sent, _ in mine if f == fig])
+        if not got:
+            gaps[fig] = f"{fig}% names no period; the source says {sorted(needed)}"
+        elif not got & needed:
+            gaps[fig] = f"{fig}% names {sorted(got)}, the source {sorted(needed)}"
+    return gaps
+
+
+def trim_periods(story, c):
+    """A report sentence whose percentage has no period is cut; the report is optional, the headline and dek are not."""
+    gaps = period_gaps(story, c)
+    shown = f"{c.get('headline', '')} {c.get('dek', '')}"
+    cut = [g for g in gaps if not any(m.group(1).replace(",", "") == g for m in PCT.finditer(shown))]
+    if not cut:
+        return []
+    out, lines = [], []
+    for line in str(c.get("linkedin_post") or "").split("\n"):
+        if line.startswith("Source:") or not line.strip():
+            lines.append(line)
+            continue
+        kept = []
+        for sent in sentences(line):
+            (out.append(sent) if any(m.group(1).replace(",", "") in cut for m in PCT.finditer(sent)) else kept.append(sent))
+        if kept:
+            lines.append(" ".join(kept))
+    c["linkedin_post"] = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    return out
+
+
 def verify(story, copy):
     """Numbers in the copy must exist in the source text. Returns a list of problems."""
     src = _numbers(source_text(story))
@@ -213,6 +289,7 @@ def verify(story, copy):
         extra = _numbers(text) - src
         if extra:
             problems.append(f"{field}: numbers not in source {sorted(extra)}")
+    problems += [f"period: {why}" for why in period_gaps(story, copy).values()]
     if len(copy.get("headline", "")) > MAX_HEADLINE:
         problems.append("headline too long")
     if re.search(r"\d[\d,.]*\s?(?:[%kKmMbBtn]|bn|tn)?\+", copy.get("headline", "") + " " + copy.get("dek", "")):
@@ -629,6 +706,7 @@ def apply(stories, reply_rows):
             continue
         if c:
             strip_ungrounded(s, c)
+            trim_periods(s, c)
             # hype the source used ("massive revision") is still hype in our voice: the intensifier goes, the fact stays
             for f in ("headline", "dek", "x_post", "linkedin_post"):
                 if isinstance(c.get(f), str):
