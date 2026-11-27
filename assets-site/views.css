@@ -51,7 +51,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .mh .sections a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}.mh .sections a[aria-current]{border-bottom-color:var(--ink);font-weight:700}
 .mstrip{position:relative;display:flex;align-items:center;gap:var(--s3);min-height:44px;font:500 var(--t-meta)/1.3 var(--f);border-bottom:1px solid var(--rule)}
 .mstrip .mtrack{flex:1;min-width:0;overflow:hidden}
-.mstrip ul{display:flex;width:max-content;white-space:nowrap}.mstrip li{display:flex;gap:6px;align-items:baseline;padding-right:var(--s4)}
+.mstrip ul{display:flex;width:max-content;white-space:nowrap}.mstrip li{display:flex;padding-right:var(--s4)}.mstrip li a.si{display:flex;gap:6px;align-items:baseline;min-height:44px;align-items:center;color:inherit;text-decoration:none}.mstrip li a.si:hover{text-decoration:underline;text-underline-offset:3px}
 @media(prefers-reduced-motion:no-preference){.mstrip ul{animation:tape 70s linear infinite}.mstrip:hover ul,.mstrip:focus-within ul,.mstrip.paused ul{animation-play-state:paused}}
 @media(prefers-reduced-motion:reduce){.mstrip .mtrack{overflow-x:auto;scrollbar-width:none}.mstrip .mtrack::-webkit-scrollbar{display:none}.mstrip li.dup{display:none}.mstrip .mpause{display:none}}
 .mstrip .mpause{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink)}

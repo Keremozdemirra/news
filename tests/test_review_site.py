@@ -123,6 +123,33 @@ class Companies(unittest.TestCase):
         self.assertEqual(site.co_of(loose), "")
 
 
+class Strip(unittest.TestCase):
+    def setUp(self):
+        self.m = data(True)
+        self.m["crypto"] = {"coins": [{"name": "Bitcoin", "sym": "BTC", "price": 90000.0, "pct": 1.0}, {"name": "Ether", "sym": "ETH", "price": 3000.0, "pct": -1.0}], "at": "2026-11-27T12:00:00Z"}
+
+    def test_a_price_older_than_yesterday_carries_its_date(self):
+        from datetime import date
+        html = markets.strip(self.m, "", today=date(2026, 11, 28))  # data ends 25-26 Nov
+        self.assertIn('<small class="sd">25 Nov</small>', html)  # the 10-year, 25 Nov
+        fresh = markets.strip(self.m, "", today=date(2026, 11, 26))
+        self.assertNotIn('class="sd"', fresh)
+
+    def test_items_link_to_their_series_and_the_coins_stay_after_the_third(self):
+        html = markets.strip(self.m, "")
+        self.assertIn('href="/numbers/#brent"', html)
+        self.assertIn('href="/numbers/#crypto"', html)
+        order = [html.index(x) for x in ("EUR/USD", "Brent", "US 10-year", "BTC", "ETH")]
+        self.assertEqual(order, sorted(order))  # the top coins right after EUR/USD, Brent and the 10-year
+        self.assertEqual(html.count('aria-hidden="true" class="dup"'), html.count('class="si"') // 2)
+        self.assertEqual(html.count('<a tabindex="-1" class="si"'), html.count('aria-hidden="true" class="dup"'))
+
+    def test_numbers_page_has_the_anchors(self):
+        page = views.numbers_page([fake("x", "Story")], self.m)
+        for anchor in ('id="brent"', 'id="eurusd"', 'id="crypto"'):
+            self.assertIn(anchor, page)
+
+
 class Related(unittest.TestCase):
     def test_related_needs_something_in_common_and_skips_the_neighbours(self):
         a = fake("a", "Rosebank oil field approved by UK ministers", "Politics", hours=1)

@@ -561,28 +561,36 @@ def crypto_section(m):
         return ""
     rows_html = "".join(f'<div class="rt"><span class="rl">{E(c["name"])} <small>{E(c["sym"])}</small></span><b>{E(coin_price(c["price"]))}</b>'
                         f'<span class="rc">{coin_change(c["pct"])}</span></div>' for c in cr["coins"])
-    return (f'<section class="msec"><h2 class="sh">Crypto</h2><p class="olead">The five largest coins by market value, stablecoins left out. '
+    return (f'<section class="msec" id="crypto"><h2 class="sh">Crypto</h2><p class="olead">The five largest coins by market value, stablecoins left out. '
             f'Price in US dollars and change over 24 hours, read at {E(cr.get("at", "")[11:16])} UTC when this page was built.</p>'
             f'<div class="rtgrid cxb">{rows_html}</div><p class="attr"><a href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a></p></section>')
 
 
-def strip(m, base=""):
+def _linked(li, href):
+    """The items of the strip as links: the whole item goes to its place on /numbers/."""
+    return re.sub(r"^(<li[^>]*>)(.*)</li>$", lambda g: f'{g.group(1)}<a class="si" href="{href}">{g.group(2)}</a></li>', li, flags=re.S)
+
+
+def strip(m, base="", today=None):
     """The one-line markets strip under the sections row: the series in STRIP with their change, and a link to all data.
     No indices. A monthly average says so, so it is never read as today's price."""
     items = []
+    today = today or datetime.now(timezone.utc).date()
     for k in STRIP:
         s = stat(m, k)
         if s:
             label, v, d, ch, pct, pts = s
             when = f' <small class="sd">{E(date.fromisoformat(d).strftime("%b"))} avg</small>' if SERIES[k][3] == "wb" else ""
-            items.append(f'<li><span class="sl">{E(label)}</span> <b>{E(fmt(k, v))}</b>{when} {change_html(k, ch, None)}</li>')
+            if not when and date.fromisoformat(d) < today - timedelta(days=1):  # a price older than yesterday says which day it is
+                when = f' <small class="sd">{date.fromisoformat(d).strftime("%-d %b")}</small>'
+            items.append(_linked(f'<li><span class="sl">{E(label)}</span> <b>{E(fmt(k, v))}</b>{when} {change_html(k, ch, None)}</li>', f"{base}/numbers/#{k}"))
     # the coins follow the three most watched series
-    items[3:3] = crypto_items(m)
+    items[3:3] = [_linked(c, f"{base}/numbers/#crypto") for c in crypto_items(m)]
     if not items:
         return ""
     # the list runs twice in one track that slides left by half its width, so the loop has no seam; the copy is hidden
     # from screen readers. All data stays put on the right. Reduced motion: no sliding, one copy, scroll by hand.
-    copy = "".join(i.replace("<li", '<li aria-hidden="true" class="dup"', 1) for i in items)
+    copy = "".join(i.replace("<li", '<li aria-hidden="true" class="dup"', 1).replace("<a ", '<a tabindex="-1" ', 1) for i in items)
     # the pause button is the way to stop the motion on a touch screen, where there is no hover to do it (WCAG 2.2.2)
     pause = ('<button type="button" class="mpause" aria-pressed="false" aria-label="Pause the ticker"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" '
              'stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path class="pa" d="M5 3v10M11 3v10"/><path class="pl" d="M5 3l8 5-8 5z"/></svg></button>')
@@ -627,7 +635,7 @@ def cards(m, keys=MARKET_CARDS):
         vs = f' <small class="vs">vs {date.fromisoformat(pts[-2][0]).strftime("%b")}</small>' if monthly and len(pts) > 1 and ch is not None else ""
         last90 = [x for _, x in pts[-(36 if monthly else 90):]]
         unit = SERIES[k][1]
-        out += (f'<article class="mcard"><h2>{E(label)}</h2><p class="mv"><b>{E(fmt(k, v))}</b>{f"<small>{E(unit)}</small>" if unit not in ("", "%") else ""} {change_html(k, ch, pct)}{vs}</p>'
+        out += (f'<article class="mcard" id="{k}"><h2>{E(label)}</h2><p class="mv"><b>{E(fmt(k, v))}</b>{f"<small>{E(unit)}</small>" if unit not in ("", "%") else ""} {change_html(k, ch, pct)}{vs}</p>'
                 f'<div class="mch">{chart(pts, n=36, monthly=True) if monthly else chart(pts)}</div><p class="what"><b>What it is.</b> {E(SERIES[k][4])}</p>'
                 f'<p class="meta">Last {len(last90)} {"monthly averages" if monthly else "weekly observations" if weekly else "daily observations"}: low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))}. {E(dlabel(k, d)) if monthly else "Series date " + dmy(d)}{", changes against the previous month" if monthly else ", change against the previous week" if weekly else ""}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
     return f'<div class="mcards">{out}</div><p class="attr">{E(attribution(m, keys))}</p>' if out else ""
