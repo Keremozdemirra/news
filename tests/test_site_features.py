@@ -478,7 +478,7 @@ class FrontBuilt(Features):
             self.assertIn(part, h)
         css = (site.ASSETS / "views.css").read_text()
         self.assertRegex(css, r"\.newspanel\{height:72vh;height:72dvh;")  # a fallback, then the dynamic viewport unit
-        self.assertIn("overscroll-behavior:contain", css)
+        self.assertIn("overscroll-behavior:auto", css.split(".newspanel{")[1].split("}")[0])  # at its end the page goes on to the footer
         page = site.page("t", h, "d", "/", front=True)
         self.assertLess(page.index('class="newspanel"'), page.index('<footer class="foot">'))
         self.assertNotIn("gradient", css)

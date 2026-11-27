@@ -59,7 +59,8 @@ class Ranking(unittest.TestCase):
         rows.append(fake("t", "No picture story today", "Economy", n=3, score=9, hours=2, _thumb=False))
         html = views.front(rows, {}, None)
         self.assertIn('<span class="rimg"><span class="pic" style="aspect-ratio:4/3">', html)
-        self.assertIn("Archive photo, not from this event.", html)  # the 12.5 px caption stays
+        self.assertIn('<span class="pcap">Archive photo</span>', html)  # one short line under a small photo
+        self.assertNotIn("not from this event", html.split('<ol>')[1])  # the full line stays under the lead and in the article
         text_row = re.search(r'<a class="row text" href="[^"]*/s/t/">.*?</a>', html, re.S).group(0)
         self.assertNotIn("rimg", text_row)
 

@@ -612,9 +612,9 @@ def listing_row(p, own=False):
 
 
 def row_photo(p):
-    """The photo on the right of a row, 4:3, with the line that says what kind of photo it is; nothing when the story has none."""
+    """The photo on the right of a row, 4:3, with a one-line "Archive photo" (the small picture has no room for the full caption); nothing when the story has none."""
     shot = pic(p, thumb=True, ratio="4/3")
-    return f'<span class="rimg">{shot}{views.photo_cap(p)}</span>' if shot else ""
+    return f'<span class="rimg">{shot}<span class="pcap">Archive photo</span></span>' if shot else ""  # the full line is under the lead and in the article
 
 
 def pager(path, n, total):

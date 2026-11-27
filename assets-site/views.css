@@ -328,7 +328,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 
 /* a row of a list: the headline on the left, a 4:3 photo on the right where there is one; the lead of a list is 16:9 */
 .row{grid-template-columns:minmax(0,1fr) 148px;gap:var(--s3)}.row.text{grid-template-columns:minmax(0,1fr)}
-.rimg{display:block;align-self:start}.rimg .pic{aspect-ratio:4/3!important}.rimg .pcap{margin:6px 0 0}
+.rimg{display:block;align-self:start}.rimg .pic{aspect-ratio:4/3!important}.rimg .pcap{margin:6px 0 0;white-space:nowrap}
 @media(max-width:720px){.row{grid-template-columns:minmax(0,1fr) 104px;gap:var(--s2)}.row.text{grid-template-columns:minmax(0,1fr)}}
 .leadrow .pic{aspect-ratio:16/9;max-height:480px;margin-top:var(--s2)}.dayh{margin-top:var(--s4)}.dayh:first-child{margin-top:var(--s2)}.earlier{margin:var(--s4) 0 0}.earlier a{font:600 15px var(--f);color:var(--ink);border-bottom:1px solid var(--ink)}
 @media(max-width:720px){.art-meta>*+*::before{content:none}}
@@ -365,7 +365,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .pcap{display:block;font:500 12.5px/1.4 var(--f);color:var(--soft);margin:6px 0 var(--s1)}
 
 /* ---- the front page's news is one panel that scrolls inside the page, so the footer is a short scroll away ---- */
-.newspanel{height:72vh;height:72dvh;min-height:360px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;margin-top:var(--s2);padding:0 var(--s2) var(--s4);
+.newspanel{height:72vh;height:72dvh;min-height:360px;overflow-y:auto;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;margin-top:var(--s2);padding:0 var(--s2) var(--s4);
   border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);scrollbar-width:thin;scrollbar-color:var(--soft) transparent;scroll-padding-top:56px}
 .newspanel::-webkit-scrollbar{width:8px}.newspanel::-webkit-scrollbar-thumb{background:var(--soft)}
 .newspanel:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
