@@ -183,6 +183,11 @@ def narrator(folder, narrate=None, voice_id=None):
     from . import voice
     if not (voice.on() if narrate is None else narrate):
         return None
+    if narrate is None:  # the plan's monthly credit: shorts_voice_per_day narrated Shorts a day, the rest silent
+        day = f"{desk.now():%Y-%m-%d}"
+        done = sum(1 for v in _state().get("attempted", {}).values() if v.get("narrated") and (v.get("at") or "").startswith(day))
+        if done >= int(cfg("shorts_voice_per_day", 1)):
+            return None
     key = voice.api_key()
     if not key:
         print("shorts: narration on but no ElevenLabs key; silent Short")
@@ -246,7 +251,7 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
     return out_mp4, credit
 
 
-def build_plain(job, out_mp4, narrate=None, voice_id=None):
+def build_plain(job, out_mp4, narrate=None, voice_id=None, info=None):
     """Render a Short with no photo (the brief and the number of the day). Returns (path, "")."""
     from . import shortforms as SF
 
@@ -265,6 +270,8 @@ def build_plain(job, out_mp4, narrate=None, voice_id=None):
             raise ValueError("too short")
         pages, total = plan
         CV.build_sequence(out_mp4, pages, total, (0, 0), voice=nar.cues(plan.cues) if nar else None)
+    if info is not None:
+        info["narrated"] = bool(nar)
     return Path(out_mp4), ""
 
 
@@ -585,7 +592,7 @@ def run(http=_http, render=build):
         try:
             out = Path(tmp) / "short.mp4"
             if not post:
-                mp4, credit = build_plain(job, out)
+                mp4, credit = build_plain(job, out, info=info)
                 info["layout"] = "plain"
             elif render is build:
                 from . import shortforms as SF
@@ -604,6 +611,7 @@ def run(http=_http, render=build):
             return None
         headline = post["headlines"][0] if post else metadata_job(job)["snippet"]["title"]
         rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": headline, "structure": info["structure"],
+               **({"narrated": True} if info.get("narrated") else {}),
                **({"layout": info["layout"]} if info.get("layout") else {}), **({"footage": clip["id"]} if clip else {})}
         st.setdefault("attempted", {})[job["key"]] = rec
         st["last_structure"] = info["structure"]

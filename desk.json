@@ -208,6 +208,7 @@
     "shorts_ai_line": false,
     "shorts_voice": false,
     "shorts_voice_id": "",
+    "shorts_voice_per_day": 1,
     "shorts_voice_model": "eleven_multilingual_v2"
   },
   "send_prompts": [

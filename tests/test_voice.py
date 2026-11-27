@@ -34,6 +34,20 @@ class Switch(unittest.TestCase):
         self.assertEqual(VO.api_key({}, keychain=False), "")
 
 
+class Cap(unittest.TestCase):
+    def test_one_narrated_short_a_day(self):
+        from aidaily import shorts as SH
+        day = f"{desk.now():%Y-%m-%d}"
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.dict(desk.CONFIG, {"growth": {"shorts_voice": True, "shorts_voice_per_day": 1}}), \
+                mock.patch.object(VO, "api_key", return_value=SECRET):
+            with mock.patch.object(SH, "_state", return_value={"attempted": {}}):
+                self.assertIsNotNone(SH.narrator(tmp))
+            with mock.patch.object(SH, "_state", return_value={"attempted": {"a": {"at": day + "T08:00:00+00:00", "narrated": True}}}):
+                self.assertIsNone(SH.narrator(tmp))
+                self.assertIsNotNone(SH.narrator(tmp, narrate=True))  # a sample is not counted
+
+
 class Speak(unittest.TestCase):
     def test_a_refusal_names_the_status_and_code_never_the_key(self):
         def post(url, headers, body):
