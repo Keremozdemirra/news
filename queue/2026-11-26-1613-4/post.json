@@ -4,7 +4,7 @@
  "n": 4,
  "created": "2026-11-26T16:13:46+00:00",
  "publish_after": "2026-11-26T16:36:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -49,5 +49,7 @@
  "credit": "Photo: Nielsoncaetanosalmeron, CC BY 4.0, via Wikimedia Commons",
  "issue": 5,
  "photo_kind": "company",
- "photo_alt": ""
+ "photo_alt": "",
+ "tier": "web",
+ "published": "2026-11-27T04:30:14+00:00"
 }

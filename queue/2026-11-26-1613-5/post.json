@@ -4,7 +4,7 @@
  "n": 5,
  "created": "2026-11-26T16:13:49+00:00",
  "publish_after": "2026-11-26T16:41:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -42,5 +42,7 @@
  "issue": 5,
  "photo_kind": "scene",
  "photo_alt": "A fan of US dollar banknotes on a table",
- "credit_file": "US Dollar banknotes I.jpg"
+ "credit_file": "US Dollar banknotes I.jpg",
+ "tier": "web",
+ "published": "2026-11-27T04:30:14+00:00"
 }

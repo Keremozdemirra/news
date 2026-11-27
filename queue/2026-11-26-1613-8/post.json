@@ -4,7 +4,7 @@
  "n": 8,
  "created": "2026-11-26T16:13:56+00:00",
  "publish_after": "2026-11-26T16:56:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -48,5 +48,7 @@
  "credit": "Photo: NOIRLab/NSF/AURA/T. Slovinský, CC BY 4.0, via Wikimedia Commons",
  "issue": 5,
  "photo_kind": "scene",
- "photo_alt": "An empty boardroom with a long table"
+ "photo_alt": "An empty boardroom with a long table",
+ "tier": "web",
+ "published": "2026-11-27T04:30:14+00:00"
 }

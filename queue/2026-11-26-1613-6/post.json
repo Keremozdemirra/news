@@ -4,7 +4,7 @@
  "n": 6,
  "created": "2026-11-26T16:13:51+00:00",
  "publish_after": "2026-11-26T16:46:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -41,5 +41,7 @@
   "https://www.cnbc.com/2026/11/26/nvidia-market-governance-risk.html"
  ],
  "credit": "Photo: Flickr - Fritzchens Fritz, CC0, via Wikimedia Commons",
- "issue": 5
+ "issue": 5,
+ "tier": "web",
+ "published": "2026-11-27T04:30:14+00:00"
 }

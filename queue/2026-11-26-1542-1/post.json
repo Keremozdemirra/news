@@ -52,5 +52,12 @@
  "photo_alt": "A conference room with red chairs",
  "credit_file": "NOIRLab HQ Conference Room (6V6A0258-CC).jpg",
  "tier": "web",
- "published": "2026-11-27T03:50:09+00:00"
+ "published": "2026-11-27T03:50:09+00:00",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3be4anu2n2q",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3be4anu2n2q",
+   "at": "2026-11-27T04:30:18+00:00"
+  }
+ }
 }
