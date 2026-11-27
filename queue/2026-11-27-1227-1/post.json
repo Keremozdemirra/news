@@ -65,5 +65,20 @@
  "status": "queued",
  "publish_after": "2026-11-27T12:27:25+00:00",
  "story": "",
- "issue": 12
+ "issue": 12,
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3c6wm7y5e25",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3c6wm7y5e25",
+   "at": "2026-11-27T12:30:20+00:00",
+   "video_error": "bluesky video: bluesky uploadVideo: HTTP 401: {\"jobStatus\":{\"did\":\"\",\"error\":\"unconfirmed_email\",\"jobId\":\"\",\"state\":\"\"}}\n"
+  },
+  "telegram": {
+   "id": "31",
+   "url": "https://t.me/boardread/31",
+   "at": "2026-11-27T12:30:23+00:00",
+   "video": true
+  }
+ },
+ "lead_published": "2026-11-27T12:30:20+00:00"
 }
