@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-0932-2",
+ "batch": "2026-11-27-0932",
+ "n": 2,
+ "created": "2026-11-27T09:32:36+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "South Africa's top court rejects two challenges to health-plan legislation\n\nThe rulings remove a major legal obstacle to the government's planned overhaul of the healthcare system.\n\nReported by Bloomberg.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/south-africa-top-court-clears-key-hurdles-for-health-plan-revamp"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/south-africa-top-court-clears-key-hurdles-for-health-plan-revamp"
+ ],
+ "headlines": [
+  "South Africa's top court rejects two challenges to health-plan legislation"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "An empty boardroom with a long table",
+ "score": 8.411,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The rulings remove a major legal obstacle to the government's planned overhaul of the healthcare system.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/south-africa-top-court-clears-key-hurdles-for-health-plan-revamp"
+ ],
+ "credit": "Photo: NOIRLab/NSF/AURA/T. Slovinský, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+ "status": "web",
+ "published": "2026-11-27T09:32:36+00:00",
+ "story": ""
+}

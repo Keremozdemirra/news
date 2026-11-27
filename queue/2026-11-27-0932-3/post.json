@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0932-3",
+ "batch": "2026-11-27-0932",
+ "n": 3,
+ "created": "2026-11-27T09:32:37+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Meituan posts earnings beat as price war cools\n\nMeituan (HKEX: 3690) · Business\n\nProfit was largely stable sequentially on higher third-quarter revenue at China's top food-delivery company. The company, China's top food-delivery operator, continued to recover from a brutal price war.\n\nReported by The Wall Street Journal.\n\nSend this to whoever on your team covers Meituan.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.wsj.com/business/earnings/meituan-posts-earnings-beat-as-price-war-cools-d1380f04?mod=pls_whats_news_us_business_f"
+ ],
+ "links": [
+  "https://www.wsj.com/business/earnings/meituan-posts-earnings-beat-as-price-war-cools-d1380f04?mod=pls_whats_news_us_business_f"
+ ],
+ "headlines": [
+  "Meituan posts earnings beat as price war cools"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Business",
+ "photo_file": "Glass office tower seen from below, São Paulo.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A glass office tower seen from below",
+ "score": 8.251,
+ "figure": "",
+ "company": "Meituan",
+ "ticker": {
+  "exchange": "HKEX",
+  "symbol": "3690"
+ },
+ "person": "",
+ "logo_names": [
+  "Meituan"
+ ],
+ "dek": "Profit was largely stable sequentially on higher third-quarter revenue at China's top food-delivery company.",
+ "body": "The company, China's top food-delivery operator, continued to recover from a brutal price war.",
+ "so_what": "",
+ "sources": [
+  "The Wall Street Journal"
+ ],
+ "source_urls": [
+  "https://www.wsj.com/business/earnings/meituan-posts-earnings-beat-as-price-war-cools-d1380f04?mod=pls_whats_news_us_business_f"
+ ],
+ "credit": "Photo: Wilfredor, CC0, via Wikimedia Commons",
+ "credit_file": "Glass office tower seen from below, São Paulo.jpg",
+ "status": "web",
+ "published": "2026-11-27T09:32:37+00:00",
+ "story": ""
+}

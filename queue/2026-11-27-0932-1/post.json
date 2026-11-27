@@ -1,0 +1,57 @@
+{
+ "id": "2026-11-27-0932-1",
+ "batch": "2026-11-27-0932",
+ "n": 1,
+ "created": "2026-11-27T09:32:35+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "UK Department for Work and Pensions takes services offline after cyber incident\n\nThe department says benefit and pension payments will be paid as normal while it works with cyber security experts. There is little information on which services are affected or how long the disruption will last.\n\nReported by The Guardian; Financial Times; CNA.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.theguardian.com/politics/live/2026/nov/27/department-work-pensions-offline-cyber-incident-rosebank-slapps-latest-news-updates"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/world/uk-pensions-department-cyber-incident-6587251",
+  "https://www.ft.com/content/59a87442-51ad-47b7-ba11-e36876456fd4?syn-25a6b1a6=1",
+  "https://www.theguardian.com/politics/live/2026/nov/27/department-work-pensions-offline-cyber-incident-rosebank-slapps-latest-news-updates"
+ ],
+ "headlines": [
+  "UK Department for Work and Pensions takes services offline after cyber incident"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "Code on computer monitor (Unsplash).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Lines of code on a computer monitor",
+ "score": 8.951,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "Department for Work and Pensions"
+ ],
+ "dek": "The department says benefit and pension payments will be paid as normal while it works with cyber security experts.",
+ "body": "There is little information on which services are affected or how long the disruption will last.",
+ "so_what": "",
+ "sources": [
+  "The Guardian",
+  "Financial Times",
+  "CNA"
+ ],
+ "source_urls": [
+  "https://www.theguardian.com/politics/live/2026/nov/27/department-work-pensions-offline-cyber-incident-rosebank-slapps-latest-news-updates",
+  "https://www.channelnewsasia.com/world/uk-pensions-department-cyber-incident-6587251",
+  "https://www.ft.com/content/59a87442-51ad-47b7-ba11-e36876456fd4?syn-25a6b1a6=1"
+ ],
+ "credit": "Photo: Markus Spiske markusspiske, CC0, via Wikimedia Commons",
+ "credit_file": "Code on computer monitor (Unsplash).jpg",
+ "status": "web",
+ "published": "2026-11-27T09:32:35+00:00",
+ "story": ""
+}

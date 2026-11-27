@@ -1,0 +1,55 @@
+{
+ "id": "2026-11-27-0932-4",
+ "batch": "2026-11-27-0932",
+ "n": 4,
+ "created": "2026-11-27T09:32:38+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Target, Best Buy and Kohl's book $387 million in tariff refund benefits\n\nTarget (NYSE: TGT) · Business\n\nWalmart and Target say they are cutting prices rather than paying shoppers back. The three retailers booked the refund benefits last quarter.\n\nReported by Fortune.\n\nSend this to whoever on your team covers Target.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://fortune.com/2026/11/27/tariff-refunds-target-best-buy-kohls-shoppers/"
+ ],
+ "links": [
+  "https://fortune.com/2026/11/27/tariff-refunds-target-best-buy-kohls-shoppers/"
+ ],
+ "headlines": [
+  "Target, Best Buy and Kohl's book $387 million in tariff refund benefits"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Business",
+ "photo_file": "Target store in Stuart, FL.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.138,
+ "figure": "$387M",
+ "company": "Target",
+ "ticker": {
+  "exchange": "NYSE",
+  "symbol": "TGT"
+ },
+ "person": "",
+ "logo_names": [
+  "Target",
+  "Best Buy"
+ ],
+ "dek": "Walmart and Target say they are cutting prices rather than paying shoppers back.",
+ "body": "The three retailers booked the refund benefits last quarter.",
+ "so_what": "",
+ "sources": [
+  "Fortune"
+ ],
+ "source_urls": [
+  "https://fortune.com/2026/11/27/tariff-refunds-target-best-buy-kohls-shoppers/"
+ ],
+ "credit": "Photo: Winnebaggo, CC0, via Wikimedia Commons",
+ "credit_file": "Target store in Stuart, FL.jpg",
+ "status": "web",
+ "published": "2026-11-27T09:32:38+00:00",
+ "story": ""
+}
