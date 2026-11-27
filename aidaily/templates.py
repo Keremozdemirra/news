@@ -386,10 +386,18 @@ def hook_shown(story):
     """True when a text-only card carries its dek. Only a dek that adds two content words to the headline, short enough
     for three lines, and only when the report has more to say: the detail slide then prints the report alone, so no
     sentence is read twice across the two slides."""
+    if story.get("_card_dek"):  # a feed layout (feedlayouts.py) set the dek on the card
+        return True
+    return layout(story) == "headline" and dek_adds(story)
+
+
+def dek_adds(story):
+    """The dek may stand under the headline on a card: it adds two content words, fits three lines, and the report
+    has more to say on the detail slide."""
     from . import copy, desk
     title = story.get("headline") or story.get("title") or ""
     dek = (story.get("dek") or "").strip()
-    return (layout(story) == "headline" and bool(dek) and len(dek) <= 150 and bool(desk.body(story))
+    return (bool(dek) and len(dek) <= 150 and bool(desk.body(story))
             and len(copy._stems(dek) - copy._stems(title, short=True)) >= 2)
 
 
@@ -410,7 +418,8 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
     title = story.get("headline") or story["title"]
     paras = "".join(f'<p style="margin:0 0 28px">{t(p)}</p>' for p in (body or story.get("dek", "")).split("\n") if p.strip())
     n = len(body or "")
-    size = 56 if n < 260 else 50 if n < 380 else 44 if n < 520 else 38
+    # a short report set at body size left a third of the slide empty (post QA 2026-11-27): it steps up instead
+    size = 68 if n < 220 else 60 if n < 300 else 52 if n < 380 else 44 if n < 520 else 38
     meaning = ""
     if so_what:
         size = max(size - 6, 34)  # the extra block needs the room
@@ -532,7 +541,7 @@ def _foot_row(cta):
             f'<span style="font-size:34px;font-weight:700;color:{DIM}">{e(cta)}</span></div>')
 
 
-def _frame(body, kicker, label, cta, photo="", portrait=False, depth=1060):
+def _frame(body, kicker, label, cta, photo="", portrait=False, depth=1060, align="flex-end"):
     """The 9:16 canvas. A photo runs edge to edge from the top of the frame, `depth` px deep, and fades into the ink
     ground, so the type below never sits on a face; it is cropped on its focal point. body is the bottom-anchored
     column; it grows upward from the foot row."""
@@ -545,8 +554,8 @@ def _frame(body, kicker, label, cta, photo="", portrait=False, depth=1060):
     return head() + f"""
 <div style="position:relative;width:1080px;height:1920px;background:{STORY_BG};color:{INK};font-family:'Libre Franklin',sans-serif;overflow:hidden">
 {bg}{_kicker(kicker, label, bool(photo))}
-<div style="position:absolute;left:{SIDE}px;right:{SIDE}px;top:{SAFE_TOP + 90}px;bottom:{SAFE_BOTTOM}px;display:flex;flex-direction:column;justify-content:flex-end">
-{body}{_foot_row(cta)}</div></div></body></html>"""
+<div style="position:absolute;left:{SIDE}px;right:{SIDE}px;top:{SAFE_TOP + 90}px;bottom:{SAFE_BOTTOM}px;display:flex;flex-direction:column;justify-content:{align}">
+{body}{"<div style='flex:1'></div>" if align == "center" else ""}{_foot_row(cta)}</div></div></body></html>"""
 
 
 def _h(text_html, size, color=INK, top=0, weight=800, lh=0.98, track=-0.035):
@@ -620,9 +629,14 @@ def story_number(figure, headline, label, unit="", qualifier="", photo="", credi
     size = 440 if len(figure) <= 3 else 360 if len(figure) <= 4 else 290 if len(figure) <= 6 else 220
     pre = _h(e(qualifier), 72, color=DIM, lh=1) if qualifier else ""
     unit_html = _h(e(unit), 110, top=8, lh=1) if unit else ""
+    # without a photo the frame is all type: the figure and the headline grow into the space the photo held
+    head = _scale(headline, ((50, 64), (75, 58), (999, 52))) if photo else _scale(headline, ((50, 92), (75, 82), (999, 72)))
+    if not photo:
+        size = min(int(size * 1.3), int(936 / (0.62 * max(len(figure), 1))))
     body = (pre + _h(e(figure), size, top=8 if qualifier else 0, lh=0.84, track=-0.055) + unit_html
-            + _h(e(headline), _scale(headline, ((50, 64), (75, 58), (999, 52))), top=56, lh=1.06) + _credit(credit))
-    return _frame(body, "The number", label, CTA_ARTICLE, photo, depth=900)
+            + _h(e(headline), head, top=56 if photo else 72, lh=1.06) + _credit(credit))
+    return _frame(body if photo else f'<div style="flex:1"></div>{body}', "The number", label, CTA_ARTICLE, photo, depth=900,
+                  align="flex-end" if photo else "center")
 
 
 def _logo_chip(uri, h=110, pad="30px 40px"):

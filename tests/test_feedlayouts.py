@@ -15,6 +15,7 @@ from aidaily import templates as T
 
 HAVE = shutil.which("ffmpeg") and (Path(render.CHROME).exists() if render.CHROME.startswith("/") else shutil.which(render.CHROME))
 CREDIT = "Photo: A. Author, CC BY 4.0, via Wikimedia Commons"
+FACTORY = "Industrial production line operating in a large modern factory.jpg"  # a vetted generic scene (scenes.json)
 
 
 def shot(uri, f="A.jpg"):
@@ -49,13 +50,35 @@ class Names(unittest.TestCase):
 
 class Choice(unittest.TestCase):
     def test_fits_follow_what_the_photos_support(self):
-        self.assertEqual(FL.fits(story("Fed holds rates", "file:///x.jpg", "scene"), fetch=False), ["type", "photo"])
+        # a generic archive scene does not fit the story: photo-free cards only
+        generic = story("Fed holds rates", "file:///x.jpg", "scene")
+        generic["_assets"]["file"] = FACTORY
+        self.assertEqual(FL.fits(generic, fetch=False), ["type", "brief"])
         self.assertEqual(FL.fits(story("Nvidia opens a plant", "file:///x.jpg", "company"), fetch=False), ["photo", "type"])
         pair = [("Donald Trump", shot("file:///a.jpg", "A.jpg")), ("Vladimir Putin", shot("file:///b.jpg", "B.jpg"))]
         s = story("Trump says he asked Putin to pull back", "file:///x.jpg", extras={"portrait": None, "scene": None, "pair": pair})
         self.assertEqual(FL.fits(s, fetch=False)[0], "split")
         place = {"portrait": shot("file:///p.jpg", "P.jpg"), "scene": shot("file:///s.jpg", "S.jpg"), "pair": []}
         self.assertEqual(FL.fits(story("Musk pledges shares", "file:///x.jpg", "company", place), fetch=False)[0], "place")
+
+    def test_a_photo_that_does_not_fit_never_reaches_the_card(self):
+        """2026-11-27: a factory floor ran small on 'Canada's Supreme Court largely upholds Quebec's religious symbols
+        ban'. A topic-picked archive scene is 'low' and the card shows no photo and credits none."""
+        s = story("Canada's Supreme Court largely upholds Quebec's religious symbols ban", "file:///x.jpg", "scene",
+                  dek="The court said the province may keep the law.", topic="Politics")
+        s["_assets"]["file"] = FACTORY
+        self.assertEqual(FL.photo_fit(s), "low")
+        for name in ("type", "brief"):
+            self.assertNotIn("file:///x.jpg", FL.html(s, name))
+            self.assertEqual(FL.credits(s, name), [])
+        self.assertNotIn("photo", FL.fits(s, fetch=False))
+        s["_assets"]["kind"] = "person"
+        self.assertEqual(FL.photo_fit(s), "high")
+
+    def test_type_fills_the_card(self):
+        short, long = "Fed holds rates", "Canada's Supreme Court largely upholds Quebec's religious symbols ban after a long fight"
+        self.assertGreater(FL.fill_size(short, 936, 700), FL.fill_size(long, 936, 700))
+        self.assertGreaterEqual(FL.fill_size(long, 936, 700), 90)
 
     def test_number_only_with_a_checkable_money_or_share_figure(self):
         s = story("France enters recession after GDP falls 0.2% in third quarter", "file:///x.jpg", figure="0.2%")

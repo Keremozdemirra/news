@@ -1002,6 +1002,9 @@ def _photo(p, fresh=False):
     fresh: not when another story showed that photo today."""
     if fresh and p and p["id"] in _photos_today():
         return ("", "")
+    from . import feedlayouts
+    if p and feedlayouts.photo_fit(p) == "low":
+        return ("", "")  # a generic archive scene says nothing about the story; the frame goes without a photo
     uri = _media(p, "photo.jpg") if p else ""
     credit = (p or {}).get("credit", "")
     # a share-alike licence would reach the whole story image; cards refuse CC BY-SA and so do stories

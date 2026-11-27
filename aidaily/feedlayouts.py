@@ -8,9 +8,14 @@ Layouts, in the order they are preferred when the story supports them:
 
 - split: two named parties side by side (two people, or two companies), each with its own licensed photo
 - place: the place or scene photo with a round portrait of the person the headline names
-- number: the key figure the headline or dek states, set huge under a strip of the photo
+- number: the key figure the headline or dek states, set huge; under a strip of the photo when it fits
 - photo: the full-photo card (templates.card), its text on the top or the bottom, whichever is quieter
-- type: the headline set large in Newsreader, with a small crop of the photo; for a generic archive scene
+- type: the headline sized to fill the card in Newsreader; under the photo when it fits, pure type when not
+- brief: ink, the topic as a large kicker, the headline and the dek; photo-free
+
+A photo is shown only when it is of the story (photo_fit "high"): a generic archive scene picked by topic is left
+off the card, and the card is type, brief or number instead. Kerem, 2026-11-27: a small factory-floor photo on a
+court ruling, and half the card empty.
 
 choose() returns the first layout that fits and differs from the previous post's. Every photo on a card is
 credited on it. Text keeps FEED_SAFE px from the sides and FEED_SAFE_Y from top and bottom: the profile grid crops a 4:5
@@ -28,7 +33,7 @@ from . import templates as T
 FEED_SAFE = 72  # left and right: the 3:4 grid crop takes about 34 px a side
 FEED_SAFE_Y = 64  # top and bottom: the feed shows a 4:5 post whole; the full-photo card has always sat at 64
 W, H = 1080, 1350
-NAMES = ("split", "place", "number", "photo", "type")
+NAMES = ("split", "place", "number", "photo", "type", "brief")
 FONT_DIR = Path(__file__).resolve().parent.parent / "assets-site" / "fonts"
 
 # people often in the news whom the quiz lists (people.GROUPS) leave out on purpose: no peer group would be fair
@@ -224,23 +229,48 @@ def is_deal(story):
     return DEAL.search(story.get("headline") or story.get("title") or "") is not None
 
 
+def photo_fit(story):
+    """"high" when the card's photo is of the story: the person, the company's own premises, the named place, or a
+    vetted scene the article's own subject or place matched (its scene rule, or a place or subject the text names).
+    "low" for a generic archive scene picked by topic: a factory floor ran small on a post about Quebec's religious
+    symbols ban (2026-11-27). "none" without a photo. A low photo is not shown on the card."""
+    a = story.get("_assets") or {}
+    file_ = a.get("file") or story.get("photo_file") or ""
+    if not (a.get("photo") or file_):
+        return "none"
+    kind = a.get("kind") or story.get("photo_kind") or ""
+    if kind in ("person", "company", "place"):
+        return "high"
+    title = story.get("headline") or story.get("title") or (story.get("headlines") or [""])[0]
+    text = " ".join([title, story.get("dek", ""), story.get("summary", ""), story.get("body", "")])
+    data = scenes.load()
+    items = [i for r in data["rules"] for i in r["files"]] + [i for t in data["topics"].values() for i in t]
+    # a generic scene only ever comes from the vetted list: a file not on it (an older post without photo_kind, a
+    # person or company photo) came from the subject's own lookup
+    if not any(i["file"] == file_ for i in items) and file_ not in data.get("retired", []):
+        return "high"
+    rule = scenes.best_rule(data["rules"], title, text)
+    if rule and any(i["file"] == file_ and not i.get("generic") for i in rule["files"]):
+        return "high"
+    if any(i["file"] == file_ and (i.get("place") or i.get("needs")) and scenes.fits(i, text) for i in items):
+        return "high"
+    return "low"
+
+
 def fits(story, fetch=True):
-    """The layouts this story supports, most fitting first."""
+    """The layouts this story supports, most fitting first. Photo-led layouts only with a photo that fits the story;
+    without one, the card is type (type, brief, or number when the text states a figure)."""
     a = T.assets(story, fetch=fetch)
     x = extras(story, fetch)
-    strong = a.get("photo") and a.get("kind") in ("person", "company", "place")
     out = []
     if x["pair"] and any(not s.get("logo") for _, s in x["pair"]) or len(x["pair"]) == 2 and is_deal(story):
         out.append("split")
     if x["portrait"] and x["scene"] and x["portrait"]["file"] != x["scene"]["file"]:
         out.append("place")
-    if _figure(story) and a.get("photo"):
-        out.append("number")
-    if strong:
-        out.append("photo")
-    out.append("type")
-    if a.get("photo") and not strong:
-        out.append("photo")  # a generic archive scene can still fill a card, after the type-led one
+    if photo_fit(story) == "high":
+        out += (["number"] if _figure(story) else []) + ["photo", "type"]
+    else:
+        out += (["number"] if _figure(story) else []) + ["type", "brief"]
     return out
 
 
@@ -327,9 +357,17 @@ def _img(uri, w, h, about=None, extra=""):
             f'object-position:{T._pos(uri, w, h, about)};{extra}">')
 
 
+# The headline grows until its column is full, measured in the browser on the real font: the size estimate in
+# fill_size is only the starting point (it left a fifth of some cards empty). A column that would overflow steps back.
+FIT = """<script>document.fonts.ready.then(()=>{document.querySelectorAll('[data-fill]').forEach(h=>{
+const col=h.closest('[data-col]');if(!col)return;const fits=()=>col.scrollHeight<=col.clientHeight+1;
+let lo=40,hi=+h.dataset.max;while(hi-lo>1){const m=(lo+hi)>>1;h.style.fontSize=m+'px';fits()?lo=m:hi=m}
+h.style.fontSize=Math.floor(lo*0.985)+'px'});document.body.setAttribute('data-fitted','1')})</script>"""
+
+
 def _page(body, bg, fg):
     return _head() + (f'<div style="position:relative;width:{W}px;height:{H}px;overflow:hidden;background:{bg};color:{fg};'
-                      f"font-family:'Libre Franklin',sans-serif\">{body}</div></body></html>")
+                      f"font-family:'Libre Franklin',sans-serif\">{body}</div>{FIT}</body></html>")
 
 
 def place_card(story, brand=T.BRAND):
@@ -344,9 +382,9 @@ def place_card(story, brand=T.BRAND):
             f'border-radius:50%;overflow:hidden;border:6px solid {T.WHITE};background:{T.BLACK}">'
             f'{_img(x["portrait"]["uri"], 288, 288, None)}</div>'
             f'<div style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE + 330}px;top:{top + 40}px">{_meta(story, True)}</div>'
-            f'<div style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{top + 140}px;bottom:{FEED_SAFE}px;'
+            f'<div data-col style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{top + 140}px;bottom:{FEED_SAFE}px;'
             f'display:flex;flex-direction:column;justify-content:space-between">'
-            f'{_serif(title, (78, 70, 60), T.WHITE)}'
+            f'{_headline_fill(title, H - top - 140 - FEED_SAFE - 130, T.WHITE, top=104)}<div style="flex:1;min-height:40px"></div>'
             f'{_foot(brand, True, [("Place", x["scene"]), (who, x["portrait"])])}</div>')
     return _page(body, T.BLACK, T.WHITE)
 
@@ -373,43 +411,116 @@ def split_card(story, brand=T.BRAND):
             + (f'<div style="position:absolute;left:0;top:{ph}px;width:{W}px;height:1px;background:{T.LINE}"></div>'
                f'<div style="position:absolute;left:540px;top:0;width:1px;height:{ph}px;background:{T.LINE}"></div>'
                if s1.get("logo") or s2.get("logo") else "")
-            + f'<div style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{ph + 44}px;bottom:{FEED_SAFE}px;'
+            + f'<div data-col style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{ph + 44}px;bottom:{FEED_SAFE}px;'
             f'display:flex;flex-direction:column">{_meta(story, False)}<div style="height:26px"></div>'
-            f'{_serif(title, (80, 72, 62), T.BLACK)}<div style="flex:1"></div>{_foot(brand, False, [(n, x) for n, x in ((n1, s1), (n2, s2)) if not x.get("logo")])}</div>')
+            f'{_headline_fill(title, H - ph - 44 - 30 - 26 - FEED_SAFE - 130, T.BLACK, top=104)}<div style="flex:1;min-height:40px"></div>{_foot(brand, False, [(n, x) for n, x in ((n1, s1), (n2, s2)) if not x.get("logo")])}</div>')
     return _page(body, T.WHITE, T.BLACK)
 
 
+def _wrap_lines(text, size, width, em):
+    """How many lines `text` takes at `size` px in a column `width` px wide, by greedy word wrap with an average
+    glyph width of `em` x size. An estimate: the fill below leaves a margin for it."""
+    lines, used = 1, 0.0
+    for w in text.split():
+        need = (len(w) + (1 if used else 0)) * em * size
+        if used and used + need > width:
+            lines, used = lines + 1, len(w) * em * size
+        else:
+            used += need
+    return lines
+
+
+def fill_size(text, width, height, lh=1.06, em=0.47, top=150, floor=56):
+    """The largest headline size that fills `height` without spilling: type-led cards had half the card empty."""
+    for size in range(top, floor - 1, -2):
+        if _wrap_lines(text, size, width * 0.97, em) * size * lh <= height:
+            return size
+    return floor
+
+
+def _dek_html(story, color, size=38):
+    if not T.dek_adds(story):
+        return ""
+    story["_card_dek"] = True  # the detail slide then leaves the dek out (templates.hook_shown)
+    return (f'<div data-text style="margin-top:36px;font-size:{size}px;font-weight:500;line-height:1.3;color:{color};'
+            f'max-width:880px">{T.t(story["dek"].strip())}</div>')
+
+
+def _headline_fill(title, height, color, top=150):
+    size = fill_size(title, W - 2 * FEED_SAFE, height, top=top)
+    return (f'<h1 data-text data-fill data-max="{top}" style="margin:0;font-family:{SERIF};font-weight:600;font-size:{size}px;line-height:1.06;'
+            f'letter-spacing:-0.015em;color:{color}">{T.t(title)}</h1>')
+
+
 def number_card(story, brand=T.BRAND):
-    """A strip of the photo, then the figure huge, then the headline."""
+    """The figure huge, then the headline. Under a strip of the photo when the photo fits the story; set alone on
+    paper, with the dek, when it does not."""
     a = T.assets(story)
     title = story.get("headline") or story["title"]
     fig = _figure(story)
-    strip = 540
+    show = photo_fit(story) == "high"
     size = 320 if len(fig) <= 4 else 270 if len(fig) == 5 else 220 if len(fig) <= 7 else 170
-    body = (f'<div style="position:absolute;left:0;top:0">{_img(a["photo"], W, strip, {"person": story.get("person"), "photo_file": story.get("photo_file")})}</div>'
-            f'<div style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{strip + 40}px;bottom:{FEED_SAFE}px;'
-            f'display:flex;flex-direction:column">{_meta(story, False)}'
-            f'<div data-text class="num" style="margin-top:34px;font-size:{size}px;font-weight:800;line-height:0.82;'
-            f'letter-spacing:-0.04em">{T.e(fig)}</div><div style="flex:1"></div>'
-            f'{_serif(title, (64, 58, 50), T.BLACK)}<div style="height:40px"></div>'
-            f'{_foot(brand, False, [("", {"credit": a["credit"]})] if a.get("credit") else [])}</div>')
+    wide = int((W - 2 * FEED_SAFE) / (0.66 * max(len(fig), 1)))  # Franklin 800 figures run about 0.66 em: never past the margin
+    if show:
+        size = min(size, wide)
+        strip = 540
+        top = (f'<div style="position:absolute;left:0;top:0">{_img(a["photo"], W, strip, {"person": story.get("person"), "photo_file": story.get("photo_file")})}</div>')
+        room = H - strip - 40 - FEED_SAFE - 30 - 34 - size * 0.82 - 40 - 110
+        body = (top + f'<div data-col style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{strip + 40}px;bottom:{FEED_SAFE}px;'
+                f'display:flex;flex-direction:column">{_meta(story, False)}'
+                f'<div data-text class="num" style="margin-top:34px;font-size:{size}px;font-weight:800;line-height:0.82;'
+                f'letter-spacing:-0.04em">{T.e(fig)}</div><div style="flex:1;min-height:30px"></div>'
+                f'{_headline_fill(title, room, T.BLACK, top=100)}<div style="height:40px"></div>'
+                f'{_foot(brand, False, [("", {"credit": a["credit"]})] if a.get("credit") else [])}</div>')
+        return _page(body, T.WHITE, T.BLACK)
+    size = min(int(size * 1.25), wide)
+    dek = _dek_html(story, T.GREY, 36)
+    room = H - 2 * FEED_SAFE - 30 - 60 - size * 0.82 - 60 - 70 - (190 if dek else 0)
+    body = (f'<div data-col style="position:absolute;inset:{FEED_SAFE}px;display:flex;flex-direction:column">{_meta(story, False)}'
+            f'<div data-text class="num" style="margin-top:60px;font-size:{size}px;font-weight:800;line-height:0.82;'
+            f'letter-spacing:-0.045em">{T.e(fig)}</div><div style="flex:1;min-height:48px"></div>'
+            f'<div style="border-top:3px solid {T.BLACK};padding-top:36px">{_headline_fill(title, room, T.BLACK, top=150)}{dek}</div>'
+            f'<div style="flex:1"></div>{_foot(brand, False, [])}</div>')
     return _page(body, T.WHITE, T.BLACK)
 
 
 def type_card(story, brand=T.BRAND):
-    """The headline set large in Newsreader on paper or ink (alternating by headline), a small photo crop above it."""
+    """Type-led. With a photo that fits the story: the photo across the top half, the headline filling the rest.
+    Without one: pure type on paper, the headline sized to fill the card, the dek under it."""
     a = T.assets(story)
     title = story.get("headline") or story["title"]
-    dark = zlib.crc32(title.encode()) % 2 == 1
-    bg, fg = (T.BLACK, T.WHITE) if dark else (T.WHITE, T.BLACK)
-    crop = (f'<div style="width:280px;height:280px;overflow:hidden;outline:1px solid {T.LINE if not dark else "#3A3A3A"}">'
-            f'{_img(a["photo"], 280, 280, {"person": story.get("person"), "photo_file": story.get("photo_file")})}</div>') if a.get("photo") else ""
-    shots = [("", {"credit": a["credit"]})] if a.get("photo") and a.get("credit") else []
-    body = (f'<div style="position:absolute;inset:{FEED_SAFE}px;display:flex;flex-direction:column">'
-            f'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:40px">'
-            f'{_meta(story, dark)}{crop}</div><div style="flex:1"></div>'
-            f'{_serif(title, (104, 92, 80), fg)}<div style="height:56px"></div>{_foot(brand, dark, shots)}</div>')
-    return _page(body, bg, fg)
+    if photo_fit(story) == "high":
+        band = 600
+        room = H - band - 44 - 30 - 30 - FEED_SAFE - 110
+        body = (f'<div style="position:absolute;left:0;top:0">{_img(a["photo"], W, band, {"person": story.get("person"), "photo_file": story.get("photo_file")})}</div>'
+                f'<div data-col style="position:absolute;left:{FEED_SAFE}px;right:{FEED_SAFE}px;top:{band + 44}px;bottom:{FEED_SAFE}px;'
+                f'display:flex;flex-direction:column">{_meta(story, False)}<div style="height:30px"></div>'
+                f'{_headline_fill(title, room, T.BLACK, top=124)}<div style="flex:1;min-height:30px"></div>'
+                f'{_foot(brand, False, [("", {"credit": a["credit"]})] if a.get("credit") else [])}</div>')
+        return _page(body, T.WHITE, T.BLACK)
+    dek = _dek_html(story, T.GREY, 40)
+    room = H - 2 * FEED_SAFE - 30 - 70 - 90 - (210 if dek else 0)
+    body = (f'<div data-col style="position:absolute;inset:{FEED_SAFE}px;display:flex;flex-direction:column">{_meta(story, False)}'
+            f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 0">'
+            f'{_headline_fill(title, room, T.BLACK, top=170)}{dek}</div>{_foot(brand, False, [])}</div>')
+    return _page(body, T.WHITE, T.BLACK)
+
+
+def brief_card(story, brand=T.BRAND):
+    """Ink, no photo: the topic as a large kicker, the headline under a rule, the dek. For a story with no photo that
+    fits it, so the photo-free cards still alternate (type, brief, number)."""
+    title = story.get("headline") or story["title"]
+    topic = story.get("topic") if story.get("topic") in T.TOPICS else T.LABEL.get(story.get("category"), "News")
+    dek = _dek_html(story, "#BDBDBD", 40)
+    room = H - 2 * FEED_SAFE - 150 - 40 - 90 - (210 if dek else 0)
+    meta = T._meta_card(story).partition(" · ")[2]
+    body = (f'<div data-col style="position:absolute;inset:{FEED_SAFE}px;display:flex;flex-direction:column">'
+            f'<div data-text style="font-size:112px;font-weight:800;letter-spacing:-0.04em;line-height:0.9">{T.e(topic)}.</div>'
+            f'<div data-text class="num" style="margin-top:22px;font-size:26px;color:#D6D6D6">{T._breaking(story, True)}{T.e(meta)}</div>'
+            f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center;border-top:3px solid {T.WHITE};'
+            f'margin-top:40px;padding:44px 0">{_headline_fill(title, room, T.WHITE, top=150)}{dek}</div>'
+            f'{_foot(brand, True, [])}</div>')
+    return _page(body, T.BLACK, T.WHITE)
 
 
 def html(story, name, brand=T.BRAND):
@@ -422,6 +533,8 @@ def html(story, name, brand=T.BRAND):
         return number_card(story, brand)
     if name == "type":
         return type_card(story, brand)
+    if name == "brief":
+        return brief_card(story, brand)
     a = T.assets(story)
     return T.card(story, brand, place=quiet_side(a["photo"], a.get("kind") == "person") if a.get("photo") else "bottom")
 
@@ -435,4 +548,6 @@ def credits(story, name):
     if name == "place":
         return [{"file": x["scene"]["file"], "credit": x["scene"]["credit"], "name": "Place"},
                 {"file": x["portrait"]["file"], "credit": x["portrait"]["credit"], "name": people_named(story)[0][0]}]
+    if name == "brief" or (name in ("type", "number") and photo_fit(story) != "high"):
+        return []  # a photo-free card: the photo that did not fit the story is not on it
     return [{"file": a["file"], "credit": a["credit"], "name": ""}] if a.get("file") else []
