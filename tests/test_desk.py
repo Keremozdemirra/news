@@ -324,7 +324,7 @@ class Pace(Tmp):
 
     def test_daily_posts_cap(self):
         cap = desk.daily_cap()
-        self.assertEqual(cap, 12)
+        self.assertEqual(cap, desk.CONFIG["daily_posts_start"])  # a fresh desk starts at the configured start
         self.assertEqual(desk.CONFIG["spacing_minutes"], 45)
         for i in range(cap):
             self.write_post(f"d{i}", status="published", published=(desk.now() - timedelta(hours=2 + i)).isoformat())
@@ -352,7 +352,7 @@ class Ramp(Tmp):
     # the ramp's logic, tested with fixed numbers rather than whatever desk.json holds today
     def setUp(self):
         super().setUp()
-        p = mock.patch.dict(desk.CONFIG, {"daily_posts_start": 12, "daily_posts_step": 4, "daily_posts_max": 40})
+        p = mock.patch.dict(desk.CONFIG, {"daily_posts_start": 12, "daily_posts_step": 4, "daily_posts_max": 40, "daily_posts_ramp_days": 7})
         p.start()
         self.addCleanup(p.stop)
 
