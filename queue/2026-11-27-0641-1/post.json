@@ -48,5 +48,20 @@
  "credit_file": "Cranes at the Port of Halifax (Nova Scotia).jpg",
  "status": "web",
  "published": "2026-11-27T06:41:50+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "threads": {
+   "id": "18075121493781321",
+   "url": "https://www.threads.com/@boardread/post/DgPF_nXG-yh",
+   "at": "2026-11-27T07:01:32+00:00",
+   "reply": {
+    "id": "17919828624542293"
+   }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bmkqsikk2x",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bmkqsikk2x",
+   "at": "2026-11-27T07:01:34+00:00"
+  }
+ }
 }
