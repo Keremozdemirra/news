@@ -232,16 +232,24 @@ PCT = re.compile(r"(\d+(?:[.,]\d+)?)\s?(?:%|percent\b|per cent\b|percentage poin
 _MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
 PERIODS = {
     "year": re.compile(r"\b(?:year[- ](?:on|over)[- ]year|on[- ]year|yoy|y/y|annual\w*|(?:a|the|last|previous|prior|this|full|per) "
-                       r"year|years?|(?:19|20)\d\d)\b|\bfull-year\b", re.I),
+                       r"year|years?)\b|\bfull-year\b", re.I),
     "quarter": re.compile(r"\b(?:quarter[- ]on[- ]quarter|q/q|sequential\w*|quarter\w*|Q[1-4])\b|\b(?:first|second|third|fourth)-quarter\b", re.I),
     "month": re.compile(r"\b(?:month[- ]on[- ]month|on the month|m/m|month\w*|" + _MONTHS + r")\b", re.I),
     "week": re.compile(r"\b(?:week[- ]on[- ]week|w/w|week\w*)\b", re.I),
-    "day": re.compile(r"\b(?:day|session|today|intraday|overnight|(?:Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day)\b", re.I),
+    "day": re.compile(r"\b(?:day|session|today|intraday|overnight)\b", re.I),
 }
 
 
+TWELVE_MONTHS = re.compile(r"\b(?:12|twelve)[- ]months?\b", re.I)
+
+
 def _period_kinds(sentence):
+    """"the past 12 months" is a year, not a month; a weekday or a bare year number names no period."""
+    sentence = TWELVE_MONTHS.sub("year", sentence)
     return {k for k, rx in PERIODS.items() if rx.search(sentence)}
+
+
+FROM_BEFORE = re.compile(r"\bfrom\s+$", re.I)  # "slows to 2.1% from 2.6%": the earlier figure is a reference, not a claim
 
 
 def _percent_sentences(story, c):
@@ -251,11 +259,12 @@ def _percent_sentences(story, c):
         text = "\n".join(l for l in str(c.get(field) or "").splitlines() if not l.startswith("Source:"))
         for sent in ([text] if field == "headline" else sentences(" ".join(text.split("\n")))):
             for m in PCT.finditer(sent):
-                mine.append((m.group(1).replace(",", ""), sent, field))
+                if not FROM_BEFORE.search(sent[:m.start()]):
+                    mine.append((m.group(1).replace(",", ""), sent, field))
     theirs = []
     for title, summary in [(story.get("title", ""), story.get("summary", ""))] + [(r.get("title", ""), r.get("summary", "")) for r in story.get("reports") or []]:
         for sent in [title] + sentences(summary):
-            theirs += [(m.group(1).replace(",", ""), sent) for m in PCT.finditer(sent)]
+            theirs += [(m.group(1).replace(",", ""), sent) for m in PCT.finditer(sent) if not FROM_BEFORE.search(sent[:m.start()])]
     return mine, theirs
 
 
@@ -282,23 +291,30 @@ def period_gaps(story, c):
 
 
 def trim_periods(story, c):
-    """A report sentence whose percentage has no period is cut; the report is optional, the headline and dek are not."""
+    """A report or dek sentence whose percentage has no period is cut; the report is optional and so is the dek (the
+    report's first sentence moves up in its place). The headline is not: its gap stays and rejects the story."""
     gaps = period_gaps(story, c)
-    shown = f"{c.get('headline', '')} {c.get('dek', '')}"
-    cut = [g for g in gaps if not any(m.group(1).replace(",", "") == g for m in PCT.finditer(shown))]
+    headline = c.get("headline", "")
+    cut = [g for g in gaps if not any(m.group(1).replace(",", "") == g for m in PCT.finditer(headline))]
     if not cut:
         return []
-    out, lines = [], []
-    for line in str(c.get("linkedin_post") or "").split("\n"):
-        if line.startswith("Source:") or not line.strip():
-            lines.append(line)
-            continue
-        kept = []
-        for sent in sentences(line):
-            (out.append(sent) if any(m.group(1).replace(",", "") in cut for m in PCT.finditer(sent)) else kept.append(sent))
-        if kept:
-            lines.append(" ".join(kept))
-    c["linkedin_post"] = re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    out = []
+
+    def trim(text):
+        lines = []
+        for line in str(text or "").split("\n"):
+            if line.startswith("Source:") or not line.strip():
+                lines.append(line)
+                continue
+            kept = []
+            for sent in sentences(line):
+                (out.append(sent) if any(m.group(1).replace(",", "") in cut for m in PCT.finditer(sent)) else kept.append(sent))
+            if kept:
+                lines.append(" ".join(kept))
+        return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+    c["linkedin_post"] = trim(c.get("linkedin_post"))
+    if isinstance(c.get("dek"), str):
+        c["dek"] = trim(c["dek"])
     return out
 
 

@@ -135,9 +135,33 @@ class Periods(unittest.TestCase):
         self.assertNotIn("0.4", s["linkedin_post"])
 
     def test_a_period_the_source_does_not_give_is_rejected(self):
-        s, rejected = self.apply("French inflation slows to 2.9% year on year", "Consumer prices fell 0.7% year on year.",
+        s, rejected = self.apply("French consumer prices fall 0.7% year on year", "Annual inflation slowed to 2.9% year on year.",
                                  "Prices had risen 0.4% in October. Insee published the figures on Friday.")
         self.assertEqual(s["copy_status"], "fallback")
+        # the same slip in the dek only costs the dek
+        s, rejected = self.apply("French inflation slows to 2.9% year on year", "Consumer prices fell 0.7% year on year.",
+                                 "Prices had risen 0.4% in October. Insee published the figures on Friday.")
+        self.assertEqual(s["copy_status"], "ok")
+        self.assertNotIn("0.7", s["dek"])
+
+    def test_twelve_months_is_a_year_and_weekdays_and_bare_years_name_no_period(self):
+        self.assertEqual(copy._period_kinds("Prices rose 3% over the past 12 months."), {"year"})
+        self.assertEqual(copy._period_kinds("The margin was 4% on Tuesday."), set())
+        self.assertEqual(copy._period_kinds("Sales fell 4% in 2025."), set())
+        s = story("Inflation hits 3.1%", "Prices rose 3.1% over the past 12 months. Rates stayed at 4.5%.")
+        rows = [row(headline="Inflation hits 3.1% year on year", dek="Rates stayed at 4.5%.", x_post="x", linkedin_post="")]
+        self.assertEqual(copy.apply([s], rows), [])
+
+    def test_the_figure_after_from_is_a_reference_not_a_claim(self):
+        s = story("Inflation slows to 2.1%", "Annual inflation slows to 2.1% from 2.6%. Rates held at 4.5% on Tuesday.")
+        rows = [row(headline="Annual inflation slows to 2.1% from 2.6%", dek="Rates held at 4.5% on Tuesday.", x_post="x", linkedin_post="")]
+        self.assertEqual(copy.apply([s], rows), [])
+
+    def test_a_dek_figure_without_its_period_trims_the_dek_not_the_story(self):
+        s, rejected = self.apply("French annual inflation slows to 2.9% in November", "Prices fell 0.7% in the month, Insee said.",
+                                 "Prices had risen 0.4% in October. Insee published the figures on Friday.")
+        self.assertEqual(rejected, [])
+        self.assertEqual(s["copy_status"], "ok")
 
     def test_one_percentage_needs_no_period(self):
         s = story("Oil falls 3%", "Brent fell 3% on Friday.")
