@@ -284,7 +284,7 @@ function renderEnd(win) {
   $("share-text").textContent = shareText(win);
   const done = store.extras?.d === data.date ? store.extras.done : [], left = (daily.more || []).map((m, k) => k + 1).filter((k) => !done.includes(k));
   $("extra").hidden = !left.length; $("extra").dataset.k = left[0] || "";
-  $("extra-label").textContent = left.length ? `Another board from today’s news (${left.length} left)` : "";
+  $("extra-label").textContent = left.length ? `Another board (${left.length} left)` : "";
   $("to-daily").hidden = !extraNo;
   $("credit").textContent = data.credit;
   $("end").hidden = false; $("kb").hidden = true;
@@ -306,7 +306,7 @@ async function share() {
   try {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast("Copied. Paste it anywhere.");
+    toast("Copied.");
   } catch {
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     toast("Select and copy the text.");
@@ -419,7 +419,7 @@ async function boot() {
     const y = new Date(Date.parse(data.date + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
     const streak = st.lastWin === y || st.lastWin === data.date ? st.streak : 0;
     $("intro-fine").textContent = `Played ${st.played}. Streak ${streak}. Best streak ${st.best}.`;
-  } else $("intro-fine").textContent = "Sound is off. Turn it on with the speaker button.";
+  }
 
   // sound toggle
   const sb = $("sound");

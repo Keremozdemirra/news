@@ -61,7 +61,7 @@ function fillTicket(pl, f, hidden) {
   pl.querySelectorAll(".stamp,.tally,.coin").forEach((n) => n.remove());
   pl.querySelector(".tape")?.getAnimations().forEach((x) => x.cancel());   // the last round's torn tape must not stay torn
   pl.querySelectorAll("[hidden]").forEach((n) => { n.hidden = false; });
-  if (hidden) { fig.dataset.k = ""; fig.className = "fig sealed"; fig.textContent = "0.00"; pl.classList.add("sealed-on"); pl.querySelector(".src").textContent = "Source printed after the reveal"; }
+  if (hidden) { fig.dataset.k = ""; fig.className = "fig sealed"; fig.textContent = "0.00"; pl.classList.add("sealed-on"); pl.querySelector(".src").textContent = ""; }
   else { pl.classList.remove("sealed-on"); setFig(fig, f.kind, f.value); pl.querySelector(".src").innerHTML = srcLine(f); }
 }
 function seatTape() { const t = pb.querySelector(".tape"), fg = pb.querySelector(".fig"); t.style.top = fg.offsetTop + 3 + "px"; }
@@ -260,7 +260,7 @@ function settle(choice) {
   }
   $("v-word").textContent = ok ? (streak >= 3 ? `Right, chain of ${streak}` : "Right call") : "Missed it, chain broken";
   $("v-pts").textContent = ok ? `+${pts}` : "+0";
-  $("v-line").textContent = line + (idx < R.length - 1 ? ` ${r.b.subject} stays on the balance.` : "");
+  $("v-line").textContent = line;
   $("next-label").textContent = idx === R.length - 1 ? "See your result" : "Next link";
   progress(false);
   pipsRender(); hud();
@@ -326,7 +326,7 @@ function renderEnd(rec) {
   $("e-issue").textContent = `Face the Figure No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
   $("e-score").innerHTML = `${correct}<small>/${rounds.length}</small>`;
   $("e-rank").textContent = rankOf(correct);
-  $("e-line").textContent = correct ? `Score ${rec.score} of ${rounds.length * (rounds.length + 1) / 2}. Longest chain ${rec.run}.` : "No call landed. Same ledger tomorrow, new figures.";
+  $("e-line").textContent = correct ? `Score ${rec.score} of ${rounds.length * (rounds.length + 1) / 2}. Longest chain ${rec.run}.` : "No call landed.";
   const mk = (cls, txt) => { const s = document.createElement("span"); s.className = cls; s.textContent = txt; return s; };
   const best = res.map((r, i) => ({ r, i })).filter((x) => x.r[0] && rounds[x.i]).sort((x, y) => x.r[3] - y.r[3]).slice(0, 3);
   const ob = $("e-best"); ob.innerHTML = "";
@@ -374,7 +374,7 @@ async function share() {
   try {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast("Copied. Paste it anywhere.");
+    toast("Copied.");
   } catch {
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     toast("Select and copy the text.");
@@ -393,7 +393,7 @@ async function boot() {
   document.fonts?.ready.then(() => { equalize(); relayout(); });
 
   $("issue").textContent = `No. ${data.no} · ${new Date(data.date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;
-  if (stats.streak && stats.last) $("intro-fine").textContent = `Day streak ${stats.streak}. Best score ${stats.best}. Same chain for everyone each UTC day.`;
+  if (stats.streak && stats.last) $("intro-fine").textContent = `Day streak ${stats.streak}. Best score ${stats.best}.`;
 
   const sb = $("sound");
   const setSound = (on) => { const v = snd.setEnabled(on); sb.setAttribute("aria-pressed", v); sb.setAttribute("aria-label", v ? "Sound on" : "Sound off"); try { localStorage.setItem("ftf:sound", v ? "1" : "0"); } catch { /* ignore */ } };

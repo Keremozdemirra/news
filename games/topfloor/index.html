@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Topfloor | Boardread</title>
-<meta name="description" content="A daily rare-answer game. Seven business prompts, 25 seconds each. The rarer your answer, the higher the lift climbs.">
+<meta name="description" content="Seven prompts a day. The rarer your answer, the higher you ride.">
 <link rel="canonical" href="https://boardread.news/play/topfloor/">
 <meta property="og:site_name" content="Boardread"><meta property="og:type" content="website">
-<meta property="og:title" content="Topfloor · boardread."><meta property="og:description" content="A daily rare-answer game. Seven business prompts, 25 seconds each. The rarer your answer, the higher the lift climbs.">
+<meta property="og:title" content="Topfloor · boardread."><meta property="og:description" content="Seven prompts a day. The rarer your answer, the higher you ride.">
 <meta property="og:url" content="https://boardread.news/play/topfloor/"><meta property="og:image" content="https://boardread.news/play/topfloor/assets/share.jpg">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Topfloor · boardread.">
-<meta name="twitter:description" content="A daily rare-answer game. Seven business prompts, 25 seconds each. The rarer your answer, the higher the lift climbs."><meta name="twitter:image" content="https://boardread.news/play/topfloor/assets/share.jpg">
+<meta name="twitter:description" content="Seven prompts a day. The rarer your answer, the higher you ride."><meta name="twitter:image" content="https://boardread.news/play/topfloor/assets/share.jpg">
 <meta name="theme-color" content="#0b1218">
 <link rel="preload" href="assets/fonts/Limelight-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/Jost-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -62,7 +62,7 @@
     <section class="screen" data-s="intro" aria-labelledby="t-intro">
       <p class="eyebrow" id="issue">Daily puzzle</p>
       <h1 class="title" id="t-intro">Topfloor</h1>
-      <p class="lede">Seven business prompts, 25 seconds each. Rarer answers ride the lift higher.</p>
+      <p class="lede">Seven prompts. The rarer your answer, the higher you ride.</p>
       <ol class="directory" aria-label="Building directory">
         <li style="--tc:var(--t4)"><b>Helipad</b><i></i><span>100</span></li>
         <li style="--tc:var(--t3)"><b>Penthouse</b><i></i><span>85</span></li>
@@ -73,7 +73,7 @@
       <div class="cta-row">
         <button class="call wide" id="start" type="button"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span><span class="call-text">Call the lift</span></button>
       </div>
-      <p class="fine"><span id="intro-fine">Everyone gets the same building each UTC day.</span> <a href="/play/">More games</a> · <a href="/">Boardread</a></p>
+      <p class="fine"><span id="intro-fine"></span> <a href="/play/">More games</a> · <a href="/">Boardread</a></p>
     </section>
 
     <section class="screen" data-s="prompt" aria-labelledby="q-text" hidden>
@@ -87,7 +87,7 @@
         </div>
         <button class="call" id="ride" type="submit" aria-label="Send answer"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span></button>
       </form>
-      <p class="q-note" id="q-note" role="status">Any valid answer counts. Rare ones count more.</p>
+      <p class="q-note" id="q-note" role="status"></p>
     </section>
 
     <section class="screen" data-s="result" aria-live="polite" hidden>
@@ -119,7 +119,7 @@
         <p class="next-in">Next building in <b class="mono" id="countdown">00:00:00</b></p>
         <button class="next" id="practice" type="button"><span id="practice-label">Practice building</span></button>
         <button class="textbtn" id="to-daily" type="button" hidden>Back to today’s result</button>
-        <p class="fine">Practice takes seven prompts from the other lists. It is not counted and not shared.</p>
+        <p class="fine">Practice is not counted.</p>
       </div>
       <p class="fine" id="e-missed" hidden></p>
       <p class="credit" id="credit"></p>

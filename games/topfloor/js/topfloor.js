@@ -142,7 +142,7 @@ function startPrompt(i) {
   $("q-count").textContent = `Question ${i + 1} of ${data.prompts.length}`;
   $("q-text").textContent = p.text;
   $("ans").value = ""; $("ride").classList.remove("ready");
-  $("q-note").textContent = `${p.entries.length} valid answers on file. Rare ones count more.`; $("q-note").classList.remove("bad");
+  $("q-note").textContent = `${p.entries.length} answers on file.`; $("q-note").classList.remove("bad");
   $("q-time").textContent = `0:${pad(SECS)}`; $("q-time").classList.remove("hot");
   doors.alarm.classList.remove("hot");
   pipsRender();
@@ -186,7 +186,7 @@ function submit() {
   const note = $("q-note");
   if (!raw) { nope("Type an answer first."); return; }
   const hit = find(idx, raw);
-  if (hit === null) { missed(raw); nope(`Not on file for this prompt. Try another.`); return; }
+  if (hit === null) { missed(raw); nope(`Not on file. Try another.`); return; }
   success(hit);
 }
 // An answer we did not know stays on this device only (nothing is sent anywhere): the last 200, for the day's
@@ -376,7 +376,7 @@ function renderEnd(rec) {
   $("e-tier").textContent = BANDS[b][0];
   $("e-tier").style.setProperty("--tier-c", `var(--t${b})`);
   const best = rec.ans.map((a, i) => ({ a, i })).filter((x) => x.a[1] >= 0).sort((x, y) => y.a[1] - x.a[1])[0];
-  $("e-line").textContent = best ? `Best answer: ${best.a[0]}, ${data.tiers[best.a[1]].name}, +${best.a[2]}.` : "No answers landed. The building is still there tomorrow.";
+  $("e-line").textContent = best ? `Best answer: ${best.a[0]}, ${data.tiers[best.a[1]].name}, +${best.a[2]}.` : "No answers landed.";
   // list
   const ol = $("e-list"); ol.innerHTML = "";
   rec.ans.forEach((a, i) => {
@@ -404,7 +404,7 @@ function renderEnd(rec) {
   let miss = [];
   try { miss = [...new Set(JSON.parse(localStorage.getItem("topfloor:misses") || "[]").filter((m) => m.d === data.date).map((m) => m.g))]; } catch { /* ignore */ }
   $("e-missed").hidden = !miss.length;
-  $("e-missed").textContent = miss.length ? `Not on file today: ${miss.slice(0, 8).join(", ")}. If one of them is real, the list is short, not you.` : "";
+  $("e-missed").textContent = miss.length ? `Not on file: ${miss.slice(0, 8).join(", ")}.` : "";
   // dial and world for restored games
   if (floor !== F) { total = rec.total; floor = F; setLiftMs(1); applyPalette(F / MAXF); world.setFloor(F, true); world.setProgress(total / 700); world.setLitFloors(F); setOdometer(F); needle.set(F); }
   setDoors(0);
@@ -425,7 +425,7 @@ async function share() {
   try {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ text }); return; }
     await navigator.clipboard.writeText(text);
-    toast("Copied. Paste it anywhere.");
+    toast("Copied.");
   } catch {
     const r = document.createRange(); r.selectNodeContents($("share-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r);
     toast("Select and copy the text.");
@@ -467,7 +467,7 @@ async function boot() {
 
   const d = new Date(data.date + "T12:00:00Z");
   $("issue").textContent = `No. ${data.no} · ${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}`;
-  if (stats.streak && stats.last) $("intro-fine").textContent = `Streak ${stats.streak}. Best floor ${stats.best}. Same building for everyone each UTC day.`;
+  if (stats.streak && stats.last) $("intro-fine").textContent = `Streak ${stats.streak}. Best floor ${stats.best}.`;
 
   // sound toggle
   const sb = $("sound");
@@ -483,7 +483,7 @@ async function boot() {
   $("ans").addEventListener("input", () => {
     const slot = $("slot"); slot.classList.remove("tick", "nope"); void slot.offsetWidth; slot.classList.add("tick");
     $("ride").classList.toggle("ready", $("ans").value.trim().length > 0);
-    if ($("q-note").classList.contains("bad")) { $("q-note").classList.remove("bad"); $("q-note").textContent = `${data.prompts[idx].entries.length} valid answers on file. Rare ones count more.`; }
+    if ($("q-note").classList.contains("bad")) { $("q-note").classList.remove("bad"); $("q-note").textContent = `${data.prompts[idx].entries.length} answers on file.`; }
     snd.click();
   });
   $("next").addEventListener("click", next);
