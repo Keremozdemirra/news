@@ -40,6 +40,8 @@ function setFig(fig, kind, v) {
   const p = parts(kind, v), key = JSON.stringify(p);
   if (fig.dataset.k === key) return false;
   fig.dataset.k = key; fig.className = "fig num";
+  const len = (p.cur ? 1 : 0) + p.num.length + (p.u ? 1 : 0);      // a long figure is set smaller so it stays inside its column
+  fig.dataset.len = len >= 8 ? "xl" : len >= 6 ? "l" : "";
   let h = p.cur ? `<span class="cur">${p.cur}</span>` : "";
   for (const ch of p.num) h += /\d/.test(ch) ? `<span class="d">${ch}</span>` : `<span class="p">${ch}</span>`;
   if (p.u) h += p.pct ? `<span class="p" style="width:auto">%</span>` : `<span class="u">${p.u}</span>`;
@@ -58,7 +60,7 @@ function fill(card, f, sealed) {
   card.querySelector(".subj").textContent = f.subject;
   card.querySelector(".what").textContent = f.headline || f.what;
   const fig = card.querySelector(".fig");
-  fig.dataset.k = "";
+  fig.dataset.k = ""; fig.dataset.len = "";
   card.classList.toggle("sealed", sealed);
   if (sealed) { fig.textContent = "?"; fig.className = "fig num"; card.querySelector(".src").textContent = ""; }
   else { setFig(fig, f.kind, f.value); card.querySelector(".src").innerHTML = srcLine(f); }

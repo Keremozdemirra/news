@@ -51,7 +51,7 @@ a { color: inherit; }
 .pips li.no::after { content: "×"; position: absolute; inset: 0; display: grid; place-items: center; font: 800 12px/1 var(--f); }
 
 .ask { flex: none; padding: 28px var(--pad) 0; display: grid; gap: 10px; }
-.q { font: 500 32px/1.08 var(--serif); letter-spacing: -0.015em; outline: none; text-wrap: balance; overflow-wrap: anywhere; }
+.q { min-height: calc(3 * 1.08em); font: 500 32px/1.08 var(--serif); letter-spacing: -0.015em; outline: none; text-wrap: balance; overflow-wrap: anywhere; }
 
 /* the two figures: a table of two columns between two rules */
 .pair { flex: none; display: grid; grid-template-columns: 1fr 1fr; margin: 28px var(--pad) 0; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--ink); }
@@ -65,6 +65,8 @@ a { color: inherit; }
 .subj { font: 600 25px/1.08 var(--serif); letter-spacing: -0.01em; margin-top: 12px; overflow-wrap: anywhere; hyphens: auto; }
 .what { margin-top: 12px; }
 .fig { display: flex; align-items: baseline; height: 56px; margin-top: 6px; font: 800 44px/56px var(--f); letter-spacing: -0.02em; white-space: nowrap; transform-origin: 50% 55%; }
+.fig[data-len="l"] { font-size: 36px; }
+.fig[data-len="xl"] { font-size: 30px; }
 .fig .cur { font-size: 0.6em; margin-right: 2px; align-self: center; }
 .fig .u { font-size: 0.42em; font-weight: 600; letter-spacing: 0; margin-left: 5px; }
 .fig .p { display: inline-block; }
@@ -158,4 +160,6 @@ a { color: inherit; }
   .pair { margin-top: 32px; }
   .fc { padding: 20px 0 24px; }
   .fig { height: 64px; font-size: 50px; line-height: 64px; }
+  .fig[data-len="l"] { font-size: 40px; }
+  .fig[data-len="xl"] { font-size: 32px; }
 }
