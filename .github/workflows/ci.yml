@@ -23,4 +23,4 @@ jobs:
           print(R.jpeg('/tmp/cover.png'))"
           file /tmp/cover.jpg
       - name: Render one video card in both shapes and check it against Instagram's spec
-        run: python3 -m unittest discover -s tests -p test_cardvideo.py
+        run: python3 -m unittest discover -s tests -p "test_cardvideo.py" && python3 -m unittest discover -s tests -p "test_shorts.py"

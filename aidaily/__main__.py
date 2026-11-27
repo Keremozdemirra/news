@@ -169,6 +169,10 @@ def main(argv=None):
     en.add_argument("--dry", action="store_true")
     rl = sub.add_parser("reel", help="the daily recap Reel (switch growth.daily_reel): stage due, build or send")
     rl.add_argument("stage", choices=["due", "build", "send"])
+    sh = sub.add_parser("shorts", help="YouTube Shorts (switch growth.shorts): stage due, run, or render a post locally")
+    sh.add_argument("stage", choices=["due", "run", "render"])
+    sh.add_argument("post", nargs="?", help="render: the queue id")
+    sh.add_argument("out", nargs="?", help="render: the MP4 to write")
     sub.add_parser("insights", help="weekly numbers from every connected platform, weights and learned timing")
     so = sub.add_parser("seo", help="audit a built site directory for Google News, Discover and Search")
     so.add_argument("dir", nargs="?", default="_site")
@@ -284,6 +288,21 @@ def main(argv=None):
         if args.stage == "build":
             return 0 if reel.build() else 1
         reel.send()
+        return 0
+    if args.cmd == "shorts":
+        from . import shorts
+        if args.stage == "due":
+            ok, why = shorts.due()
+            print("shorts due" if ok else f"shorts not due: {why}")
+            return 0 if ok else 1  # the workflow installs ffmpeg and runs only on 0
+        if args.stage == "render":  # local samples: renders, never uploads
+            import json as _json
+            from . import desk as _desk
+            post = _json.loads((_desk.QUEUE / args.post / "post.json").read_text())
+            out, _ = shorts.build(post, args.out or f"{args.post}-short.mp4")
+            print(out)
+            return 0
+        shorts.run()
         return 0
     if args.cmd == "markets":
         from . import markets

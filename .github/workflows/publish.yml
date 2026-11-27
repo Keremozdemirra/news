@@ -52,6 +52,21 @@ jobs:
               python3 -m aidaily reel send
             fi
           fi
+      # Off unless desk.json growth.shorts is true: `shorts due` then exits 1 and nothing below runs. The YouTube
+      # secrets are given to this step alone; the token can upload videos (scope youtube.upload) and nothing else.
+      - name: YouTube Short
+        if: always()
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if python3 -m aidaily shorts due; then
+            command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+            [ -d media ] || scripts/media.sh pull
+            python3 -m aidaily shorts run
+          fi
       # what will not fix itself goes to one "Desk health" issue (opened, updated, closed by the check); never fails the run
       - name: Health
         if: ${{ !cancelled() }}
