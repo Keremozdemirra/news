@@ -254,7 +254,7 @@ def stats():
     return followers
 
 
-ASSET_FILES = ("theme.js", "site.css", "views.css", "paper.css", "play.css", "site.js", "paper.js", "play.js")
+ASSET_FILES = ("theme.js", "site.css", "views.css", "paper.css", "play.css", "reader.css", "site.js", "paper.js", "play.js", "reader.js")
 ASSET_V = hashlib.sha1(b"".join((ASSETS / f).read_bytes() for f in ASSET_FILES if (ASSETS / f).exists())).hexdigest()[:8]
 # the serif file is cached for a long time: its URL changes with its bytes
 FONT_V = hashlib.sha1((ASSETS / "fonts" / "Newsreader-var.woff2").read_bytes()).hexdigest()[:8]
@@ -381,7 +381,7 @@ SEARCH_LINK = (f'<a class="iconbtn" href="{{b}}/search/" aria-label="Search"><sv
 
 
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
-         noindex=False, rel=None, main_class="", feed=None, styles=("views",), scripts=(), body_class="", canonical=None):
+         noindex=False, rel=None, main_class="", feed=None, styles=("views",), scripts=(), body_class="", canonical=None, reader=False):
     """Every page. path is relative to the site root and becomes the canonical and og:url; image is the
     site-relative link-preview image (the shared default when a article has no photo). rel: {"prev": path, "next": path}.
     styles and scripts name extra files of assets/ (views, paper, play / paper, play) loaded only by the pages that use them."""
@@ -400,6 +400,9 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
     nl = desk.CONFIG.get("newsletter_url")
     foot_sections = "".join(f'<li><a href="{BASE}{topic_path(t)}">{t}</a></li>' for t in TOPIC_ORDER)
     follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
+    reader = reader or front  # a page that lists stories opens them in the reader layer
+    if reader:
+        styles, scripts = (*styles, "reader"), (*scripts, "reader")
     css = "".join(f'<link rel="stylesheet" href="{BASE}/assets/{n}.css?v={ASSET_V}">' for n in styles)
     js = "".join(f'<script src="{BASE}/assets/{n}.js?v={ASSET_V}" defer></script>' for n in scripts)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -444,7 +447,15 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
 <div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC.{crypto_credit()} &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
-</footer></body></html>"""
+</footer>{READER if reader else ""}</body></html>"""
+
+
+# the full-screen layer a story opens in from a list (reader.js fills it); hidden until a headline is tapped, and a plain link without the script
+READER = ('<div class="reader" id="reader" role="dialog" aria-modal="true" aria-label="Article" hidden>'
+          '<div class="rbar"><button type="button" class="rclose">Close</button><span class="rpos" aria-live="polite"></span>'
+          '<div class="rnav"><button type="button" class="rprev" aria-label="Previous article">&uarr;</button>'
+          '<button type="button" class="rnext" aria-label="Next article">&darr;</button></div></div>'
+          '<div class="rscroll"><div class="rbody"></div></div></div>')
 
 
 # ---------------------------------------------------------------- pieces
@@ -1198,7 +1209,7 @@ def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, fe
         chunk = rows[(n - 1) * PER:n * PER]
         put(out, here, page(title + (f" · page {n}" if n > 1 else "") + " · boardread.",
                             head + listing(chunk, path, n, total, aside if n == 1 else "", own, days),
-                            desc, here, active=active, rel=rel, feed=feed, ld=collection_ld(title, desc, here, chunk)))
+                            desc, here, active=active, rel=rel, feed=feed, ld=collection_ld(title, desc, here, chunk), reader=True))
         if sitemap is not None and rows:
             sitemap.append((SITE + here, iso(max(p["published"] for p in rows))))
 

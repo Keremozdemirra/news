@@ -122,7 +122,7 @@
     });
   }
   document.addEventListener("keydown", function (e) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || document.documentElement.classList.contains("reader-open")) return;  // the reader has its own keys
     if (e.key === "Escape" && panel && !panel.hidden) { showKeys(false); return; }
     if (typing(e.target)) return;
     var k = e.key;

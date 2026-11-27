@@ -1,0 +1,19 @@
+/* the reader: one full-screen layer over a list; flat, square, black and white like the rest */
+.reader{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;background:var(--paper);color:var(--ink)}
+.reader[hidden]{display:none}
+html.reader-open{overflow:hidden}
+.rbar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:var(--s2);min-height:60px;padding:env(safe-area-inset-top) var(--s2) 0;border-bottom:2px solid var(--ink)}
+.rbar button{all:unset;box-sizing:border-box;min-width:44px;height:44px;padding:0 var(--s2);display:flex;align-items:center;justify-content:center;border:1px solid var(--ink);color:var(--ink);font:600 15px/1 var(--f);cursor:pointer}
+.rbar button:hover:not(:disabled){background:var(--ink);color:var(--paper)}
+.rbar button:disabled{opacity:.35;cursor:default}
+.rbar button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.rnav{display:flex;gap:var(--s1)}.rnav button{padding:0}
+.rpos{font:500 var(--t-meta) var(--f);color:var(--soft);font-variant-numeric:tabular-nums}
+.rscroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 var(--gut) var(--s6)}
+.rbody .art{padding-top:var(--s3)}
+.rbody h1:focus{outline:none}
+@media(prefers-reduced-motion:no-preference){
+  .rbody.up{animation:rup .18s ease-out}.rbody.down{animation:rdown .18s ease-out}
+}
+@keyframes rup{from{transform:translateY(28px)}to{transform:none}}
+@keyframes rdown{from{transform:translateY(-28px)}to{transform:none}}
