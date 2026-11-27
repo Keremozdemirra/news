@@ -53,8 +53,10 @@ the reports from other newsrooms listed under it ("also reported").
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
 that sounds quotable. American English. No em or en dashes. No hype words. No "not X but Y" constructions.
-The page lists its sources, so no sentence opens with a newsroom's name ("Bloomberg reports that ..."), and a
-report names a newsroom at most once, only for a claim that newsroom alone makes. Reports do not all open the same
+The page lists its sources, so no sentence opens with a newsroom's name ("Bloomberg reports that ...") for a fact
+several newsrooms give, and a report names a newsroom at most once, only for a claim that newsroom alone makes or that
+the source hedges ("Reuters reported the revival, citing people familiar with the matter"). A hedged claim ("in talks",
+"could", "plans to") is never written as a plain fact. Reports do not all open the same
 way: not every one with "The company".
 A currency conversion the source gives goes in parentheses right after the figure it converts, once, on its first
 mention: "405.8 billion won ($303 million)". Never a sentence of its own, never one you work out yourself.
@@ -723,18 +725,50 @@ def _outlet_rx(names):
     return "(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + ")"
 
 
+# a clause that is hedged or leans on a source stays attributed: "Bloomberg reports that Intel is in talks" is the
+# newsroom's claim, not a fact the page may state as its own
+HEDGED = re.compile(r"\b(?:in talks|talks|could|may|might|would|plans? to|planning to|set to|poised to|expected to|"
+                    r"considering|weighing|exploring|negotiat\w+|citing|people familiar|sources?|unnamed|insiders?|"
+                    r"reportedly|is said to|are said to|allegedly|rumou?rs?)\b", re.I)
+BARE_PRONOUN = re.compile(r"^(?:it|its|he|she|they|them|his|her|their|this|that|these|those)\b", re.I)
+
+
+def newsroom_count(story):
+    keys = {_outlet_key(n) for n in [story.get("source", "")] + [r.get("outlet", "") for r in story.get("reports") or []]
+            + list(story.get("newsrooms") or story.get("outlets") or []) if n}
+    return len(keys)
+
+
+def attributed_clause(sent, story):
+    """The clause of "<Outlet> reports that <clause>" or "According to <Outlet>, <clause>" when the opener may go, else
+    None. It stays when the story has one newsroom (then it is that newsroom's claim), when the clause is hedged or
+    sourced, and when the clause begins with a pronoun that would dangle once the newsroom is gone."""
+    names = outlet_names(story)
+    if not names or newsroom_count(story) < 2:
+        return None
+    O = _outlet_rx(names)
+    m = re.match(rf"^(?:the )?{O}(?:['\u2019]s [a-z]+(?: [a-z]+)?)? (?:also )?{SAYS} that\s+(?=\S)", sent, re.I) \
+        or re.match(rf"^according to (?:the )?{O},\s+(?=\S)", sent, re.I)
+    if not m:
+        return None
+    clause = sent[m.end():]
+    if len(clause.split()) < 4 or HEDGED.search(clause) or BARE_PRONOUN.search(clause) or re.search(rf"\b{O}\b", clause, re.I):
+        return None
+    return clause
+
+
 def strip_attributions(story, c):
-    """The page lists its sources: a sentence never opens with "Bloomberg reports that ...", and a text names a
-    newsroom at most once. An opener is cut and the clause stands ("Bloomberg reports that prices fell" becomes
-    "Prices fell"); a sentence that only describes the source ("The Guardian describes the letter as ...") goes.
-    Returns the sentences cut."""
+    """The page lists its sources: a sentence never opens with "Bloomberg reports that ..." when two or more newsrooms
+    reported the story, and a text names a newsroom at most once. A plain opener is cut and the clause stands
+    ("Bloomberg reports that prices fell" becomes "Prices fell"); a hedged or sourced claim ("in talks", "citing
+    people familiar"), a claim of the only newsroom, and a clause that opens with a pronoun keep their attribution
+    (the claim would read as fact, or dangle). A sentence that only describes the source ("The Guardian describes the
+    letter as ...") goes. Returns the sentences cut."""
     names = outlet_names(story)
     if not names:
         return []
     O = _outlet_rx(names)
-    opener = re.compile(rf"^(?:the )?{O}(?:['’]s [a-z]+(?: [a-z]+)?)? (?:also )?{SAYS}(?: that)?\s+(?=\S)", re.I)
-    according = re.compile(rf"^according to (?:the )?{O},?\s+(?=\S)", re.I)
-    about = re.compile(rf"^(?:the )?{O}(?:['’]s [a-z]+(?: [a-z]+)?)? (?:also )?{DESCRIBES}\b", re.I)
+    about = re.compile(rf"^(?:the )?{O}(?:['\u2019]s [a-z]+(?: [a-z]+)?)? (?:also )?{DESCRIBES}\b", re.I)
     mid = re.compile(rf",?\s*\b(?:according to|as reported by|reported by|per)\s+(?:the )?{O}\b|,?\s*\b(?:the )?{O}\s+(?:reported|reports|said|says|writes|wrote)\b", re.I)
     cut, named = [], False
     for field in ("dek", "linkedin_post"):
@@ -751,12 +785,9 @@ def strip_attributions(story, c):
                 if about.search(sent):
                     cut.append(sent)
                     continue
-                rest = opener.sub("", sent, count=1) if opener.search(sent) else according.sub("", sent, count=1)
-                if rest != sent:
-                    if len(rest.split()) < 4:
-                        cut.append(sent)
-                        continue
-                    sent = rest[0].upper() + rest[1:]
+                clause = attributed_clause(sent, story)
+                if clause:
+                    sent = clause[0].upper() + clause[1:]
                 if mid.search(sent):
                     if named:
                         trimmed = mid.sub("", sent).strip()

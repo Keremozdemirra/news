@@ -225,6 +225,38 @@ class Attribution(unittest.TestCase):
         copy.strip_attributions(GUARDIAN, c)
         self.assertEqual(c["dek"], "The letter was sent on Thursday.")
 
+    def test_a_hedged_or_sourced_claim_keeps_its_newsroom(self):
+        for x in ("Reuters reported the revival, citing people familiar with the matter.",
+                  "Bloomberg reports that Intel is in talks to buy Y.",
+                  "Bloomberg said it will cut 100 jobs.",
+                  "Bloomberg said that it will cut 100 jobs.",
+                  "The Guardian reports that the minister could resign by Friday.",
+                  "According to the Financial Times, the firm plans to list in March."):
+            s = {**GUARDIAN, "source": "Bloomberg", "reports": [{"outlet": "Reuters", "title": "t", "summary": "s"},
+                                                                 {"outlet": "Financial Times", "title": "t", "summary": "s"},
+                                                                 {"outlet": "The Guardian", "title": "t", "summary": "s"}]}
+            c = {"dek": "", "linkedin_post": x}
+            copy.strip_attributions(s, c)
+            self.assertEqual(c["linkedin_post"], x)
+
+    def test_a_single_newsroom_story_keeps_its_attribution(self):
+        one = story("Labour MPs write", "Dozens signed.", source="The Guardian")
+        c = {"dek": "", "linkedin_post": "The Guardian reports that dozens of Labour MPs signed a letter to Keir Starmer."}
+        copy.strip_attributions(one, c)
+        self.assertTrue(c["linkedin_post"].startswith("The Guardian reports that"))
+
+    def test_the_live_1117_sentence_is_not_broken(self):
+        s = story("Talks revive", "x", source="Reuters", reports=[{"outlet": "Bloomberg", "title": "t", "summary": "s"}])
+        c = {"dek": "", "linkedin_post": "Reuters reported the revival, citing people familiar with the matter."}
+        copy.strip_attributions(s, c)
+        self.assertEqual(c["linkedin_post"], "Reuters reported the revival, citing people familiar with the matter.")
+
+    def test_audit_leaves_a_hedged_attribution_alone(self):
+        from aidaily import desk
+        post = {"headlines": ["Intel eyes deal"], "dek": "Talks are reported.", "sources": ["Bloomberg", "Reuters"],
+                "body": "Bloomberg reports that Intel is in talks to buy Y. Shares rose."}
+        self.assertFalse(any("opens with a newsroom" in p for p in desk.audit(post)))
+
     def test_a_sentence_about_the_source_is_cut(self):
         c = {"dek": "", "linkedin_post": "The Guardian describes the letter as exposing a split in Labour. The letter was sent "
                                          "on Thursday.\n\nSource: The Guardian"}
