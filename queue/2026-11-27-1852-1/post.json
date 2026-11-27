@@ -110,6 +110,13 @@
    },
    "video": true,
    "format": "video"
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3dazh6u4f2x",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3dazh6u4f2x",
+   "at": "2026-11-27T22:40:22+00:00",
+   "video": true,
+   "format": "video"
   }
  }
 }
