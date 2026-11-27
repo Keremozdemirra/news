@@ -48,5 +48,12 @@
  "credit_file": "Old port cranes at Port of Antwerp, pic-054.JPG",
  "status": "web",
  "published": "2026-11-27T03:17:16+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bopydmkh2z",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bopydmkh2z",
+   "at": "2026-11-27T07:40:18+00:00"
+  }
+ }
 }
