@@ -16,7 +16,7 @@
   "card.jpg",
   "detail.jpg"
  ],
- "caption": "Verizon is in talks to buy broadband operator Fidium for about $6 billion\n\nVerizon (NYSE: VZ) · Business\n\nFidium is owned by Searchlight Capital and Canada's BCI, according to the Financial Times Verizon aims to expand its network to 50 million US homes and businesses. The company wants a bigger presence in New England. A deal would let Verizon target more internet subscribers across the US.\n\nReported by Financial Times; Bloomberg; Mint.\n\nSend this to a colleague who covers Verizon.\n\n#business #news\n\nWritten by AI from named newsrooms.",
+ "caption": "Verizon is in talks to buy broadband operator Fidium for about $6 billion\n\nVerizon (NYSE: VZ) · Business\n\nFidium is owned by Searchlight Capital and Canada's BCI, according to the Financial Times Verizon aims to expand its network to 50 million US homes and businesses. The company wants a bigger presence in New England. A deal would let Verizon target more internet subscribers across the US.\n\nReported by Financial Times; Bloomberg; Mint.\n\nSend this to a colleague who covers Verizon.\n\n#business\n\nWritten by AI from named newsrooms.",
  "source_cta": false,
  "urls": [
   "https://www.techmeme.com/261127/p11#a261127p11"
@@ -71,8 +71,12 @@
  ],
  "credit": "Photo: Harrison Keely, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "A modern Verizon retail store in Burlington, Vermont.jpg",
- "status": "queued",
+ "status": "published",
  "publish_after": "2026-11-27T20:05:34+00:00",
  "story": "",
- "issue": 17
+ "issue": 17,
+ "attempted": "2026-11-27T21:00:17+00:00",
+ "published": "2026-11-27T21:01:08+00:00",
+ "media_id": "18009433634793019",
+ "permalink": "https://www.instagram.com/p/DgQmJYvEnkV/"
 }
