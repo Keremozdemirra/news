@@ -50,5 +50,12 @@
  "credit_file": "Example voting booth.jpg",
  "status": "web",
  "published": "2026-11-27T11:17:24+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3c2z7ujws25",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3c2z7ujws25",
+   "at": "2026-11-27T11:20:12+00:00"
+  }
+ }
 }
