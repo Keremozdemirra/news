@@ -1,4 +1,4 @@
-import { comeBack, topArticle, said } from "./again.js";
+import { comeBack, topArticle, said, contrast } from "./again.js";
 import * as snd from "./sound.js";
 import * as T from "./tower.js";
 import { spring } from "./spring.js";
@@ -87,16 +87,27 @@ function odometer(v) {
   const n = Math.round(v);
   if (n !== shownInt) { if (shownInt >= 0 && ride && Math.abs(v - floor) > 0.5) snd.pass(n); shownInt = n; }
 }
-// the answers stand beside the floor the lift had reached with them
-function labelFloors(fresh) {
-  const svg = $("strip").firstChild;
+// the answers stand beside the floor the lift had reached with them, in their tier's colour, and the windows the
+// lift passed on that answer are lit in it
+const FILL = ["var(--out)", "var(--near)", "var(--near)", "var(--ok)", "var(--top)"];
+let painted = [];
+function labelFloors(fresh, windowsOnly) {
+  const svg = $("strip").firstChild, lit = $("strip-lit").firstChild;
+  const at = new Map(), want = []; let sum = 0, prev = 0;
+  answers.forEach((a) => {
+    if (!a || a.tier < 0) return;
+    sum += a.pts; const f = Math.min(MAXF, Math.round(sum / 7));
+    for (let n = prev; n < f; n++) want[n] = FILL[a.tier];
+    prev = Math.max(prev, f);
+    const had = at.get(f); at.set(f, { text: had ? `${had.text}, ${a.label}` : a.label, tier: Math.max(a.tier, had ? had.tier : 0) });
+  });
+  for (let n = 0; n < MAXF; n++) if (painted[n] !== want[n]) { for (const r of lit.querySelectorAll(".f" + n)) r.style.fill = want[n] || ""; painted[n] = want[n]; }
+  if (windowsOnly) return;            // before a ride: the windows it is about to uncover take their colour first
   labels.forEach((l) => l.remove()); labels = [];
-  const at = new Map(); let sum = 0;
-  answers.forEach((a) => { if (!a || a.tier < 0) return; sum += a.pts; const f = Math.min(MAXF, Math.round(sum / 7)); at.set(f, at.has(f) ? `${at.get(f)}, ${a.label}` : a.label); });
-  for (const [f, text] of at) {
+  for (const [f, { text, tier }] of at) {
     const hw = T.BANDS.find(([a, b]) => f >= a && f <= b)[2], y = T.yTop(f) + T.U;
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "ans");
-    g.innerHTML = `<path d="M${T.AXIS + hw} ${y}H${T.AXIS + hw + 14}" stroke-width="1"/><text x="${T.AXIS + hw + 19}" y="${y + 4.5}"></text>`;
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "ans t" + tier);
+    g.innerHTML = `<path d="M${T.AXIS + hw} ${y}H${T.AXIS + hw + 14}" stroke-width="1.5"/><text x="${T.AXIS + hw + 19}" y="${y + 4.5}"></text>`;
     g.lastChild.textContent = text.length > 22 ? text.slice(0, 21) + "…" : text;
     svg.appendChild(g); labels.push(g);
     if (fresh === f && !REDUCED) g.animate([{ opacity: 0, transform: "translateX(-6px)" }, { opacity: 1, transform: "none" }], { duration: 220, easing: EASE });
@@ -106,6 +117,7 @@ function setFloor(f, animate, top) {
   floor = f;
   $("band").textContent = BANDS[bandOf(f)][0]; $("floor-sr").textContent = f;
   if (!animate || REDUCED) { ride.set(tyOf(f)); labelFloors(); return; }
+  labelFloors(null, true);
   ride.to(tyOf(f), () => {
     labelFloors(f);
     // an answer as rare as they come: the building takes a second, smaller swing
@@ -185,6 +197,7 @@ function missed(raw) {
 function nope(msg) {
   if (!REDUCED) $("form").animate([{ transform: "translateX(0)" }, { transform: "translateX(-5px)" }, { transform: "translateX(5px)" }, { transform: "translateX(-3px)" }, { transform: "translateX(0)" }], { duration: 220, easing: "linear" });
   $("q-note").textContent = msg; $("q-note").classList.add("bad");
+  $("form").classList.add("bad"); clearTimeout(nope.t); nope.t = setTimeout(() => $("form").classList.remove("bad"), 700);
   snd.buzz();
   $("ans").select();
 }
@@ -196,6 +209,7 @@ function result(tierName, pts, tier) {
   screen("result");
   $("r-extra").hidden = true;
   $("st-tier").textContent = tierName; $("st-pts").textContent = `+${pts}`;
+  card.className = "q " + (tier >= 0 ? "t" + tier : "tx");
   [...$("lamps").children].forEach((l, i) => { l.className = i <= tier ? "on" : ""; l.style.setProperty("--i", i); });
   const last = idx === data.prompts.length - 1;
   $("next-label").textContent = last ? "See your floor" : "Next";
@@ -300,14 +314,14 @@ function renderEnd(rec) {
   $("e-line").textContent = best ? `Of 100. Best answer: ${best.a[0]}, ${data.tiers[best.a[1]].name}.` : "No answers landed.";
   // the seven answers as seven columns, as tall as their tier: what the share text carries, drawn
   const bars = $("bars"); bars.textContent = "";
-  rec.ans.forEach((a, i) => { const c = mk("i", a[1] >= 0 ? "" : "no"); c.style.setProperty("--h", a[1] >= 0 ? (a[1] + 1) / 5 : 0); c.style.setProperty("--i", i); bars.appendChild(c); });
+  rec.ans.forEach((a, i) => { const c = mk("i", a[1] >= 0 ? "t" + a[1] : "tx"); c.style.setProperty("--h", a[1] >= 0 ? (a[1] + 1) / 5 : 0); c.style.setProperty("--i", i); bars.appendChild(c); });
   const ol = $("e-list"); ol.textContent = "";
   rec.ans.forEach((a, i) => {
-    const p = data.prompts[i], li = mk("li", a[1] >= 0 ? "ok" : "no");
+    const p = data.prompts[i], li = mk("li", a[1] >= 0 ? "t" + a[1] : "tx");
     li.append(mk("span", "n num", String(i + 1)), mk("span", "a", a[0] || "No answer"), mk("span", "p num", a[1] >= 0 ? `+${a[2]}` : "0"));
     const sub = mk("span", "sub");
     sub.append(noun(p.text));
-    if (a[1] >= 0) sub.append(` · ${data.tiers[a[1]].name}`);
+    if (a[1] >= 0) sub.append(" · ", mk("b", "", data.tiers[a[1]].name));
     const rt = info[i]?.rareTier;
     if (rt == null || a[1] < rt) sub.append(` · ${rareLine(p)}`);        // no example for an answer already that high
     li.append(sub); ol.appendChild(li);
@@ -376,6 +390,7 @@ async function boot() {
   else SECS = data.seconds || 25;
   // each prompt's full answer list is its own file, read in a worker; a game waits for it
   loadLists(data.prompts).catch(() => {});
+  contrast(app);
   buildTower();
   fit();
   addEventListener("resize", fit);

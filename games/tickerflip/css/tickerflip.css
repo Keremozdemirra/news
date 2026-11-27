@@ -18,11 +18,15 @@
 }
 @media (prefers-color-scheme: dark) { :root { --paper: #121212; --ink: #ededed; --soft: #a0a0a0; --faint: #6b6b6b; --rule: #2b2b2b; --wash: #1e1e1e; } }
 @media (max-height: 700px) { :root { --kh: 46px; } }
-/* the three letter states. Each carries white letters at 4.5:1 or better. High contrast swaps green and amber for
-   orange and blue, which stay apart for the common kinds of colour blindness. */
-:root { --ok: #2f7d4c; --near: #9a6700; --out: #6b7075; }
-@media (prefers-color-scheme: dark) { :root { --out: #4a4e52; } }
-.app[data-hc="1"] { --ok: #b84e08; --near: #1f6fb5; }
+/* the result colours, one set for the three games. A fill carries white letters at 4.5:1 or better; the -fg tones are
+   for coloured words on the page and are lighter on a dark page. High contrast swaps in orange, blue and violet and
+   shows a miss in ink, for eyes that confuse red and green. */
+:root { --ok: #2f7d4c; --near: #9a6700; --out: #6b7075; --bad: #b3372c; --top: #1f5fa8; --on-bad: #fff;
+  --ok-fg: var(--ok); --near-fg: var(--near); --out-fg: var(--out); --bad-fg: var(--bad); --top-fg: var(--top); }
+@media (prefers-color-scheme: dark) { :root { --out: #4a4e52; --ok-fg: #6cc592; --near-fg: #d9a441; --out-fg: #a0a0a0; --bad-fg: #f0857a; --top-fg: #7fb2ea; } }
+.app[data-hc="1"] { --ok: #b84e08; --near: #1f6fb5; --top: #6b3fa0; --bad: var(--ink); --on-bad: var(--paper); --ok-fg: #b84e08; --near-fg: #1f6fb5; --top-fg: #6b3fa0; --bad-fg: var(--ink); }
+@media (prefers-color-scheme: dark) { .app[data-hc="1"] { --ok-fg: #f08a4b; --near-fg: #6fb1ee; --top-fg: #b99ae6; } }
+.hc { justify-self: start; padding: 4px 0; }
 
 * { box-sizing: border-box; margin: 0; }
 html, body { height: 100%; }
@@ -62,6 +66,9 @@ a { color: inherit; }
 .tile[data-s="present"] { background: var(--near); border-color: var(--near); color: #fff; }
 .tile[data-s="absent"] { background: var(--out); border-color: var(--out); color: #fff; }
 .row.shake { animation: shake 240ms linear; }
+/* not a word: the row and the message say so in red for a moment */
+.row.bad .tile[data-has="1"] { border-color: var(--bad); }
+.msg.bad { color: var(--bad-fg); }
 @keyframes shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
 .row.ripple .tile { animation: hop 240ms var(--ease) calc(var(--i) * 70ms); }
 @keyframes hop { 35% { transform: translateY(-9px); } 70% { transform: translateY(1px); } }
@@ -103,7 +110,6 @@ a { color: inherit; }
 .legend { list-style: none; padding: 16px 0; display: grid; gap: 10px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); justify-self: stretch; }
 .legend li { display: flex; align-items: center; gap: 12px; font: 400 15px/1 var(--f); }
 .legend .tile { --t: 32px; }
-.hc { justify-self: start; padding: 4px 0; }
 
 /* the result: a sheet over the board */
 .end { position: absolute; inset: 0; background: var(--paper); overflow: hidden auto; overscroll-behavior: contain; padding: 28px var(--pad) calc(32px + var(--sab)); display: grid; align-content: start; gap: 24px; animation: sheet 220ms var(--ease); }

@@ -1,4 +1,4 @@
-import { comeBack, topArticle, said } from "./again.js";
+import { comeBack, topArticle, said, contrast } from "./again.js";
 import { Tile, TURN } from "./flap.js";
 import * as snd from "./sound.js";
 
@@ -8,7 +8,7 @@ const params = new URLSearchParams(location.search);
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const STORE = "tickerflip:v1";
 const ROWS = 6;
-const SYM = { correct: "■", present: "◆", absent: "□" };
+const SYM = { correct: "🟩", present: "🟨", absent: "⬛" };
 const WORDS_IN = { correct: "right place", present: "in the word, wrong place", absent: "not in the word" };
 const KEYS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 const pad = (n) => String(n).padStart(2, "0");
@@ -125,7 +125,7 @@ function backspace() {
   tiles[r][c].el.setAttribute("aria-label", `Row ${r + 1}, letter ${c + 1}, empty`);
 }
 function shake() {
-  const row = rowEls[guesses.length]; row.classList.remove("shake"); void row.offsetWidth; if (!REDUCED) row.classList.add("shake");
+  const row = rowEls[guesses.length]; row.classList.remove("shake"); void row.offsetWidth; if (!REDUCED) row.classList.add("shake"); row.classList.add("bad"); clearTimeout(row._bad); row._bad = setTimeout(() => row.classList.remove("bad"), 700);
   snd.buzz();
 }
 async function enter() {
@@ -386,10 +386,7 @@ async function boot() {
   const sb = $("sound");
   const setSound = (on) => { const v = snd.setEnabled(on); sb.setAttribute("aria-pressed", v); sb.setAttribute("aria-label", v ? "Sound on" : "Sound off"); try { localStorage.setItem("tickerflip:sound", v ? "1" : "0"); } catch { /* ignore */ } };
   sb.addEventListener("click", () => { setSound(!snd.isOn()); if (snd.isOn()) snd.clack(); });
-  // orange and blue in place of green and amber, kept on this device
-  const setHc = (on) => { app.dataset.hc = on ? "1" : ""; $("hc").setAttribute("aria-pressed", on); $("hc").textContent = `High contrast colours: ${on ? "on" : "off"}`; try { localStorage.setItem("tickerflip:hc", on ? "1" : "0"); } catch { /* ignore */ } };
-  setHc(localStorage.getItem("tickerflip:hc") === "1" || (localStorage.getItem("tickerflip:hc") === null && matchMedia("(prefers-contrast: more)").matches));
-  $("hc").addEventListener("click", () => setHc(app.dataset.hc !== "1"));
+  contrast(app);
   $("help").addEventListener("click", () => (helpOpen ? closeIntro() : openIntro(false)));
   $("start").addEventListener("click", () => { if (localStorage.getItem("tickerflip:sound") === "1" && !snd.isOn()) setSound(true); closeIntro(); });
   $("share").addEventListener("click", share);

@@ -19,10 +19,10 @@ function bays(band, f) {
   return out;
 }
 export function build(lit) {
-  const p = [], rect = (x, y, w, h, extra = "") => p.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" ${extra}/>`);
+  const p = [], rect = (x, y, w, h, extra = "", f = null) => p.push(`<rect${f === null ? "" : ` class="f${f}"`} x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" ${extra}/>`);
   const line = (x1, y1, x2, y2, w = 1) => p.push(`<path d="M${x1} ${y1}L${x2} ${y2}" stroke-width="${w}"/>`);
   const win = lit ? 'fill="currentColor" stroke="none"' : 'fill="none"';
-  BANDS.forEach(([a, b], band) => { for (let f = a; f <= b; f++) for (const [x, y, w, h] of bays(band, f)) { rect(AXIS + x, y, w, h, win); rect(AXIS - x - w, y, w, h, win); } });
+  BANDS.forEach(([a, b], band) => { for (let f = a; f <= b; f++) for (const [x, y, w, h] of bays(band, f)) { rect(AXIS + x, y, w, h, win, f); rect(AXIS - x - w, y, w, h, win, f); } });
   // the entrance: three tall openings either side of the lift, lit with the lobby
   for (const s of [-1, 1]) for (let i = 0; i < 3; i++) rect(AXIS + s * (20 + i * 26) - (s < 0 ? 16 : 0), yTop(2) + 6, 16, 3 * U - 8, win);
   if (lit) return svg(p, "lit");

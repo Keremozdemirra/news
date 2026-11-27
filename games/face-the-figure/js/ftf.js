@@ -1,4 +1,4 @@
-import { comeBack, topArticle, said } from "./again.js";
+import { comeBack, topArticle, said, contrast } from "./again.js";
 import { rankOf } from "./rank.js";
 import * as snd from "./sound.js";
 
@@ -141,7 +141,7 @@ function startRound(i) {
   $("k-down").querySelector(".kl").textContent = r.kind === "founded" ? "Earlier" : "Lower";
   $("ks-up").textContent = r.kind === "founded" ? "higher" : sub[0]; $("ks-down").textContent = r.kind === "founded" ? "lower" : sub[1];
   for (const k of [$("k-up"), $("k-down")]) { k.disabled = false; k.classList.remove("picked", "fade"); }
-  $("vtag").hidden = true; $("v-line").textContent = "";
+  $("vtag").hidden = true; $("v-line").textContent = ""; pb.classList.remove("right", "wrong");
   const shift = pb.getBoundingClientRect().left - pa.getBoundingClientRect().left;
   fill(pa, r.a, false); fill(pb, r.b, true);
   bars(REST, 0, 0);
@@ -230,6 +230,8 @@ function settle(choice) {
   nextAt = performance.now() + 350;      // the button lands where the keys were: the tap that made the call must not also press it
   const tag = $("vtag"); tag.hidden = false; tag.textContent = ok ? "Right" : "Wrong"; tag.className = "verdict-tag " + (ok ? "ok" : "no");
   if (!RM) tag.animate([{ transform: "scale(1.25)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 160, easing: EASE });
+  pb.classList.add(ok ? "right" : "wrong");
+  if (!ok && !RM) pb.animate([{ transform: "translateX(0)" }, { transform: "translateX(-6px)" }, { transform: "translateX(5px)" }, { transform: "translateX(-3px)" }, { transform: "translateX(0)" }], { duration: 240, easing: "linear" });
   $("v-line").textContent = `${plain(r.b.kind, r.b.value)}: ${relation(r)} than ${r.a.subject}.` + (ok && mode === "daily" ? ` +${pts}` : "");
   $("back").hidden = true;
   if (mode === "practice") {
@@ -321,7 +323,7 @@ function renderEnd(rec) {
   for (const [k, v] of [["Played", played], ["Day streak", stats.streak || 1], ["Best score", stats.best ?? rec.score], ["Avg right", ((stats.sumCorrect ?? correct) / played).toFixed(1)]]) {
     const d = mk("div"); d.append(mk("dd", "num", String(v)), mk("dt", "", k)); sd.appendChild(d);
   }
-  $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "■" : "□")).join("")}\nhttps://boardread.news/play/face-the-figure/?utm_source=share`;
+  $("share-text").textContent = `Face the Figure No. ${data.no}\n${correct}/${rounds.length} · chain ${rec.run} · ${rec.score} pts\n${res.map((r) => (r[0] ? "🟩" : "🟥")).join("")}\nhttps://boardread.news/play/face-the-figure/?utm_source=share`;
   comeBack({ streak: stats.streak || 1, label: "Day streak", played: new Set(Object.entries(stats.days || {}).filter(([, d]) => d.done !== false).map(([k]) => k)), today: data.date });
   topArticle();
   $("credit").textContent = data.credit;
@@ -359,6 +361,7 @@ async function boot() {
   const setSound = (on) => { const v = snd.setEnabled(on); sb.setAttribute("aria-pressed", v); sb.setAttribute("aria-label", v ? "Sound on" : "Sound off"); try { localStorage.setItem("ftf:sound", v ? "1" : "0"); } catch { /* ignore */ } };
   sb.addEventListener("click", () => { setSound(!snd.isOn()); if (snd.isOn()) snd.ding(2); });
 
+  contrast(app);
   R = data.rounds;
   $("start").addEventListener("click", () => { if (phase !== "intro") return; if (localStorage.getItem("ftf:sound") === "1" && !snd.isOn()) setSound(true); startRound(0); });
   $("practice").addEventListener("click", startPractice);

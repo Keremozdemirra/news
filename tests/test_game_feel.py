@@ -161,3 +161,53 @@ class ShareDate(unittest.TestCase):
             size = (dest / "assets" / "share.jpg").stat().st_size
             self.assertFalse(play.dated_share("g", dest))
             self.assertEqual((dest / "assets" / "share.jpg").stat().st_size, size)
+
+
+class Palette(unittest.TestCase):
+    """Kerem, 27 Nov: a mistake must look like one. One set of result colours for the three games, muted and flat."""
+    def block(self, slug):
+        css = next((GAMES / slug / "css").glob("*.css")).read_text()
+        start = css.index("/* the result colours, one set")
+        return css[start:css.index(".hc {", start)]
+
+    @staticmethod
+    def contrast(a, b):
+        def lum(h):
+            ch = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+            r, g, bl = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in ch]
+            return 0.2126 * r + 0.7152 * g + 0.0722 * bl
+        hi, lo = sorted((lum(a), lum(b)), reverse=True)
+        return (hi + 0.05) / (lo + 0.05)
+
+    def test_the_three_games_share_one_palette(self):
+        blocks = {slug: self.block(slug) for slug in SLUGS}
+        self.assertEqual(len(set(blocks.values())), 1)
+        for name in ("--ok:", "--near:", "--out:", "--bad:", "--top:", '[data-hc="1"]'):
+            self.assertIn(name, blocks["topfloor"], name)
+
+    def test_every_fill_carries_white_letters_and_every_word_reads_on_its_page(self):
+        b = self.block("topfloor")
+        light, dark, hc, hc_dark = [dict(re.findall(r"(--[a-z-]+):\s*(#[0-9a-f]{6})", part)) for part in (
+            b[b.index(":root {"):b.index("@media")], b[b.index("@media"):b.index(".app[data-hc")],
+            b[b.index(".app[data-hc"):b.rindex("@media")], b[b.rindex("@media"):])]
+        for name in ("--ok", "--near", "--out", "--bad", "--top"):
+            self.assertGreaterEqual(self.contrast(light[name], "#ffffff"), 4.5, name)             # white letters on the fill, and the word on paper
+        self.assertGreaterEqual(self.contrast(dark["--out"], "#ffffff"), 4.5)
+        for name, tone in dark.items():
+            if name.endswith("-fg"):
+                self.assertGreaterEqual(self.contrast(tone, "#121212"), 4.5, name)                # the word on a dark page
+        for name in ("--ok", "--near", "--top"):
+            self.assertGreaterEqual(self.contrast(hc[name], "#ffffff"), 4.5, "high contrast " + name)
+        for name, tone in hc_dark.items():
+            self.assertGreaterEqual(self.contrast(tone, "#121212"), 4.5, "high contrast dark " + name)
+
+    def test_right_and_wrong_have_their_colours_in_every_game(self):
+        ftf = (GAMES / "face-the-figure" / "css" / "ftf.css").read_text()
+        self.assertIn(".verdict-tag.no { background: var(--bad);", ftf)
+        self.assertIn(".pips li.ok { background: var(--ok);", ftf)
+        self.assertIn(".row.bad .tile", (GAMES / "tickerflip" / "css" / "tickerflip.css").read_text())
+        top = (GAMES / "topfloor" / "css" / "topfloor.css").read_text()
+        for cls in (".t0 {", ".t3 {", ".t4 {", ".tx {"):
+            self.assertIn(cls, top)
+        for slug in SLUGS:
+            self.assertIn('id="hc"', (GAMES / slug / "index.html").read_text(), slug)

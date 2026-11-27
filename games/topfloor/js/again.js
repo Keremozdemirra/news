@@ -32,3 +32,15 @@ export function said(labelId, text, ms = 1600) {
   el.dataset.was = was; el.textContent = text;
   clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = was; }, ms);
 }
+// High-contrast colours (orange, blue and violet; a miss in ink), one switch for the three games, kept on this device.
+export function contrast(app) {
+  const btn = document.getElementById("hc"), get = () => { try { return localStorage.getItem("boardread:hc") ?? localStorage.getItem("tickerflip:hc"); } catch { return null; } };
+  const set = (on, keep) => {
+    app.dataset.hc = on ? "1" : "";
+    if (btn) { btn.setAttribute("aria-pressed", on); btn.textContent = `High contrast colours: ${on ? "on" : "off"}`; }
+    if (keep) try { localStorage.setItem("boardread:hc", on ? "1" : "0"); } catch { /* private mode */ }
+  };
+  const saved = get();
+  set(saved === "1" || (saved === null && matchMedia("(prefers-contrast: more)").matches), false);
+  btn?.addEventListener("click", () => set(app.dataset.hc !== "1", true));
+}
