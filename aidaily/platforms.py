@@ -340,6 +340,18 @@ class Threads(Client):
             self.sleep(pause)
         raise PlatformError(f"threads container {container}: not ready after {tries * pause}s")
 
+    def publish(self, container, pause=30):
+        # a container can read FINISHED a moment before threads_publish can see it: the call then fails with
+        # subcode 4279009 ("media cannot be found") and nothing is posted (seen 2026-11-27 06:10), so one late try is safe
+        uid = self.env["THREADS_USER_ID"]
+        try:
+            return self.call("POST", f"{uid}/threads_publish", {"creation_id": container})["id"]
+        except PlatformError as e:
+            if "4279009" not in str(e):
+                raise
+            self.sleep(pause)
+            return self.call("POST", f"{uid}/threads_publish", {"creation_id": container})["id"]
+
     def find(self, post):
         """This story already on the profile: a post whose first line is the headline as threads_text writes it,
         not older than the queue entry. Run before every send, so a lost status commit never means a second post."""
@@ -368,7 +380,7 @@ class Threads(Client):
             params["topic_tag"] = threads_tag(post)
         container = self.call("POST", f"{uid}/threads", params)["id"]
         self.wait(container)
-        media = self.call("POST", f"{uid}/threads_publish", {"creation_id": container})["id"]
+        media = self.publish(container)
         try:
             link = self.call("GET", media, {"fields": "permalink"}).get("permalink", "")
         except PlatformError:
@@ -386,7 +398,7 @@ class Threads(Client):
         uid = self.env["THREADS_USER_ID"]
         container = self.call("POST", f"{uid}/threads", {"media_type": "TEXT", "text": text, "reply_to_id": to_id})["id"]
         self.wait(container)
-        return {"id": self.call("POST", f"{uid}/threads_publish", {"creation_id": container})["id"]}
+        return {"id": self.publish(container)}
 
 
 # Facebook Page

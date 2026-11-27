@@ -206,6 +206,29 @@ class Clients(Env):
             return {"id": "c1"}
         return Fake({"/v1.0/": out}), calls
 
+    def threads_publish_fake(self, misses):
+        left = [misses]
+
+        def out(req):
+            if "threads_publish" in req.full_url and left[0] > 0:
+                left[0] -= 1
+                raise http_error(400, '{"error":{"code":24,"error_subcode":4279009,"error_user_title":"Media Not Found"}}')
+            if "threads_publish" in req.full_url:
+                return {"id": "m9"}
+            return {"status": "FINISHED"} if req.get_method() == "GET" else {"id": "c1"}
+        return Fake({"/v1.0/": out})
+
+    def test_threads_publish_tries_once_more_when_the_finished_container_is_not_found_yet(self):
+        slept = []
+        t = platforms.Threads(opener=self.threads_publish_fake(1), sleep=slept.append)
+        self.assertEqual(t.publish("c1"), "m9")
+        self.assertEqual(slept, [30])
+
+    def test_threads_publish_gives_up_after_the_second_miss(self):
+        t = platforms.Threads(opener=self.threads_publish_fake(2), sleep=lambda s: None)
+        with self.assertRaises(platforms.PlatformError):
+            t.publish("c1")
+
     def test_threads_one_image_then_a_sources_reply(self):
         fake, calls = self.threads_fake()
         got = platforms.Threads(opener=fake, sleep=lambda s: None).post(post())
