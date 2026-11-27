@@ -139,6 +139,12 @@ class FrontLead(unittest.TestCase):
         self.assertEqual(views.front_score(old), views.front_score(new))
         self.assertEqual(views.front_rank([old, new])[0]["id"], new["id"])
 
+    def test_a_fresh_story_outweighs_one_more_newsroom_from_yesterday(self):
+        old = {**art(1, "2026-11-26", 15, 9.6, head="Trump signals he is ready to escalate tariffs"), "sources": list("ABCD")}
+        new = {**art(2, "2026-11-27", 10, 8.0, topic="Politics", head="UK benefits department takes services offline"),
+               "sources": list("ABC")}
+        self.assertEqual(views.front_rank([old, new])[0]["id"], new["id"])
+
 
 if __name__ == "__main__":
     unittest.main()

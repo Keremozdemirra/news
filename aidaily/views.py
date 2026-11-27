@@ -72,10 +72,11 @@ def front_score(p):
 
 def front_rank(rows):
     """News value, then freshness: the page led a morning with an 18-hour-old tariff item while the day's news waited
-    below it (2026-11-27). Freshness is worth three points at most, half gone after about eight hours."""
+    below it (2026-11-27); at three points it still led, on four newsrooms against three. Freshness is worth five
+    points at most, half gone after about eight hours."""
     newest = max((S.dt(p["published"]) for p in rows), default=None)
     def fresh(p):
-        return 3 * math.exp(-max((newest - S.dt(p["published"])).total_seconds(), 0) / 3600 / 12)
+        return 5 * math.exp(-max((newest - S.dt(p["published"])).total_seconds(), 0) / 3600 / 12)
     return sorted(rows, key=lambda p: front_score(p) + fresh(p), reverse=True)
 
 
