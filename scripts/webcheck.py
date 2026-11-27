@@ -279,7 +279,7 @@ def main(argv=None):
     ap.add_argument("dir", nargs="?", default="_site")
     ap.add_argument("--shots", help="write screenshots into this folder")
     ap.add_argument("--fast", action="store_true", help="games: the phone size only")
-    ap.add_argument("--motion", action="store_true", help="also load the front page with reduced motion (known to scroll sideways, 2026-11-27)")
+    ap.add_argument("--motion", action="store_true", help="also load the front page with reduced motion")
     a = ap.parse_args(argv)
     if not (Path(a.dir) / "index.html").exists():
         print(f"{a.dir} is not a built site (no index.html)")

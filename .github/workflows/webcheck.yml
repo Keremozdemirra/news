@@ -47,7 +47,7 @@ jobs:
       - name: Links and assets
         run: python3 scripts/linkcheck.py _site
       - name: Key pages, both sizes, both themes
-        run: /tmp/venv/bin/python scripts/webcheck.py site _site --shots /tmp/shots
+        run: /tmp/venv/bin/python scripts/webcheck.py site _site --shots /tmp/shots --motion
       - name: One round of each game
         run: /tmp/venv/bin/python scripts/webcheck.py games _site ${{ inputs.full != 'yes' && '--fast' || '' }}
       - name: Live site, main URLs
