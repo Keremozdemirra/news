@@ -148,3 +148,26 @@ class FrontLead(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PersonInCompanyPhoto(unittest.TestCase):
+    CATS = ("Personality rights warning|Files from external sources with reviewed licenses|Female vocalists from South "
+            "Korea in 2025|Stella (South Korean pop singer)")
+
+    def test_a_company_photo_of_a_person_the_story_does_not_name_is_refused(self):
+        f = "Stella di Musinsa Beauty Festa Pop-Up Store 2025.jpg"
+        self.assertEqual(entities.shows_person(f, self.CATS, "Musinsa operating profit jumps 67% Musinsa", depicted=[]), "Stella")
+        self.assertEqual(entities.shows_person(f, "", "Musinsa profit", depicted=["Stella"]), "Stella")
+        # named in the headline: the photo may stand
+        self.assertEqual(entities.shows_person(f, self.CATS, "Stella signs with Musinsa", depicted=["Stella"]), "")
+        # premises with nobody in them pass
+        self.assertEqual(entities.shows_person("Musinsa store Hongdae.jpg", "Shops in Seoul", "Musinsa profit", depicted=[]), "")
+
+    def test_fresh_photo_passes_over_it(self):
+        info = {"extmetadata": {"Categories": {"value": self.CATS}, "LicenseShortName": {"value": "CC BY 3.0"}},
+                "width": 1600, "height": 2000, "url": "u"}
+        with mock.patch.object(entities, "candidates", return_value=["Stella di Musinsa Beauty Festa Pop-Up Store 2025.jpg"]), \
+             mock.patch.object(entities, "_commons_info", return_value=info), \
+             mock.patch.object(entities, "_depicted_humans", return_value=["Stella"]), \
+             mock.patch.object(entities, "_get", side_effect=AssertionError("must not download")):
+            self.assertEqual(entities.fresh_photo([("Musinsa", False)], set(), allow="Musinsa profit Musinsa"), (None, "", ""))

@@ -434,6 +434,10 @@
    "match": "\\b(retail\\w*|shops?|stores?|supermarkets?|shoppers?|consumers?|e-?commerce|black friday|grocer\\w+)\\b",
    "files": [
     {
+     "file": "Mega store, Clothing shop, Rostov-on-Don, Russia.jpg",
+     "alt": "Mannequins in a clothing shop window"
+    },
+    {
      "file": "Market stalls at Ljubljana Central Market.jpg",
      "alt": "Fruit and vegetable stalls at an open-air market"
     },

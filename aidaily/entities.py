@@ -714,6 +714,52 @@ STRICT_NOT = re.compile(r"\b(walking|walks?|talk|talking|giving|speaking|speech|
 GRAPHIC = re.compile(r"\b(maps?|diagrams?|infographics?|charts?|graphs?|logos?|icons?|flags?|svg|illustrations?)\b", re.I)
 
 
+# A company's photo that is really a photo of a person: "Stella di Musinsa Beauty Festa Pop-Up Store 2025" is a K-pop
+# singer at a Musinsa event, and ran on Musinsa's quarterly profit (2026-11-27). Commons says so three ways: the
+# personality-rights template, a category that is a person ("Stella (South Korean pop singer)", "Female vocalists
+# from South Korea"), and a "depicts" statement naming a human.
+PERSONALITY = re.compile(r"personality rights", re.I)
+PERSON_CAT = re.compile(r"\([^)|]*\b(?:singer|actor|actress|rapper|musician|politician|businessperson|businessman|"
+                        r"businesswoman|footballer|player|model|presenter|journalist|idol|entertainer|born \d{4})\b[^)|]*\)"
+                        r"|\b(?:vocalists|singers|actors|actresses|rappers|musicians|politicians|businesspeople|models|"
+                        r"portraits? of|people of|men of|women of)\b", re.I)
+
+
+def _depicted_humans(filename):
+    """Labels of the humans a Commons file's "depicts" (P180) statements name; [] when none or on any failure."""
+    try:
+        t = urllib.parse.quote("File:" + filename)
+        ents = _get(f"https://commons.wikimedia.org/w/api.php?action=wbgetentities&format=json&sites=commonswiki&titles={t}")
+        ids = [st["mainsnak"]["datavalue"]["value"]["id"] for e in ents.get("entities", {}).values()
+               for st in (e.get("statements") or {}).get("P180", []) if "datavalue" in st.get("mainsnak", {})]
+        if not ids:
+            return []
+        items = _get("https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=claims|labels&languages=en"
+                     f"&ids={'|'.join(ids[:20])}")["entities"]
+    except Exception:  # noqa: BLE001  no answer is no evidence either way; the category checks still apply
+        return []
+    return [(it.get("labels", {}).get("en") or {}).get("value", "") for it in items.values()
+            if any(c.get("mainsnak", {}).get("datavalue", {}).get("value", {}).get("id") == "Q5"
+                   for c in it.get("claims", {}).get("P31", []))]
+
+
+def shows_person(filename, cats, named, depicted=None):
+    """The person a non-person photo shows, when the story's text (`named`) does not name them; "" when it shows
+    nobody, or only people the text names."""
+    low = named.lower()
+    people = [m.group(0) for m in PERSON_CAT.finditer(cats)]
+    humans = _depicted_humans(filename) if depicted is None else depicted
+    for h in humans:
+        if h and not all(w.lower() in low for w in h.split()[-1:]):
+            return h
+    if (people or PERSONALITY.search(cats)) and not humans:
+        # who it is comes only from a category: "Stella (South Korean pop singer)" names Stella
+        names = [re.sub(r"\s*\(.*", "", c).strip() for c in cats.split("|") if PERSON_CAT.search(c) and "(" in c]
+        if not names or not all(n.split()[-1].lower() in low for n in names if n):
+            return (names or people or ["a person"])[0]
+    return ""
+
+
 def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False):
     """(path, credit, file) for the first reusable photo, across the subjects in order, that is not in `used`.
 
@@ -756,8 +802,12 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
                     not is_person and foreign_names(f, allow + " " + text)) or (
                     not is_person and foreign_brand(desc_brands, allow + " " + text, own=f)):
                 continue
-            cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "").replace("|", " ")
+            raw_cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "")
+            cats = raw_cats.replace("|", " ")
             if GRAPHIC.search(cats):
+                continue
+            # a photo of a company, a place or a thing that is in truth of a person the story never names
+            if not is_person and shows_person(f, raw_cats, allow + " " + text):
                 continue
             # a file found by name alone may show a namesake: its description or categories must carry the role
             if is_person and role is not None and f in SEARCHED:
