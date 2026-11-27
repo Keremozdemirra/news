@@ -1,11 +1,7 @@
 {
- "since": {
-  "stuck": "2026-11-27T21:31:33+00:00"
- },
+ "since": {},
  "issue": null,
  "reported": [],
  "clear_since": null,
- "active": {
-  "stuck": "2 post(s) due for 2h but not published, and Instagram is not cooling down."
- }
+ "active": {}
 }

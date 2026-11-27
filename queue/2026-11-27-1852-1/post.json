@@ -16,7 +16,7 @@
   "card.jpg",
   "detail.jpg"
  ],
- "caption": "Nvidia Blackwell chips turn up at Shanghai data center tied to Alice Huang\n\nTwo Chinese companies installed the chips, including a GB300 NVL72 rack, at the Yangtze River Delta Project. A serial number in documents filed with Chinese regulators in November identifies the rack. A Bloomberg investigation traced the serial number to Taiwanese manufacturer Gigabyte.\n\nReported by The Decoder; Bloomberg.\n\nSend this to a colleague who covers Nvidia.\n\n#tech #news\n\nWritten by AI from named newsrooms.",
+ "caption": "Nvidia Blackwell chips turn up at Shanghai data center tied to Alice Huang\n\nTwo Chinese companies installed the chips, including a GB300 NVL72 rack, at the Yangtze River Delta Project. A serial number in documents filed with Chinese regulators in November identifies the rack. A Bloomberg investigation traced the serial number to Taiwanese manufacturer Gigabyte.\n\nReported by The Decoder; Bloomberg.\n\nSend this to a colleague who covers Nvidia.\n\n#tech\n\nWritten by AI from named newsrooms.",
  "source_cta": false,
  "urls": [
   "https://the-decoder.com/banned-nvidia-blackwell-chips-turn-up-in-a-shanghai-data-center-linked-to-alice-huang-bloomberg-reports/"
@@ -85,8 +85,12 @@
   ],
   "seconds": 8.0
  },
- "status": "queued",
+ "status": "published",
  "publish_after": "2026-11-27T19:22:34+00:00",
  "story": "",
- "issue": 16
+ "issue": 16,
+ "attempted": "2026-11-27T21:50:11+00:00",
+ "published": "2026-11-27T21:52:25+00:00",
+ "media_id": "18129154324901522",
+ "permalink": "https://www.instagram.com/p/DgQsBt5jY_0/"
 }
