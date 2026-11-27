@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-1042-2",
+ "batch": "2026-11-27-1042",
+ "n": 2,
+ "created": "2026-11-27T10:42:05+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Supreme Court to weigh whether Trump asylum changes deny due process\n\nDonald Trump · Politics\n\nNPR reports an asylum ban, mass firings and new legal maneuvers have all but ended asylum in the US. Advocates are looking to the Supreme Court to restore asylum. The court will soon consider whether some of the shifts deny people due process.\n\nReported by NPR.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.npr.org/2026/11/27/nx-s1-6037854/trump-effectively-ended-asylum-supreme-court"
+ ],
+ "links": [
+  "https://www.npr.org/2026/11/27/nx-s1-6037854/trump-effectively-ended-asylum-supreme-court"
+ ],
+ "headlines": [
+  "Supreme Court to weigh whether Trump asylum changes deny due process"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "An empty boardroom with a long table",
+ "score": 8.388,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Donald Trump",
+ "logo_names": [],
+ "dek": "NPR reports an asylum ban, mass firings and new legal maneuvers have all but ended asylum in the US.",
+ "body": "Advocates are looking to the Supreme Court to restore asylum. The court will soon consider whether some of the shifts deny people due process.",
+ "so_what": "",
+ "sources": [
+  "NPR"
+ ],
+ "source_urls": [
+  "https://www.npr.org/2026/11/27/nx-s1-6037854/trump-effectively-ended-asylum-supreme-court"
+ ],
+ "credit": "Photo: NOIRLab/NSF/AURA/T. Slovinský, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "NOIRLab HQ Conference Room ( V8A4834-CC).jpg",
+ "status": "web",
+ "published": "2026-11-27T10:42:05+00:00",
+ "story": ""
+}

@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-1042-1",
+ "batch": "2026-11-27-1042",
+ "n": 1,
+ "created": "2026-11-27T10:42:04+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "France's inflation slows to 2.9% in November as energy prices fall\n\nInsee says consumer prices fell 0.7% in November, after rising 0.4% in October. Bloomberg reports that inflation in France and Spain slowed much more than anticipated. Easing energy pressures offer some relief to the European Central Bank, which is weighing further interest rate increases. Insee published the French figures on Friday.\n\nReported by Euronews; Bloomberg.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.euronews.com/2026/11/27/frances-inflation-slows-to-29-in-november-as-energy-prices-fall"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/french-inflation-slows-much-more-than-expected-as-energy-eases",
+  "https://www.euronews.com/2026/11/27/frances-inflation-slows-to-29-in-november-as-energy-prices-fall"
+ ],
+ "headlines": [
+  "France's inflation slows to 2.9% in November as energy prices fall"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Economy",
+ "photo_file": "Burnaby Refinery.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "An oil refinery at dusk by the water",
+ "score": 8.966,
+ "figure": "2.9%",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Insee says consumer prices fell 0.7% in November, after rising 0.4% in October.",
+ "body": "Bloomberg reports that inflation in France and Spain slowed much more than anticipated. Easing energy pressures offer some relief to the European Central Bank, which is weighing further interest rate increases. Insee published the French figures on Friday.",
+ "so_what": "",
+ "sources": [
+  "Euronews",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.euronews.com/2026/11/27/frances-inflation-slows-to-29-in-november-as-energy-prices-fall",
+  "https://www.bloomberg.com/news/articles/2026-11-27/french-inflation-slows-much-more-than-expected-as-energy-eases"
+ ],
+ "credit": "Photo: Robert Stupka, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Burnaby Refinery.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:42:04+00:00",
+ "story": ""
+}

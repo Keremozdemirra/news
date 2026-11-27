@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-1042-5",
+ "batch": "2026-11-27-1042",
+ "n": 5,
+ "created": "2026-11-27T10:42:08+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "92 UK Labour MPs call for Rosebank oilfield to be rejected\n\nTheir letter to the prime minister says approving the project would 'permanently damage our climate credentials'. The Guardian reports that a handful of frontbenchers joined scores of party colleagues in signing the letter. The signatories urge Burnham not to let ministers approve the project. The Guardian describes the letter as exposing a split in Labour over the giant oilfield.\n\nReported by Financial Times; The Guardian.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.ft.com/content/76befc28-cba3-4c9b-bdc3-cced4b304ab1?syn-25a6b1a6=1"
+ ],
+ "links": [
+  "https://www.ft.com/content/76befc28-cba3-4c9b-bdc3-cced4b304ab1?syn-25a6b1a6=1",
+  "https://www.theguardian.com/politics/2026/nov/26/labour-split-over-rosebank-oilfield-exposed-by-letter-from-nearly-100-mps"
+ ],
+ "headlines": [
+  "92 UK Labour MPs call for Rosebank oilfield to be rejected"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Politics",
+ "photo_file": "Neglected office plants (Unsplash).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "An empty office corner with a dried plant",
+ "score": 8.115,
+ "figure": "92",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "Labour"
+ ],
+ "dek": "Their letter to the prime minister says approving the project would 'permanently damage our climate credentials'.",
+ "body": "The Guardian reports that a handful of frontbenchers joined scores of party colleagues in signing the letter. The signatories urge Burnham not to let ministers approve the project. The Guardian describes the letter as exposing a split in Labour over the giant oilfield.",
+ "so_what": "",
+ "sources": [
+  "Financial Times",
+  "The Guardian"
+ ],
+ "source_urls": [
+  "https://www.ft.com/content/76befc28-cba3-4c9b-bdc3-cced4b304ab1?syn-25a6b1a6=1",
+  "https://www.theguardian.com/politics/2026/nov/26/labour-split-over-rosebank-oilfield-exposed-by-letter-from-nearly-100-mps"
+ ],
+ "credit": "Photo: Sam X samx, CC0, via Wikimedia Commons",
+ "credit_file": "Neglected office plants (Unsplash).jpg",
+ "status": "web",
+ "published": "2026-11-27T10:42:08+00:00",
+ "story": ""
+}

@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-1042-4",
+ "batch": "2026-11-27-1042",
+ "n": 4,
+ "created": "2026-11-27T10:42:07+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Singapore talks with US to keep access to advanced AI chips\n\nDeputy PM Gan Kim Yong says the talks follow tighter US export restrictions on chips to the Southeast Asian city-state. Gan spoke at a local event on Friday. Singapore is reviewing its processes as it seeks to retain access to advanced semiconductors.\n\nReported by The Information; Bloomberg.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.theinformation.com/briefings/singapore-talks-u-s-keep-ai-chip-access"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/singapore-talking-to-us-to-keep-ai-chip-access-deputy-pm-says",
+  "https://www.theinformation.com/briefings/singapore-talks-u-s-keep-ai-chip-access"
+ ],
+ "headlines": [
+  "Singapore talks with US to keep access to advanced AI chips"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Economy",
+ "photo_file": "Supereal-ftdi-prom-HD.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A microscope view of a chip die",
+ "score": 8.121,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Deputy PM Gan Kim Yong says the talks follow tighter US export restrictions on chips to the Southeast Asian city-state.",
+ "body": "Gan spoke at a local event on Friday. Singapore is reviewing its processes as it seeks to retain access to advanced semiconductors.",
+ "so_what": "",
+ "sources": [
+  "The Information",
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.theinformation.com/briefings/singapore-talks-u-s-keep-ai-chip-access",
+  "https://www.bloomberg.com/news/articles/2026-11-27/singapore-talking-to-us-to-keep-ai-chip-access-deputy-pm-says"
+ ],
+ "credit": "Photo: ZeptoBars, CC BY 3.0, via Wikimedia Commons",
+ "credit_file": "Supereal-ftdi-prom-HD.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:42:07+00:00",
+ "story": ""
+}

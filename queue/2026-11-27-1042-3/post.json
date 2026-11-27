@@ -1,0 +1,53 @@
+{
+ "id": "2026-11-27-1042-3",
+ "batch": "2026-11-27-1042",
+ "n": 3,
+ "created": "2026-11-27T10:42:06+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Apple pulls MiniMax's Talkie chatbot from App Store worldwide\n\nThe removal follows a media report alleging the app used sexualized content to hook young users. Talkie is a popular AI companion service developed by Chinese AI company MiniMax. The service allows users to talk or text with AI characters.\n\nReported by The Information.\n\nSend this to whoever on your team covers MiniMax.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.theinformation.com/briefings/apple-pulls-minimax-chatbot-app-store-report-sexualized-content"
+ ],
+ "links": [
+  "https://news.google.com/rss/articles/CBMixwFBVV95cUxPNU9tZmh6STA3Ui1FY1FQaE9LMDgzQjJjV2xoZ3Q1Znlvbk5wdll2OXoyOUdxUHp2WEYteFpvTFBhVDZYbFozTXp5T0RpaE4zUUhBaDhiVDAxUkY2RURGQWFFaE1BRTVmdmdXTDh3UEdReDM5N0pjSjBzUXB3UEpPa05ma2ZoWDZhTzhJbTNFeDBfQllEWS02eHhST1FPRWI0VlRMOEhHanpvUjZpWkNPWEJLS1BlSllaZ25XeTRGUXF3bUZEcE5n?oc=5",
+  "https://www.theinformation.com/briefings/apple-pulls-minimax-chatbot-app-store-report-sexualized-content"
+ ],
+ "headlines": [
+  "Apple pulls MiniMax's Talkie chatbot from App Store worldwide"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "Market stalls at Ljubljana Central Market.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Fruit and vegetable stalls at an open-air market",
+ "score": 8.132,
+ "figure": "",
+ "company": "MiniMax",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "MiniMax",
+  "Apple"
+ ],
+ "dek": "The removal follows a media report alleging the app used sexualized content to hook young users.",
+ "body": "Talkie is a popular AI companion service developed by Chinese AI company MiniMax. The service allows users to talk or text with AI characters.",
+ "so_what": "",
+ "sources": [
+  "The Information"
+ ],
+ "source_urls": [
+  "https://www.theinformation.com/briefings/apple-pulls-minimax-chatbot-app-store-report-sexualized-content"
+ ],
+ "credit": "Photo: Derbrauni, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "Market stalls at Ljubljana Central Market.jpg",
+ "status": "web",
+ "published": "2026-11-27T10:42:06+00:00",
+ "story": ""
+}
