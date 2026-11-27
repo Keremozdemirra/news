@@ -102,8 +102,8 @@ def frames(posts, out_dir, now=None):
 
 def assemble(pngs, out_mp4, seconds=3, cover_seconds=2, end_seconds=2, fade=0.3):
     """Frames joined by a short crossfade (ffmpeg xfade), 30 fps. Built to Instagram's Reels spec: MP4, H.264
-    4:2:0 progressive with a closed GOP, AAC 48 kHz mono (a silent track: some clients refuse a Reel with no audio
-    stream), 1080x1920, no edit lists (-use_editlist 0), moov atom first (+faststart). Each frame holds for its
+    4:2:0 progressive with a closed GOP, AAC 48 kHz stereo (Boardread's own music bed and end
+    sting, aidaily/audio.py), 1080x1920, no edit lists (-use_editlist 0), moov atom first (+faststart). Each frame holds for its
     full time; the fade overlaps the start of the next one, so the total is the sum of the holds."""
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
@@ -120,12 +120,17 @@ def assemble(pngs, out_mp4, seconds=3, cover_seconds=2, end_seconds=2, fade=0.3)
         chain.append(f"{label}[{i}:v]xfade=transition=fade:duration={fade}:offset={at:.2f}{out}")
         label = out
     chain.append(f"{label}scale=1080:1920,fps=30,format=yuv420p[v]")
-    cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-filter_complex", ";".join(chain), "-map", "[v]",
+    from . import audio
+    sound = audio.track(out_mp4.with_suffix(".wav"), sum(holds), out_mp4.parent.name, sting_at=sum(holds) - end_seconds)
+    cmd += ["-i", str(sound), "-filter_complex", ";".join(chain), "-map", "[v]",
             "-map", f"{len(pngs)}:a", "-c:v", "libx264", "-profile:v", "high", "-preset", "medium", "-crf", "20",
             "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-sc_threshold", "0",
-            "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "1", "-shortest",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-shortest",
             "-movflags", "+faststart", "-use_editlist", "0", str(out_mp4)]
-    subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+    finally:
+        sound.unlink(missing_ok=True)
     return out_mp4
 
 

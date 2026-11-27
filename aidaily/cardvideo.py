@@ -33,7 +33,7 @@ PUSH = 0.07
 ENCODE = ["-c:v", "libx264", "-profile:v", "high", "-preset", "slow", "-crf", "18", "-maxrate", "8M", "-bufsize", "16M",
           "-g", "60", "-keyint_min", "60", "-sc_threshold", "0", "-flags", "+cgop", "-pix_fmt", "yuv420p",
           "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-          "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "1",
+          "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2",
           "-movflags", "+faststart", "-use_editlist", "0"]
 LAYERS = ("base", "meta", "head", "chips")
 # (layer, start s, duration s, rise px): everything readable by 0.8 s, inside the first-three-seconds window
@@ -175,7 +175,8 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None):
             cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(FPS), "-t", f"{seconds}", "-i", str(src)]
         for name in LAYERS:
             cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{seconds}", "-i", str(pngs[name])]
-        cmd += ["-f", "lavfi", "-t", f"{seconds}", "-i", "anullsrc=r=48000:cl=mono"]
+        from . import audio
+        cmd += ["-i", str(audio.track(Path(tmp) / "sound.wav", seconds, story.get("headline") or story.get("title", "")))]
         if footage:
             from . import broll
             chain = [broll.background(*probe_size(footage), W, h, seconds, FPS)]

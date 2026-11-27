@@ -248,7 +248,8 @@ def build(post, out_mp4, fetch=True, clip=None):
             first = 2
         for png, *_ in layers:
             cmd += ["-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(png)]
-        cmd += ["-f", "lavfi", "-t", f"{total}", "-i", "anullsrc=r=48000:cl=mono"]
+        from . import audio
+        cmd += ["-i", str(audio.track(tmp / "sound.wav", total, post["id"], sting_at=total - END_SECONDS))]
         from . import broll
         if footage and not handover:
             chain, last = [broll.background(*CV.probe_size(footage), CV.W, h, total, CV.FPS)], "bg"
