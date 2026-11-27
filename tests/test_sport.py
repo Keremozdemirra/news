@@ -295,3 +295,20 @@ class SiteBuild(Tmp):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OneAsset(Tmp):
+    def test_the_record_carries_what_the_card_drew(self):
+        # 0016-1: the card drew one photo while the story's assets held another; the record mixed both
+        d = self.root / "out"
+        (d / "pack").mkdir(parents=True)
+        m, s = story(1)
+        m.update(photo_file="Card photo.jpg", photo_kind="person", credit="Photo: Card, CC0, via Wikimedia Commons")
+        s["topic"] = "Tech"
+        s["_assets"] = {"credit": "Photo: Other, CC BY 4.0, via Wikimedia Commons", "file": "Other.jpg", "kind": "scene"}
+        (d / "pack" / "manifest.json").write_text(json.dumps([m]))
+        (d / "digest.json").write_text(json.dumps({"final": {"top": [s]}}))
+        (path,) = desk.queue(d, batch="b", render=False)
+        post = json.loads(path.read_text())
+        self.assertEqual((post["photo_file"], post["credit"], post["credit_file"]),
+                         ("Card photo.jpg", "Photo: Card, CC0, via Wikimedia Commons", "Card photo.jpg"))

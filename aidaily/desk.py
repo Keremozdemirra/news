@@ -1517,7 +1517,9 @@ def queue(day_dir, batch=None, render=True):
                 lp = Path(urllib.parse.unquote(urllib.parse.urlparse(logo).path))
                 shutil.copy(lp, img / f"logo{lp.suffix}")
             # the web pages show the clean photo, not the card with its text burnt in
-            src = s.get("_assets", {}).get("photo", "")
+            # the photo the card drew: a story whose assets were resolved again after its card put one photo on the
+            # card and another on the site (0016-1: an author's portrait on the card, a stadium on the page)
+            src = m.get("photo") or s.get("_assets", {}).get("photo", "")
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
             # A fitting archive clip replaces the still wherever the post goes, web tier included (Threads and
@@ -1542,7 +1544,8 @@ def queue(day_dir, batch=None, render=True):
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
-                "credit": s.get("_assets", {}).get("credit", ""), "credit_file": s.get("_assets", {}).get("file", ""),
+                "credit": m.get("credit", s.get("_assets", {}).get("credit", "")),
+                "credit_file": m.get("photo_file") if "credit" in m else s.get("_assets", {}).get("file", ""),
                 "photo_kind": s.get("_assets", {}).get("kind", "")}
         ctas += bool(cta)
         if video:

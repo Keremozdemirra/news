@@ -40,8 +40,15 @@ def repick(pid, dry=False, keep=False):
     T.USED.update(desk.used_photos() - {post.get("photo_file")})
     T.USED.add(post.get("photo_file"))  # never the photo being replaced
     if keep:
-        ph = desk.MEDIA / pid / "photo.jpg"  # the photo the post already carries, as the media branch holds it
-        credit, file_, kind, alt = post.get("credit", ""), post["photo_file"], post.get("photo_kind", ""), post.get("photo_alt", "")
+        # the photo the record names, fetched again: a hand-edited record (2312-2: CC0 stadium in post.json, BY-SA Rodgers
+        # still on the card) gets its card drawn from the record, with the credit read from Commons now
+        file_, kind, alt = post["photo_file"], post.get("photo_kind", ""), post.get("photo_alt", "")
+        info = E._commons_info(file_, width=1600)
+        ok, credit = E.photo_ok(info)
+        if not ok:
+            print(f"{pid}: {file_!r} fails the licence check; left as it is")
+            return False
+        ph = E._fetched(info, credit, file_)[0]
     else:
         ph, credit, file_, kind, alt = T.pick_photo(story, head_.lower(), story["company"], fetch=True, sport=sport)
     if not file_:
@@ -69,8 +76,7 @@ def repick(pid, dry=False, keep=False):
         R.jpeg(png)
         png.unlink()
     R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
-    if not keep:
-        R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(ph.as_uri()).path)), img / "photo.jpg", 1400)
+    R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(ph.as_uri()).path)), img / "photo.jpg", 1400)
     desk._save(path, new)
     return True
 

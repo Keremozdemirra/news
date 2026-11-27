@@ -87,6 +87,8 @@ def pack(slots, out_dir, brand=T.BRAND):
                              "category": s.get("category", ""), "source": s.get("source", ""),
                              "x_post": s.get("x_post", ""), "linkedin_post": s.get("linkedin_post", ""),
                              "score": s.get("score", 0), "photo_file": s.get("_assets", {}).get("file", ""),
-                             "photo_kind": s.get("_assets", {}).get("kind", ""), "photo_alt": s.get("_assets", {}).get("alt", ""), "outlets": len(s.get("timeline") or s.get("outlets") or [])})
+                             "photo_kind": s.get("_assets", {}).get("kind", ""), "photo_alt": s.get("_assets", {}).get("alt", ""),
+                             # what the card drew, so the record, the credit and the site's photo are that asset
+                             "credit": s.get("_assets", {}).get("credit", ""), "photo": s.get("_assets", {}).get("photo", ""), "outlets": len(s.get("timeline") or s.get("outlets") or [])})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
     return files
