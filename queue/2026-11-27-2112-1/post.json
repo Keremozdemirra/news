@@ -1,0 +1,61 @@
+{
+ "id": "2026-11-27-2112-1",
+ "batch": "2026-11-27-2112",
+ "n": 1,
+ "created": "2026-11-27T21:12:24+00:00",
+ "layout": "brief",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Venezuela to repeal law that bans opposition figures from office\n\nOpposition leader Maria Corina Machado returned to Venezuela a month ago. Critics have said the law enables political persecution. Venezuela introduced the law two years ago.\n\nReported by Al Jazeera; BBC.\n\nSend this to a colleague who follows policy.\n\n#politics\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.aljazeera.com/news/2026/11/27/venezuela-to-repeal-law-that-bans-opposition-figures-from-office?traffic_source=rss"
+ ],
+ "links": [
+  "https://www.aljazeera.com/news/2026/11/27/venezuela-to-repeal-law-that-bans-opposition-figures-from-office?traffic_source=rss",
+  "https://www.bbc.co.uk/news/articles/c58j4pw9xjrlo?at_medium=RSS&at_campaign=rss"
+ ],
+ "headlines": [
+  "Venezuela to repeal law that bans opposition figures from office"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Politics",
+ "photo_file": "Glass office tower seen from below, São Paulo.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A glass office tower seen from below",
+ "score": 9.595,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Caracas",
+ "orgs": [],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Opposition leader Maria Corina Machado returned to Venezuela a month ago.",
+ "body": "Critics have said the law enables political persecution. Venezuela introduced the law two years ago.",
+ "supported": "eae2f2def147",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "Al Jazeera",
+  "BBC"
+ ],
+ "source_urls": [
+  "https://www.aljazeera.com/news/2026/11/27/venezuela-to-repeal-law-that-bans-opposition-figures-from-office?traffic_source=rss",
+  "https://www.bbc.co.uk/news/articles/c58j4pw9xjrlo?at_medium=RSS&at_campaign=rss"
+ ],
+ "credit": "Photo: Wilfredor, CC0, via Wikimedia Commons",
+ "credit_file": "Glass office tower seen from below, São Paulo.jpg",
+ "status": "web",
+ "published": "2026-11-27T21:12:24+00:00",
+ "story": ""
+}
