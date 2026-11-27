@@ -26,7 +26,7 @@
   <div class="grain" aria-hidden="true"></div>
 
   <header class="top">
-    <a class="brand" href="./" aria-label="Topfloor, start page">Topfloor</a>
+    <a class="brand" href="./" aria-label="Topfloor, start page"><img class="brand-mark" src="assets/mark.webp" alt="" width="30" height="30">Topfloor</a>
     <ol class="pips" id="pips" aria-label="Progress"></ol>
     <button class="icon-btn" id="sound" type="button" aria-pressed="false" aria-label="Sound off">
       <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
@@ -39,10 +39,10 @@
 
   <i class="cable" id="cable" aria-hidden="true"></i>
   <section class="dial" id="dial" aria-hidden="true">
-    <img class="dial-l" src="assets/art/dial-base.webp" alt="">
+    <img class="dial-l" src="assets/art/dial-base.webp" alt="" width="720" height="720">
     <svg viewBox="0 0 240 240" class="dial-l dial-svg" id="dial-svg"></svg>
-    <img class="dial-l needle" id="needle" src="assets/art/dial-needle.webp" alt="">
-    <img class="dial-l" src="assets/art/dial-cap.webp" alt="">
+    <img class="dial-l needle" id="needle" src="assets/art/dial-needle.webp" alt="" width="720" height="720">
+    <img class="dial-l" src="assets/art/dial-cap.webp" alt="" width="720" height="720">
     <div class="odo" id="odo">
       <div class="odo-wheels">
         <div class="wheel" data-w="h"><div class="strip" id="w-h"></div></div>
@@ -116,6 +116,7 @@
         <button class="call wide" id="share" type="button"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span><span class="call-text" id="share-label">Share your floor</span></button>
         <p class="next-in">Next building in <b class="mono" id="countdown">00:00:00</b></p>
       </div>
+      <p class="fine" id="e-missed" hidden></p>
       <p class="credit" id="credit"></p>
       <p class="home"><a href="/play/">More games</a><span aria-hidden="true"> · </span><a href="/">Boardread</a></p>
     </section>

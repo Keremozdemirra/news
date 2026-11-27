@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- The Face the Figure lockup: key art for the /play/ hub and the share image. Open at 1200 x 630 and capture.
+     ?mark=1 gives the square mark (open at 512 x 512). Nothing here ships as a page of the game. -->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../css/ftf.css">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1a3d; }
+  .room { position: absolute; left: 50%; bottom: 0; width: 2232px; height: 818px; margin-left: -1116px; transform: translateX(var(--dx, 250px)); }
+  .room img { position: absolute; bottom: 0; }
+  .room .plate { left: 0; width: 2232px; height: 818px; }
+  .room .bal { left: 837px; width: 558px; height: 546px; }
+  .word { position: absolute; left: 56px; top: 50%; transform: translateY(-50%); background: #e9e7df; border: 6px solid #15171a; padding: 26px 34px 22px; }
+  .word b { display: block; font: 900 128px / 0.86 "Big Shoulders Display", Impact, sans-serif; text-transform: uppercase; letter-spacing: 0.005em; color: #15171a; }
+  .word i { display: block; margin-top: 16px; padding-top: 12px; border-top: 3px solid #15171a; font: 600 19px / 1 "Barlow Semi Condensed", Arial, sans-serif; font-style: normal; letter-spacing: 0.2em; text-transform: uppercase; color: #15171a; }
+  .word i u { text-decoration: none; color: #b5330f; }
+  .mark .word { display: none; }
+  .mark .room { --dx: 0px; width: 1674px; height: 613px; margin-left: -837px; bottom: -14px; }
+  .mark .room .plate { width: 1674px; height: 613px; } .mark .room .bal { left: 628px; width: 418px; height: 409px; }
+</style>
+<body>
+<div class="room"><img class="plate" src="../assets/art/plate.webp" alt=""><img class="bal" src="../assets/art/back_33.webp" alt=""><img class="bal" src="../assets/art/front_33.webp" alt=""></div>
+<div class="word"><b>Face<br>the<br>Figure</b><i>Higher or lower · <u>daily</u> · Boardread</i></div>
+<script>if (new URLSearchParams(location.search).has("mark")) document.body.classList.add("mark");</script>
+</body>

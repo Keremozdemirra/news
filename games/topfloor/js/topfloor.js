@@ -1,5 +1,6 @@
 import { createWorld, paletteAt, MAXF } from "./world.js";
 import { buildDial, buildCar, score, play } from "./parts.js";
+import { matcher } from "./match.js";
 import * as snd from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -10,15 +11,6 @@ const STORE = "topfloor:v1";
 const BARS = ["▁", "▃", "▅", "▇", "█"];
 const BANDS = [["Lobby", 0, 19], ["Mezzanine", 20, 44], ["Corner Office", 45, 71], ["Penthouse", 72, 91], ["Helipad", 92, 100]];
 const bandOf = (f) => BANDS.findIndex(([, a, b]) => f >= a && f <= b);
-
-// ---- matching (mirrors norm() in build_data.py)
-const MAP = { "ø": "o", "đ": "d", "ł": "l", "æ": "ae", "œ": "oe", "ı": "i", "þ": "th", "ð": "d", "ß": "ss" };
-const SUFFIX = /\s(inc|incorporated|ltd|limited|plc|llc|corp|corporation|co|company|ag|sa|se|nv|spa|gmbh|group|holdings|holding|ab|oyj|asa|bv)$/;
-function norm(s) {
-  s = s.toLowerCase().replace(/[øđłæœıþðß]/g, (c) => MAP[c]);
-  s = s.normalize("NFKD").replace(/\p{M}/gu, "").replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim();
-  return s.replace(/^the /, "");
-}
 
 // ---- storage
 const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } };
@@ -150,10 +142,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 function find(i, raw) {
-  const m = maps[i], k = norm(raw);
-  if (!k) return null;
-  const hit = m.get(k) ?? m.get(k.replace(SUFFIX, ""));
-  return hit === undefined ? null : hit;
+  return raw.trim() ? maps[i](raw) : null;
 }
 function submit() {
   if (phase !== "prompt") return;
@@ -161,8 +150,17 @@ function submit() {
   const note = $("q-note");
   if (!raw) { nope("Type an answer first."); return; }
   const hit = find(idx, raw);
-  if (hit === null) { nope(`Not on file for this prompt. Try another.`); return; }
+  if (hit === null) { missed(raw); nope(`Not on file for this prompt. Try another.`); return; }
   success(hit);
+}
+// An answer we did not know stays on this device only (nothing is sent anywhere): the last 200, for the day's
+// end screen and for anyone who wants to tell us what the lists are missing.
+function missed(raw) {
+  try {
+    const log = JSON.parse(localStorage.getItem("topfloor:misses") || "[]");
+    log.push({ d: data.date, p: data.prompts[idx].id, g: raw.slice(0, 80) });
+    localStorage.setItem("topfloor:misses", JSON.stringify(log.slice(-200)));
+  } catch { /* private mode */ }
 }
 function nope(msg) {
   const slot = $("slot");
@@ -192,7 +190,7 @@ function success(entryIdx) {
   $("r-answer").textContent = e[0];
   const share = entryIdx / p.entries.length;
   $("r-rare").textContent = share < 0.03 ? `One of the best known of ${p.entries.length} answers on file.` : `Rarer than ${Math.round(share * 100)}% of the ${p.entries.length} answers on file.`;
-  if (e[4]) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${e[4]}”`; }
+  if (e[5]) { $("r-extra").hidden = false; $("r-extra").textContent = `In today’s Boardread: “${e[5]}”`; }
   snd.stamp();
   pipsRender();
   arrived = false;
@@ -330,6 +328,10 @@ function renderEnd(rec) {
   // share
   $("share-text").textContent = shareText(rec);
   $("credit").textContent = data.credit;
+  let miss = [];
+  try { miss = [...new Set(JSON.parse(localStorage.getItem("topfloor:misses") || "[]").filter((m) => m.d === data.date).map((m) => m.g))]; } catch { /* ignore */ }
+  $("e-missed").hidden = !miss.length;
+  $("e-missed").textContent = miss.length ? `Not on file today: ${miss.slice(0, 8).join(", ")}. If one of them is real, the list is short, not you.` : "";
   // dial and world for restored games
   if (floor !== F) { total = rec.total; floor = F; setLiftMs(1); applyPalette(F / MAXF); world.setFloor(F, true); world.setProgress(total / 700); world.setLitFloors(F); setOdometer(F); needle.set(F); }
   setDoors(0);
@@ -368,7 +370,14 @@ async function boot() {
   }
   if (params.get("t")) SECS = Math.max(3, +params.get("t"));
   else SECS = data.seconds || 25;
-  maps = data.prompts.map((p) => { const m = new Map(); p.entries.forEach((e, i) => e[3].forEach((k) => { if (!m.has(k)) m.set(k, i); })); return m; });
+  // each prompt's full answer list is its own file; the game opens once all seven are in
+  try {
+    await Promise.all(data.prompts.map(async (p) => { if (!p.entries) p.entries = (await (await fetch(p.list)).json()).entries; }));
+  } catch (e) {
+    $("card").innerHTML = '<p class="lede">Today’s answer lists did not load. Reload to try again.</p>';
+    app.dataset.phase = "intro"; return;
+  }
+  maps = data.prompts.map((p) => matcher(p.entries, p.generic || [], data.match));
 
   world = createWorld($("world"));
   needle = buildDial($("dial-svg"), $("needle"));

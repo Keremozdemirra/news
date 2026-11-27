@@ -139,6 +139,10 @@ async function enter() {
   if (busy || phase !== "play") return;
   if (cur.length < L) { say(`Need ${L} letters.`, true); live(`Need ${L} letters.`); shake(); return; }
   const g = cur.toLowerCase();
+  if (!valid.has(g)) {
+    // kept on this device only, never sent: the words we refused, so the list can be checked against them
+    try { const log = JSON.parse(localStorage.getItem("tickerflip:misses") || "[]"); log.push({ d: data.date, g }); localStorage.setItem("tickerflip:misses", JSON.stringify(log.slice(-200))); } catch { /* private mode */ }
+  }
   if (!valid.has(g)) { say("Not on the board’s word list.", true); live(`${cur} is not on the word list.`); shake(); return; }
   busy = true;
   const r = guesses.length, res = score(cur, answer);
@@ -354,10 +358,11 @@ function closeIntro() {
 
 // ---- boot
 async function boot() {
-  let words = "";
+  let words = "", more = "";
   try {
-    const [res, wr] = await Promise.all([fetch("assets/data/today.json", { cache: "no-cache" }), fetch("assets/data/words.txt")]);
+    const [res, wr, wm] = await Promise.all([fetch("assets/data/today.json", { cache: "no-cache" }), fetch("assets/data/words.txt"), fetch("assets/data/words-more.txt")]);
     data = await res.json(); words = await wr.text();
+    if (wm.ok) more = await wm.text();        // Webster's Second and company names
   } catch (e) {
     $("stage").innerHTML = '<p class="fail">Today’s board did not load. Reload to try again.</p>';
     app.dataset.phase = "play"; return;
@@ -365,6 +370,7 @@ async function boot() {
   answer = atob(data.a).split("").reverse().join("").toUpperCase();
   L = answer.length;
   for (const w of words.split("\n")) if (w.length === L) valid.add(w.trim());
+  for (const w of more.split("\n")) if (w.length === L) valid.add(w.trim());
   for (const w of data.extra) if (w.length === L) valid.add(w);
   valid.add(answer.toLowerCase());
 

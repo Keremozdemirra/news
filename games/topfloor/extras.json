@@ -1,0 +1,9 @@
+{
+  "_": "Hand-kept additions to the Wikidata lists: items Wikidata files under another class (add), and spellings it does not carry (alias). build_lists.py reads this; add a line when a player's real answer was not on file.",
+  "bank": {"add": ["Q270363", "Q152106"], "alias": {"Q152106": ["Bayerische Bank", "Bayern LB", "Bayerische Landesbank"], "Q270363": ["SocGen", "Societe Generale"]}},
+  "brewery": {"add": ["Q2729871", "Q1295815", "Q1798652", "Q5280492", "Q697534", "Q113215"], "alias": {"Q2729871": ["Efes", "Anadolu Efes", "Efes Pilsen"], "Q697534": ["Hofbräu", "Hofbräu München", "Hofbräuhaus", "HB"], "Q1798652": ["Tuborg"]}},
+  "supermarket": {"add": ["Q19613992", "Q483551", "Q680727", "Q685967", "Q41171373", "Q715583"], "alias": {"Q19613992": ["Şok", "Şok Market", "Sok"], "Q685967": ["Kaufland"]}},
+  "carmaker": {"add": ["Q478214", "Q27586", "Q27530"], "alias": {"Q478214": ["Tesla", "Tesla Motors"], "Q27530": ["Daimler", "Mercedes"]}},
+  "publisher": {"add": ["Q344341", "Q94933"], "alias": {"Q94933": ["Take-Two", "Take Two", "2K"], "Q344341": ["Activision Blizzard"]}},
+  "currency": {"alias": {"Q172872": ["TL", "TRY"], "Q4917": ["USD", "US$", "buck"], "Q4916": ["EUR"], "Q25224": ["GBP", "quid"]}}
+}

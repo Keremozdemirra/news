@@ -20,7 +20,7 @@ GAMES = [
     ("tickerflip", "Tickerflip", "One word from today's stories on a split-flap departure board. Six guesses.", True),
     ("face-the-figure", "Face the Figure", "Two real business figures on a balance. Is the sealed one higher or lower? Ten rounds.", True),
 ]
-SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", ".DS_Store")
+SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", "lockup.html", "extras.json", ".DS_Store")
 
 
 def live():
@@ -47,10 +47,12 @@ def copy_games(out):
 
 
 def hub_body():
+    """Three games, three worlds: each tile is the game's own key art (its logo in its scene), not a row of text."""
     rows = []
     for slug, title, blurb, is_live in GAMES:
         if is_live and (GAMES_DIR / slug / "index.html").exists():
-            rows.append(f'<li><a class="game" href="{S.BASE}/play/{slug}/"><span class="gt">{S.E(title)}</span>'
+            art = f'<img class="ga" src="{S.BASE}/play/{slug}/assets/share.jpg" alt="" width="1200" height="630" loading="lazy">' if (GAMES_DIR / slug / "assets" / "share.jpg").exists() else ""
+            rows.append(f'<li><a class="game" href="{S.BASE}/play/{slug}/">{art}<span class="gt">{S.E(title)}</span>'
                         f'<span class="gd">{S.E(blurb)}</span><span class="gm">Play today</span></a></li>')
         else:
             rows.append(f'<li><div class="game soon"><span class="gt">{S.E(title)}</span><span class="gm">Coming soon</span></div></li>')

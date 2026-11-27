@@ -406,6 +406,20 @@ class Play(Features):
             self.assertTrue((self.out / "play" / slug / "index.html").exists(), slug)
         self.assertNotIn("Coming soon", h)
 
+    def test_the_hub_shows_each_game_by_its_own_key_art(self):
+        h = self.read("play/index.html")
+        for slug in ("topfloor", "tickerflip", "face-the-figure"):
+            self.assertIn(f'src="{site.BASE}/play/{slug}/assets/share.jpg"', h)
+            self.assertTrue((self.out / "play" / slug / "assets" / "mark.webp").exists(), slug)
+            self.assertIn('src="assets/mark.webp"', (self.out / "play" / slug / "index.html").read_text(), slug)   # the game page wears its mark
+            self.assertFalse((self.out / "play" / slug / "art" / "lockup.html").exists(), slug)
+
+    def test_topfloor_ships_its_answer_lists_and_not_the_hand_list(self):
+        d = self.out / "play" / "topfloor"
+        self.assertGreaterEqual(len(list((d / "assets" / "data" / "lists").glob("*.json"))), 12)
+        self.assertFalse((d / "extras.json").exists())
+        self.assertTrue((self.out / "play" / "tickerflip" / "assets" / "data" / "words-more.txt").exists())
+
     def test_a_game_with_the_flag_off_shows_as_coming_soon_and_copies_nothing(self):
         from aidaily import play
         with mock.patch.object(play, "GAMES", [("topfloor", "Topfloor", "x", True), ("tickerflip", "Tickerflip", "", False)]):
