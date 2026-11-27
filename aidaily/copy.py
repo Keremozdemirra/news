@@ -140,8 +140,8 @@ SO_WHAT_FIELD = """
 # Added to the prompt only while desk.json growth.by_source is true. Log-only: the lines are checked and stored on the
 # post (post.json "by_source") and no page, card or caption prints them yet.
 BY_SOURCE_FIELD = """
-- by_source: [] or one object per newsroom that has a fact of its own, {{"outlet": "<name exactly as listed>", "line":
-  "<one sentence>"}}. The outlet is the one named after "outlet:" or one named under "also reported". The line says
+- by_source: [] or one object per newsroom that has a fact of its own, {"outlet": "<name exactly as listed>", "line":
+  "<one sentence>"}. The outlet is the one named after "outlet:" or one named under "also reported". The line says
   what THAT newsroom's own title and summary say, with nothing from any other newsroom, in your own words (never a run
   of seven words copied, no quote), max 25 words, no newsroom named, no "reports that". Leave a newsroom out when its
   text adds nothing. [] for a story only one newsroom reported"""

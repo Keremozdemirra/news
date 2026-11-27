@@ -486,6 +486,12 @@ class BySource(unittest.TestCase):
             {"outlet": "Bloomberg Politics", "line": "The People's Party is ahead in the polls on 33 percent against 27 for the Socialists."},
             {"outlet": "AP", "line": "Voters list housing costs and immigration as the issues of the campaign."}]
 
+    def setUp(self):
+        # the switch ships off (desk.json growth.by_source); these tests run with it on
+        self._switch = copy.switch
+        copy.switch = lambda name: True if name == "by_source" else self._switch(name)
+        self.addCleanup(setattr, copy, "switch", self._switch)
+
     def test_lines_that_pass_are_kept_per_newsroom(self):
         kept = copy.check_by_source(grouped(), self.GOOD)
         self.assertEqual([k["outlet"] for k in kept], ["Reuters", "Bloomberg Politics", "AP"])
@@ -533,6 +539,14 @@ class BySource(unittest.TestCase):
         s = grouped()
         copy.apply([s], [row(headline="Spain votes on 99 percent", dek="", x_post="", linkedin_post="", by_source=self.GOOD)])
         self.assertEqual(s["by_source"], [])
+
+    def test_the_switch_ships_off_and_the_prompt_example_has_single_braces(self):
+        import pathlib
+        cfg = json.loads((pathlib.Path(copy.__file__).parent.parent / "desk.json").read_text())
+        self.assertFalse(cfg["growth"]["by_source"])
+        text = copy.prompt("id: 0")
+        self.assertIn('{"outlet": "<name exactly as listed>"', text)
+        self.assertNotIn('{{"outlet"', text)
 
     def test_the_prompt_asks_for_it_and_the_switch_turns_it_off(self):
         self.assertIn("- by_source:", copy.prompt("id: 0"))
