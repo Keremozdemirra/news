@@ -4,7 +4,7 @@
  "n": 5,
  "created": "2026-11-26T15:42:13+00:00",
  "publish_after": "2026-11-26T16:06:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -41,5 +41,7 @@
  "credit": "Photo: Julian Lupyan, CC0, via Wikimedia Commons",
  "issue": 6,
  "photo_kind": "scene",
- "photo_alt": "Office towers in a financial district"
+ "photo_alt": "Office towers in a financial district",
+ "tier": "web",
+ "published": "2026-11-27T03:50:09+00:00"
 }

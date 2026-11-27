@@ -4,7 +4,7 @@
  "n": 2,
  "created": "2026-11-26T15:42:07+00:00",
  "publish_after": "2026-11-26T15:51:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -45,5 +45,7 @@
  "issue": 6,
  "photo_kind": "scene",
  "photo_alt": "A departures hall in black and white",
- "credit_file": "El aeropuerto, a primera hora de la mañana del fin de semana, estaba abarrotado de gente que se apresuraba a llegar a sus destinos. El sol de invierno brillaba cálidamente sobre sus cabezas. ¿Adónde voy hoy - Flickr - ringo134.jpg"
+ "credit_file": "El aeropuerto, a primera hora de la mañana del fin de semana, estaba abarrotado de gente que se apresuraba a llegar a sus destinos. El sol de invierno brillaba cálidamente sobre sus cabezas. ¿Adónde voy hoy - Flickr - ringo134.jpg",
+ "tier": "web",
+ "published": "2026-11-27T03:50:09+00:00"
 }

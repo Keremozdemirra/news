@@ -4,7 +4,7 @@
  "n": 6,
  "created": "2026-11-26T15:42:15+00:00",
  "publish_after": "2026-11-26T16:11:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -43,5 +43,7 @@
   "https://siliconangle.com/2026/11/25/new-york-bans-ai-toys-amid-concern-after-stuffed-animals-going-rogue/"
  ],
  "credit": "Photo: US Congress (Official Photo), Public domain, via Wikimedia Commons",
- "issue": 4
+ "issue": 4,
+ "tier": "web",
+ "published": "2026-11-27T03:50:10+00:00"
 }

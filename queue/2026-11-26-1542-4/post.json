@@ -4,7 +4,7 @@
  "n": 4,
  "created": "2026-11-26T15:42:11+00:00",
  "publish_after": "2026-11-26T16:01:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -47,5 +47,7 @@
   "https://www.wsj.com/business/deals/altria-considering-possible-offer-for-imperial-brands-7cef494b?mod=rss_markets_main"
  ],
  "credit": "Photo: Packer1028, CC0, via Wikimedia Commons",
- "issue": 6
+ "issue": 6,
+ "tier": "web",
+ "published": "2026-11-27T03:50:09+00:00"
 }

@@ -4,7 +4,7 @@
  "n": 1,
  "created": "2026-11-26T15:42:05+00:00",
  "publish_after": "2026-11-26T15:46:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -50,5 +50,7 @@
  "issue": 6,
  "photo_kind": "scene",
  "photo_alt": "A conference room with red chairs",
- "credit_file": "NOIRLab HQ Conference Room (6V6A0258-CC).jpg"
+ "credit_file": "NOIRLab HQ Conference Room (6V6A0258-CC).jpg",
+ "tier": "web",
+ "published": "2026-11-27T03:50:09+00:00"
 }

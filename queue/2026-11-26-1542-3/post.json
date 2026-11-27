@@ -4,7 +4,7 @@
  "n": 3,
  "created": "2026-11-26T15:42:09+00:00",
  "publish_after": "2026-11-26T15:56:35+00:00",
- "status": "queued",
+ "status": "web",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -42,5 +42,7 @@
  "issue": 6,
  "photo_kind": "scene",
  "photo_alt": "An oil refinery at dusk by the water",
- "credit_file": "Burnaby Refinery.jpg"
+ "credit_file": "Burnaby Refinery.jpg",
+ "tier": "web",
+ "published": "2026-11-27T03:50:09+00:00"
 }
