@@ -59,5 +59,13 @@
   "why": "report too thin (1 sentences, 16 words beyond the dek)",
   "dek": "The department says benefit and pension payments will be paid as normal while it works with cyber security experts.",
   "body": "There is little information on which services are affected or how long the disruption will last."
+ },
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3ct2c7gkr24",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3ct2c7gkr24",
+   "at": "2026-11-27T18:30:18+00:00",
+   "format": "link"
+  }
  }
 }
