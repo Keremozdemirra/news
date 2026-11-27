@@ -194,6 +194,8 @@ a { color: inherit; }
   .readout { grid-column: 2; grid-row: 2; border-top: 0; padding-top: 0; }
   .floor b { font-size: 80px; }
   .q { grid-column: 2; grid-row: 3; padding-top: 24px; }
+  /* the result stays a column of reading width in the middle of the wide page */
+  .end { padding-left: max(var(--pad), calc((100% - 480px) / 2)); padding-right: max(var(--pad), calc((100% - 480px) / 2)); }
 }
 
 /* the phone keyboard is up: the window is about 400 px high. Everything is set tighter so the question, the box,

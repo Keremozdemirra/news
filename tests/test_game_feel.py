@@ -115,3 +115,49 @@ class Touch(unittest.TestCase):
             for css in (GAMES / slug / "css").glob("*.css"):
                 left = without_hover_media(re.sub(r"/\*.*?\*/", "", css.read_text(), flags=re.S))
                 self.assertNotIn(":hover", left, f"{slug}/{css.name}")
+
+
+class ShareDate(unittest.TestCase):
+    """The link preview carries the puzzle's number and date. Pillow draws it at build time and only there."""
+    def test_pillow_is_pinned_for_the_build_and_imported_nowhere_else(self):
+        req = [l.strip() for l in (ROOT / "requirements-build.txt").read_text().splitlines() if l.strip() and not l.startswith("#")]
+        self.assertEqual(len(req), 1)
+        self.assertRegex(req[0], r"^Pillow==\d+\.\d+\.\d+$")
+        self.assertIn("pip install --quiet -r requirements-build.txt", (ROOT / ".github" / "workflows" / "site.yml").read_text())
+        users = [p.name for p in (ROOT / "aidaily").glob("*.py") if re.search(r"^\s*(from PIL|import PIL)", p.read_text(), re.M)]
+        self.assertEqual(users, ["play.py"])
+        src = (ROOT / "aidaily" / "play.py").read_text()
+        self.assertNotRegex(src, r"(?m)^(from PIL|import PIL)")          # inside the function: a machine without it still builds
+
+    def test_the_card_is_dated_and_the_preview_url_changes_with_the_day(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            self.skipTest("Pillow is not installed")
+        import shutil, sys, tempfile
+        sys.path.insert(0, str(ROOT))
+        from aidaily import play
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "topfloor"
+            shutil.copytree(GAMES / "topfloor", dest, ignore=shutil.ignore_patterns("*.py", "lists"))
+            before = Image.open(dest / "assets" / "share.jpg").convert("RGB")
+            self.assertTrue(play.dated_share("topfloor", dest))
+            after = Image.open(dest / "assets" / "share.jpg").convert("RGB")
+            self.assertEqual(after.size, (1200, 630))
+            box = (60, 496, 600, 536)                                     # where the date line is set
+            self.assertNotEqual(list(before.crop(box).getdata()), list(after.crop(box).getdata()))
+            day = json.loads((dest / "assets" / "data" / "today.json").read_text())["date"]
+            html = (dest / "index.html").read_text()
+            self.assertEqual(html.count(f"/assets/share.jpg?d={day}\""), 2)
+            self.assertNotIn("/assets/share.jpg\"", html)
+
+    def test_no_today_file_leaves_the_card_as_it_is(self):
+        import shutil, sys, tempfile
+        sys.path.insert(0, str(ROOT))
+        from aidaily import play
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp) / "g"; (dest / "assets").mkdir(parents=True)
+            shutil.copy(GAMES / "topfloor" / "assets" / "share.jpg", dest / "assets" / "share.jpg"); (dest / "index.html").write_text("x")
+            size = (dest / "assets" / "share.jpg").stat().st_size
+            self.assertFalse(play.dated_share("g", dest))
+            self.assertEqual((dest / "assets" / "share.jpg").stat().st_size, size)

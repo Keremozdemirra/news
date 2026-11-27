@@ -79,6 +79,8 @@ jobs:
         run: |
           # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship
           command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          # the games' share images get the day's date drawn on (aidaily/play.py); pinned, and a build without it still ships the undated cards
+          python3 -m pip install --quiet -r requirements-build.txt || echo "::warning::Pillow did not install; share images go out undated"
           python3 -m aidaily site
           python3 -m aidaily bsky-feed _site
           echo "${{ steps.changed.outputs.want }}" > _site/built-from.txt

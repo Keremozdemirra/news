@@ -6,6 +6,7 @@ A game with a build_data.py gets its puzzle from that script at site build: it w
 built copy, and when it fails (no network, upstream down) the committed copy of the last puzzle is served instead.
 The first puzzle published for a UTC day is kept by every later build of that day (same_day_same_puzzle).
 """
+import datetime as dt
 import json
 import os
 import shutil
@@ -82,8 +83,37 @@ def copy_games(out):
                 else:
                     tmp.unlink(missing_ok=True)
                     print(f"play: {slug} puzzle not refreshed, serving the committed one: {why}")
+        dated_share(slug, dest)
         done.append(slug)
     return done
+
+
+SHARE_FONT = GAMES_DIR / "_fonts" / "LibreFranklin-600.ttf"
+
+
+def dated_share(slug, dest):
+    """Draw the puzzle's number and date on the game's share image, and point the page's preview tags at a URL that
+    changes with the day, so X, WhatsApp and Telegram fetch the new picture. Build-time only: Pillow is imported here
+    and nowhere else; without it the committed, undated card is served as it is. Returns True when the date was drawn."""
+    card, page = dest / "assets" / "share.jpg", dest / "index.html"
+    try:
+        puzzle = json.loads((dest / "assets" / "data" / "today.json").read_text())
+        when = dt.date.fromisoformat(puzzle["date"])
+        from PIL import Image, ImageDraw, ImageFont
+        im = Image.open(card).convert("RGB")
+        if im.size != (1200, 630):
+            return False
+        font, draw, x = ImageFont.truetype(str(SHARE_FONT), 20), ImageDraw.Draw(im), 72.0
+        for ch in f"No. {puzzle['no']} · {when:%a} {when.day} {when:%b %Y}".upper():      # set letter by letter: tracked caps, as on the card
+            draw.text((x, 504), ch, font=font, fill=(90, 90, 90))
+            x += font.getlength(ch) + 2.4
+        im.save(card, "JPEG", quality=90, optimize=True)
+    except Exception as e:  # noqa: BLE001  a share image without a date is still a share image
+        print(f"play: {slug} share image left undated ({type(e).__name__})")
+        return False
+    html = page.read_text()
+    page.write_text(html.replace("/assets/share.jpg\"", f"/assets/share.jpg?d={puzzle['date']}\""))
+    return True
 
 
 def hub_body():

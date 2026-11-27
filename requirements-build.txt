@@ -1,0 +1,2 @@
+# Build-time only: the site build draws the date on the games' share images (aidaily/play.py). Nothing at run time imports it.
+Pillow==12.3.0
