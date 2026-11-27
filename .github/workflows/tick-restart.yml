@@ -23,4 +23,8 @@ jobs:
           live=$(gh run list --workflow tick.yml --limit 20 --json status \
                  --jq '[.[] | select(.status | IN("queued","in_progress","pending","waiting"))] | length')
           if [ "$live" != 0 ]; then echo "a tick is already queued or running"; exit 0; fi
-          gh workflow run tick.yml --ref main
+          for i in 1 2 3; do
+            gh workflow run tick.yml --ref main && exit 0
+            sleep $((i * 30))
+          done
+          echo "::error::could not start a new tick"; exit 1

@@ -272,9 +272,11 @@ class Photos(unittest.TestCase):
         s = {"headline": "Ontario's Ford and Unifor urge Ottawa to scrap emissions rules", "company": "Stellantis"}
         seen = []
         with mock.patch.object(E, "logo", return_value=None), mock.patch.object(E, "ticker", return_value=None), \
+             mock.patch.object(E, "headline_names", return_value=[]), \
+             mock.patch.object(T.scenes, "photo", return_value=(None, "", "", "")), \
              mock.patch.object(E, "fresh_photo", side_effect=lambda subj, *a, **k: seen.append(subj) or (None, "", "")):
             T.assets(s)
-        self.assertEqual([x[0] for x in seen[0]], ["", ""])
+        self.assertEqual([subj[0] for call in seen for subj in call], ["", ""])
 
     def test_company_logo_only_when_the_headline_names_it(self):
         s = {"headline": "Doug Ford and Unifor leader urge Ottawa to scrap automaker rules", "company": "Stellantis",
@@ -346,7 +348,8 @@ class Audit(unittest.TestCase):
         p = {"headlines": ["Nvidia halts chip shipments to Southeast Asia"], "topic": "Tech", "company": "Nvidia",
              "logo_names": ["Nvidia"], "body": "The pause covers four countries.", "dek": "",
              "caption": "Nvidia halts chip shipments to Southeast Asia\n\n#tech #news",
-             "photo_file": "NVIDIA Headquarters.jpg", "credit_file": "NVIDIA Headquarters.jpg", "credit": "Photo: X"}
+             "photo_file": "NVIDIA Headquarters.jpg", "credit_file": "NVIDIA Headquarters.jpg", "credit": "Photo: X",
+             "photo_kind": "company"}
         p.update(kw)
         return p
 

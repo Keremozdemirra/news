@@ -26,7 +26,7 @@
   "policy"
  ],
  "topic": "Politics",
- "photo_file": "AI generated image of Loab character.jpg",
+ "photo_file": "Bermuda (UK) image number 282 courtroom.jpg",
  "score": 9.347,
  "figure": "42",
  "company": "Character.AI",
@@ -46,6 +46,8 @@
   "https://techcrunch.com/2026/11/25/state-ags-fight-character-ais-plan-to-auction-off-users-private-chats/",
   "https://www.engadget.com/2328630/state-ags-are-trying-to-stop-characterai-from-auctioning-off-users-chat-histories/"
  ],
- "credit": "Photo: Abigor, CC BY-SA 3.0, via Wikimedia Commons",
- "issue": 6
+ "credit": "Photo: Tomwsulcer, CC0, via Wikimedia Commons",
+ "issue": 6,
+ "photo_kind": "scene",
+ "photo_alt": "An empty courtroom with wooden benches"
 }

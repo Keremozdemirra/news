@@ -62,6 +62,8 @@ def outlet_of(url):
     global _MAP
     _MAP = _MAP or _domain_map()
     h = host(url)
+    if h in ("bbc.co.uk", "bbc.com") and urlsplit(url).path.startswith("/sport"):
+        return "BBC Sport"
     for k in (h, ".".join(h.split(".")[-2:])):
         if k in _MAP:
             return _MAP[k]

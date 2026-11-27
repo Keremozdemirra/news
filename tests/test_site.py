@@ -48,7 +48,7 @@ class SiteMeta(Tmp):
         self.assertEqual(ld["@type"], "NewsArticle")
         self.assertLessEqual(len(ld["headline"]), 110)
         self.assertTrue(ld["isAccessibleForFree"])
-        self.assertEqual(ld["author"], {"@type": "Organization", "name": "Boardread", "url": site.SITE + "/"})
+        self.assertEqual(ld["author"], {"@type": "Organization", "name": "Boardread", "url": site.SITE + "/about/"})  # the page that says who writes it
         self.assertTrue(ld["publisher"]["logo"]["url"].startswith("https://"))
         self.assertTrue(ld["datePublished"].endswith("Z"))
         self.assertIn("Written by AI from the sources listed", h)

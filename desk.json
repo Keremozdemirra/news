@@ -119,12 +119,28 @@
   "breaking_score": 14,
   "facebook_min_score": 12,
   "facebook_daily_max": 4,
+  "facebook_daily_min": 2,
+  "facebook_floor_hour": 10,
+  "lead_when_ig_blocked": true,
+  "lead_spacing_minutes": {
+    "threads": 40,
+    "bluesky": 30,
+    "telegram": 30,
+    "facebook": 90
+  },
   "story_concepts": true,
   "platforms": {
     "threads": true,
     "facebook": true,
     "bluesky": true,
     "telegram": true
+  },
+  "video": {
+    "on": true,
+    "per_day": 2,
+    "format": "alternate",
+    "trial": "",
+    "seconds": 8
   },
   "growth": {
     "so_what": false,
@@ -136,7 +152,8 @@
     "reel_size": 5,
     "reel_min": 3,
     "reel_seconds": 3,
-    "reel_trial": ""
+    "reel_trial": "",
+    "utm": false
   },
   "send_prompts": [
     {
@@ -196,5 +213,8 @@
       "Weekly: check Instagram Account Status",
       "Instagram → Settings → Account Status. Check that the account is eligible for recommendations (originality rule since 2026-04-30). Close this issue when done."
     ]
-  ]
+  ],
+  "sport_min_score": 7.0,
+  "sport_per_run": 4,
+  "sport_daily_max": 12
 }

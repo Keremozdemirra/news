@@ -26,7 +26,7 @@
   "markets"
  ],
  "topic": "Business",
- "photo_file": "Turquoise-fronted amazon (Amazona aestiva) head.JPG",
+ "photo_file": "Amazon Flex.jpg",
  "score": 8.459,
  "figure": "$68.6 billion",
  "company": "Amazon",
@@ -46,6 +46,8 @@
   "https://techcrunch.com/2026/11/25/amazon-and-meta-reportedly-in-talks-to-lift-blockade-on-ai-agent-muse/",
   "https://www.theverge.com/tech/1042071/meta-amazon-muse-ai-shopping-discussions"
  ],
- "credit": "Photo: WrS.tm.pl, Public domain, via Wikimedia Commons",
- "issue": 5
+ "credit": "Photo: Wikideas1, CC0, via Wikimedia Commons",
+ "issue": 5,
+ "photo_kind": "company",
+ "photo_alt": ""
 }

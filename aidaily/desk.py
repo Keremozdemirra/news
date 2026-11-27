@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from . import copy, github, rank
+from . import copy, github, rank, redact
 from . import render as R
 
 HERE = Path(__file__).resolve().parent.parent
@@ -48,8 +48,11 @@ def _load(p, default):
 
 
 def _save(p, data):
+    """Every queue and state file is committed to a public repository: errors are scrubbed of anything
+    token-shaped, and the whole file of the secret values themselves (redact.py)."""
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    text = json.dumps(redact.scrub_data(data), indent=1, ensure_ascii=False) + "\n"
+    p.write_text(redact.scrub(text, patterns=False))
 
 
 def posts():
@@ -66,8 +69,22 @@ def media_url(post_id, name):
     return f"{base}/{post_id}/{name}"
 
 
-def story_url(post_id):
-    return f"{CONFIG['site_url']}/s/{post_id}/"
+def video_url(post_id, name):
+    """Instagram fetches a video from a public URL too, but raw.githubusercontent.com serves MP4 as
+    application/octet-stream; jsDelivr serves the same file from the same commit as video/mp4 (checked 2026-11-27).
+    Files up to 20 MB; ours are under 8 MB."""
+    ref = os.environ.get("DESK_MEDIA_REF") or CONFIG["media_branch"]
+    base = os.environ.get("DESK_VIDEO_BASE") or f"https://cdn.jsdelivr.net/gh/{os.environ.get('GITHUB_REPOSITORY', '')}@{ref}"
+    return f"{base}/{post_id}/{name}"
+
+
+def story_url(post_id, channel=None):
+    """The article page. With growth.utm on, a link posted to a channel carries utm_source=<channel>: one label per
+    channel, the same for every reader, never a per-person identifier (brand/growth/MEASUREMENT.md)."""
+    url = f"{CONFIG['site_url']}/s/{post_id}/"
+    if channel and growth("utm"):
+        url += f"?utm_source={channel}&utm_medium=social"
+    return url
 
 
 def brand_domain():
@@ -81,6 +98,16 @@ def brand_domain():
 SKIP = re.compile(rf"\b({CONFIG['skip_topics']})\b", re.I)
 # listicles, explainers and opinion are not news, even when the ranker likes them
 FORMAT = re.compile(rf"\b({CONFIG['skip_formats']})\b", re.I)
+
+
+# Sport is a website section only. No tier, queue, cross-post, digest or reel may carry a post on one of these topics:
+# the social channels stay business news. Every social path asks social_allowed() before it touches a post.
+NO_SOCIAL_TOPICS = frozenset({"Sport"})
+
+
+def social_allowed(item):
+    """False for a post or story whose topic is website-only."""
+    return (item or {}).get("topic") not in NO_SOCIAL_TOPICS
 
 
 def _recent_posts(days):
@@ -301,10 +328,97 @@ def caption(m, s, cta=True):
     return text if len(text) <= 2200 else text[:2190].rsplit("\n", 1)[0]
 
 
+# video cards: the post's photo card with the photo moving behind the same text (cardvideo.py)
+
+def video_cfg(name, default=None):
+    return (CONFIG.get("video") or {}).get(name, default)
+
+
+def videos_last_24h():
+    """Video posts published in the last 24 hours plus those queued: the daily cap counts both."""
+    cut = now() - timedelta(hours=24)
+    n = 0
+    for p, _ in posts():
+        if not p.get("video"):
+            continue
+        if p.get("status") == "queued" or (p.get("status") == "published" and (_stamp(p.get("published", "")) or cut) > cut):
+            n += 1
+    return n
+
+
+def video_shape():
+    """card (first child of the carousel) or reel. "alternate" takes whichever shape the last 14 days used less, so
+    the weekly insights compare the two on the same kind of story; "card" or "reel" fixes it once the numbers decide."""
+    fmt = video_cfg("format", "alternate")
+    if fmt in ("card", "reel"):
+        return fmt
+    cut = now() - timedelta(days=14)
+    used = {"card": 0, "reel": 0}
+    for p, _ in posts():
+        v = p.get("video") or {}
+        if v.get("shape") in used and (_stamp(p.get("created", "")) or cut) > cut:
+            used[v["shape"]] += 1
+    return "reel" if used["reel"] < used["card"] else "card"
+
+
+def video_problems(post):
+    """What holds a post's video. Licence: the photo under CC0, CC BY or public domain, with its credit (a video is an
+    adaptation; share-alike, no-derivatives and non-commercial photos never move). Spec: the file passed Instagram's
+    video spec when it was rendered. Subject: the video was made from this post's headline, photo and credit, so it
+    shows nothing the audited still card does not."""
+    v = post.get("video")
+    if not v:
+        return []
+    from . import video as V
+    out = []
+    if v.get("shape") not in ("card", "reel") or not v.get("file") or not v.get("cover"):
+        out.append("video record incomplete")
+    if not post.get("credit") or not V.photo_ok(post):
+        out.append("photo licence does not allow an edited video")
+    if v.get("spec") != []:
+        out.append(f"video failed the spec check: {'; '.join(v.get('spec') or ['not checked'])}")
+    if v.get("headline") != post["headlines"][0] or v.get("photo_file") != post.get("photo_file") or v.get("credit") != post.get("credit"):
+        out.append("video was made from another headline, photo or credit than the post")
+    return out
+
+
+def check_video(post):
+    """Drop a video that fails its checks; the post goes out as its still carousel. Returns True when it was dropped."""
+    problems = video_problems(post)
+    if problems:
+        post.pop("video", None)
+        post["video_held"] = problems
+        print(f"{post.get('id')}: video held, stills instead: {'; '.join(problems)}")
+    return bool(problems)
+
+
+def make_video(s, img, post_id):
+    """Render the story's video card into the media folder. Returns the post's video record, or None (and why it
+    was skipped is printed); a failed render never touches the still card."""
+    from . import cardvideo as CV
+    why = CV.eligible(s)
+    if why:
+        print(f"{post_id}: no video card: {why}")
+        return None
+    shape = video_shape()
+    try:
+        mp4 = CV.build(s, img / "video.mp4", shape, seconds=float(video_cfg("seconds", CV.SECONDS)))
+        CV.cover(mp4, img / "cover.jpg")
+    except Exception as e:  # noqa: BLE001  a render failure costs the video, never the post
+        print(f"{post_id}: video render failed, stills only: {str(e)[:300]}")
+        for f in ("video.mp4", "cover.jpg"):
+            (img / f).unlink(missing_ok=True)
+        return None
+    a = s.get("_assets") or {}
+    return {"shape": shape, "file": "video.mp4", "cover": "cover.jpg", "spec": CV.audit_file(mp4, shape),
+            "headline": s.get("headline") or s["title"], "photo_file": a.get("file", ""), "credit": a.get("credit", ""),
+            "focus": list(CV.focus(s)), "seconds": float(video_cfg("seconds", CV.SECONDS))}
+
+
 SLOP = re.compile(r"\b(delve|game[- ]changer|landscape|unlock|revolutioni[sz]e|it'?s worth noting|in today'?s|"
                   r"buckle up|here'?s what|everything you need to know|must[- ]read|you won'?t believe|"
                   r"not just|a testament|navigat(e|ing) the)\b", re.I)
-TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"}
+TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture", "Sport"}
 
 
 def audit(post):
@@ -312,7 +426,9 @@ def audit(post):
     problems = []
     head_ = post["headlines"][0]
     if post.get("topic") not in TOPICS:
-        problems.append(f"topic {post.get('topic')!r} is not one of the eight")
+        problems.append(f"topic {post.get('topic')!r} is not one of the nine")
+    if not social_allowed(post) and (post.get("tier") != "web" or post.get("status") not in ("web", "held")):
+        problems.append(f"{post.get('topic')} is a website-only topic and may not enter a social queue")
     if post.get("topic") == "Culture" and not copy.CULTURE.search(head_ + " " + post.get("body", "")):
         problems.append("Culture label on a story with no culture in it")
     for n in post.get("logo_names", []):
@@ -322,23 +438,42 @@ def audit(post):
     if tk and not (post.get("company") and R.T.in_headline(post["company"], head_.lower())):
         problems.append(f"ticker {tk.get('symbol')} for {post.get('company')!r}, which the headline does not name")
     E, pf = R.T.entities, post.get("photo_file", "")
+    # a ground names itself ("Acrisure Stadium" on a Steelers story); sport has the team check instead
+    if pf and post.get("photo_kind") != "scene" and not post.get("person") and post.get("topic") != "Sport":
+        other = E.foreign_names(pf, head_ + " " + (post.get("company") or ""))
+        if other:
+            problems.append(f"photo file names {other}, which the story does not name")
+    if "BY-SA" in post.get("credit", ""):
+        problems.append("ShareAlike photo: a card with text over it would bind the card to that licence")
+    if pf and E.AI_MADE.search(pf):
+        problems.append(f"photo {pf!r} is AI-made")
+    # no post without a picture: the card, the site article and every crosspost carry it
+    if not pf:
+        problems.append("no photo")
+    # a photo of the company's own name must show the company, not the bird, fruit or river that shares the word
+    if pf and post.get("company") and not post.get("person") and post.get("photo_kind", "company") in ("company", "") \
+            and not E.company_context(pf, post["company"]):
+        problems.append(f"photo {pf!r} may show another sense of {post['company']!r}")
     owners = [n for n in [post.get("company")] + list(post.get("logo_names") or []) if n]
-    if pf and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
+    scene = post.get("photo_kind") == "scene"  # a vetted stand-in for the sport, shown as such; it names no subject
+    if pf and not scene and all(E.foreign_brand(pf, head_ + " " + n, own=n) for n in owners or [""]):
         other = E.foreign_brand(pf, head_ + " " + (owners[0] if owners else ""), own=owners[0] if owners else "")
         problems.append(f"photo file names {other}, which the story does not name")
-    if pf and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
-               or (not post.get("person") and E.CROWD.search(pf))):
+    if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf)
+                             or (not post.get("person") and E.CROWD.search(pf))):
         problems.append(f"photo {pf!r} is not a news photo of the subject")
     if pf and post.get("person") and post["person"].split()[-1].lower() not in (
             head_ + " " + post.get("dek", "") + " " + post.get("body", "")).lower():
         problems.append(f"photo of {post['person']}, who the text does not name")
+    if post.get("topic") == "Sport" and pf and E.foreign_team(pf, head_ + " " + post.get("body", "") + " " + post.get("dek", "")):
+        problems.append(f"photo file names {E.foreign_team(pf, head_ + ' ' + post.get('body', ''))}, a team the article does not name")
     if post.get("photo_file") and not post.get("credit"):
         problems.append("photo without a credit line")
     # the credit line must be the card photo's own: a second lookup once paired one photo with another's credit
-    if pf and post.get("credit_file") is not None and post["credit_file"] != pf:
+    if pf and post.get("credit_file") and post["credit_file"] != pf:
         problems.append(f"credit belongs to {post['credit_file']!r}, the card shows {pf!r}")
     # a company photo shows the company's own premises, sign or (for an airline or planemaker) its own aircraft
-    if pf and not post.get("person"):
+    if pf and post.get("photo_kind") == "company" and not post.get("person"):
         subject = next((n for n in owners if R.T.entities.phrase_in(n, pf)), "")
         if not subject:
             problems.append(f"photo {pf!r} does not name the company the story is about")
@@ -362,6 +497,8 @@ def audit(post):
         problems.append("dek repeats the headline")
     if "Source:" in (post.get("body") or ""):
         problems.append("the source line ran into the report")
+    # check_video() drops a failing video before audit runs; reaching here with one means a path skipped it
+    problems += [f"video: {p}" for p in video_problems(post)]
     cap = post.get("caption", "")
     tags = re.findall(r"#\w+", cap)
     if len(tags) > 5 or len(set(tags)) != len(tags):
@@ -942,9 +1079,18 @@ def scheduled_stories():
     return made
 
 
-def used_photos(days=45):
+def photo_log(days=45):
+    """Commons file -> when a post last used it, for posts of the last `days` days."""
     cut = now() - timedelta(days=days)
-    return {p["photo_file"] for p, _ in posts() if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut}
+    log = {}
+    for p, _ in posts():
+        if p.get("photo_file") and datetime.fromisoformat(p["created"]) > cut:
+            log[p["photo_file"]] = max(log.get(p["photo_file"], ""), p["created"])
+    return log
+
+
+def used_photos(days=45):
+    return set(photo_log(days))
 
 
 def site_min_score():
@@ -953,9 +1099,25 @@ def site_min_score():
     return CONFIG.get("site_min_score", CONFIG["min_score"])
 
 
-def select(stories):
+# betting copy, previews and panel shows are not news; the model also judges relevance, this keeps them from taking a slot
+SPORT_SKIP = re.compile(r"\b(odds|picks?|predictions?|betting|spreads?|lines|fantasy|power rankings|mock draft|talking points|"
+                        r"how to watch|live updates?|as it happened|ratings?|grades|reacts?|react to|watch:|watch live|preview|quiz)\b", re.I)
+
+
+def sport_room():
+    """How many sport articles may still go out today: the daily cap less what the last 24 hours already carried."""
+    cut = now() - timedelta(hours=24)
+    made = sum(1 for p, _ in posts() if p.get("topic") == "Sport" and (_stamp(p.get("created", "")) or cut) > cut)
+    return max(0, CONFIG.get("sport_daily_max", 12) - made)
+
+
+def select(stories, lane="news"):
     """The stories worth a post this hour: above the website bar, from the last day, carried by a
-    newsroom or lab (not only a discussion board), not a format we skip, not already posted or queued."""
+    newsroom or lab (not only a discussion board), not a format we skip, not already posted or queued.
+    The sport lane has its own bar and caps (sport_min_score, sport_per_run, sport_daily_max)."""
+    sport = lane == "sport"
+    bar = CONFIG.get("sport_min_score", site_min_score()) if sport else site_min_score()
+    limit = min(CONFIG.get("sport_per_run", 4), sport_room()) if sport else CONFIG["max_per_run"]
     cut = now() - timedelta(hours=CONFIG["max_age_hours"])
     recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i]}
               for p in _recent_posts(CONFIG["repeat_window_days"]) for i, u in enumerate(p.get("urls", []))]
@@ -967,11 +1129,12 @@ def select(stories):
             fresh = False
         newsroom = set(s.get("outlets", [])) - set(CONFIG["not_sources"]) or s.get("primary")
         me = {"url": s["url"], "links": s.get("links", []), "headline": s["title"]}
-        if (s.get("score", 0) >= site_min_score() and fresh and newsroom
+        if (s.get("score", 0) >= bar and fresh and newsroom
                 and not SKIP.search(s["title"]) and not FORMAT.search(s["title"]) and not rank.SOFT.search(s["title"])
+                and not (sport and (SPORT_SKIP.search(s["title"]) or len(s["title"].split()) < 4))
                 and not any(same_story(me, r) for r in recent + out)):
             out.append(s)
-    return sorted(out, key=lambda s: -s["score"])[:CONFIG["max_per_run"]]
+    return sorted(out, key=lambda s: -s["score"])[:limit]
 
 
 def _last_slot():
@@ -1013,7 +1176,8 @@ def queue(day_dir, batch=None, render=True):
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
     made, n, ctas = [], 0, 0
     for m, s in ranked:
-        web = m["url"] not in room_urls
+        video = None
+        web = m["url"] not in room_urls or not social_allowed(s)
         if not web:
             when = max(earliest, slot + gap) if slot else earliest
             if when > horizon:
@@ -1044,20 +1208,29 @@ def queue(day_dir, batch=None, render=True):
             src = s.get("_assets", {}).get("photo", "")
             if src.startswith("file://"):
                 R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(src).path)), img / "photo.jpg", 1400)
+            # videos_last_24h reads the queue on disk, which already holds this run's earlier posts
+            # no render while Instagram is blocked: the post would expire on Instagram before it could go out
+            if not web and video_cfg("on") and not cooldown_until() and videos_last_24h() < int(video_cfg("per_day", 0)):
+                video = make_video(s, img, out.name)
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
                 "tier": "web" if web else "instagram",
                 "cards": ["card.jpg", "detail.jpg"], "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
                 "source_cta": cta,
                 "urls": [m["url"]], "links": s.get("links", []), "headlines": [m["headline"]],
                 "categories": [m["category"]], "topic": s.get("topic", ""), "photo_file": m.get("photo_file", ""),
+                "photo_kind": m.get("photo_kind", ""), "photo_alt": m.get("photo_alt", ""),
                 "score": m.get("score", 0), "figure": s.get("figure", ""), "company": s.get("company", ""),
                 "ticker": s.get("_assets", {}).get("ticker"),
                 "person": s.get("person", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "so_what": so_what(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
-                "credit": s.get("_assets", {}).get("credit", ""), "credit_file": s.get("_assets", {}).get("file", "")}
+                "credit": s.get("_assets", {}).get("credit", ""), "credit_file": s.get("_assets", {}).get("file", ""),
+                "photo_kind": s.get("_assets", {}).get("kind", "")}
         ctas += bool(cta)
+        if video:
+            post["video"] = video
+            check_video(post)
         if web:
             post.update(status="web", published=now().isoformat(timespec="seconds"), story="")
         else:
@@ -1154,7 +1327,12 @@ def ramp():
     got = pace()
     window = timedelta(days=CONFIG["daily_posts_ramp_days"])
     since, blocked = _stamp(got["since"]), _stamp(got.get("last_block", ""))
-    if (since and now() - since >= window and not (blocked and now() - blocked < window)
+    from . import insights
+    held = insights.learned_value("ramp_hold", False)  # the weekly insights saw per-post sends fall: hold, never cut
+    if held and since and now() - since >= window and got.get("held_noted") != f"{now():%Y-%m-%d}":
+        got["held_noted"] = f"{now():%Y-%m-%d}"  # ramp runs every publish; say it once a day
+        print(f"daily post cap held at {got['cap']}: per-post Instagram sends fell last week (state/learned.json)")
+    if (since and now() - since >= window and not (blocked and now() - blocked < window) and not held
             and got["cap"] < CONFIG["daily_posts_max"]):
         got.update(cap=min(got["cap"] + CONFIG["daily_posts_step"], CONFIG["daily_posts_max"]),
                    since=now().isoformat(timespec="seconds"))
@@ -1210,8 +1388,37 @@ def find_live(media, post):
 
 
 def platform_cooldown(name):
-    until = _load(STATE / f"cooldown-{name}.json", {}).get("until")
-    return datetime.fromisoformat(until) if until and datetime.fromisoformat(until) > now() else None
+    got = _load(STATE / f"cooldown-{name}.json", {})
+    until = got.get("until")
+    if not until or datetime.fromisoformat(until) <= now():
+        return None
+    if got.get("auth") and got.get("token"):
+        from . import platforms
+        if platforms.fingerprint(name) not in ("", got["token"]):
+            return None  # the owner stored a new credential: try it now, not when the day is up
+    return datetime.fromisoformat(until)
+
+
+def platform_pause(name, error, auth=False):
+    """A platform refused: a rate limit or block (24 h), or a credential it no longer accepts (24 h, or until the
+    secret changes). Either way every further call that day would only fail again."""
+    from . import platforms
+    until = now() + timedelta(hours=COOLDOWN_HOURS)
+    got = {"until": until.isoformat(timespec="seconds"), "set": now().isoformat(timespec="seconds"), "error": str(error)[:300]}
+    if auth:
+        got.update(auth=True, token=platforms.fingerprint(name))
+    _save(STATE / f"cooldown-{name}.json", got)
+    print(f"{name}: {'credential rejected' if auth else 'rate limited'}, paused until {until:%Y-%m-%d %H:%M} UTC")
+
+
+def facebook_min_score_now():
+    """The score a post needs for the Facebook Page now. Normally only the day's biggest news goes there; a Page that
+    has had fewer than facebook_daily_min posts in 24 hours takes any social-grade post from facebook_floor_hour UTC,
+    so it never sits empty on a quiet day."""
+    if (now().hour >= CONFIG.get("facebook_floor_hour", 10)
+            and platform_sent_last_24h("facebook") < CONFIG.get("facebook_daily_min", 0)):
+        return min(CONFIG["facebook_min_score"], CONFIG["social_min_score"])
+    return CONFIG["facebook_min_score"]
 
 
 def platform_sent_last_24h(name):
@@ -1239,12 +1446,13 @@ def evening_digest(factories=None):
     a failure or a killed run never produces a second digest; fewer than DIGEST_MIN posts marks nothing."""
     from . import platforms
     today = f"{now():%Y-%m-%d}"
-    if not CONFIG.get("platforms", {}).get("telegram") or now().hour < DIGEST_HOUR:
+    from . import insights
+    if not CONFIG.get("platforms", {}).get("telegram") or now().hour < insights.learned_value("digest_hour", DIGEST_HOUR):
         return
     if _load(STATE / "digest.json", {}).get("date") == today or platform_cooldown("telegram"):
         return
     cut = now() - timedelta(hours=24)
-    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story"
+    top = sorted((p for p, _ in posts() if p.get("status") == "published" and p.get("kind") != "story" and social_allowed(p)
                   and p.get("headlines") and (_stamp(p.get("published", "")) or cut) > cut),
                  key=lambda p: p.get("score") or 0, reverse=True)[:DIGEST_SIZE]
     if len(top) < DIGEST_MIN:
@@ -1275,6 +1483,8 @@ def cross_post(post, path, factories=None, names=None):
     A stored result means done for good. A marker without a result means a send may have gone out, so a person
     looks; it is never retried here, which is what keeps a platform from showing the post twice."""
     from . import platforms
+    if not social_allowed(post):
+        return
     for name in names or platforms.NAMES:
         if not CONFIG.get("platforms", {}).get(name):
             continue
@@ -1298,6 +1508,30 @@ def cross_post(post, path, factories=None, names=None):
             client = (factories or platforms.CLIENTS)[name]()
         except platforms.Missing:
             continue  # not connected yet
+        if hasattr(client, "find"):
+            # the same rule as Instagram: look at the account before sending. A send whose status commit was lost
+            # (a failed push, a killed runner) is found here and recorded instead of going out a second time.
+            try:
+                live = client.find(post)
+            except Exception as e:  # noqa: BLE001  no answer is not "not there": nothing is sent, and it is tried again
+                text = str(e)
+                if platforms.AUTH.search(text) or platforms.BLOCKED.search(text):
+                    platform_pause(name, text, auth=bool(platforms.AUTH.search(text)))
+                # recorded without "attempted" (nothing went out), so retry_unchecked and web_social offer it again;
+                # after CHECK_TRIES failed checks the platform is skipped for this post and the status page shows why
+                tries = slot.get("checks", 0) + 1
+                post["platforms"][name] = {"check_error": text[:300], "checked": now().isoformat(timespec="seconds"), "checks": tries}
+                if tries >= CHECK_TRIES:
+                    post["platforms"][name]["skipped"] = f"account could not be checked {tries} times"
+                _save(path, post)
+                print(f"{post['id']}: {name}: could not check the account, not sent now ({tries}/{CHECK_TRIES}): {text[:200]}")
+                continue
+            if live:
+                post["platforms"][name] = {"id": live["id"], "url": live.get("url", ""), "at": now().isoformat(timespec="seconds"),
+                                           "found_live": True}
+                _save(path, post)
+                print(f"{post['id']}: {name}: already live, recorded {live.get('url', '')}")
+                continue
         post["platforms"][name] = {"attempted": now().isoformat(timespec="seconds")}
         _save(path, post)  # on disk before the call, same as Instagram
         try:
@@ -1309,11 +1543,36 @@ def cross_post(post, path, factories=None, names=None):
         except Exception as e:  # noqa: BLE001
             text = str(e)
             post["platforms"][name]["error"] = text[:300]
-            if platforms.BLOCKED.search(text):
-                until = now() + timedelta(hours=COOLDOWN_HOURS)
-                _save(STATE / f"cooldown-{name}.json", {"until": until.isoformat(timespec="seconds"), "error": text[:300]})
+            if platforms.AUTH.search(text):
+                platform_pause(name, text, auth=True)
+            elif platforms.BLOCKED.search(text):
+                platform_pause(name, text)
             print(f"{post['id']}: {name}: failed, not retried: {text[:200]}")
         _save(path, post)
+
+
+CHECK_TRIES = 6  # failed duplicate checks before a platform gives up on one post
+RETRY_PER_RUN = 3
+
+
+def retry_unchecked(factories=None):
+    """Instagram posts whose cross-post stopped at a failed duplicate check (a network blip, a platform outage)
+    are offered to those platforms again, a few per run, while they are still fresh. Web-tier posts get the same
+    through web_social. Returns how many posts were offered."""
+    from . import platforms
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    n = 0
+    for post, path in posts():
+        if n >= RETRY_PER_RUN:
+            break
+        if post.get("status") != "published" or post.get("kind") in NO_CROSSPOST or (_stamp(post.get("published", "")) or cut) <= cut:
+            continue
+        names = [k for k, slot in (post.get("platforms") or {}).items()
+                 if k in platforms.NAMES and slot.get("check_error") and not _slot_done(post, k)]
+        if names:
+            cross_post(post, path, factories, names=names)
+            n += 1
+    return n
 
 
 # Instagram-only formats: the other platforms mirror the feed carousels, never stories or the daily recap reel
@@ -1347,9 +1606,12 @@ def web_social(factories=None):
     A platform in cooldown is left alone. The per-platform markers in cross_post keep every post from going
     out twice. Returns 1 when a post was offered to the platforms, else 0."""
     names = [n for n in WEB_PLATFORMS if CONFIG.get("platforms", {}).get(n)]
+    leading = lead_active()
+    if leading:  # a platform that just took a lead post waits out its own spacing
+        names = [n for n in names if _lead_slot(n) <= now()]
     if not names:
         return 0
-    web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST]
+    web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST and social_allowed(p)]
     stamps = [_stamp(((p.get("platforms") or {}).get(n) or {}).get(k) or "") for p, _ in web for n in WEB_PLATFORMS for k in ("at", "attempted")]
     last = max((s for s in stamps if s), default=None)
     gap = timedelta(minutes=CONFIG.get("social_spacing_minutes", 0))
@@ -1360,11 +1622,135 @@ def web_social(factories=None):
     ready = [(p, path) for p, path in web
              if (p.get("score") or 0) >= CONFIG["social_min_score"] and (_stamp(p.get("published", "")) or cut) > cut
              and any(not _slot_done(p, n) and not platform_cooldown(n) for n in names)]
+    # hours where web posts earned clearly less on Threads and Bluesky (weekly insights, at most six a day) wait,
+    # except a breaking story
+    from . import insights
+    if now().hour in set(insights.learned_value("quiet_hours", [])):
+        ready = [(p, path) for p, path in ready if (p.get("score") or 0) >= CONFIG["breaking_score"]]
     if not ready:
         return 0
     post, path = min(ready, key=lambda r: (-(r[0].get("score") or 0), r[0].get("published", "")))
-    cross_post(post, path, factories, names=WEB_PLATFORMS)
+    cross_post(post, path, factories, names=names if leading else WEB_PLATFORMS)
     return 1
+
+
+# While Instagram cannot post (an action block or no connection), the due, audit-clean queued posts go to the other
+# platforms anyway, one slot at a time. Instagram's own spacing, cap and ramp are untouched, and the per-platform
+# markers cross_post keeps mean a post that went out here is never sent again when Instagram resumes.
+LEAD_SPACING = {"threads": 40, "bluesky": 30, "telegram": 30, "facebook": 90}  # minutes, when desk.json has no lead_spacing_minutes
+LEAD_ORDER = ("threads", "bluesky", "telegram", "facebook")
+LEAD_PLAN_DEPTH = 3
+
+
+def ig_blocked(client=None):
+    """Instagram cannot post right now: cooling down after a block, or its secrets are not set (a client handed in counts as connected)."""
+    return bool(cooldown_until()) or (client is None and not configured())
+
+
+def lead_active(client=None):
+    return bool(CONFIG.get("lead_when_ig_blocked", True)) and ig_blocked(client)
+
+
+def lead_spacing(name):
+    return timedelta(minutes=CONFIG.get("lead_spacing_minutes", {}).get(name, LEAD_SPACING[name]))
+
+
+def _last_sent(name):
+    """The newest send, or send attempt, to this platform on any post, mirrored or led."""
+    stamps = [_stamp(((p.get("platforms") or {}).get(name) or {}).get(k) or "") for p, _ in posts() for k in ("at", "attempted")]
+    return max((s for s in stamps if s), default=None)
+
+
+def _lead_slot(name):
+    """When the platform may take its next lead post."""
+    last = _last_sent(name)
+    return max(now(), last + lead_spacing(name)) if last else now()
+
+
+def _lead_candidates():
+    """Queued feed posts that are due, fresh, above the social floor, audit-clean, not vetoed and allowed on social:
+    best first (highest score, then the newer story)."""
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    rows = []
+    for post, path in posts():
+        if (post.get("status") != "queued" or post.get("kind") in NO_CROSSPOST or not social_allowed(post)
+                or datetime.fromisoformat(post["publish_after"]) > now() or datetime.fromisoformat(post["created"]) <= cut
+                or (post.get("score") or 0) < CONFIG["social_min_score"] or audit(post)):
+            continue
+        try:
+            if post.get("issue") and github.enabled() and github.vetoed(post["issue"], post.get("n", 1)):
+                continue
+        except RuntimeError:
+            continue  # an unreadable issue is not a veto, but nothing is sent on a guess
+        rows.append((post, path))
+    return sorted(rows, key=lambda r: (-(r[0].get("score") or 0), -datetime.fromisoformat(r[0]["created"]).timestamp()))
+
+
+def _lead_eligible(post, name):
+    from . import insights
+    if not CONFIG.get("platforms", {}).get(name) or _slot_done(post, name) or platform_cooldown(name):
+        return False
+    if name == "facebook" and (post.get("score") or 0) < facebook_min_score_now():
+        return False
+    # the learned quiet hours are about Threads and Bluesky; a breaking story is never held
+    if (name in WEB_PLATFORMS and now().hour in set(insights.learned_value("quiet_hours", []))
+            and (post.get("score") or 0) < CONFIG["breaking_score"]):
+        return False
+    return True
+
+
+def lead_plan():
+    """{platform: [(post, path, when)]}: the next posts each platform takes, one per spacing step."""
+    cands = _lead_candidates()
+    plan = {}
+    for name in LEAD_ORDER:
+        room = LEAD_PLAN_DEPTH
+        if name == "facebook":
+            room = min(room, CONFIG["facebook_daily_max"] - platform_sent_last_24h("facebook"))
+        picks = [(p, path) for p, path in cands if _lead_eligible(p, name)][:max(room, 0)]
+        at = _lead_slot(name)
+        plan[name] = [(p, path, at + i * lead_spacing(name)) for i, (p, path) in enumerate(picks)]
+    return plan
+
+
+def lead_social(factories=None, dry=False):
+    """At most one post per platform per run, into the platform's next free slot. Returns how many sends were offered."""
+    from . import platforms
+    sent = 0
+    for name, rows in lead_plan().items():
+        if not rows:
+            if dry:
+                print(f"  {name}: nothing due")
+            continue
+        post, path, at = rows[0]
+        if dry:
+            for i, (p, _, when) in enumerate(rows):
+                print(f"  {name}: {'now' if when <= now() else f'{when:%H:%M} UTC'}  {p['id']}  score {p.get('score')}  {p['headlines'][0][:70]}")
+            continue
+        if at > now():
+            continue
+        cross_post(post, path, factories, names=[name])
+        slot = (post.get("platforms") or {}).get(name) or {}
+        sent += 1
+        if slot.get("id") and not post.get("lead_published"):
+            # the story page the post links to is built from this stamp; the post itself stays queued for Instagram
+            post["lead_published"] = now().isoformat(timespec="seconds")
+            _save(path, post)
+    return sent
+
+
+def lead_report():
+    """What `publish --dry` prints: Instagram's state, then the plan per platform."""
+    if not CONFIG.get("lead_when_ig_blocked", True):
+        print("lead_when_ig_blocked is off: the other platforms only mirror Instagram")
+        return
+    until = cooldown_until()
+    if not ig_blocked():
+        print("Instagram can post: the other platforms mirror it, no lead plan")
+        return
+    print(f"Instagram {'cooling down until ' + format(until, '%Y-%m-%d %H:%M') + ' UTC' if until else 'is not connected'}: "
+          f"due posts go to the other platforms, one per platform per run")
+    lead_social(dry=True)
 
 
 def _mark_live(post, path, m):
@@ -1475,11 +1861,22 @@ def publish(client=None, dry=False):
     """Publish the oldest due post, one per run, so a late run never fires a burst. Returns 1 or 0.
     Then one web-tier post goes to Bluesky and Threads. The evening digest follows, so it also goes out when nothing was due or Instagram is cooling down."""
     sent = _publish(client, dry)
+    if dry and not paused():
+        lead_report()
     if not dry and not paused():
+        if lead_active(client):
+            try:
+                lead_social()
+            except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
+                print(f"lead posts crashed: {str(e)[:200]}")
         try:
             web_social()
         except Exception as e:  # noqa: BLE001  a web-tier problem never reaches the Instagram flow
             print(f"web posts crashed: {str(e)[:200]}")
+        try:
+            retry_unchecked()
+        except Exception as e:  # noqa: BLE001
+            print(f"cross-post retries crashed: {str(e)[:200]}")
         try:
             evening_digest()
         except Exception as e:  # noqa: BLE001
@@ -1505,7 +1902,7 @@ def _publish(client, dry):
     ramp()
 
     def due_posts():
-        return sorted(((p, path) for p, path in posts() if p.get("status") == "queued"
+        return sorted(((p, path) for p, path in posts() if p.get("status") == "queued" and social_allowed(p)
                        and datetime.fromisoformat(p["publish_after"]) <= now()), key=lambda r: r[0]["publish_after"])
 
     due = due_posts()
@@ -1583,6 +1980,8 @@ def _publish(client, dry):
             print(f"{post['id']}: vetoed")
             _close_if_done(post.get("issue"))
             continue
+        if check_video(post):
+            _save(path, post)
         problems = audit(post)
         if problems:
             post.update(status="held", held=problems)
@@ -1616,7 +2015,27 @@ def _publish(client, dry):
         try:
             alts = alt_texts(post)
             # the keyword is passed only when on, so a client written before alt text keeps working
-            media, link = client.post_carousel(urls, post["caption"], **({"alt_texts": alts} if alts else {}))
+            extra = {"alt_texts": alts} if alts else {}
+            media = None
+            v = post.get("video")
+            if v:
+                from .instagram import VideoRejected
+                try:
+                    if v["shape"] == "reel":
+                        media, link = client.reel(video_url(post["id"], v["file"]), post["caption"], share_to_feed=True,
+                                                  trial=video_cfg("trial", ""), cover_url=media_url(post["id"], v["cover"]))
+                    else:
+                        media, link = client.post_carousel(urls, post["caption"], video_first=video_url(post["id"], v["file"]),
+                                                           thumb_offset=1600, **extra)
+                except VideoRejected as ve:
+                    # the video never reached a publish call: the same post goes out as its stills, now
+                    post["video_error"] = str(ve)[:300]
+                    post["video_shape_tried"] = v.get("shape")
+                    post.pop("video")
+                    _save(path, post)
+                    print(f"{post['id']}: video refused by Instagram, publishing stills: {str(ve)[:160]}")
+            if media is None:
+                media, link = client.post_carousel(urls, post["caption"], **extra)
         except Exception as e:  # noqa: BLE001  one failed post must not block the queue
             blocked = note_block(e)
             if FETCH_RETRY.search(str(e)) and post.get("tries", 0) < 3:
@@ -1731,6 +2150,18 @@ def engage(client=None, ask=copy.ask_text, dry=False):
         return 0
     cut = now() - timedelta(days=CONFIG["reply_window_days"])
     sent = dms = 0
+    # One call reads the comment count of the newest posts; a post whose count has not moved since the last run is
+    # not read again. Reading every post of the week every ten minutes was hundreds of calls an hour against Meta's
+    # per-account request budget, the same budget whose exhaustion ("Application request limit reached") blocks
+    # publishing. A post missing from the list, or a failed list call, is read the old way.
+    try:
+        counts = {m["id"]: m.get("comments_count") for m in client.recent_media(limit=50) if "comments_count" in m}
+    except Exception as e:  # noqa: BLE001
+        if note_block(e):
+            print(f"could not read the account's posts, no replies now: {str(e)[:160]}")
+            return 0
+        counts = {}
+    seen = log.setdefault("counts", {})
 
     def save():
         # after every comment: a crash later in the run must not lose what was already answered
@@ -1741,6 +2172,9 @@ def engage(client=None, ask=copy.ask_text, dry=False):
         if (post.get("status") != "published" or post.get("kind") == "story"
                 or datetime.fromisoformat(post["published"]) < cut):
             continue
+        count = counts.get(post["media_id"])
+        if count is not None and seen.get(post["media_id"]) == count:
+            continue  # nothing new under this post since it was last read
         try:
             comments = client.comments(post["media_id"])
         except Exception as e:  # noqa: BLE001  one unreadable post must not stop replies on the others
@@ -1748,7 +2182,7 @@ def engage(client=None, ask=copy.ask_text, dry=False):
             if note_block(e):
                 break
             continue
-        halted = False
+        halted = waiting = False
         for c in comments:
             if halted:  # Instagram blocked the account: every further call digs the hole deeper
                 break
@@ -1760,6 +2194,7 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 continue
             is_source = bool(KEYWORD.search(c.get("text", "")))
             if not is_source and budget <= 0:
+                waiting = True  # left for tomorrow's budget, so the post must be read again
                 continue
             # judged once, replied or not: recorded before anything is sent, so a failure here is never retried
             log["answered"].append(c["id"])
@@ -1811,6 +2246,11 @@ def engage(client=None, ask=copy.ask_text, dry=False):
                 save()
         if halted:
             break
+        if count is not None and not waiting:
+            seen[post["media_id"]] = count
+    # only posts still in the reply window are worth remembering
+    live = {p.get("media_id") for p, _ in posts()}
+    log["counts"] = {k: v for k, v in seen.items() if k in live and k in counts}
     save()
     print(f"source DMs: {dms}, replies sent: {sent}")
     return sent + dms

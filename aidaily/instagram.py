@@ -16,6 +16,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from . import redact
 from .feeds import CTX
 
 # Meta's apps created after 2025 use "API setup with Unified login": a system-user token that never
@@ -27,6 +28,11 @@ VERSION = os.environ.get("IG_API_VERSION", "v27.0")
 
 class IGError(RuntimeError):
     pass
+
+
+class VideoRejected(IGError):
+    """A video container failed (ERROR, EXPIRED or never ready) before anything was published, so the post can
+    still go out as stills in the same attempt."""
 
 
 ALT_REJECTED = re.compile(r"alt_text|invalid parameter|\(#100\)", re.I)
@@ -41,7 +47,7 @@ class Client:
             raise IGError("IG_TOKEN and IG_USER_ID must be set")
 
     def _scrub(self, text):
-        return (text or "").replace(self.token, "<token>")
+        return redact.scrub((text or "").replace(self.token, "<token>"))
 
     def call(self, method, path, params=None, versioned=True):
         url = f"{HOST}/{VERSION}/{path}" if versioned else f"{HOST}/{path}"
@@ -76,6 +82,22 @@ class Client:
                 if not ALT_REJECTED.search(str(e)):
                     raise
         return self.call("POST", f"{self.user_id}/media", params)["id"]
+
+    def video_item(self, video_url, thumb_offset=None):
+        """A carousel child video (media_type=VIDEO, is_carousel_item). Spec: MP4/MOV, H.264 or HEVC, closed GOP,
+        4:2:0, AAC up to 48 kHz, 23-60 fps, 3-60 s, 100 MB; thumb_offset in ms picks the cover frame (ig-user/media
+        reference, read 2026-11-27). The carousel crops every child to the first child's aspect: our card is 4:5."""
+        params = {"media_type": "VIDEO", "video_url": video_url, "is_carousel_item": "true"}
+        if thumb_offset is not None:
+            params["thumb_offset"] = str(int(thumb_offset))
+        return self.call("POST", f"{self.user_id}/media", params)["id"]
+
+    def _video_ready(self, container, sleep):
+        """Video is processed on Meta's side: up to six minutes. Any failure here comes before a publish call."""
+        try:
+            self.wait(container, tries=12, pause=30, sleep=sleep)
+        except IGError as e:
+            raise VideoRejected(str(e)) from None
 
     def carousel(self, children, caption):
         return self.call("POST", f"{self.user_id}/media",
@@ -121,26 +143,38 @@ class Client:
     def recent_media(self, limit=25):
         """The account's newest feed posts, newest first. The duplicate check reads this before every publish."""
         return self.call("GET", f"{self.user_id}/media",
-                         {"fields": "id,caption,timestamp,permalink", "limit": limit}).get("data", [])
+                         {"fields": "id,caption,timestamp,permalink,comments_count", "limit": limit}).get("data", [])
 
     def quota(self):
         rows = self.call("GET", f"{self.user_id}/content_publishing_limit", {"fields": "quota_usage,config"}).get("data", [])
         return rows[0] if rows else {}
 
-    def reel(self, video_url, caption, share_to_feed=True, trial="", sleep=time.sleep):
+    def reel(self, video_url, caption, share_to_feed=True, trial="", sleep=time.sleep, cover_url=None):
         """A Reel from a public MP4. Returns (media_id, permalink). share_to_feed true shows it on the grid and
         in Feed as well as the Reels tab. trial ("MANUAL" or "SS_PERFORMANCE", the graduation_strategy) makes it a
-        trial Reel shown to non-followers first. Both parameters and the video spec (MP4/MOV without edit lists,
+        trial Reel shown to non-followers first; an account that cannot post trial Reels gets a normal one, since the
+        refusal comes at container creation, before anything is published. cover_url: a public JPEG for the Reels
+        tab (9:16; the feed shows its middle square). Both parameters and the video spec (MP4/MOV without edit lists,
         moov first, H.264 or HEVC, AAC up to 48 kHz, 23-60 fps, 3 s to 15 min, 9:16 recommended) are in
         https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media
         and the trial_params section of the content-publishing guide. Video is processed on Meta's side, so the
         wait is longer than for an image."""
         params = {"media_type": "REELS", "video_url": video_url, "caption": caption,
                   "share_to_feed": "true" if share_to_feed else "false"}
-        if trial:
-            params["trial_params"] = json.dumps({"graduation_strategy": trial})
-        c = self.call("POST", f"{self.user_id}/media", params)["id"]
-        self.wait(c, tries=12, pause=30, sleep=sleep)
+        if cover_url:
+            params["cover_url"] = cover_url
+        try:
+            c = self.call("POST", f"{self.user_id}/media", {**params, **({"trial_params": json.dumps({"graduation_strategy": trial})} if trial else {})})["id"]
+        except IGError as e:
+            # Meta does not document the refusal an account gets when it cannot post trial Reels, so any refusal
+            # of a trial container earns one try as a normal Reel
+            if not trial:
+                raise VideoRejected(str(e)) from None
+            try:
+                c = self.call("POST", f"{self.user_id}/media", params)["id"]
+            except IGError as e2:
+                raise VideoRejected(str(e2)) from None
+        self._video_ready(c, sleep)
         media = self.publish(c)
         try:
             link = self.permalink(media)
@@ -148,14 +182,24 @@ class Client:
             link = ""
         return media, link
 
-    def post_carousel(self, image_urls, caption, sleep=time.sleep, alt_texts=None):
-        """Returns (media_id, permalink). One image goes up as a single post. alt_texts: one string per image."""
+    def post_carousel(self, image_urls, caption, sleep=time.sleep, alt_texts=None, video_first=None, thumb_offset=None):
+        """Returns (media_id, permalink). One image goes up as a single post. alt_texts: one string per image.
+        video_first: a public MP4 that takes the first image's place (the video card); if its container fails,
+        VideoRejected is raised before anything is published."""
         alts = list(alt_texts or [])
-        if len(image_urls) == 1:
+        if len(image_urls) == 1 and not video_first:
             c = self.single(image_urls[0], caption, alts[0] if alts else None)
         else:
-            kids = [self.image_item(u, alts[i] if i < len(alts) else None) for i, u in enumerate(image_urls[:20])]
-            for k in kids:
+            if video_first:
+                try:
+                    first = self.video_item(video_first, thumb_offset)
+                except IGError as e:
+                    raise VideoRejected(str(e)) from None
+                self._video_ready(first, sleep)
+                kids = [first] + [self.image_item(u, alts[i] if i < len(alts) else None) for i, u in enumerate(image_urls[:20]) if i > 0]
+            else:
+                kids = [self.image_item(u, alts[i] if i < len(alts) else None) for i, u in enumerate(image_urls[:20])]
+            for k in kids[1 if video_first else 0:]:
                 self.wait(k, sleep=sleep)
             c = self.carousel(kids, caption)
         self.wait(c, sleep=sleep)
@@ -209,6 +253,17 @@ class Client:
         return self.call("GET", self.user_id, {"fields": "followers_count,media_count"})
 
     # token
+
+    def token_expiry(self):
+        """When IG_TOKEN stops working, from Meta's debug_token (a token may inspect itself):
+        expires_at and data_access_expires_at as {"expires", "data_access"} UTC datetimes (None: no end reported,
+        as for a system-user token). refresh() assumes a token on graph.facebook.com never expires; this is what checks that."""
+        from datetime import datetime, timezone
+        got = self.call("GET", "debug_token", {"input_token": self.token}).get("data", {})
+        # expires_at 0 means the token itself never expires; data_access_expires_at is the separate 90-day window
+        # after which Meta stops returning user data until someone re-authorises the app. Both are reported, apart.
+        at = lambda k: datetime.fromtimestamp(got[k], timezone.utc) if got.get(k) else None  # noqa: E731
+        return {"expires": at("expires_at"), "data_access": at("data_access_expires_at")}
 
     def refresh(self):
         """Extends a long-lived token by 60 days. Returns seconds until expiry; the token itself is not returned.

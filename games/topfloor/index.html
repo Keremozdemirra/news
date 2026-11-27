@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Topfloor | Boardread</title>
+<meta name="description" content="A daily rare-answer game. Seven business prompts, 25 seconds each. The rarer your answer, the higher the lift climbs.">
+<meta name="theme-color" content="#0b1218">
+<link rel="preload" href="assets/fonts/Limelight-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/Jost-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/topfloor.css">
+</head>
+<body>
+<div class="app" id="app" data-phase="loading">
+
+  <div class="world" id="world" aria-hidden="true"></div>
+  <div class="tint" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="top">
+    <a class="brand" href="./" aria-label="Topfloor, start page">Topfloor</a>
+    <ol class="pips" id="pips" aria-label="Progress"></ol>
+    <button class="icon-btn" id="sound" type="button" aria-pressed="false" aria-label="Sound off">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path class="spk" d="M3.5 9.5h3.6L12 5.6v12.8l-4.9-3.9H3.5z" fill="currentColor"/>
+        <path class="wave" d="M15.4 9.2a4 4 0 0 1 0 5.6M17.9 6.7a7.5 7.5 0 0 1 0 10.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path class="mute" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </header>
+
+  <section class="dial" id="dial" aria-hidden="true">
+    <svg viewBox="0 0 240 240" class="dial-svg" id="dial-svg"></svg>
+    <div class="odo" id="odo">
+      <span class="odo-label">Floor</span>
+      <div class="odo-wheels">
+        <div class="wheel" data-w="h"><div class="strip" id="w-h"></div></div>
+        <div class="wheel" data-w="t"><div class="strip" id="w-t"></div></div>
+        <div class="wheel" data-w="o"><div class="strip" id="w-o"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="car" id="car" aria-hidden="true">
+    <svg viewBox="0 0 112 156" class="car-svg" id="car-svg"></svg>
+  </section>
+
+  <main class="card" id="card" data-screen="intro">
+
+    <section class="screen" data-s="intro" aria-labelledby="t-intro">
+      <p class="eyebrow" id="issue">Daily puzzle</p>
+      <h1 class="title" id="t-intro">Topfloor</h1>
+      <p class="lede">Seven business prompts, 25 seconds each. Rarer answers ride the lift higher.</p>
+      <ol class="directory" aria-label="Building directory">
+        <li style="--tc:var(--t4)"><b>Helipad</b><i></i><span>100</span></li>
+        <li style="--tc:var(--t3)"><b>Penthouse</b><i></i><span>85</span></li>
+        <li style="--tc:var(--t2)"><b>Corner Office</b><i></i><span>60</span></li>
+        <li style="--tc:var(--t1)"><b>Mezzanine</b><i></i><span>30</span></li>
+        <li style="--tc:var(--t0)"><b>Lobby</b><i></i><span>10</span></li>
+      </ol>
+      <div class="cta-row">
+        <button class="call wide" id="start" type="button"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span><span class="call-text">Call the lift</span></button>
+      </div>
+      <p class="fine" id="intro-fine">Everyone gets the same building each UTC day.</p>
+    </section>
+
+    <section class="screen" data-s="prompt" aria-labelledby="q-text" hidden>
+      <div class="q-meta"><span id="q-count">Question 1 of 7</span><span id="q-time" class="mono" role="timer" aria-live="off">0:25</span></div>
+      <h2 class="q-text" id="q-text">Name a central bank</h2>
+      <form class="answer" id="form" autocomplete="off" novalidate>
+        <label class="sr" for="ans">Your answer</label>
+        <div class="slot" id="slot">
+          <input id="ans" name="ans" type="text" inputmode="text" enterkeyhint="go" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" maxlength="48" placeholder="Type an answer">
+        </div>
+        <button class="call" id="ride" type="submit" aria-label="Send answer"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span></button>
+      </form>
+      <p class="q-note" id="q-note" role="status">Any valid answer counts. Rare ones count more.</p>
+    </section>
+
+    <section class="screen" data-s="result" aria-live="polite" hidden>
+      <div class="stamp-wrap">
+        <div class="stamp" id="stamp"><span class="stamp-tier" id="st-tier">Corner Office</span><span class="stamp-pts" id="st-pts">+60</span></div>
+      </div>
+      <p class="r-answer" id="r-answer">Banque de France</p>
+      <p class="r-rare" id="r-rare">Rarer than 72% of the 190 answers on file.</p>
+      <p class="r-extra" id="r-extra" hidden></p>
+      <button class="next" id="next" type="button">Next floor<kbd>Enter</kbd></button>
+    </section>
+
+    <section class="screen" data-s="end" aria-labelledby="e-floor" hidden>
+      <div class="e-head">
+        <p class="eyebrow" id="e-issue">Topfloor</p>
+        <h2 class="e-floor" id="e-floor" tabindex="-1">Floor 0</h2>
+        <p class="e-tier" id="e-tier">Lobby</p>
+        <p class="e-line" id="e-line"></p>
+      </div>
+      <div class="e-building">
+        <svg class="mini" id="mini" viewBox="0 0 120 360" role="img" aria-label="Your seven answers marked on the building"></svg>
+        <ol class="e-list" id="e-list"></ol>
+      </div>
+      <dl class="stats" id="stats"></dl>
+      <div class="share">
+        <pre class="share-text" id="share-text" aria-label="Share text"></pre>
+        <button class="call wide" id="share" type="button"><span class="call-disc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 5l7 11H5z"/></svg></span><span class="call-text" id="share-label">Share your floor</span></button>
+        <p class="next-in">Next building in <b class="mono" id="countdown">00:00:00</b></p>
+      </div>
+      <p class="credit" id="credit"></p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<noscript><p style="padding:2rem;font:16px system-ui">Topfloor needs JavaScript.</p></noscript>
+<script type="module" src="js/topfloor.js"></script>
+</body>
+</html>

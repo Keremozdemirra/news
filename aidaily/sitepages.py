@@ -44,7 +44,7 @@ def brief_page(shown, day, m=None):
             f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
             f'<a class="btn" href="{S.BASE}/board/">The Board</a> {f'<a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a>' if "play" in S.SHIPPED else ""}</div>')
     head = V.head(S.day_label(day), "In<br>brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read. It ends.")
-    return f'{V.edition_strip([p for p in shown if S.day_of(p["published"]) == day])}<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
+    return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
 def quiz_questions(shown):
@@ -67,7 +67,7 @@ def _question(i, q):
         prompt = "Who is this?"
     else:
         prompt = E(q["question"])
-    photo = (f'<figure class="qpic"><span class="pic sq"><img src="{S.BASE}/img/{posts[0]["id"]}.jpg" width="960" height="640" alt=""></span>'
+    photo = (f'<figure class="qpic"><span class="pic sq" style="aspect-ratio:4/3">{S.photo_img(posts[0], False, "4/3", box=False)}</span>'
              f'<figcaption class="meta">{E(q.get("credit") or posts[0].get("credit", ""))}</figcaption></figure>') if q["type"] == "whois" else ""
     opts = "".join(f'<li><button type="button" class="opt">{E(o)}</button></li>' for o in q["options"])
     ans = q["options"][q["answer"]]
@@ -206,9 +206,9 @@ def build(out, shown, sm, cos):
     build_views(out, shown, sm, m, days)
     if "play" in S.SHIPPED:
         play.build(out, shown, sm)
-    else:  # until the games ship, the questions of the day stay where they were
-        S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/", active="play"))
-        sm.append((S.SITE + "/quiz/", latest))
+    # the questions of the day keep their address beside the games, so no old link breaks
+    S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/", active="play"))
+    sm.append((S.SITE + "/quiz/", latest))
     S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown), "How the desk turns feeds into articles, with live counts.", "/how-it-works/"))
     for path in ("/brief/", "/how-it-works/"):
         sm.append((S.SITE + path, latest))
@@ -219,6 +219,6 @@ def build(out, shown, sm, cos):
                                          feed=(f"boardread. {name}", f"/c/{slug}/feed.xml")))
         feed_for(out, rows, f"/c/{slug}/", f"boardread. {name}", f"{S.SITE}/c/{slug}/")
         sm.append((f"{S.SITE}/c/{slug}/", S.iso(rows[0]["published"])))
-    for t in S.TOPIC_ORDER:
+    for t in S.NEWS_ORDER:  # Sport is built by site.build, which has its articles
         rows = [p for p in shown if S.topic(p) == t]
-        feed_for(out, rows, f"/t/{t.lower()}/", f"boardread. {t}", f"{S.SITE}/t/{t.lower()}/")
+        feed_for(out, rows, S.topic_path(t), f"boardread. {t}", f"{S.SITE}{S.topic_path(t)}")

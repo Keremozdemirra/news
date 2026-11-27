@@ -14,6 +14,7 @@ an origin with a path (https://keremozdemir.de/news) puts everything under that 
   /week/                 the last seven days, ranked            /week/<YYYY-Www>/  one finished ISO week
   /archive/              one page per day                       /archive/<YYYY-MM-DD>/
   /search/               client-side search over /search.json
+  /play/                 the games hub; /play/<slug>/ one game, copied from games/<slug>/ (see aidaily/play.py)
   /about/ /standards/ /contact/ /404.html   (Impressum and Privacy are keremozdemir.de's, same operator)
   /feed.xml /weekly.xml /sitemap.xml /news-sitemap.xml /robots.txt
   /og/<id>.jpg           the 1200x630 link-preview image of a article, cut from its photo at build time
@@ -31,7 +32,7 @@ from email.utils import format_datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import art, desk, markets, outlets
+from . import desk, focus, markets, outlets, seo
 
 E = lambda s: html.escape(s or "", quote=True)  # noqa: E731
 # DESK_SITE_URL builds the same pages for another address (a local preview, a staging host) without touching desk.json
@@ -53,8 +54,20 @@ TOPICS = {
     "Tech": "The technology industry and the products behind it.",
     "AI": "Models, chips, products and the money around artificial intelligence.",
     "Culture": "Media, entertainment and consumer trends that move business.",
+    "Sport": "Football, Formula 1, the NBA and NFL, tennis, golf, cricket, boxing and the Olympics.",
 }
-TOPIC_ORDER = list(TOPICS)
+SPORT = "Sport"
+TOPIC_ORDER = list(TOPICS)  # the section bar and the footer
+NEWS_ORDER = [t for t in TOPIC_ORDER if t != SPORT]  # the business sections: the front page blocks come from these, Sport follows them
+
+
+def is_sport(p):
+    return p.get("topic") == SPORT
+
+
+def topic_path(t):
+    """Where a section lives: Sport at /sport/, every other topic at /t/<topic>/."""
+    return f"/{t.lower()}/" if t == SPORT else f"/t/{t.lower()}/"
 # Same operator as keremozdemir.de, whose Impressum and Privacy pages are the legal notice of this site too.
 LEGAL = {"impressum": "https://keremozdemir.de/impressum/", "privacy": "https://keremozdemir.de/privacy/"}
 CONTACT_ISSUES = "https://github.com/Keremozdemirra/news/issues"
@@ -64,6 +77,9 @@ def published():
     """Posts live on the site: published on Instagram or published to the web tier. Nothing on a page may say
     which one it was, except the Instagram link a post carries only when it has a permalink."""
     rows = [p for p, _ in desk.posts() if p.get("status") in ("published", "web") and p.get("published") and p.get("kind") != "story"]
+    # a queued post sent to the other platforms while Instagram was blocked already links to its page
+    rows += [dict(p, published=p["lead_published"]) for p, _ in desk.posts()
+             if p.get("status") == "queued" and p.get("lead_published") and p.get("kind") != "story"]
     return sorted(rows, key=lambda p: p["published"], reverse=True)
 
 
@@ -135,6 +151,8 @@ FACES = (
     "@font-face{font-family:'Libre Franklin';font-weight:500;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-500.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:600;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-600.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:800;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-800.woff2') format('woff2')}"
+    # Newsreader (headlines and article text): one variable file, weights 400 to 700; Source Serif 4 and Georgia stand in
+    "@font-face{font-family:'Newsreader';font-weight:400 700;font-style:normal;font-display:swap;src:url('{b}/fonts/Newsreader-var.woff2') format('woff2')}"
     # stand-in sized to the web font, so the swap moves nothing
     "@font-face{font-family:'Franklin Fallback';src:local('Arial');size-adjust:103%;ascent-override:92%;descent-override:22%;line-gap-override:0%}"
 ).replace("{b}", BASE)
@@ -155,28 +173,39 @@ DEFAULT_OG = f"{BASE}/og-default.png"
 
 
 # Marks drawn here in one monoline weight (1.25 stroke, round caps, 16-unit grid, currentColor), as keremozdemir.de does:
-# a trademark redrawn from memory comes out subtly wrong, so the letterform ones spell the destination and the rest are
-# generic shapes. x, linkedin and copy are that site's drawings (src/components/icon.tsx), path data unchanged.
+# a trademark redrawn from memory comes out subtly wrong, so the five platform logos below are the brands' own
+# glyphs (BRANDS) and these are generic shapes. x, linkedin and copy are that site's drawings (src/components/icon.tsx), path data unchanged.
 SQ = '<rect x="1.6" y="1.6" width="12.8" height="12.8" rx="2.4"/>'
 MARKS = {
     "x": SQ + '<path d="M5.2 5.2 10.8 10.8M10.8 5.2 5.2 10.8"/>',
     "linkedin": SQ + '<path d="M5 6.6v4.2M5 4.5v.1"/><path d="M8.2 10.8V6.6M8.2 8.2c0-1 .8-1.6 1.6-1.6s1.4.6 1.4 1.7v2.5"/>',
     "copy": '<rect x="5.6" y="5.6" width="8.8" height="8.8" rx="1.3"/><path d="M10.9 3.2a1.4 1.4 0 0 0-1.3-1.1H3a1.4 1.4 0 0 0-1.4 1.4v6.6c0 .6.4 1.2 1.1 1.3"/>',
     "check": '<path d="m3 8.4 3.4 3.4L13 5.2"/>',
-    # the letters "Ig": a stroke, and a g with its tail
-    "instagram": SQ + '<path d="M5 6.4v4.2M5 4.6v.1"/><circle cx="9.4" cy="8.2" r="1.7"/><path d="M11.1 6.6v4.2c0 .9-.7 1.4-1.6 1.4"/>',
-    "threads": SQ + '<path d="M5 5.4h6M8 5.4v5.6"/>',
-    "bluesky": SQ + '<path d="M6 3.8v8.4"/><path d="M6 9.4c0-1.4 1-2.4 2.3-2.4s2.2 1 2.2 2.4-1 2.4-2.2 2.4S6 10.8 6 9.4z"/>',
-    "facebook": SQ + '<path d="M9.2 13.2V8.4M7.4 8.4h3.6M9.2 8.4V6.2c0-1 .6-1.6 1.7-1.6"/>',
-    # a paper plane, as plain as the thing itself
-    "telegram": '<path d="M14.2 2.2 1.8 7l4 1.6 1.2 4.4 2.3-2.7 3.1 2.2z"/><path d="m5.8 8.6 8.4-6.4"/>',
     "rss": '<circle cx="3.6" cy="12.4" r=".9"/><path d="M2.6 7.6a5.8 5.8 0 0 1 5.8 5.8M2.6 2.8a10.6 10.6 0 0 1 10.6 10.6"/>',
     "whatsapp": '<path d="M8 1.9a6.1 6.1 0 0 0-5.2 9.2l-.8 3 3.1-.8A6.1 6.1 0 1 0 8 1.9z"/><path d="m5.6 6 .9 3.8 1.5-2.5 1.5 2.5.9-3.8"/>',
 }
 
 
+# The five platform logos are the brands' own glyphs, not redrawings: path data from Simple Icons (CC0 1.0 for the
+# files; the logos stay trademarks of their owners), fetched 2026-11-27 from github.com/simple-icons/simple-icons
+# icons/<name>.svg on develop, 24x24, monochrome, drawn filled in currentColor. Used as supplied: no rotation, no
+# distortion, no altered shapes (the Meta, Bluesky and Telegram guidelines forbid all three); they are only scaled evenly.
+# Guidelines: about.meta.com/brand/resources/instagram, meta.com/brand/resources/instagram/threads,
+# about.meta.com/brand/resources/facebook/logo, bsky.social/about/blog/press-faq, telegram.org/tour/screenshots.
+BRANDS = {
+    "instagram": "M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077",
+    "threads": "M18.263 11.097c-.03-3.486-1.92-5.586-5.111-5.586-2.13 0-3.922.963-4.863 2.499l2.062 1.438c.535-.843 1.272-1.543 2.628-1.543 1.528 0 2.318.85 2.544 2.431a15 15 0 0 0-2.236-.173c-4.125 0-6.068 1.867-6.068 4.336s1.943 3.99 4.804 3.99c3.139 0 5.013-2.115 5.781-4.735.798.361 1.348 1.204 1.348 2.47 0 3.387-3.907 5.232-7.22 5.232-4.885 0-8.077-3.207-8.077-8.424 0-6.392 4.223-10.487 9.9-10.487 3.808 0 5.69 1.671 6.97 3.914l2.108-1.475C21.44 2.078 18.331 0 13.663 0 6.227 0 1.168 5.277 1.168 12.934c0 7 4.953 11.066 10.856 11.066 4.878 0 9.809-2.846 9.809-7.716 0-2.545-1.46-4.231-3.569-5.187m-6.33 4.855c-1.077 0-2.026-.512-2.026-1.453 0-1.483 1.822-1.934 3.606-1.934.678 0 1.34.045 1.927.173-.422 1.927-1.671 3.215-3.508 3.214Z",
+    "bluesky": "M5.202 2.857C7.954 4.922 10.913 9.11 12 11.358c1.087-2.247 4.046-6.436 6.798-8.501C20.783 1.366 24 .213 24 3.883c0 .732-.42 6.156-.667 7.037-.856 3.061-3.978 3.842-6.755 3.37 4.854.826 6.089 3.562 3.422 6.299-5.065 5.196-7.28-1.304-7.847-2.97-.104-.305-.152-.448-.153-.327 0-.121-.05.022-.153.327-.568 1.666-2.782 8.166-7.847 2.97-2.667-2.737-1.432-5.473 3.422-6.3-2.777.473-5.899-.308-6.755-3.369C.42 10.04 0 4.615 0 3.883c0-3.67 3.217-2.517 5.202-1.026",
+    "telegram": "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z",
+    "facebook": "M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z",
+}
+
+
 def mark(name):
     """The inline mark for a channel or action, decorative: the link around it carries the accessible name."""
+    if name.lower() in BRANDS:
+        return (f'<svg class="mk mk-brand" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" role="img" '
+                f'aria-label="{E(name)}" focusable="false"><path d="{BRANDS[name.lower()]}"/></svg>')
     return (f'<svg class="mk" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.25" '
             f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{MARKS[name.lower()]}</svg>') if name.lower() in MARKS else ""
 
@@ -192,11 +221,11 @@ def accounts():
 
 # What the masthead counts, set by build() before any page is written: articles in the last 24 hours and the newsrooms behind them.
 MARKETS = None  # official rates for the pages that show them, loaded once per build
-MAST = {"coverage": []}  # newsrooms per article of the last 24 hours, oldest first: the day's mark beside the date
 # The main navigation. Key is what a page passes as active; Play is the daily games hub.
-NAV = [("/", "Front page", "front"), ("/latest/", "Latest", "latest"), ("/brief/", "Brief", "brief"), ("/board/", "Board", "board"),
-       ("/feed/", "Feed", "feed"), ("/paper/", "Yesterday\u2019s paper", "paper"), ("/numbers/", "Numbers", "numbers"),
-       ("/play/", "Play", "play"), ("/search/", "Search", "search")]
+# The menu panel: everything that is not a section. Key is what a page passes as active.
+NAV = [("/latest/", "Latest", "latest"), ("/brief/", "Brief", "brief"), ("/board/", "Board", "board"), ("/feed/", "Feed", "feed"),
+       ("/paper/", "Yesterday\u2019s paper", "paper"), ("/numbers/", "Numbers", "numbers"), ("/play/", "Play", "play"),
+       ("/week/", "Week", "week"), ("/about/", "About", "about"), ("/how-it-works/", "How it works", "how")]
 
 
 THEME_BTN = ('<button type="button" class="themebtn" aria-label="Switch to the dark theme" aria-pressed="false">'
@@ -207,19 +236,27 @@ THEME_BTN = ('<button type="button" class="themebtn" aria-label="Switch to the d
 
 
 # Pages that have shipped. A view is built, linked from the menu and the footer only while its key is here.
-SHIPPED = {"numbers", "board", "feed", "paper"}
+SHIPPED = {"numbers", "board", "feed", "paper", "play"}
 
 
 def nav_items():
     return [(h, n, k) for h, n, k in NAV if k not in ("board", "feed", "paper", "numbers", "play") or k in SHIPPED]
 
 
-def nav_bar(active):
-    """Row 2's navigation and the topic row under it."""
-    here = lambda k: ' aria-current="page"' if active == k else ""  # noqa: E731
-    main = "".join(f'<a href="{BASE}{h}"{here(k)}>{n}</a>' for h, n, k in nav_items())
-    links = "".join(f'<a href="{BASE}/t/{t.lower()}/"{here(t.lower())}>{t}</a>' for t in TOPIC_ORDER)
-    return f'<nav class="nav" aria-label="Main">{main}</nav>', f'<nav class="topics" aria-label="Sections">{links}</nav>'
+def menu_html(active):
+    """The menu button and its panel: a details element, so it opens without a script and with the keyboard."""
+    items = "".join(f'<li><a href="{BASE}{h}"{" aria-current=\"page\"" if active == k else ""}>{n}</a></li>' for h, n, k in nav_items())
+    return (f'<details class="menu"><summary aria-label="Menu"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" '
+            f'aria-hidden="true" focusable="false"><path d="M3 6h14M3 10h14M3 14h14"/></svg><span class="mlab">Menu</span></summary><nav class="mpanel" aria-label="Menu"><ul>{items}</ul></nav></details>')
+
+
+def section_nav(active):
+    links = "".join(f'<a href="{BASE}{topic_path(t)}"{" aria-current=\"page\"" if active == t.lower() else ""}>{t}</a>' for t in TOPIC_ORDER)
+    return f'<nav class="sections" aria-label="Sections">{links}</nav>'
+
+
+SEARCH_LINK = (f'<a class="iconbtn" href="{{b}}/search/" aria-label="Search"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" '
+               f'stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="9" cy="9" r="5.5"/><path d="m13.2 13.2 4 4"/></svg></a>')
 
 
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
@@ -239,12 +276,9 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
         active = "front"
     word = (f'<h1 class="word"><a href="{BASE}/" aria-label="boardread. front page">boardread.</a></h1>' if front
             else f'<a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a>')
-    main_nav, topic_nav = nav_bar(active)
-    foot_topics = "".join(f'<li><a href="{BASE}/t/{t.lower()}/">{t}</a></li>' for t in TOPIC_ORDER)
-    follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     nl = desk.CONFIG.get("newsletter_url")
-    foot_names = {"board": "The Board", "feed": "The Feed", "brief": "The brief", "play": "Play", "numbers": "The numbers", "paper": "Yesterday's paper"}
-    foot_views = "".join(f'<li><a href="{BASE}{h}">{n if k == "play" else foot_names[k]}</a></li>' for h, n, k in nav_items() if k in foot_names)
+    foot_sections = "".join(f'<li><a href="{BASE}{topic_path(t)}">{t}</a></li>' for t in TOPIC_ORDER)
+    follow_links = "".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts()) + f'<li><a class="chan" href="{BASE}/feed.xml" aria-label="RSS">{mark("rss")}<span class="t">RSS</span></a></li>'
     css = "".join(f'<link rel="stylesheet" href="{BASE}/assets/{n}.css?v={ASSET_V}">' for n in styles)
     js = "".join(f'<script src="{BASE}/assets/{n}.js?v={ASSET_V}" defer></script>' for n in scripts)
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -257,11 +291,12 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <title>{E(title)}</title><meta name="description" content="{E(desc)}">
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
 <link rel="canonical" href="{E(url)}">{links}
-<link rel="icon" href="{BASE}/icon.svg" type="image/svg+xml">
+<link rel="icon" href="{BASE}/icon.svg" type="image/svg+xml"><link rel="icon" href="{BASE}/favicon.ico" sizes="32x32"><link rel="apple-touch-icon" href="{BASE}/apple-touch-icon.png"><link rel="manifest" href="{BASE}/manifest.webmanifest">
 <link rel="alternate" type="application/rss+xml" title="boardread." href="{BASE}/feed.xml">
 {own_feed}<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{BASE}/fonts/Newsreader-var.woff2" as="font" type="font/woff2" crossorigin>
 <meta property="og:site_name" content="{NAME}"><meta property="og:type" content="{og_type}">
 <meta property="og:title" content="{E(og_title or title)}"><meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{E(url)}"><meta property="og:image" content="{E(img)}">
@@ -273,35 +308,58 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <script src="{BASE}/assets/site.js?v={ASSET_V}" defer></script>{js}</head>
 <body class="{'front-page' if front else 'compact'} {body_class}">
 <a class="skip" href="#main">Skip to the news</a>
-<header class="mh"><div class="wrap">
-<div class="util"><span class="when">{now.strftime("%A %-d %B %Y")} &middot; Edition {now.strftime("%H:%M")} UTC</span><span class="whenshort">{now.strftime("%-d %b %Y")}</span>{mark_html(MAST["coverage"], 120, 20, "barcode mini") if len(MAST["coverage"]) > 2 else ""}
-<span class="tools"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</span></div>
-<div class="row2">{word}{main_nav}</div>
-{topic_nav}
-</div></header>
+<header class="mh"><div class="bar"><div class="wrap barin">
+<div class="bl">{menu_html(active)}{SEARCH_LINK.replace("{b}", BASE)}</div>
+{word}
+<div class="br"><ul class="chans" aria-label="Boardread on other channels">{"".join(f'<li>{chan(a["name"], a["url"])}</li>' for a in accounts())}</ul>{THEME_BTN}</div>
+</div></div>
+<div class="wrap">{section_nav(active)}{markets.strip(MARKETS, BASE)}</div></header>
 <main id="main" class="wrap {main_class}">{body}</main>
 <footer class="foot"><div class="wrap">
 <div class="foot-grid">
-<div><a class="word" href="{BASE}/" aria-label="boardread. front page">boardread.</a><p>{TAGLINE}. Markets, economy, politics, world, tech and AI, every article with its sources linked.</p></div>
-<div><h2>Sections</h2><ul>{foot_topics}</ul></div>
-<div><h2>Boardread</h2><ul>{foot_views}<li><a href="{BASE}/week/">The week</a></li><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li><li><a href="{BASE}/archive/">Archive</a></li><li><a href="{BASE}/feed.xml">RSS feed</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
+<div><h2>Sections</h2><ul>{foot_sections}</ul></div>
+<div><h2>Boardread</h2><ul><li><a href="{BASE}/about/">About</a></li><li><a href="{BASE}/how-it-works/">How it works</a></li>{f'<li><a href="{BASE}/play/">Play</a></li>' if "play" in SHIPPED else ""}<li><a href="{BASE}/standards/">Standards and corrections</a></li><li><a href="{BASE}/contact/">Contact</a></li>{f'<li><a href="{E(nl)}">Newsletter</a></li>' if nl else ''}</ul></div>
+<div><h2>Legal</h2><ul><li><a href="{LEGAL['impressum']}">Impressum</a></li><li><a href="{LEGAL['privacy']}">Privacy</a></li></ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
-<div class="foot-base"><span>Written by AI from the sources listed. <a href="{BASE}/standards/">Corrections</a>. All times UTC.</span>
-<span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button> &middot; &copy; {now.year} Boardread &middot; <a href="{LEGAL['impressum']}">Impressum</a> &middot; <a href="{LEGAL['privacy']}">Privacy</a></span></div>
-</div></footer></body></html>"""
+<div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC. &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
+</footer></body></html>"""
 
 
 # ---------------------------------------------------------------- pieces
 
-def pic(p, thumb=False, eager=False):
-    """The photo in a 3:2 box. width and height give the box before the file arrives, so nothing shifts."""
+PHOTOS = {}  # post id -> {"dim": (w, h), "dim_t": (w, h), "focus": (fx, fy), "face": bool}, filled while the images are written
+
+
+def fit(p, thumb, ratio, fixed=False):
+    """(src, (w, h), ratio, object-position) of the photo of p in a box of shape `ratio`.
+
+    w and h are the file's own size, so the browser reserves the right box before the file arrives. The position comes
+    from the photo's focal point and the box shape, so a face stays inside every crop; a face is never cut into a strip
+    wider than 3:2. The same call serves every page, so the thumbnail in a list and the figure on the article agree."""
+    use_thumb = thumb or not p.get("_hires")
+    src = f"{BASE}/img/{p['id']}-t.jpg" if use_thumb else f"{BASE}/img/{p['id']}.jpg"
+    m = PHOTOS.get(p["id"], {})
+    size = m.get("dim_t" if use_thumb else "dim") or ((480, 320) if use_thumb else (960, 640))
+    ratio = ratio if fixed else focus.box_ratio(ratio, size, m.get("face"))  # fixed: the stylesheet sets the box, so the shape is not ours to change
+    return src, size, ratio, focus.object_position(m.get("focus") or focus.PRIOR_SCENE, size, focus.ratio_value(ratio))
+
+
+def photo_img(p, thumb=True, ratio="3/2", alt="", load="lazy", box=True, fixed=False):
+    """The <img> of p. `box`: the tag carries its own aspect-ratio (when no wrapper does), so nothing moves while it loads."""
+    src, (w, h), ratio, pos = fit(p, thumb, ratio, fixed)
+    lazy = 'fetchpriority="high"' if load == "eager" else 'loading="lazy" decoding="async"'
+    style = f"aspect-ratio:{ratio};" if box else ""
+    return f'<img src="{src}" width="{w}" height="{h}" alt="{E(alt)}" {lazy} style="{style}object-position:{pos}">'
+
+
+def pic(p, thumb=False, eager=False, ratio="3/2", alt=""):
+    """The photo in a box of the given shape (3:2 unless a page asks for another). The wrapper holds the shape, the image
+    fills it, so the page does not shift as photos arrive."""
     if not p.get("_thumb"):
         return ""
-    src = f"{BASE}/img/{p['id']}-t.jpg" if thumb or not p.get("_hires") else f"{BASE}/img/{p['id']}.jpg"
-    w, h = (480, 320) if thumb or not p.get("_hires") else (960, 640)
-    load = 'fetchpriority="high"' if eager else 'loading="lazy" decoding="async"'
-    return f'<span class="pic"><img src="{src}" width="{w}" height="{h}" alt="" {load}></span>'
+    ratio = fit(p, thumb, ratio)[2]
+    return f'<span class="pic" style="aspect-ratio:{ratio}">{photo_img(p, thumb, ratio, alt=alt, load="eager" if eager else "lazy", box=False)}</span>'
 
 
 def by(p):
@@ -378,7 +436,7 @@ def topic_block(t, rows, used=()):
     if isinstance(used, list):
         used.append(feat)
     rest = [p for p in rows if p is not feat][:3]
-    return (f'<section class="block" aria-label="{t}">{sec_head(t, f"{BASE}/t/{t.lower()}/", f"More {t}")}'
+    return (f'<section class="block" aria-label="{t}">{sec_head(t, f"{BASE}{topic_path(t)}", f"More {t}")}'
             f'<div class="block-grid{"" if rest else " solo"}"><article class="feat"><a class="story-link" href="{href(feat)}">{pic(feat, thumb=True)}'
             f'<h3 class="h-l">{E(feat["headlines"][0])}</h3><p class="dek">{E(feat.get("dek", ""))}</p>'
             f'{meta(t_tag(feat), cover(feat))}</a></article><ul class="list">{"".join(item(p) for p in rest)}</ul></div></section>')
@@ -411,11 +469,13 @@ def listing(rows, path, n, total, aside=""):
     if not rows:
         return '<div class="empty">The first articles are on their way.</div>'
     first = rows[0] if n == 1 and rows[0].get("_hires") else None
-    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True)}<span class="kick">{E(topic(first))}</span>'
+    lead = (f'<div class="leadrow"><a class="story-link" href="{href(first)}">{pic(first, eager=True, ratio="16/9")}<span class="kick">{E(topic(first))}</span>'
             f'<h2 class="h-xl">{E(first["headlines"][0])}</h2><p class="dek">{E(first.get("dek", ""))}</p>'
             f'{meta(t_tag(first), cover(first))}</a></div>') if first else ""
     body = lead + f'<ol>{"".join(listing_row(p) for p in rows if p is not first)}</ol>' + pager(path, n, total)
-    return f'<div class="listing"><div>{body}</div><aside aria-label="Most important">{aside}</aside></div>' if aside else body
+    # a section with few articles has no "Most important" column; the column still holds its place, so the lead photo is
+    # the same size on every listing page
+    return f'<div class="listing{"" if aside else " solo"}"><div>{body}</div><aside aria-label="Most important"{"" if aside else " hidden"}>{aside}</aside></div>'
 
 
 def pagehead(title, sub=""):
@@ -433,12 +493,13 @@ def share_links(p):
             + "".join(f'<a href="{E(h2)}" target="_blank" rel="noopener noreferrer" aria-label="Share on {n}">{mark(n)}<span class="t">{n}</span></a>' for n, h2 in items) + "</div>")
 
 
-def og_image(photo, dest):
+def og_image(photo, dest, at=None, size=None):
     """A 1200x630 JPEG cut from the article's photo, for link previews (Facebook, Telegram, Threads, X).
 
-    The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop, biased to the top
-    third because the subject of a portrait photo sits there. ffmpeg is on the Actions image and on the desk's Mac."""
-    vf = f"scale={OG_W}:{OG_H}:force_original_aspect_ratio=increase,crop={OG_W}:{OG_H}:(iw-{OG_W})/2:(ih-{OG_H})*0.3"
+    The photos are 1050-1400 px wide in every aspect ratio, so the preview is a cover crop whose window is centred on the
+    photo's focal point (the face of a portrait), as far as the edges allow. ffmpeg is on the Actions image and on the desk's Mac."""
+    px, py = focus.position(at or focus.PRIOR_SCENE, size or focus.jpeg_size(photo) or (OG_W, OG_H), OG_W / OG_H)
+    vf = f"scale={OG_W}:{OG_H}:force_original_aspect_ratio=increase,crop={OG_W}:{OG_H}:(iw-{OG_W})*{px:.4f}:(ih-{OG_H})*{py:.4f}"
     try:
         subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "3", str(dest)],
                        check=True, capture_output=True, timeout=60)
@@ -453,8 +514,10 @@ def card_html(p, photo=None):
     head, n = p["headlines"][0], coverage(p)
     size = 70 if len(head) <= 60 else 60 if len(head) <= 95 else 50 if len(head) <= 130 else 42
     face = "".join(f"@font-face{{font-family:'Libre Franklin';font-weight:{w};src:url('file://{ASSETS / 'fonts' / f'LibreFranklin-{w}.woff2'}') format('woff2')}}" for w in (400, 600, 800))
-    img = (f'<div class="ph"><img src="file://{photo}"></div>' if photo
-           else (f'<div class="ph art">{plate_html(p, 420, 630)}</div>' if ART_ON else ""))
+    m = PHOTOS.get(p.get("id"), {})
+    pos = focus.object_position(m.get("focus") or focus.PRIOR_SCENE, m.get("dim") or focus.jpeg_size(photo) or (960, 640), 420 / OG_H) if photo else ""
+    img = (f'<div class="ph"><img src="file://{photo}" style="object-position:{pos}"></div>' if photo
+           else "")
     return f"""<!doctype html><meta charset="utf-8"><style>{face}
 *{{box-sizing:border-box;margin:0}}body{{width:{OG_W}px;height:{OG_H}px;background:#fff;color:#111;font-family:'Libre Franklin',Arial,sans-serif;display:flex;overflow:hidden}}
 .t{{flex:1;padding:52px 56px 48px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}}
@@ -463,7 +526,7 @@ h1{{font-weight:800;font-size:{size}px;line-height:1.06;letter-spacing:-.035em;m
 .b{{display:flex;justify-content:space-between;align-items:center;font-size:26px;font-weight:600;border-top:2px solid #0a0a0a;padding-top:22px}}
 .c{{white-space:nowrap;font-size:24px;color:#5c5c5c}}
 .u{{color:#0a0a0a;font-weight:800;letter-spacing:-.02em}}
-.ph{{width:420px;flex:none;position:relative}}.ph.art{{color:#0a0a0a;background:#fff;border-left:2px solid #111}}.ph.art svg{{position:absolute;inset:0;width:100%;height:100%}}.ph img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 28%}}</style>
+.ph{{width:420px;flex:none;position:relative}}.ph.art{{color:#0a0a0a;background:#fff;border-left:2px solid #111}}.ph.art svg{{position:absolute;inset:0;width:100%;height:100%}}.ph img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}}</style>
 <body><div class="t"><div><div class="w">boardread.</div><div class="k">{E(topic(p))}</div><h1>{E(head)}</h1></div>
 <div class="b"><span class="c">{n} newsroom{"" if n == 1 else "s"}</span><span class="u">boardread.news</span></div></div>{img}</body>"""
 
@@ -484,40 +547,24 @@ def share_card(p, photo, dest):
     return dest.exists()
 
 
-# The halftone photo look and the abstract plates are built (mono, art.py) but switched off until the art direction is final:
-# photos ship in colour, and an article without a photo is text.
-ART_ON = False
-
-
-def plate_html(p, w=600, h=400):
-    """The abstract plate of an article, or "" while ART_ON is off."""
-    return art.plate(topic(p), p.get("id", "plate"), coverage(p), dt(p["published"]).hour if p.get("published") else 0, w, h) if ART_ON else ""
-
-
-def mark_html(counts, w, h, cls):
-    return art.barcode(counts, w, h, cls) if ART_ON else ""
-
-
-def mono(photo, dest, width):
-    """The site's one photographic look: greyscale, contrast lifted, printed as a round-dot halftone at 45 degrees, ink on
-    paper (the dark theme inverts the picture in CSS). Photos of every origin, light and quality read as one set, and share
-    images use the same file. The dot pitch follows the width so a thumbnail and a lead screen alike read as a fine print.
-    The original colour is not shipped: the licences ask only that a change is stated, and the caption states it. Falls back
-    to the plain resize if ffmpeg cannot run the filter."""
-    pitch = max(3.0, width / 200) * 1.4142
-    vf = (f"scale='min({width},iw)':-2,format=gray,eq=contrast=1.35:brightness=0.03:gamma=0.85,format=yuv444p,"
-          f"geq=lum='255*clip((lum(X,Y)/255-(0.5+0.5*sin(6.2832*(X+Y)/{pitch:.3f})*sin(6.2832*(Y-X)/{pitch:.3f})))*5+0.5,0,1)':cb=128:cr=128")
-    try:
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(photo), "-vf", vf, "-q:v", "10", str(dest)],
-                       check=True, capture_output=True, timeout=90)
-    except (OSError, subprocess.SubprocessError):
-        resized(photo, dest, width)
+def photo_alt(p):
+    """Alt text from the Commons file name, without the camera numbers, dates and "(cropped)" tags that mean nothing read aloud.
+    A scene carries its own: its file name names a place the story may not be about."""
+    if p.get("photo_alt"):
+        return p["photo_alt"]
+    t = Path(p.get("photo_file") or "").stem.replace("_", " ")
+    t = re.sub(r"\([^)]*\)", " ", t)
+    t = re.sub(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{5,}\b|\b\d{8}\b", " ", t)
+    return re.sub(r"\s+", " ", t).strip(" -,.")
 
 
 def credit_line(p):
-    """The photo credit as licensed, plus the statement of change that CC BY and CC BY-SA ask for."""
+    """The photo credit as licensed. A stand-in scene says so: it is not a photo of this event."""
     c = (p.get("credit") or "").strip()
-    return (f"{c.rstrip('. ')}. Printed as a black-and-white halftone by Boardread." if ART_ON else c) if c else ""
+    if not c or p.get("photo_kind") != "scene":
+        return c
+    what = "of the sport" if p.get("topic") == "Sport" else ""
+    return f"Archive photo {what}, not from this event. {c}".replace(" ,", ",")
 
 
 def resized(photo, dest, width):
@@ -537,8 +584,8 @@ def article_ld(p, image):
           "headline": clip(p["headlines"][0], 110), "description": p.get("dek", ""),
           "image": [ORIGIN + (image or DEFAULT_OG)], "datePublished": iso(p["published"]), "dateModified": iso(p["published"]),
           "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
-          "author": {"@type": "Organization", "name": NAME, "url": SITE + "/"},
-          "publisher": {"@type": "Organization", "name": NAME, "url": SITE + "/", "logo": {"@type": "ImageObject", "url": f"{SITE}/logo.png"}}}
+          "author": {"@type": "Organization", "name": NAME, "url": SITE + "/about/"},
+          "publisher": seo.organization(SITE, NAME, accounts())}
     if p.get("company"):
         ld["about"] = {"@type": "Organization", "name": p["company"]}
     return ld
@@ -649,12 +696,12 @@ def story(p, rows, cos=None, counts=None):
     names = seat_list(p)
     linked = [f'<a href="{E(u)}" rel="nofollow noopener" target="_blank">{E(o)}</a>' if u else E(o) for o, u in names]
     outlets_line = (", ".join(linked[:-1]) + " and " + linked[-1]) if len(linked) > 1 else (linked[0] if linked else "")
-    reported = (f'<p class="reported"><b>Reported by</b> {outlets_line}.</p>' if outlets_line else "") \
-        + (f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else "")
+    reported = (f'<span>Reported by {outlets_line}</span>' if outlets_line else "")
+    insta = f'<p class="reported"><a href="{E(p["permalink"])}" rel="noopener" target="_blank">The post on Instagram &nearr;</a></p>' if p.get("permalink") else ""
     paras = "".join(f"<p>{E(x)}</p>" for x in (p.get("body") or "").split("\n") if x.strip())
-    alt = Path(p.get("photo_file") or "").stem
-    fig = (f'<figure><span class="pic"><img src="{BASE}/img/{p["id"]}.jpg" width="960" height="640" alt="{E(alt)}" fetchpriority="high"></span>'
-           f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else (f'<figure class="plate-fig">{plate_html(p)}</figure>' if ART_ON else "")
+    alt = photo_alt(p)
+    fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
+           f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else ""
     rel = related(p, rows)
     more = (f'<section class="related" aria-labelledby="rel"><h2 id="rel">Related news</h2><ul>'
             + "".join(f'<li><a href="{href(o)}"><span class="h-s">{E(o["headlines"][0])}</span>{meta(E(topic(o)), t_tag(o))}</a></li>' for o in rel) + "</ul></section>") if rel else ""
@@ -673,20 +720,21 @@ def story(p, rows, cos=None, counts=None):
             company += f"<span>{ticker_html(ticker_of(p))}</span>"
     ctx = markets.context_for(p, MARKETS, BASE)
     body = f"""<article class="art">
-<header class="art-head"><a class="kick" href="{BASE}/t/{topic(p).lower()}/">{E(topic(p))}</a>
+<header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1><p class="dek">{E(p.get('dek', ''))}</p>
-<div class="byline"><span><time datetime="{iso(p['published'])}">{when(p['published'])}</time></span><span>{cover(p)}</span><span>Boardread desk, written by AI</span>{company}</div></header>
+<div class="byline">{reported}<span>Boardread desk, written by AI</span></div>
+<div class="mt art-meta"><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div></header>
 {fig}
 <div class="art-body"><section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>
 <p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p>
-<div class="reportedby">{reported}</div>
+<div class="reportedby">{insta}</div>
 {ctx}{number_box(p)}
 <section class="sharebox"><h2 class="sh">Share</h2>{share_links(p)}</section>
 {how_made(p, counts)}</div>
 {more}{prevnext}</article>"""
     crumbs = {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
         {"@type": "ListItem", "position": 1, "name": NAME, "item": SITE + "/"},
-        {"@type": "ListItem", "position": 2, "name": topic(p), "item": f"{SITE}/t/{topic(p).lower()}/"},
+        {"@type": "ListItem", "position": 2, "name": topic(p), "item": f"{SITE}{topic_path(topic(p))}"},
         {"@type": "ListItem", "position": 3, "name": clip(p["headlines"][0], 110)}]}
     return page(f'{p["headlines"][0]} · boardread.', body, p.get("dek", ""), f"/s/{p['id']}/", image, "article",
                 [article_ld(p, image), crumbs], p["headlines"][0], active=topic(p).lower())
@@ -895,17 +943,20 @@ def build(out=desk.HERE / "_site"):
             shutil.copy(ASSETS / f, out / "assets" / f)
     shutil.copy(ASSETS / "words.txt", out / "assets" / "words.txt")  # the guess list of the word game
     shutil.copy(ASSETS / "words-NOTICE.txt", out / "assets" / "words-NOTICE.txt")
-    for f in ("og-default.png", "logo.png", "icon.svg"):  # the preview image of every non-story page, the publisher logo, the favicon
+    for f in ("og-default.png", "logo.png", "icon.svg", "favicon.ico", "apple-touch-icon.png", "icon-192.png", "icon-512.png"):  # the preview image of every non-story page, the publisher logo, the favicon
         shutil.copy(ASSETS / f, out / f)
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
     shown = []
+    PHOTOS.clear()
     for p in published():
         photo = desk.MEDIA / p["id"] / "photo.jpg"
         if photo.exists():
-            treat = mono if ART_ON else resized
-            treat(photo, out / "img" / f"{p['id']}.jpg", 960)
-            treat(photo, out / "img" / f"{p['id']}-t.jpg", 480)  # not thumb.jpg: that one is a crop of the Instagram card, text included
+            resized(photo, out / "img" / f"{p['id']}.jpg", 960)
+            resized(photo, out / "img" / f"{p['id']}-t.jpg", 480)  # not thumb.jpg: that one is a crop of the Instagram card, text included
+            big, small = out / "img" / f"{p['id']}.jpg", out / "img" / f"{p['id']}-t.jpg"
+            at, is_face = focus.for_post(p, photo)
+            PHOTOS[p["id"]] = {"dim": focus.jpeg_size(big) or (960, 640), "dim_t": focus.jpeg_size(small) or (480, 320), "focus": at, "face": is_face}
             p["_hires"] = p["_thumb"] = True
         # no photo: the story is a text row. media/<id>/thumb.jpg is a crop of the Instagram card with the headline
         # set into it, so it is never used as a picture on the site (it showed "Global stocks" in a tile)
@@ -915,7 +966,8 @@ def build(out=desk.HERE / "_site"):
         photo = out / "img" / f"{p['id']}.jpg"  # the photo as the site shows it, so a shared card looks like the site
         photo = photo if photo.exists() else None
         dest = out / "og" / f"{p['id']}.jpg"
-        return share_card(p, photo, dest) or bool(photo and og_image(photo, dest))
+        m = PHOTOS.get(p["id"], {})
+        return share_card(p, photo, dest) or bool(photo and og_image(photo, dest, m.get("focus"), m.get("dim")))
     with ThreadPoolExecutor(max_workers=6) as pool:
         for p, ok in zip(shown, pool.map(card, shown)):
             if ok:
@@ -923,26 +975,30 @@ def build(out=desk.HERE / "_site"):
     global MARKETS
     # DESK_SITE_OFFLINE=1 builds from the last good copy of the rates without touching the network (tests, a plane)
     MARKETS = markets.load(live=os.environ.get("DESK_SITE_OFFLINE") != "1")
-    MAST["coverage"] = [coverage(p) for p in sorted(window(shown), key=lambda p: p["published"])]
     sm = []
+    # Business stays the core: the front page, Latest, the brief, the feeds and every view are made from `news`; sport has
+    # its own block on the front page, its own section page and feed, and appears in the archive, search and sitemap.
+    news = [p for p in shown if not is_sport(p)]
+    sport = [p for p in shown if is_sport(p)]
     desc = "Markets, economy, politics, world, tech and AI: every article with its sources."
-    if shown:
+    if news:
         site_ld = {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/", "inLanguage": "en",
-                   "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"}}
-        put(out, "/", page(f"boardread. · {TAGLINE}", views.front(shown, companies(shown), MARKETS), desc, "/", ld=site_ld, front=True))
+                   "potentialAction": {"@type": "SearchAction", "target": f"{SITE}/search/?q={{search_term_string}}", "query-input": "required name=search_term_string"},
+                   "publisher": seo.organization(SITE, NAME, accounts())}
+        put(out, "/", page(f"boardread. · {TAGLINE}", views.front(news, companies(news), MARKETS, sport), desc, "/", ld=site_ld, front=True))
     else:
         put(out, "/", page(f"boardread. · {TAGLINE}", '<div class="empty">The first articles are on their way.</div>', desc, "/", front=True))
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", shown, "Latest", desc, pagehead("Latest", "Every article, newest first. Times are UTC."), "latest", aside(shown), sm)
+    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Every business and news article, newest first. Times are UTC. Sport has its own section."), "latest", aside(news), sm)
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
-        paged(out, f"/t/{t.lower()}/", rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
-              feed=(f"boardread. {t}", f"/t/{t.lower()}/feed.xml"))
-    cos, counts = companies(shown), desk_counts(shown)
+        paged(out, topic_path(t), rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
+              feed=(f"boardread. {t}", f"{topic_path(t)}feed.xml"))
+    cos, counts = companies(news), desk_counts(shown)
     for p in shown:
-        put(out, f"/s/{p['id']}/", story(p, shown, cos, counts))
+        put(out, f"/s/{p['id']}/", story(p, sport if is_sport(p) else news, cos, counts))
         sm.append((f"{SITE}/s/{p['id']}/", iso(p["published"])))
     days = {}
     for p in shown:
@@ -955,7 +1011,7 @@ def build(out=desk.HERE / "_site"):
         paged(out, f"/archive/{d}/", ps, day_label(d), f"Boardread articles of {day_label(d)}.", pagehead(day_label(d), f"{len(ps)} articles, newest first."), "", "", sm)
     # weeks: one page per ISO week (the newsletter's issues), and /week/ for the last seven days
     weeks = {}
-    for p in shown:
+    for p in news:
         weeks.setdefault(week_of(p["published"]), []).append(p)
     this_week = datetime.now(timezone.utc).strftime("%G-W%V")
     wdesc = "The ten most shared articles of the week, each with its sources."
@@ -973,9 +1029,9 @@ def build(out=desk.HERE / "_site"):
         sm.append((f"{SITE}/week/{wk}/", iso(max(p["published"] for p in weeks[wk]))))
         if wk != this_week:  # an unfinished week is not an issue yet
             issues.append((wk, top))
-    last7 = [p for p in shown if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or shown[:10]
+    last7 = [p for p in news if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or news[:10]
     past = "".join(f'<li><a href="{BASE}/week/{w}/">Week {w[-2:]}, {w[:4]}</a></li>' for w in sorted(weeks, reverse=True) if w != this_week)
-    mc = covered_list(shown, companies(shown), 10)
+    mc = covered_list(news, companies(news), 10)
     put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten most shared articles of the last seven days", "week")
         + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many articles named them in the last seven days.</p>{mc}</div>' if mc else "")
         + (f'<div class="prose"><h2>Past weeks</h2><ul>{past}</ul></div>' if past else ""), wdesc, "/week/", active="week"))
@@ -987,20 +1043,24 @@ def build(out=desk.HERE / "_site"):
                               ("contact", "Contact", contact_page, "Corrections, tips and questions.")):
         put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
         sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
-    (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "", "/404.html", noindex=True))
+    (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(dt(p["published"])), p.get("dek", ""),
          {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,
           "image_bytes": (out / "og" / f"{p['id']}.jpg").stat().st_size if p.get("_og") else 0})
-        for p in shown[:50]]))
+        for p in news[:50]]))
     (out / "weekly.xml").write_text(rss("boardread weekly", SITE + "/week/", [
         (f"Top 10 · {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/", format_datetime(dt(top[0]["published"]) + timedelta(days=1)),
          " · ".join(p["headlines"][0] for p in top), {"category": "Weekly"}) for wk, top in issues[:12]]))
     from . import sitepages  # imports this module, so only once it is loaded
-    sitepages.build(out, shown, sm, cos)
+    sitepages.build(out, news, sm, cos)
+    sitepages.feed_for(out, sport, "/sport/", "boardread. Sport", f"{SITE}/sport/")
     (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m]))
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
-    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\n")
+    (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
+        "display": "browser", "background_color": "#ffffff", "theme_color": "#ffffff",
+        "icons": [{"src": f"{BASE}/icon-192.png", "sizes": "192x192", "type": "image/png"}, {"src": f"{BASE}/icon-512.png", "sizes": "512x512", "type": "image/png"}]}))
+    (out / "robots.txt").write_text(f"User-agent: *\nAllow: /\n\nSitemap: {SITE}/sitemap.xml\nSitemap: {SITE}/news-sitemap.xml\n")
     (out / ".nojekyll").write_text("")
     print(f"site: {len(shown)} articles, {len(weeks)} weeks -> {out}")
     return out
@@ -1011,7 +1071,7 @@ def redirects(out, old_base="/news"):
     after the cut-over: every article, topic and week page, plus the front page, sends the reader to the new address
     with a meta refresh, a canonical link and a script. Feeds cannot be redirected this way and are not stubbed."""
     out = Path(out)
-    paths = ["/", "/latest/", "/week/", "/search/", "/about/", "/archive/"] + [f"/t/{t.lower()}/" for t in TOPIC_ORDER]
+    paths = ["/", "/latest/", "/week/", "/search/", "/about/", "/archive/"] + [topic_path(t) for t in TOPIC_ORDER]
     paths += [f"/s/{p['id']}/" for p in published()] + [f"/week/{w}/" for w in {week_of(p["published"]) for p in published()}]
     for path in paths:
         new = f"{SITE}{path}"

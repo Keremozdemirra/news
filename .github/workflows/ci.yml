@@ -22,3 +22,5 @@ jobs:
           R.shoot(R.T.daily_cover('26 Nov 2026', ['Lab ships a model', 'Startup raises money', 'Court rules on data']), '/tmp/cover.png', 1080, 1350)
           print(R.jpeg('/tmp/cover.png'))"
           file /tmp/cover.jpg
+      - name: Render one video card in both shapes and check it against Instagram's spec
+        run: python3 -m unittest discover -s tests -p test_cardvideo.py

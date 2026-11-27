@@ -16,9 +16,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-from . import desk, entities
+from . import desk, entities, redact
 from .feeds import CTX
 
 NAMES = ("threads", "facebook", "bluesky", "telegram")
@@ -27,6 +27,31 @@ NAMES = ("threads", "facebook", "bluesky", "telegram")
 # Telegram flood control (retry_after)
 BLOCKED = re.compile(r"HTTP 429|rate.?limit|RateLimitExceeded|retry_after|\"code\":\s*(4|17|32|613)\b|"
                      r"temporarily blocked|Action is blocked|Too Many Requests", re.I)
+
+
+# the platform no longer accepts the credential: Meta OAuth code 190 (expired or revoked token), Bluesky's
+# AuthenticationRequired / ExpiredToken, Telegram's 401. Retrying cannot fix it; the owner has to store a new secret.
+AUTH = re.compile(r"\"code\":\s*190\b|Error validating access token|Session has expired|InvalidToken|ExpiredToken|"
+                  r"AuthenticationRequired|Invalid identifier or password|\bHTTP 401\b|\"error_code\":\s*401\b|\bUnauthorized\b", re.I)
+
+# the secret whose change ends an auth cooldown: a renewed token is tried at once, not a day later
+CREDENTIAL = {"threads": "THREADS_TOKEN", "facebook": "FB_PAGE_TOKEN", "bluesky": "BSKY_APP_PASSWORD", "telegram": "TG_BOT_TOKEN"}
+
+
+def fingerprint(name):
+    """Eight hex characters of the SHA-256 of the platform's credential: enough to notice a new secret, nothing
+    that helps anyone guess it."""
+    import hashlib
+    v = os.environ.get(CREDENTIAL.get(name, ""), "")
+    return hashlib.sha256(v.encode()).hexdigest()[:8] if v else ""
+
+
+def _same_line(a, b):
+    return " ".join((a or "").split()).casefold() == " ".join((b or "").split()).casefold()
+
+
+# secrets that name an account rather than unlock it; kept readable in errors
+PUBLIC_IDS = ("THREADS_USER_ID", "FB_PAGE_ID", "BSKY_HANDLE", "TG_CHANNEL")
 
 
 class Missing(RuntimeError):
@@ -81,8 +106,8 @@ def _ai(post):
     return desk.CONFIG["ai_note"] if desk.CONFIG["ai_note"] in (post.get("caption") or "") else ""
 
 
-def story_page(post):
-    return desk.story_url(post["id"])
+def story_page(post, channel=None):
+    return desk.story_url(post["id"], channel)
 
 
 def _tail(post, link):
@@ -134,12 +159,14 @@ def threads_text(post):
 
 
 def threads_reply_text(post):
-    return f"Sources: {story_page(post)}"
+    return f"Sources: {story_page(post, 'threads')}"
 
 
 def threads_tag(post):
-    """One topic tag (Threads uses a single one): 1-50 characters, no periods or ampersands."""
-    tag = desk.CONFIG["topic_tags"].get(post.get("topic") or "", "").lstrip("#")
+    """One topic tag (Threads uses a single one): 1-50 characters, no periods or ampersands. desk.json
+    threads_topic_tags may name a Threads community tag per topic (it can hold spaces); else the hashtag word."""
+    topic = post.get("topic") or ""
+    tag = (desk.CONFIG.get("threads_topic_tags") or {}).get(topic) or desk.CONFIG["topic_tags"].get(topic, "").lstrip("#")
     return re.sub(r"[.&]", "", tag)[:50]
 
 
@@ -153,8 +180,8 @@ def bluesky_description(post):
     return post.get("dek") or post.get("body") or ""
 
 
-def _long_text(post, limit):
-    return _with_ticker(post, _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post)), limit), limit)
+def _long_text(post, limit, channel=None):
+    return _with_ticker(post, _fit(_head(post), post.get("body") or post.get("dek", ""), _tail(post, story_page(post, channel)), limit), limit)
 
 
 def is_breaking(post):
@@ -164,13 +191,26 @@ def is_breaking(post):
 def digest_text(posts):
     lines = ["Today on Boardread", ""]
     for i, p in enumerate(posts, 1):
-        lines += [f"{i}. {_head(p)}", story_page(p), ""]
-    return "\n".join(lines).rstrip()
+        lines += [f"{i}. {_head(p)}", story_page(p, "telegram"), ""]
+    return "\n".join(lines + cross_links("telegram")).rstrip()
+
+
+def cross_links(here):
+    """One closing line naming the brand's other places, for digests: the site and the channels that have an address."""
+    others = [a for a in desk.CONFIG.get("accounts", []) if a.get("url") and a["name"].lower() != here]
+    if not others:
+        return []
+    return [f"Every story: {desk.CONFIG['site_url']}", "Also on " + ", ".join(f"{a['name']} {a['url']}" for a in others)]
+
+
+def telegram_tag(post):
+    """The topic as one hashtag: Telegram's post search finds channel posts by hashtag."""
+    return desk.CONFIG["topic_tags"].get(post.get("topic") or "", "")
 
 
 def facebook_skip(post):
     """Why a post stays off the Facebook Page, or "": only the day's most important stories go there."""
-    if (post.get("score") or 0) < desk.CONFIG["facebook_min_score"]:
+    if (post.get("score") or 0) < desk.facebook_min_score_now():
         return "below facebook_min_score"
     if desk.platform_sent_last_24h("facebook") >= desk.CONFIG["facebook_daily_max"]:
         return "above facebook_daily_max"
@@ -178,11 +218,14 @@ def facebook_skip(post):
 
 
 def telegram_caption(post):
-    return _long_text(post, 1024)  # sendPhoto and InputMediaPhoto: 0-1024 characters
+    tag = telegram_tag(post)
+    if not tag:
+        return _long_text(post, 1024, "telegram")  # sendPhoto and InputMediaPhoto: 0-1024 characters
+    return _long_text(post, 1024 - len(tag) - 2, "telegram") + "\n\n" + tag
 
 
 def facebook_text(post):
-    return _long_text(post, 2000)  # no documented cap; kept to a short report like the other platforms
+    return _long_text(post, 2000, "facebook")  # no documented cap; kept to a short report like the other platforms
 
 
 def _images(post):
@@ -204,10 +247,11 @@ class Client:
             self.env["BSKY_HANDLE"] = self.env["BSKY_HANDLE"].strip().lstrip("@")
 
     def _scrub(self, text):
-        for v in self.env.values():
-            if v:
-                text = text.replace(v, "<secret>").replace(urllib.parse.quote(v, safe=""), "<secret>")
-        return text
+        # identifiers (THREADS_USER_ID is "me") are not credentials: replacing them garbled every error message
+        creds = [v for k, v in self.env.items() if v and k not in PUBLIC_IDS and len(v) >= 4]
+        for v in sorted(creds, key=len, reverse=True):
+            text = text.replace(v, "<secret>").replace(urllib.parse.quote(v, safe=""), "<secret>")
+        return redact.scrub(text)
 
     def _open(self, req, label):
         try:
@@ -260,6 +304,20 @@ class Threads(Client):
                 raise PlatformError(f"threads container {container}: {got.get('status')} {got.get('error_message', '')}")
             self.sleep(pause)
         raise PlatformError(f"threads container {container}: not ready after {tries * pause}s")
+
+    def find(self, post):
+        """This story already on the profile: a post whose first line is the headline as threads_text writes it,
+        not older than the queue entry. Run before every send, so a lost status commit never means a second post."""
+        head = threads_text(post).split("\n", 1)[0]
+        born = desk._stamp(post.get("created", ""))
+        got = self.call("GET", f"{self.env['THREADS_USER_ID']}/threads", {"fields": "id,text,permalink,timestamp", "limit": 25})
+        for t in got.get("data", []):
+            seen = desk._stamp(t.get("timestamp", ""))
+            if born and seen and seen < born - timedelta(minutes=5):
+                continue
+            if _same_line((t.get("text") or "").split("\n", 1)[0], head):
+                return {"id": t["id"], "url": t.get("permalink", "")}
+        return None
 
     def check(self):
         """Reads the profile the token belongs to and posts nothing."""
@@ -336,7 +394,8 @@ class Facebook(Client):
                 raise PlatformError("facebook: the stored token is neither a Page token nor a user token that manages a Page")
             self._page_token, self.page_name = tok, me.get("name", "")
             self.env["FB_PAGE_ID"] = str(me["id"])
-        self.env["_page_token"] = self._page_token  # scrubbed from errors like the stored secrets
+        self.env["_page_token"] = self._page_token  # scrubbed from this client's errors like the stored secrets
+        redact.register(self._page_token)  # and from every saved file and log line of the run
         return self._page_token
 
     def call(self, path, params):
@@ -347,6 +406,28 @@ class Facebook(Client):
         """Reads the Page and posts nothing."""
         self.page_token()
         return f"page {self.page_name!r} reachable" + (" (stored token is the Page token)" if self._page_token == self.env["FB_PAGE_TOKEN"] else " (Page token read through the user token)")
+
+    def find(self, post):
+        """This story already on the Page: a post whose text carries the story's own page address."""
+        page, url = self.env["FB_PAGE_ID"], story_page(post)
+        got = self.form("GET", f"{self.host}/{self.version}/{page}/posts",
+                        {"fields": "id,message,permalink_url,created_time", "limit": 25, "access_token": self.page_token()},
+                        "facebook GET posts")
+        for m in got.get("data", []):
+            if url in (m.get("message") or ""):
+                return {"id": m["id"], "url": m.get("permalink_url") or f"https://www.facebook.com/{m['id']}"}
+        return None
+
+    def token_expiry(self):
+        """When the stored token stops working, from Meta's debug_token (a token may inspect itself): 
+        expires_at and data_access_expires_at, as {"expires", "data_access"} datetimes (None: no end reported). Posts nothing."""
+        tok = self.env["FB_PAGE_TOKEN"]
+        got = self.form("GET", f"{self.host}/{self.version}/debug_token", {"input_token": tok, "access_token": tok},
+                        "facebook GET debug_token").get("data", {})
+        # expires_at 0 means the token itself never expires; data_access_expires_at is the separate 90-day window
+        # after which Meta stops returning user data until someone re-authorises the app. Both are reported, apart.
+        at = lambda k: datetime.fromtimestamp(got[k], timezone.utc) if got.get(k) else None  # noqa: E731
+        return {"expires": at("expires_at"), "data_access": at("data_access_expires_at")}
 
     def post(self, post):
         self.page_token()
@@ -384,11 +465,27 @@ class Bluesky(Client):
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         return f"logged in as @{sess.get('handle')}"
 
+    APPVIEW = os.environ.get("BSKY_APPVIEW", "https://public.api.bsky.app")
+
+    def find(self, post):
+        """This story already on the profile: a recent post whose link card points at the story page. The public
+        AppView answers without logging in, so the check costs no session."""
+        url = story_page(post)
+        got = self.form("GET", f"{self.APPVIEW}/xrpc/app.bsky.feed.getAuthorFeed",
+                        {"actor": self.env["BSKY_HANDLE"], "limit": 30, "filter": "posts_no_replies"}, "bluesky getAuthorFeed")
+        for item in got.get("feed", []):
+            p = item.get("post") or {}
+            ext = ((p.get("record") or {}).get("embed") or {}).get("external") or {}
+            if ext.get("uri") == url:
+                rkey = p.get("uri", "").rsplit("/", 1)[-1]
+                return {"id": p.get("uri", ""), "url": f"https://bsky.app/profile/{self.env['BSKY_HANDLE']}/post/{rkey}"}
+        return None
+
     def post(self, post):
         sess = self.xrpc("com.atproto.server.createSession",
                          {"identifier": self.env["BSKY_HANDLE"], "password": self.env["BSKY_APP_PASSWORD"]})
         jwt, did = sess["accessJwt"], sess["did"]
-        card = {"uri": story_page(post), "title": _head(post), "description": bluesky_description(post)}
+        card = {"uri": story_page(post, "bluesky"), "title": _head(post), "description": bluesky_description(post)}
         data = self.fetch(_images(post)[0])
         # a link card without a thumbnail still works, so an oversize card is skipped rather than failing the post
         if len(data) <= self.MAX_BYTES:
@@ -441,6 +538,15 @@ class Telegram(Client):
             first = self.call("sendMediaGroup", {"chat_id": chat, "media": media, **silent})[0]
         username = (first.get("chat") or {}).get("username") or (chat.lstrip("@") if chat.startswith("@") else "")
         return {"id": str(first["message_id"]), "url": f"https://t.me/{username}/{first['message_id']}" if username else ""}
+
+    def pin(self, text):
+        """Send one silent message and pin it. Channels never notify on a pin (core.telegram.org/bots/api#pinchatmessage);
+        the bot needs can_pin_messages, or can_edit_messages in a channel."""
+        chat = self.env["TG_CHANNEL"]
+        got = self.call("sendMessage", {"chat_id": chat, "text": text, "disable_notification": True,
+                                        "link_preview_options": {"is_disabled": True}, "disable_web_page_preview": True})
+        self.call("pinChatMessage", {"chat_id": chat, "message_id": got["message_id"], "disable_notification": True})
+        return {"id": str(got["message_id"])}
 
     def digest(self, posts):
         """The evening digest: one silent text message, links not expanded."""

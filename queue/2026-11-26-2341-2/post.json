@@ -1,0 +1,48 @@
+{
+ "id": "2026-11-26-2341-2",
+ "batch": "2026-11-26-2341",
+ "n": 2,
+ "created": "2026-11-26T23:41:58+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Bournemouth win first five European games as fans book final hotels\n\nBournemouth have won their first five European games, joining a select band of teams to do so. The club is dreaming of winning the Europa League. Fans have booked hotels for the final.\n\nReported by BBC Sport. Written by AI.\n\nSend this to whoever on your team covers Bournemouth.\n\n#news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bbc.co.uk/sport/football/articles/cmq5v84vw818o?at_medium=RSS&at_campaign=rss"
+ ],
+ "links": [
+  "https://www.bbc.co.uk/sport/football/articles/cmq5v84vw818o?at_medium=RSS&at_campaign=rss"
+ ],
+ "headlines": [
+  "Bournemouth win first five European games as fans book final hotels"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "Boxing ring, MGM Grand.jpg",
+ "score": 9.473,
+ "figure": "five",
+ "company": "Bournemouth",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The club joins a select band of teams that have won their first five European games, and fans have booked hotels for the Europa League final.",
+ "body": "Bournemouth have won their first five European games, joining a select band of teams to do so. The club is dreaming of winning the Europa League. Fans have booked hotels for the final.",
+ "so_what": "",
+ "sources": [
+  "BBC Sport"
+ ],
+ "source_urls": [
+  "https://www.bbc.co.uk/sport/football/articles/cmq5v84vw818o?at_medium=RSS&at_campaign=rss"
+ ],
+ "credit": "Photo: Alan Kotok, CC BY 2.0, via Wikimedia Commons",
+ "photo_kind": "scene",
+ "status": "web",
+ "published": "2026-11-26T23:41:58+00:00",
+ "story": "",
+ "photo_alt": "A boxing ring"
+}

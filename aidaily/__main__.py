@@ -67,17 +67,20 @@ def run(args):
         if err:
             errors.append(f"{src['id']}\t{err}")
         items += got
-    stories = rank.rank(items, sources)
+    # sport is ranked on its own: it never competes with business for a slot, and its cap is separate
+    is_sport = lambda i: sources.get(i["source_id"], {}).get("category") == "sport"  # noqa: E731
+    stories = rank.rank([i for i in items if not is_sport(i)], sources)
+    sport = rank.rank([i for i in items if is_sport(i)], sources)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out = Path(args.out) / day
     out.mkdir(parents=True, exist_ok=True)
     slots = plan(stories)
     (out / "digest.json").write_text(json.dumps(
         {"generated": datetime.now(timezone.utc).isoformat(), "items": len(items),
-         "sources": len(sources), "slots": slots, "stories": stories[: args.top]}, indent=1))
+         "sources": len(sources), "slots": slots, "stories": stories[: args.top], "sport": sport[:args.top]}, indent=1))
     (out / "digest.md").write_text(to_md(day, stories, slots, errors, len(items), len(sources)))
     (out / "feeds.log").write_text("\n".join(errors) + "\n")
-    print(f"{len(items)} items, {len(sources)} sources, {len(errors)} failed, {len(stories)} stories -> {out}")
+    print(f"{len(items)} items, {len(sources)} sources, {len(errors)} failed, {len(stories)} news, {len(sport)} sport -> {out}")
     return out
 
 
@@ -106,6 +109,7 @@ def finish(args):
     """Check the session's copy against the sources, render the pack and the review page. Posts nothing."""
     from . import desk, render, review
     render.T.USED |= desk.used_photos()
+    render.T.LAST.update(desk.photo_log())
     out = Path(args.out) / (args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     digest = json.loads((out / "digest.json").read_text())
     chosen = json.loads((out / "chosen.json").read_text())
@@ -130,6 +134,12 @@ def finish(args):
     print(note)
     print(f"review: {page}")
     return 0
+
+
+def _dates(d):
+    """Meta's two token dates as one line for the ping log."""
+    exp, data = d.get("expires"), d.get("data_access")
+    return (f"expires {exp:%Y-%m-%d}" if exp else "never expires") + (f"; data access until {data:%Y-%m-%d}" if data else "")
 
 
 def main(argv=None):
@@ -159,9 +169,23 @@ def main(argv=None):
     en.add_argument("--dry", action="store_true")
     rl = sub.add_parser("reel", help="the daily recap Reel (switch growth.daily_reel): stage due, build or send")
     rl.add_argument("stage", choices=["due", "build", "send"])
-    sub.add_parser("insights", help="weekly numbers and category weights")
+    sub.add_parser("insights", help="weekly numbers from every connected platform, weights and learned timing")
+    so = sub.add_parser("seo", help="audit a built site directory for Google News, Discover and Search")
+    so.add_argument("dir", nargs="?", default="_site")
+    tp = sub.add_parser("telegram-pin", help="print the Telegram pinned post; --send posts it silently and pins it")
+    tp.add_argument("--send", action="store_true")
+    bf = sub.add_parser("bsky-feed", help="write bsky-feed.json (the Bluesky custom feed's post list) into DIR")
+    bf.add_argument("dir", nargs="?", default="_site")
+    bg = sub.add_parser("bsky-feed-record", help="print, or with --send write, the Bluesky feed generator record")
+    bg.add_argument("host", help="the Worker's hostname, e.g. feed.boardread.news")
+    bg.add_argument("--send", action="store_true")
     sub.add_parser("token", help="extend the Instagram token, warn before it expires")
-    sub.add_parser("site", help="build the news pages into _site/")
+    sub.add_parser("markets", help="refresh state/markets.json from the official sources (never fails)")
+    sub.add_parser("site", help="build the news pages into _site/, the status page included")
+    st = sub.add_parser("status", help="write status.json and the status page into DIR")
+    st.add_argument("dir")
+    he = sub.add_parser("health", help="check what needs the owner; open, update or close the one health issue")
+    he.add_argument("--weekly", action="store_true", help="the Monday report issue instead")
     rd = sub.add_parser("redirects", help="write meta-refresh stubs for the old address (keremozdemir.de/news/...) into DIR")
     rd.add_argument("dir")
     sub.add_parser("ping", help="check the Instagram token: account name and publishing quota")
@@ -170,6 +194,10 @@ def main(argv=None):
     dl = sub.add_parser("delete", help="delete posts or stories by queue id, and mark them deleted")
     dl.add_argument("ids", nargs="+")
     args = p.parse_args(argv)
+    # the Action logs are public: nothing this run prints may carry a secret, whatever printed it
+    from . import redact
+    if not isinstance(sys.stdout, redact.Stream):
+        sys.stdout, sys.stderr = redact.Stream(sys.stdout), redact.Stream(sys.stderr)
     if args.cmd == "serve":
         from . import server
         server.serve(args.port)
@@ -178,17 +206,28 @@ def main(argv=None):
         from . import desk
         from .instagram import Client
         c = Client()
+        failed = 0
         for pid in args.ids:
             path = desk.QUEUE / pid / "post.json"
+            if not path.exists():
+                print(f"{pid}: no such post")
+                failed += 1
+                continue
             post = desk._load(path, {})
             mid = post.get("media_id")
-            ok = c.delete(mid) if mid else False
-            if post.get("story_id"):
-                c.delete(post["story_id"])
+            # one refused id (Meta answers code 10 for posts the app may not delete) must not stop the others
+            try:
+                ok = c.delete(mid) if mid else False
+                if post.get("story_id"):
+                    c.delete(post["story_id"])
+            except Exception as e:  # noqa: BLE001
+                ok = False
+                print(f"{pid}: Instagram refused the delete: {str(e)[:200]}; delete it in the app, then mark it deleted")
             post.update(status="deleted" if ok else post.get("status"), deleted=desk.now().isoformat(timespec="seconds") if ok else None)
             desk._save(path, post)
             print(f"{pid}: {'deleted' if ok else 'not deleted'}")
-        return 0
+            failed += not ok
+        return 1 if failed else 0
     if args.cmd == "crosspost":
         from . import desk
         wanted = set(args.ids)
@@ -209,6 +248,10 @@ def main(argv=None):
         c = Client() if os.environ.get("IG_TOKEN") else None
         if os.environ.get("IG_TOKEN"):
             print(f"account: @{c.own_username()}; quota: {c.quota()}")
+            try:
+                print(f"instagram token: {_dates(c.token_expiry())}")
+            except Exception as e:  # noqa: BLE001
+                print(f"instagram token: expiry unknown ({str(e)[:160]})")
         from . import platforms
         for name, cls in platforms.CLIENTS.items():
             try:
@@ -223,6 +266,11 @@ def main(argv=None):
                 print(f"{name}: {client.check()}")
             except Exception as e:  # noqa: BLE001  report every platform, not only the first broken one
                 print(f"{name}: FAILED {e}")
+            if hasattr(client, "token_expiry"):
+                try:
+                    print(f"{name} token: {_dates(client.token_expiry())}")
+                except Exception as e:  # noqa: BLE001
+                    print(f"{name} token: expiry unknown ({str(e)[:160]})")
         return 0
     if args.cmd == "reel":
         from . import reel
@@ -234,9 +282,58 @@ def main(argv=None):
             return 0 if reel.build() else 1
         reel.send()
         return 0
+    if args.cmd == "markets":
+        from . import markets
+        try:
+            m = markets.load(live=True)
+            print("markets:", ", ".join(f"{k} {v[-1][0]}" for k, v in sorted((m or {}).get("series", {}).items())) or "nothing")
+        except Exception as e:  # noqa: BLE001 (the markets data must never fail a workflow; the last good file stays)
+            print(f"markets: not refreshed ({e!r})")
+        return 0
     if args.cmd == "site":
-        from . import site
-        site.build()
+        from . import site, status
+        out = site.build()
+        try:
+            status.write(out / "status")
+        except Exception as e:  # noqa: BLE001  the news pages ship even if the status page cannot be made
+            print(f"status page failed: {str(e)[:200]}")
+        return 0
+    if args.cmd == "status":
+        from . import status
+        status.write(args.dir)
+        return 0
+    if args.cmd == "health":
+        from . import status
+        # health never fails its run: a red run is an e-mail, and the issue is the one channel for problems
+        try:
+            if args.weekly:
+                from . import instagram, platforms
+                dates = {}
+                for name, make in (("instagram", instagram.Client), ("facebook", platforms.Facebook)):
+                    try:
+                        dates[name] = make().token_expiry()
+                    except Exception as e:  # noqa: BLE001  the report goes out without Meta's date
+                        print(f"{name} token date unavailable: {str(e)[:160]}")
+                status.weekly(meta_expiry=dates)
+            else:
+                status.health(live_site=status.live_status())
+        except Exception as e:  # noqa: BLE001
+            print(f"health check crashed: {str(e)[:200]}")
+        return 0
+    if args.cmd == "seo":
+        from . import seo, site
+        return seo.main(args.dir, site.SITE)
+    if args.cmd == "telegram-pin":
+        from . import distribution
+        distribution.pin(send=args.send)
+        return 0
+    if args.cmd == "bsky-feed":
+        from . import distribution
+        distribution.write_skeleton(args.dir)
+        return 0
+    if args.cmd == "bsky-feed-record":
+        from . import distribution
+        distribution.publish_generator(args.host, send=args.send)
         return 0
     if args.cmd == "redirects":
         from . import site
@@ -256,11 +353,40 @@ def main(argv=None):
             desk.engage(dry=args.dry)
             return 0
         if args.cmd == "insights":
-            desk.insights()
+            from . import insights
+            report = insights.run()
+            if os.environ.get("GITHUB_STEP_SUMMARY"):
+                with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+                    f.write(insights.summary_md(report))
             return 0
         desk.token_check()
         return 0
     return {"run": lambda a: run(a) and 0, "prepare": prepare, "finish": finish}[args.cmd](args)
+
+
+def sport_lane(args, out, stories):
+    """The sport section: its own pick, its own copy call, queued on the web tier only. Sport never reaches a social channel."""
+    from . import desk
+    picked = desk.select(stories, lane="sport")
+    if not picked:
+        print("no sport article above the bar this run")
+        return 0
+    lane = out / "sport"
+    lane.mkdir(exist_ok=True)
+    for s in picked:
+        s["lane"] = "sport"
+    (lane / "digest.json").write_text(json.dumps({"generated": datetime.now(timezone.utc).isoformat(), "slots": {"top": picked}}, indent=1))
+    (lane / "copy-request.md").write_text(copy.request(picked, lane="sport"))
+    (lane / "chosen.json").write_text(json.dumps(picked, indent=1))
+    try:
+        (lane / "copy.json").write_text(json.dumps(copy.ask_claude((lane / "copy-request.md").read_text()), indent=1))
+    except Exception as e:  # noqa: BLE001  without copy every article falls back and queue refuses it
+        print(f"sport copy step failed: {e}")
+    args.date = f"{out.name}/sport"
+    args.out = out.parent
+    finish(args)
+    desk.queue(lane)
+    return 0
 
 
 def daily(args):
@@ -277,9 +403,19 @@ def daily(args):
     except Exception as e:  # noqa: BLE001  the story slots are extras; the news below must still run
         print(f"scheduled stories failed: {e}")
     picked = desk.select(digest["stories"])
-    if not picked:
+    if picked:
+        business_lane(args, out, digest, picked)
+    else:
         print("no new story above the bar this run")
-        return 0
+    try:
+        sport_lane(args, out, digest.get("sport", []))
+    except Exception as e:  # noqa: BLE001  the sport section is an extra; it must never fail the business run
+        print(f"sport lane failed: {e}")
+    return 0
+
+
+def business_lane(args, out, digest, picked):
+    from . import desk
     # the model only sees stories that will be posted, so an hourly run costs one short call
     digest["slots"] = {"top": picked}
     (out / "digest.json").write_text(json.dumps(digest, indent=1))
@@ -293,7 +429,6 @@ def daily(args):
     args.date = out.name
     finish(args)
     desk.queue(out)
-    return 0
 
 
 if __name__ == "__main__":

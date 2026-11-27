@@ -60,7 +60,8 @@ def post(**kw):
          "headlines": ["Denny's reshares Nvidia origin story after Jensen Huang's return"], "topic": "Business", "score": 12.5,
          "dek": "The chain says it reinstalled a plaque at the booth where Nvidia's three founders first met.",
          "body": "Denny's used Jensen Huang's return to Nvidia to reshare its role in the company's origin story.",
-         "caption": "x\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE"}
+         "caption": "x\n\nReported by CNBC. Written by AI.\n\nWant the sources? Comment SOURCE",
+         "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene", "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons"}
     p.update(kw)
     return p
 
@@ -420,6 +421,13 @@ class CrossPost(Env):
 
 
 class FacebookGate(CrossPost):
+    def setUp(self):
+        super().setUp()
+        # the quiet-day floor (test_facebook_floor) would lower the bar these tests pin
+        p = mock.patch.dict(desk.CONFIG, {"facebook_daily_min": 0})
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_shipped_bar_and_daily_max_are_set(self):
         shipped = json.loads((Path(desk.__file__).parent.parent / "desk.json").read_text())
         # Facebook takes the top few stories a day; a Telegram ping is rarer still

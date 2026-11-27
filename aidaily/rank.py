@@ -52,7 +52,15 @@ SOFT = re.compile(r"(^opinion\b|^analysis\b|^explainer\b|^photos?:|^watch:|^live
                   r"\bwhat it means\b|\brecap\w*|\bexplained\b|\bhere'?s why\b|\?\s*$)", re.I)
 
 WEIGHT = {"lab": 2.0, "news": 2.0, "newsletter": 1.5, "funding": 2.0, "community": 1.0,
-          "research": 1.0, "business": 2.0, "world": 2.0, "politics": 2.0, "culture": 1.2}
+          "research": 1.0, "business": 2.0, "world": 2.0, "politics": 2.0, "culture": 1.2, "sport": 2.0}
+
+# The competitions and events the sport section leads with; a headline naming one outranks a league's routine news.
+SPORT_BIG = re.compile(r"\b(premier league|champions league|europa league|bundesliga|la liga|serie a|world cup|euros?|"
+                       r"olympics?|olympic games|formula (1|one)|f1|grand prix|nba|nba finals|nfl|super bowl|wimbledon|"
+                       r"us open|french open|roland garros|australian open|the masters|the open|pga championship|"
+                       r"ryder cup|ashes|test match|world title|title fight)\b", re.I)
+# moves that are news in any league: smaller than a major competition
+SPORT_MOVE = re.compile(r"\b(transfer|signs|signing|sacked|appointed|record|ruled out|banned)\b", re.I)
 
 STOP = set("a an the of to in on for and or with by at from as is are was be its it this that "
            "after over new into how why what who will can up out about more than says said have has would "
@@ -146,7 +154,8 @@ SECTION = re.compile(r"\s+(AI|Main|Technology|Tech|Companies|Top ?Stories|Top Ne
 
 def publisher(item, sources):
     """One newsroom counts once: TechCrunch AI and TechCrunch Main are TechCrunch; Google News names its outlet."""
-    name = sources.get(item["source_id"], {}).get("name", item["source_id"])
+    src = sources.get(item["source_id"], {})
+    name = src.get("publisher") or src.get("name", item["source_id"])
     if name == "Techmeme":
         m = re.search(r"\((?:[^()/]+/)?([^()]+)\)\s*$", item["title"])
         if m:
@@ -210,9 +219,13 @@ def score_story(story, sources, now=None):
     hard = 1.0 if any(HARD.search(i["title"]) for i in items) else 0.0
     # a cluster whose every title is a column, an explainer or a list is commentary on the news
     soft = 2.5 if all(SOFT.search(i["title"]) for i in items) else 0.0
+    sport = all(sources.get(i["source_id"], {}).get("category") == "sport" for i in items)
+    big = ((1.5 if SPORT_BIG.search(lead["title"]) else 0.0) + (0.5 if SPORT_MOVE.search(lead["title"]) else 0.0)) if sport else 0.0
     if all(sources.get(i["source_id"], {}).get("category") == "research" for i in items):
         # papers arrive fifty a day with identical timestamps; without this they bury the news
         return round(0.6 * (base + breadth + recency + engage), 3), "research", newest
+    if sport:  # "buys" and "signs" are transfers here, not funding rounds, so the business classes do not apply
+        return round(base + breadth + recency + engage + big, 3), "sport", newest
     cat = classify(lead["title"], lead.get("summary", ""))
     bonus = {"launch": 0.3, "funding": 0.5, "policy": 0.5, "markets": 0.3}.get(cat, 0.0)
     return round(base + breadth + recency + engage + hard + bonus - soft, 3), cat, newest
@@ -220,7 +233,7 @@ def score_story(story, sources, now=None):
 
 def pick_lead(items, sources):
     """The item whose outlet ranks highest carries the headline and the link."""
-    order = {"lab": 0, "news": 1, "funding": 1, "world": 1, "politics": 1, "business": 1, "culture": 2,
+    order = {"lab": 0, "news": 1, "funding": 1, "world": 1, "politics": 1, "business": 1, "culture": 2, "sport": 1,
              "newsletter": 2, "research": 3, "community": 4}
     # a column or an explainer never carries the headline while a news report of the same event is in the cluster
     return min(items, key=lambda i: (bool(SOFT.search(i["title"])),
@@ -249,7 +262,7 @@ def rank(items, sources, now=None, max_age_h=36):
             "title": lead["title"], "url": lead["url"], "summary": lead.get("summary", ""),
             "source": publisher(lead, sources),
             "published": newest.isoformat() if newest else None,
-            "outlets": sorted({sources.get(i["source_id"], {}).get("name", i["source_id"]) for i in s["items"]}),
+            "outlets": sorted({sources.get(i["source_id"], {}).get("publisher") or sources.get(i["source_id"], {}).get("name", i["source_id"]) for i in s["items"]}),
             # who reported it, oldest first: one name per newsroom, never a discussion board or a search feed.
             # The card's count and the detail slide's list both come from this, so they cannot disagree.
             "newsrooms": [p for p, _ in trace([i for i in s["items"]

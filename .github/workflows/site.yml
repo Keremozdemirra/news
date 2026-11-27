@@ -11,6 +11,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  actions: read   # the status page lists the last runs
 concurrency:
   group: site
   cancel-in-progress: false
@@ -29,11 +30,17 @@ jobs:
         id: changed
         run: |
           # tree ids are content hashes, so this works on a shallow checkout
-          want=$(git ls-tree HEAD queue state/insights state/followers.json aidaily assets-site desk.json | sha1sum | cut -d' ' -f1)
+          # the UTC date is part of the fingerprint: the daily games need one build after every midnight
+          want=$( (git ls-tree HEAD queue state/insights state/followers.json state/markets.json aidaily assets-site games desk.json; date -u +%F) | sha1sum | cut -d' ' -f1)
           url=$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')
           live=$(curl -fsS --max-time 20 "$url/built-from.txt?t=$(date +%s)" || true)
+          # /status/ must stay current while nothing else changes (a cooldown, a quiet night): rebuild hourly anyway
+          age=$( (curl -fsS --max-time 20 "$url/status/status.json?t=$(date +%s)" || true) | python3 -c '
+          import json, sys, datetime as d
+          try: print(int((d.datetime.now(d.timezone.utc) - d.datetime.fromisoformat(json.load(sys.stdin)["generated"])).total_seconds() // 60))
+          except Exception: print(9999)')
           echo "want=$want" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$want" != "$live" ]; then
+          if [ "${{ github.event_name }}" = workflow_dispatch ] || [ "$want" != "$live" ] || [ "$age" -ge 60 ]; then
             echo "build=yes" >> "$GITHUB_OUTPUT"
           else
             echo "build=no" >> "$GITHUB_OUTPUT"; echo "site already up to date"
@@ -47,18 +54,28 @@ jobs:
         env:
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
         run: |
-          curl -sS -m 40 -o /dev/null -w 'eia root: http %{http_code} in %{time_total}s\n' "https://api.eia.gov/v2/?api_key=$EIA_API_KEY" || echo "eia root: curl failed ($?)"
-          curl -sS -m 40 -o /dev/null -w 'eia spot: http %{http_code} in %{time_total}s\n' "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&frequency=daily&data[0]=value&facets[series][]=RBRTE&length=1" -g || echo "eia spot: curl failed ($?)"
+          probe() { curl -sS -m 25 -o /dev/null -w "eia $1: http %{http_code} in %{time_total}s\n" "$2" || echo "eia $1: curl failed ($?)"; }
+          probe root "https://api.eia.gov/v2/?api_key=$EIA_API_KEY"
+          probe route "https://api.eia.gov/v2/petroleum/pri/spt/?api_key=$EIA_API_KEY"
+          probe data_plain "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&data%5B0%5D=value&length=1"
+          probe data_series "https://api.eia.gov/v2/petroleum/pri/spt/data/?api_key=$EIA_API_KEY&frequency=daily&data%5B0%5D=value&facets%5Bseries%5D%5B%5D=RBRTE&length=1"
       - name: Build
         if: steps.changed.outputs.build == 'yes'
         env:
-          # Brent and WTI rows: the EIA key is used at build time only; without it the rows are left out of the pages
+          # the build starts from the committed state/markets.json and refreshes it; the EIA key is optional (the keyless dnav pages are the fallback)
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship
           command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
           python3 -m aidaily site
+          python3 -m aidaily bsky-feed _site
           echo "${{ steps.changed.outputs.want }}" > _site/built-from.txt
+      # report-only for now: a finding is shown in the run, it never holds the deploy
+      - name: SEO audit
+        if: steps.changed.outputs.build == 'yes'
+        continue-on-error: true
+        run: python3 -m aidaily seo _site | tee -a "$GITHUB_STEP_SUMMARY"
       - if: steps.changed.outputs.build == 'yes'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
@@ -71,6 +88,11 @@ jobs:
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
       - if: steps.deploy.outcome == 'failure'
         run: sleep 30
+      # A second miss is still a GitHub-side blip: the next run (minutes away) deploys again, and the health check
+      # opens one issue if the live site falls hours behind. So it warns here instead of mailing the owner.
       - id: deploy2
         if: steps.deploy.outcome == 'failure'
+        continue-on-error: true
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      - if: steps.deploy2.outcome == 'failure'
+        run: echo "::warning::Pages deploy failed twice; the next site run retries"

@@ -17,9 +17,37 @@ MODEL = "sonnet"
 MAX_HEADLINE = 80
 DASHES = str.maketrans({"—": ",", "–": "-"})
 
-PROMPT = """You write copy for a news brand that posts every story a consultant, manager or business student
+AUDIENCE = """You write copy for a news brand that posts every story a consultant, manager or business student
 needs to know: business, markets, the economy, politics and elections, world events, technology and AI, and
-the culture moments everyone at work talks about (a record-breaking launch, a viral phenomenon).
+the culture moments everyone at work talks about (a record-breaking launch, a viral phenomenon)."""
+SPORT_AUDIENCE = """You write copy for the sport section of a news site. It covers football (Premier League,
+Champions League, Bundesliga, La Liga, Serie A, World Cup qualifiers, transfers) and the main global events:
+Formula 1, the NBA, the NFL, the tennis majors, the Olympics, cricket, the golf majors and boxing title fights.
+Readers want the result, the decision or the move, stated plainly."""
+RELEVANT = """false if a consultant or manager would not need it: crime and court cases about private
+  people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
+  and advice pieces, personal-finance columns, explainers, product deals and reviews, a brand's marketing
+  stunt or social-media post; true otherwise"""
+SPORT_RELEVANT = """false for betting tips and odds, gossip, fantasy-league advice, opinion and
+  predictions, match previews with no news in them, podcasts and quizzes, and reports on minor or local
+  competitions; true for results, signings and transfers, injuries, managerial changes, rulings, records and
+  the build-up facts of a major event"""
+TOPIC_RULE = """one of AI, Tech, Business, Markets, Economy, Politics, World, Culture. Business: companies, deals,
+  people moves, a company's marketing or products. Markets: stocks, bonds, ratings, funds. Economy: data, central
+  banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
+  what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture"""
+SPORT_TOPIC_RULE = 'always "Sport"'
+IMAGE_RULE = """2 to 4 words to search Wikimedia Commons for a photo of a physical thing the story is
+  about: a named product, a named building, or a plain object or place such as "data center",
+  "semiconductor wafer", "courthouse", "satellite". Never a person, a crowd, an event, a meeting or a
+  press conference (the story's own person goes in "person"), never a logo, never an abstract idea"""
+SPORT_IMAGE = """the stadium, arena, circuit or course the story is set at, or the home ground of the club it is about,
+  by its own name as Wikimedia Commons titles it, like "Stadium of Light" or "Silverstone Circuit" ("" when
+  unsure). Never a person, a crowd, a match, a trophy or a logo"""
+SPORT_COMPANY = """the club, team, federation or event the story is about, as it names itself, like
+  "Arsenal" or "Wimbledon" ("" if none). It is used to find a photo; no logo is shown"""
+
+PROMPT = """{audience}
 For each story below, return one JSON object. Use ONLY facts present in that story's title and summary.
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
@@ -27,21 +55,15 @@ that sounds quotable. American English. No em or en dashes. No hype words. No "n
 
 Fields:
 - id: copy the id
-- relevant: false if a consultant or manager would not need it: crime and court cases about private
-  people, sports results, celebrity gossip, local news, weather, lifestyle, recipes, obituaries, opinion
-  and advice pieces, personal-finance columns, explainers, product deals and reviews, a brand's marketing
-  stunt or social-media post; true otherwise
+- relevant: {relevant}
 - same_event: the id of an EARLIER story in this list that reports the same event, or the R number of a
   RECENT headline below that reports it with no new development ("R4"); "" when it is a new event
-- topic: one of AI, Tech, Business, Markets, Economy, Politics, World, Culture. Business: companies, deals,
-  people moves, a company's marketing or products. Markets: stocks, bonds, ratings, funds. Economy: data, central
-  banks, trade. Politics: governments, elections, regulation, courts. World: international events. Tech and AI:
-  what the technology does. Culture: entertainment, games, media, sport, art. A company story is never Culture
+- topic: {topic_rule}
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any. Plain
   words: "more than £400m", never "£400m+"; no question; no quote marks around a single word. Name the
   country when a senate, parliament, court, central bank or election is not American ("Argentina's Senate")
 - dek: one sentence, max 140 characters, the most useful extra fact (not a restatement of the headline)
-- company: the main company the story is about, as the company names itself ("" if none)
+- company: {company_rule}
 - company_domain: that company's website domain if you are certain of it, like "redqueen.bio" ("" if unsure;
   it is checked against the site's own title before use)
 - backer: a named investor or parent company in the story, like "OpenAI" ("" if none)
@@ -51,10 +73,7 @@ Fields:
   the name; never printed, so it may use what you know beyond the source
 - orgs: up to 3 companies or institutions the story names, main one first, each spelled as in the source
   ([] if none)
-- image_query: 2 to 4 words to search Wikimedia Commons for a photo of a physical thing the story is
-  about: a named product, a named building, or a plain object or place such as "data center",
-  "semiconductor wafer", "courthouse", "satellite". Never a person, a crowd, an event, a meeting or a
-  press conference (the story's own person goes in "person"), never a logo, never an abstract idea
+- image_query: {image_rule}
 - figure: the single key figure as written in the source, digits only, like "$36M", "40%" or "77,000" ("" if
   none, if it is a word like "a quarter", or if the source qualifies it with "more than", "up to", "about")
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
@@ -137,10 +156,12 @@ def _fold(text):
     return unicodedata.normalize("NFKD", text or "").encode("ascii", "ignore").decode()
 
 
-def _stems(text):
+def _stems(text, short=False):
+    """Content-word stems. Words of four letters or more, as ever, so "wins cup tie" never makes two matches one
+    event; `short` adds three-letter words, for the source side of the grounding check ("jobs" finds "job")."""
     out = set()
     for w in WORD.findall(_fold(text).lower()):
-        if w in FILLER or len(w) < 3:
+        if w in FILLER or len(w) < (3 if short else 4):
             continue
         st = _stem(w)
         if len(st) >= 3 and st not in FILLER:
@@ -153,7 +174,7 @@ def ungrounded(sentence, source_text):
     words = _stems(sentence)
     if len(words) < 3:
         return False
-    return len(words & _stems(source_text)) / len(words) < GROUNDED
+    return len(words & _stems(source_text, short=True)) / len(words) < GROUNDED
 
 
 def repeats(text, other, share=0.7):
@@ -231,13 +252,19 @@ def check_so_what(story, copy, text):
 
 # The model reads untrusted text, so the CLI gets only what it needs to run: never the Instagram or GitHub tokens
 # that sit in the same job's environment.
-CLI_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "CLAUDE_CODE_OAUTH_TOKEN",
+CLI_ENV = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
            "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS")
 
 
 def cli_env(environ=None):
     environ = os.environ if environ is None else environ
-    return {k: v for k, v in environ.items() if k in CLI_ENV}
+    env = {k: v for k, v in environ.items() if k in CLI_ENV}
+    # An automated service runs on an API key under the Commercial Terms; the subscription sign-in is for
+    # ordinary individual use (code.claude.com/docs/en/legal-and-compliance). Once the key exists, the
+    # subscription token is withheld so the CLI cannot fall back to it.
+    if env.get("ANTHROPIC_API_KEY"):
+        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+    return env
 
 
 def ask_text(prompt, runner=subprocess.run):
@@ -258,10 +285,15 @@ def ask_claude(prompt, runner=subprocess.run):
     return json.loads(m.group(0))
 
 
-def prompt(block, recent=()):
+def prompt(block, lane="news", recent=()):
+    sport = lane == "sport"
     tail = ("\n\nRECENT (already posted, for same_event only):\n" + "\n".join(f"R{i}: {h}" for i, h in enumerate(recent, 1))
             if recent else "")
-    return PROMPT.format(stories=block, recent=tail, extra_fields=SO_WHAT_FIELD if switch("so_what") else "")
+    return PROMPT.format(stories=block, recent=tail, extra_fields=SO_WHAT_FIELD if switch("so_what") else "",
+                         audience=SPORT_AUDIENCE if sport else AUDIENCE, relevant=SPORT_RELEVANT if sport else RELEVANT,
+                         topic_rule=SPORT_TOPIC_RULE if sport else TOPIC_RULE,
+                         image_rule=SPORT_IMAGE if sport else IMAGE_RULE,
+                         company_rule=SPORT_COMPANY if sport else 'the main company the story is about, as the company names itself ("" if none)')
 
 
 def write(stories, runner=subprocess.run):
@@ -278,13 +310,13 @@ def write(stories, runner=subprocess.run):
     return apply(stories, ask_claude(prompt(block), runner))
 
 
-def request(stories, recent=()):
+def request(stories, recent=(), lane="news"):
     """The prompt for the copy call. `recent` are headlines already posted, so the model can say a story repeats one."""
     for i, s in enumerate(stories):
         s["id"] = i
     block = "\n\n".join(f"id: {i}\noutlet: {s['source']}\ntitle: {s['title']}\nsummary: {s.get('summary', '')[:500]}"
                         for i, s in enumerate(stories))
-    return prompt(block, recent)
+    return prompt(block, lane, recent)
 
 
 QUALIFIED = re.compile(r"\b(more than|over|up to|at least|about|around|nearly|almost|under|less than|roughly|"
@@ -408,12 +440,15 @@ def apply(stories, reply_rows):
                 s["linkedin_post"] = s["dek"] + ("\n\n" + src_line[0] if src_line else "")
             # an unchecked sentence is never shown: any problem leaves the field empty and the story as it was
             s["so_what"] = ""
-            if switch("so_what"):
+            if switch("so_what") and s.get("lane") != "sport":
                 sw = (c.get("so_what") or "").strip()
                 if sw and not check_so_what(s, c, sw):
                     s["so_what"] = sw
             # "Culture" only when the story is about culture: a company's viral marketing is a business story
-            if s.get("topic") == "Culture" and not CULTURE.search(s["title"] + " " + s.get("summary", "")):
+            if s.get("lane") == "sport":
+                # the section is fixed by where the story came from, not by what the model says; no logo on a sport card
+                s["topic"], s["backer"], c["orgs"] = "Sport", "", []
+            elif s.get("topic") == "Culture" and not CULTURE.search(s["title"] + " " + s.get("summary", "")):
                 s["topic"] = "Business"
             # a logo for an organisation the source never names would put a company on a story it is not in
             src = (s["title"] + " " + s.get("summary", "")).lower()

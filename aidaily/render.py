@@ -86,6 +86,7 @@ def pack(slots, out_dir, brand=T.BRAND):
             manifest.append({"file": f.name, "slot": slot, "url": s["url"], "headline": s.get("headline") or s["title"],
                              "category": s.get("category", ""), "source": s.get("source", ""),
                              "x_post": s.get("x_post", ""), "linkedin_post": s.get("linkedin_post", ""),
-                             "score": s.get("score", 0), "photo_file": s.get("_assets", {}).get("file", ""), "outlets": len(s.get("timeline") or s.get("outlets") or [])})
+                             "score": s.get("score", 0), "photo_file": s.get("_assets", {}).get("file", ""),
+                             "photo_kind": s.get("_assets", {}).get("kind", ""), "photo_alt": s.get("_assets", {}).get("alt", ""), "outlets": len(s.get("timeline") or s.get("outlets") or [])})
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
     return files

@@ -1,0 +1,48 @@
+{
+ "id": "2026-11-26-2310-1",
+ "batch": "2026-11-26-2310",
+ "n": 1,
+ "created": "2026-11-26T23:10:11+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Stock futures tick higher as Wall Street ends volatile holiday week\n\nStock futures ticked higher as Wall Street got set to wrap up a volatile holiday week. Investors closed out a turbulent trading week that was shortened by the Thanksgiving holiday.\n\nReported by CNBC. Written by AI.\n\nSend this to whoever on your team watches the markets.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.cnbc.com/2026/11/26/stock-market-today-live-updates.html"
+ ],
+ "links": [
+  "https://www.cnbc.com/2026/11/26/stock-market-today-live-updates.html"
+ ],
+ "headlines": [
+  "Stock futures tick higher as Wall Street ends volatile holiday week"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "Wall Street, Manhattan, New York City, 20231002 172333.jpg",
+ "score": 8.153,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Investors wrapped up a turbulent trading week that was shortened by the Thanksgiving holiday.",
+ "body": "Stock futures ticked higher as Wall Street got set to wrap up a volatile holiday week. Investors closed out a turbulent trading week that was shortened by the Thanksgiving holiday.",
+ "so_what": "",
+ "sources": [
+  "CNBC"
+ ],
+ "source_urls": [
+  "https://www.cnbc.com/2026/11/26/stock-market-today-live-updates.html"
+ ],
+ "credit": "Photo: Jakub Hałun, CC BY 4.0, via Wikimedia Commons",
+ "status": "web",
+ "published": "2026-11-26T23:10:11+00:00",
+ "story": "",
+ "photo_kind": "name",
+ "photo_alt": ""
+}

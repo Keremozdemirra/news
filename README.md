@@ -1,6 +1,6 @@
 # boardread desk
 
-An Instagram account for the business, markets, politics, tech and AI news a consultant or manager needs, run by GitHub Actions. Every hour it fetches 106 news feeds from newsrooms on six continents and ranks the stories. It keeps each relevant story above the importance bar that is under a day old and has not been posted yet. It writes the copy, checks it against the sources, and queues one post per story: a photo card, then a slide with the report. Each run opens one issue in this repository listing its posts. Posts go out 20 minutes apart, the first two hours after queuing, unless the owner vetoes them.
+An Instagram account for the business, markets, politics, tech and AI news a consultant or manager needs, run by GitHub Actions. Every hour it fetches 138 news feeds from newsrooms on six continents and ranks the stories. It keeps each relevant story above the importance bar that is under a day old and has not been posted yet. It writes the copy, checks it against the sources, and queues one post per story: a photo card, then a slide with the report. Each run opens one issue in this repository listing its posts. Posts go out 20 minutes apart, the first two hours after queuing, unless the owner vetoes them.
 
 ## The day
 
@@ -9,7 +9,7 @@ An Instagram account for the business, markets, politics, tech and AI news a con
 | every 30 min | `daily` | fetch, rank, keep new important stories, copy, check, render, queue in `queue/<id>/`, open the veto issue |
 | every 5 min | `publish` | post the oldest due post, one per run, unless vetoed |
 | every 5 min | `engage` | DM the sources to anyone who comments SOURCE; answer other new comments, at most 20 a day |
-| Monday 06:00 | `weekly` | pull reach, shares and saves; set category weights; extend the token |
+| Monday 06:00 | `weekly` | pull every platform's numbers; set category weights and learned timing; extend the token |
 | after each run | `site` | rebuild the news site from the published posts |
 
 GitHub may start a scheduled run up to half an hour late.
@@ -19,6 +19,13 @@ GitHub may start a scheduled run up to half an hour late.
 - One post: comment `veto 2` on its run's issue (or `veto 1, 3`, or `veto all`). Only the repository owner's comments count.
 - A whole run: close its issue.
 - Everything: commit a file named `PAUSED` at the root, or set the repository variable `DESK_PAUSED` to `1`. The repository ships with `PAUSED` in place; deleting it is the go-live step.
+
+## Watching it
+
+- `/status/` on the site (and `/status/status.json`): last run of every workflow, last post and today's count per platform, cooldowns, the queue, and the last day's errors as HTTP status and platform code. The site rebuilds it at least hourly; if the page says it has not been rebuilt for a while, the desk has stopped.
+- One issue, "Desk health: needs attention", opened by the `publish` run when something will not fix itself (a platform rejecting its token, posts stuck, a workflow failing again and again, no tick running, the site hours behind). A problem must last 20 minutes first; the issue gets one comment when the list changes and closes itself after 30 clear minutes. Cooldowns and single failed runs never open it.
+- Every Monday the `weekly` run opens "Weekly health" with the week's posts per platform, failures and token dates, and closes last week's.
+- Duplicates: before any send, Instagram, Threads, Facebook and Bluesky are checked for the post already being live, so a lost status commit is recorded and the post stays single. Telegram cannot be read back by a bot; there the marker written before the send is the only guard.
 
 ## What keeps it safe
 
@@ -42,6 +49,10 @@ GitHub may start a scheduled run up to half an hour late.
 
 `python3 scripts/growth_preview.py` writes `brand/preview/growth.html` with all five on, from real posts, without calling Instagram.
 
+## Growth loop
+
+Each Monday `python3 -m aidaily insights` reads per-post numbers from every connected platform into `post.json` (`metrics`) and writes `state/insights/<week>.json`. Each number is compared with that platform's 30-day median. The results feed three things, each inside fixed limits: category weights for ranking, the Telegram digest hour, and quiet hours for web-tier social posts. When per-post Instagram sends fall, the volume ramp holds. `python3 -m aidaily seo _site` audits a build for Google; the site workflow prints it on every run. Plans, the legal reasoning and the owner's checklists are in `brand/growth/`.
+
 ## Secrets and settings
 
 | Name | Kind | Used by |
@@ -57,12 +68,16 @@ Instagram fetches each JPEG from its raw URL on the `media` branch, which is why
 
 | Path | What it does |
 |---|---|
-| `aidaily/feeds.py`, `rank.py` | fetch 106 feeds, cluster items into stories (weighting the words few titles share), score them by newsrooms, recency and hard-news terms |
+| `aidaily/feeds.py`, `rank.py` | fetch 138 feeds, cluster items into stories (weighting the words few titles share), score them by newsrooms, recency and hard-news terms |
 | `aidaily/copy.py` | the copy prompt and the checks against the source text |
 | `aidaily/templates.py`, `render.py` | 1080x1350 cards and the daily cover, rendered by headless Chrome, saved as JPEG |
-| `aidaily/desk.py` | queue, publish, replies, weekly weights, token check |
+| `aidaily/desk.py` | queue, publish, replies, token check |
+| `aidaily/insights.py` | the weekly numbers from Instagram, Threads, Facebook, Bluesky and Telegram, and the guarded feedback into weights and timing |
+| `aidaily/seo.py`, `distribution.py` | the SEO audit of a built site; the Telegram pinned post and the Bluesky custom feed |
 | `aidaily/instagram.py` | the Instagram API calls (graph.facebook.com with a unified-login system-user token, v27.0) |
 | `aidaily/github.py` | the veto issues |
+| `aidaily/status.py` | the status page, `status.json`, the health and weekly issues |
+| `aidaily/redact.py` | removes secrets from every saved file and every printed line |
 | `desk.json` | caps, window, hashtags, skipped topics |
 | `aidaily/site.py`, `assets-site/` | the news site (front page, stories, topics, week, archive, search, static pages, RSS, sitemaps); one address setting, `site_url` |
 | `scripts/media.sh` | the `media` branch: one commit of the JPEGs Instagram fetches and the thumbnails the pages show, pruned by age |

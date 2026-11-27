@@ -11,9 +11,9 @@ nothing else. Three layouts, picked by what the story has:
 """
 import html
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
-from . import entities
+from . import entities, scenes
 
 FONTS = "https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;700;800&display=swap"
 BRAND = {"name": "boardread.", "handle": "@boardread"}
@@ -77,19 +77,61 @@ def in_headline(name, headline):
 
 # Commons files already on recent posts; the desk fills it before a render so no photo repeats for weeks
 USED = set()
+LAST = {}  # file -> when a post last used it, for the scene photos' least-recently-used rotation
+
+
+def pick_photo(story, head_, co, fetch=True, sport=False):
+    """(path, credit, Commons file, kind, alt) of the photo a story carries; kind is person, company, name or scene.
+
+    Every story gets a picture, from the nearest to the story outward: the named person, the company's own photos
+    (its aircraft, its headquarters), another proper name the headline carries (a place, an organisation), and last
+    a hand-vetted scene for the topic. A search that guessed at a topic once put a stranger's wall on a story, so the
+    scenes are a fixed list and the rest only use files whose own title names the subject."""
+    allow = head_ + " " + (co or "")
+    title = story.get("headline") or story.get("title") or ""
+    ph, credit, file_, kind, alt = None, "", "", "", ""
+    # a club name finds a city, a street or a bridge ("Sunderland"); sport looks for the named ground instead
+    # the person's role picks the right one of several people with the name (entities.person_entity); the company's
+    # own photo only when the headline names the company, like its logo: a Stellantis plant in France once ran over
+    # a headline about Ontario's premier
+    own_co = co if co and in_headline(co, head_) else ""
+    for tag, subject in [("person", (story.get("person", ""), True, story.get("person_role", "") if not sport else None)),
+                         ("company", (story.get("image_query", "") if sport else own_co, False))]:
+        ph, credit, file_ = entities.fresh_photo([subject], USED, fetch=fetch, allow=allow, teams=sport)
+        if file_:
+            kind = tag
+            break
+    if not file_ and fetch and not sport:
+        for name in entities.headline_names(title, skip=[story.get("person", ""), co]):
+            if entities.is_human(name):
+                continue
+            ph, credit, file_ = entities.fresh_photo([(name, False)], USED, fetch=fetch, allow=allow, strict=True)
+            if file_:
+                kind = "name"
+                break
+    if not file_ and fetch:
+        text = title + " " + story.get("summary", "")
+        ph, credit, file_, alt = scenes.photo(text, story.get("topic", ""), USED, LAST, fetch=fetch, sport=sport)
+        kind = "scene" if file_ else ""
+    if file_:
+        USED.add(file_)
+        LAST[file_] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return ph, credit, file_, kind, alt
 
 
 def assets(story, fetch=True):
     """Logos and a photo for a story, resolved once and kept on the story."""
     if "_assets" not in story:
         co = story.get("company", "")
-        lg = entities.logo(co, story.get("company_domain", ""), fetch=fetch)
-        bk = entities.logo(story.get("backer", ""), fetch=fetch) if story.get("backer") else None
+        # a club or event is a subject for a photo; its badge is a trademark, so sport shows no logo
+        sport = story.get("lane") == "sport" or story.get("topic") == "Sport"
+        lg = None if sport else entities.logo(co, story.get("company_domain", ""), fetch=fetch)
+        bk = entities.logo(story.get("backer", ""), fetch=fetch) if story.get("backer") and not sport else None
         # a logo says "this story is about us": only an organisation the headline names gets one. BCG was quoted
         # in an FCC/SpaceX story and its logo on the card read as if BCG were the news.
         head_ = (story.get("headline") or story.get("title") or "").lower()
         names = []
-        for n in [co, story.get("backer", "")] + list(story.get("orgs") or []):
+        for n in ([] if sport else [co, story.get("backer", "")] + list(story.get("orgs") or [])):
             if n and n.lower() not in {x.lower() for x in names} and in_headline(n, head_):
                 names.append(n)
         logos, logo_names = [], []
@@ -101,21 +143,12 @@ def assets(story, fetch=True):
             if f:
                 logos.append(f.as_uri())
                 logo_names.append(n)
-        # the company's own photos (its aircraft, its headquarters) beat a generic scene the model suggests
-        # a generic scene ("AI data center") put a stranger's wall on a story; no photo beats a wrong one,
-        # so only the named person or the company's own photos are used
-        # the person's role picks the right one of several people with the name (person_entity)
-        # and the company's photo only when the headline names the company, like its logo: a Stellantis plant in
-        # France once ran over a headline about Ontario's premier
-        subjects = [(story.get("person", ""), True, story.get("person_role", "")), (co if co in names else "", False)]
-        ph, credit, file_ = entities.fresh_photo(subjects, USED, fetch=fetch, allow=head_ + " " + (co or ""))
-        if file_:
-            USED.add(file_)
+        ph, credit, file_, kind, alt = pick_photo(story, head_, co, fetch, sport)
         # a ticker names a listed company, so it follows the logo rule: the story's own company, named in the headline
         tk = entities.ticker(co, fetch=fetch) if co and co in names else None
         story["_assets"] = {"logo": lg.as_uri() if lg else "", "backer": bk.as_uri() if bk else "", "ticker": tk,
                             "logos": logos, "logo_names": logo_names, "photo": ph.as_uri() if ph else "",
-                            "credit": credit, "file": file_}
+                            "credit": credit, "file": file_, "kind": kind, "alt": alt}
     return story["_assets"]
 
 
@@ -154,7 +187,7 @@ def head():
             "<style>body{margin:0}*{box-sizing:border-box}h1{text-wrap:balance}</style></head><body>")
 
 
-TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture"}
+TOPICS = {"AI", "Tech", "Business", "Markets", "Economy", "Politics", "World", "Culture", "Sport"}
 
 
 def _meta(story):
@@ -188,6 +221,22 @@ def _logo_tile(uri, size):
             f'<img src="{uri}" style="width:100%;height:100%;object-fit:contain"></div>')
 
 
+_POS = {}
+
+
+def _pos(uri, w, h, about=None):
+    """CSS object-position for the photo at `uri` in a w x h box, centred on its focal point (the face of a portrait), so the crop
+    does not cut the forehead or the chin. `about`: a dict with person / photo_file of the story, or None for a portrait."""
+    from urllib.parse import unquote, urlparse
+    from . import focus
+    path = unquote(urlparse(uri).path) if uri.startswith("file:") else ""
+    if (path, bool(about)) not in _POS:
+        at = focus.for_post(about if about is not None else {"person": "portrait"}, path)[0] if path else focus.PRIOR_SCENE
+        _POS[path, bool(about)] = (at, focus.jpeg_size(path) or (w, h))
+    at, size = _POS[path, bool(about)]
+    return focus.object_position(at, size, w / h)
+
+
 def _aspect(uri):
     """Width over height of a local SVG from its viewBox or width/height; 4 (a wordmark) when unreadable."""
     try:
@@ -215,9 +264,11 @@ def _logo_block(uri, name, h=60, invert=False):
     return _logo_tile(uri, int(h * 2.4))
 
 
-def _foot(story, brand, dark=False):
+def _foot(story, brand, dark=False, edited=False):
     grey = GREY_DARK if dark else GREY
     credit = assets(story)["credit"]
+    if edited and credit and re.search(r"\bCC BY\b", credit):
+        credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
     c = f'<div style="margin-top:10px;font-size:16px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
     return (f'<div><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
             f'<span style="font-size:34px;font-weight:800;letter-spacing:-0.5px">{e(brand["name"])}</span>'
@@ -229,8 +280,12 @@ def _size(text, big, mid, small):
     return big if n < 55 else mid if n < 85 else small
 
 
-def card(story, brand=BRAND):
-    """4:5 card for every platform."""
+def card(story, brand=BRAND, motion=False, height=1350):
+    """4:5 card for every platform.
+
+    motion: the photo layout without its photo, on a transparent ground, for cardvideo.py to lay over the moving
+    photo; its parts carry class names so the video can bring them in one by one. height 1920 is the same card as a
+    9:16 Reel, with the text kept clear of the bands Instagram draws its own buttons and caption over."""
     a = assets(story)
     title = story.get("headline") or story["title"]
     kind = layout(story)
@@ -240,15 +295,21 @@ def card(story, brand=BRAND):
             f'<div style="height:96px;padding:0 26px;background:#fff;border-radius:20px;display:flex;align-items:center;'
             f'box-shadow:0 6px 24px rgba(0,0,0,.25)"><img src="{u}" style="height:{(76 if _aspect(u) < 1.6 else 44) if u.endswith(".svg") else 72}px;'
             f'max-width:300px;object-fit:contain;display:block"></div>' for u in a.get("logos", []))
-        return head() + f"""
-<div style="position:relative;width:1080px;height:1350px;background:{BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
-<img src="{a['photo']}" style="position:absolute;inset:0;width:1080px;height:1350px;object-fit:cover;object-position:50% {'25%' if story.get('person') else '50%'}">
-<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%)"></div>
-<div style="position:absolute;left:64px;right:64px;top:64px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
-<div style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column">
-<span style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
-<h1 style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{t(title)}</h1>
-{_foot(story, brand, dark=True)}</div></div></body></html>"""
+        tall = height > 1350
+        top, side, bottom = (240, 150, 420) if tall else (64, 72, 64)
+        grad = ("rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.84) 58%,rgba(0,0,0,.94) 100%" if tall else
+                "rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 22%,rgba(0,0,0,0) 38%,rgba(0,0,0,.82) 66%,rgba(0,0,0,.94) 100%")
+        photo = "" if motion else (f'<img src="{a["photo"]}" style="position:absolute;inset:0;width:1080px;height:{height}px;object-fit:cover;'
+                                   f'object-position:{_pos(a["photo"], 1080, height, {"person": story.get("person"), "photo_file": story.get("photo_file")})}">')
+        return head().replace("<body>", "<body style=\"background:transparent\">" if motion else "<body>") + f"""
+<div style="position:relative;width:1080px;height:{height}px;background:{'transparent' if motion else BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
+{photo}
+<div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
+<div class="c-chips" style="position:absolute;left:64px;right:64px;top:{top}px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
+<div style="position:absolute;left:72px;right:{side}px;bottom:{bottom}px;display:flex;flex-direction:column">
+<span class="c-meta" style="font-size:26px;font-weight:600;color:#d6d6d6">{e(_meta_card(story))}</span>
+<h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:-1.5px">{t(title)}</h1>
+<div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div></div></body></html>"""
     if kind == "figure":
         # one way to set a big figure: "C$8.5 billion" from the copy step reads "C$8.5B", like every other card
         fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
@@ -397,7 +458,7 @@ def story_company(logo_uri, name, rows, label):
 def story_person(photo_uri, name, headline, credit, label):
     """In the news: the person of the day in a licensed portrait, with the headline that put them there."""
     inner = (f'{_story_tag("In the news")}'
-             f'<div style="margin-top:30px;border-radius:24px;overflow:hidden;height:700px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+             f'<div style="margin-top:30px;border-radius:24px;overflow:hidden;height:700px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:{_pos(photo_uri, 912, 700)}"></div>'
              f'{_credit(credit)}'
              f'<div style="margin-top:32px;font-size:88px;font-weight:800;letter-spacing:-4px;line-height:.95">{e(name)}</div>'
              f'<div style="margin-top:20px;font-size:42px;font-weight:700;line-height:1.15;letter-spacing:-1px;color:#d6d6d4">{t(headline)}</div>'
@@ -429,7 +490,7 @@ def story_quiz(hint, label, options=(), title="Guess the<br>company."):
 def story_whois(photo_uri, label, options, credit=""):
     """Who is this?: a licensed portrait, no name, four names. The answer is the next story."""
     inner = (f'{_story_head("Who is this?", top=48)}'
-             f'<div style="margin-top:28px;border-radius:24px;overflow:hidden;width:700px;height:515px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+             f'<div style="margin-top:28px;border-radius:24px;overflow:hidden;width:700px;height:515px"><img src="{photo_uri}" style="width:100%;height:100%;object-fit:cover;object-position:{_pos(photo_uri, 700, 515)}"></div>'
              f'{_credit(credit)}'
              f'<div style="flex:1;display:flex;flex-direction:column;justify-content:center">{_options(options, 44)}</div>{_story_foot("Tap for the answer")}')
     return _story_shell(inner, label)
@@ -484,7 +545,7 @@ def story_answer(letter, options, label, headline="", mark="", logo_uri="", phot
         # the portrait sits beside the headline, in the same 1.36:1 frame as the question, so a face is never cut to a strip
         story = (f'<div style="margin-top:36px;display:flex;gap:32px;align-items:flex-start">'
                  f'<div style="flex:none;border-radius:24px;overflow:hidden;width:430px;height:316px"><img src="{photo_uri}" '
-                 f'style="width:100%;height:100%;object-fit:cover;object-position:50% 25%"></div>'
+                 f'style="width:100%;height:100%;object-fit:cover;object-position:{_pos(photo_uri, 430, 316)}"></div>'
                  f'<div style="font-size:42px;font-weight:800;line-height:1.18;letter-spacing:-1px;color:#d6d6d4">{_marked(headline, mark)}</div></div>'
                  f'{_credit(credit)}')
     else:
