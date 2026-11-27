@@ -346,5 +346,87 @@ class Depth(unittest.TestCase):
         self.assertIn("too thin", copy.thin({"dek": "A fact.", "linkedin_post": "One sentence only here.\n\nSource: RNZ"}))
 
 
+def grouped():
+    return story("Spain heads to a snap election on Sunday",
+                 "Prime Minister Pedro Sanchez called the vote after his coalition lost its budget majority. Polls open at 9am.",
+                 source="Reuters",
+                 reports=[{"outlet": "Bloomberg Politics", "title": "Spain's election tests the far right",
+                           "summary": "The People's Party leads the polls with 33 percent, ahead of the Socialists on 27 percent."},
+                          {"outlet": "AP", "title": "Spanish voters pick a new parliament",
+                           "summary": "Housing costs and immigration dominate the campaign, voters told reporters."}])
+
+
+class BySource(unittest.TestCase):
+    GOOD = [{"outlet": "Reuters", "line": "Sanchez called the vote once his coalition could no longer pass a budget."},
+            {"outlet": "Bloomberg Politics", "line": "The People's Party is ahead in the polls on 33 percent against 27 for the Socialists."},
+            {"outlet": "AP", "line": "Voters list housing costs and immigration as the issues of the campaign."}]
+
+    def test_lines_that_pass_are_kept_per_newsroom(self):
+        kept = copy.check_by_source(grouped(), self.GOOD)
+        self.assertEqual([k["outlet"] for k in kept], ["Reuters", "Bloomberg Politics", "AP"])
+
+    def test_a_number_from_another_newsroom_fails_that_line(self):
+        rows = [self.GOOD[0], {"outlet": "AP", "line": "The People's Party leads with 33 percent of the vote."}, self.GOOD[2]]
+        kept = copy.check_by_source(grouped(), rows)
+        self.assertEqual([k["outlet"] for k in kept], ["Reuters", "AP"])
+
+    def test_an_unlisted_outlet_a_copy_a_quote_and_a_second_line_fail(self):
+        rows = [{"outlet": "The Times", "line": "Sanchez called the vote."},
+                {"outlet": "Reuters", "line": "Prime Minister Pedro Sanchez called the vote after his coalition lost its budget majority."},
+                {"outlet": "AP", "line": 'Voters said "housing costs and immigration dominate the campaign" in many towns.'},
+                {"outlet": "AP", "line": "Housing costs and immigration worry voters."}]
+        self.assertEqual(copy.check_by_source(grouped(), rows), [])  # one passes: a list needs two
+        rows.append(self.GOOD[0])
+        self.assertEqual([k["outlet"] for k in copy.check_by_source(grouped(), rows)], ["AP", "Reuters"])
+
+    def test_a_list_of_one_is_dropped_and_an_outlet_is_used_once(self):
+        self.assertEqual(copy.check_by_source(grouped(), self.GOOD[:1]), [])
+        self.assertEqual(copy.check_by_source(grouped(), [self.GOOD[0], self.GOOD[0]]), [])
+
+    def test_commentary_another_newsroom_and_attribution_openers_fail(self):
+        rows = [{"outlet": "Reuters", "line": "For Europe, the vote has become a referendum on the whole political order."},
+                {"outlet": "AP", "line": "Bloomberg says housing costs and immigration dominate the campaign."},
+                {"outlet": "Bloomberg Politics", "line": "Bloomberg reports that the People's Party leads."}]
+        self.assertEqual(copy.check_by_source(grouped(), rows), [])
+
+    def test_two_sentences_and_garbage_rows_fail(self):
+        rows = [{"outlet": "Reuters", "line": "Sanchez called the vote. His coalition lost its budget majority."}, "x", None,
+                {"outlet": "AP"}, {"line": "orphan"}]
+        self.assertEqual(copy.check_by_source(grouped(), rows), [])
+        self.assertEqual(copy.check_by_source(grouped(), "not a list"), [])
+
+    def test_apply_stores_the_list_and_the_post_carries_it_unrendered(self):
+        s = grouped()
+        rows = [row(headline="Spain heads to a snap election on Sunday", dek="Polls open at 9am.", x_post="x",
+                    linkedin_post="The People's Party leads the polls with 33 percent against 27 for the Socialists. Housing costs "
+                                  "and immigration dominate the campaign.\n\nSource: Reuters", by_source=self.GOOD)]
+        copy.apply([s], rows)
+        self.assertEqual(s["copy_status"], "ok")
+        self.assertEqual(len(s["by_source"]), 3)
+
+    def test_a_fallback_story_has_none(self):
+        s = grouped()
+        copy.apply([s], [row(headline="Spain votes on 99 percent", dek="", x_post="", linkedin_post="", by_source=self.GOOD)])
+        self.assertEqual(s["by_source"], [])
+
+    def test_the_prompt_asks_for_it_and_the_switch_turns_it_off(self):
+        self.assertIn("- by_source:", copy.prompt("id: 0"))
+        orig = copy.switch
+        try:
+            copy.switch = lambda name: False if name == "by_source" else orig(name)
+            self.assertNotIn("- by_source:", copy.prompt("id: 0"))
+            s = grouped()
+            copy.apply([s], [row(headline="Spain heads to a snap election on Sunday", dek="Polls open at 9am.", x_post="",
+                                 linkedin_post="", by_source=self.GOOD)])
+            self.assertEqual(s["by_source"], [])
+        finally:
+            copy.switch = orig
+
+    def test_no_page_prints_it(self):
+        import pathlib
+        for f in ("site.py", "templates.py", "sitepages.py", "views.py"):
+            self.assertNotIn("by_source", (pathlib.Path(copy.__file__).parent / f).read_text(), f)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -185,6 +185,7 @@
   "growth": {
     "games_post": false,
     "so_what": false,
+    "by_source": true,
     "carousel_extended": false,
     "send_prompt": true,
     "alt_text": true,

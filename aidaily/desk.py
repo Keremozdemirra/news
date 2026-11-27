@@ -1735,7 +1735,7 @@ def queue(day_dir, batch=None, render=True):
                 "person": s.get("person", ""),
                 # what the photo was picked from, so a later repick asks the same questions (plan item 8)
                 "person_role": s.get("person_role", ""), "image_query": s.get("image_query", ""),
-                "orgs": s.get("orgs", []), "venue": s.get("venue", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "supported": s.get("supported") or None, "so_what": so_what(s), "sources": outlets(m, s),
+                "orgs": s.get("orgs", []), "venue": s.get("venue", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "supported": s.get("supported") or None, "by_source": s.get("by_source") or [], "so_what": so_what(s), "sources": outlets(m, s),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],

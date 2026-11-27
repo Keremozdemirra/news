@@ -135,6 +135,15 @@ SO_WHAT_FIELD = """
   Bad: "The airline has stopped flying and faces bankruptcy." (restates the story, names no group)
   Bad: "Investors should avoid airline stocks." (advice, not in the source)"""
 
+# Added to the prompt only while desk.json growth.by_source is true. Log-only: the lines are checked and stored on the
+# post (post.json "by_source") and no page, card or caption prints them yet.
+BY_SOURCE_FIELD = """
+- by_source: [] or one object per newsroom that has a fact of its own, {{"outlet": "<name exactly as listed>", "line":
+  "<one sentence>"}}. The outlet is the one named after "outlet:" or one named under "also reported". The line says
+  what THAT newsroom's own title and summary say, with nothing from any other newsroom, in your own words (never a run
+  of seven words copied, no quote), max 25 words, no newsroom named, no "reports that". Leave a newsroom out when its
+  text adds nothing. [] for a story only one newsroom reported"""
+
 
 def switch(name):
     """A growth switch from desk.json; read on each call so a test or a config edit takes effect at once."""
@@ -439,7 +448,7 @@ def prompt(block, lane="news", recent=()):
     sport = lane == "sport"
     tail = ("\n\nRECENT (already posted, for same_event only):\n" + "\n".join(f"R{i}: {h}" for i, h in enumerate(recent, 1))
             if recent else "")
-    return PROMPT.format(stories=block, recent=tail, extra_fields=SO_WHAT_FIELD if switch("so_what") else "",
+    return PROMPT.format(stories=block, recent=tail, extra_fields=(SO_WHAT_FIELD if switch("so_what") else "") + (BY_SOURCE_FIELD if switch("by_source") else ""),
                          audience=SPORT_AUDIENCE if sport else AUDIENCE, relevant=SPORT_RELEVANT if sport else RELEVANT,
                          topic_rule=SPORT_TOPIC_RULE if sport else TOPIC_RULE,
                          image_rule=SPORT_IMAGE if sport else IMAGE_RULE,
@@ -968,10 +977,52 @@ def tag_company(s):
         s["orgs"] = ([named] + list(s.get("orgs") or []))[:3]
 
 
+BY_SOURCE_MIN = 2   # a by-source list needs two newsrooms that each pass: one line is just the report again
+BY_SOURCE_WORDS = 30
+
+
+def _outlet_key(name):
+    n = FEED_SUFFIX.sub("", name or "").strip()
+    return re.sub(r"^the ", "", ALIAS_NAMES.get(n, n).lower())
+
+
+def check_by_source(story, rows):
+    """The by-source lines that stand, or []. Each line says what one newsroom's own title and summary say: the
+    outlet must be one the story lists, and the line must be one sentence of its own words, with every number from that
+    newsroom's own text and most of its words too (ungrounded() against that text alone), no quote, no run copied from
+    it, no other newsroom named, no commentary. A list is kept only when two or more newsrooms pass."""
+    from . import desk  # the house slop list lives in desk; imported here because desk imports this module
+    if not isinstance(rows, list):
+        return []
+    own = {_outlet_key(story.get("source", "")): (story.get("source", ""), f"{story.get('title', '')} {story.get('summary', '')}")}
+    for r in story.get("reports") or []:
+        own.setdefault(_outlet_key(r.get("outlet", "")), (r.get("outlet", ""), f"{r.get('title', '')} {r.get('summary', '')}"))
+    kept, used = [], set()
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("outlet"), str) or not isinstance(row.get("line"), str):
+            continue
+        key = _outlet_key(row["outlet"])
+        line = re.sub(r"\s+", " ", row["line"].translate(DASHES)).strip()
+        if key not in own or key in used or not line:
+            continue
+        name, text = own[key]
+        others = {n for k, (o, _) in own.items() if k != key for n in outlet_names({"source": o})} - outlet_names({"source": name})
+        if (len(sentences(line)) != 1 or len(line.split()) > BY_SOURCE_WORDS or not line.endswith((".", "!", "?"))
+                or _numbers(line) - _numbers(text) or ungrounded(line, f"{text} {name}") or copied_run(line, text)
+                or [q for q in QUOTE.findall(line) if len(q.split()) >= 4] or META.search(line) or OFFTOPIC.search(line)
+                or HYPE.search(line) or NOT_BUT.search(line) or desk.SLOP.search(line) or MALFORMED.search(line)
+                or (others and re.search(r"\b" + _outlet_rx(others) + r"\b", line))
+                or re.search(rf"^(?:the )?{_outlet_rx(outlet_names({'source': name}))}\s+{SAYS}\b", line, re.I)):
+            continue
+        used.add(key)
+        kept.append({"outlet": name, "line": line})
+    return kept if len(kept) >= BY_SOURCE_MIN else []
+
+
 def fall_back(s):
     """The story as its source worded it: no checked copy, so the desk will not post it."""
     s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
-             linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback")
+             linkedin_post=f"{s['title']}\n\nSource: {s['source']}", copy_status="fallback", by_source=[])
 
 
 def apply(stories, reply_rows):
@@ -1055,6 +1106,8 @@ def apply(stories, reply_rows):
                 fall_back(s)
                 continue
             s["supported"] = fingerprint(s["headline"], s.get("dek", ""), s.get("linkedin_post", ""))
+            # log-only: stored for the post.json record, shown nowhere
+            s["by_source"] = check_by_source(s, c.get("by_source")) if switch("by_source") else []
             # "Culture" only when the story is about culture: a company's viral marketing is a business story
             if s.get("lane") == "sport":
                 # the section is fixed by where the story came from, not by what the model says; no logo on a sport card
