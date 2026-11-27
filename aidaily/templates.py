@@ -341,8 +341,9 @@ def _foot(story, brand, dark=False, edited=False):
     if edited and credit and re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited"):
         credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
     # archive footage says so where it can be read on a phone; a photo credit stays small
-    size = 21 if credit.startswith("Archive footage") else 16
-    c = f'<div style="margin-top:10px;font-size:{size}px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
+    # 22 px is the least a credit may be on a 1080 px card and still be read on a phone (visual gate, gate.py)
+    size = 22
+    c = f'<div data-credit style="margin-top:10px;font-size:{size}px;line-height:1.3;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
     return (f'<div><div style="display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
             f'<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand["name"])}</span>'
             f'<span style="color:{grey}">{e(domain())}</span></div>{c}</div>')
@@ -684,7 +685,7 @@ def story_number(figure, headline, label, unit="", qualifier="", photo="", credi
     pre = _h(e(qualifier), 72, color=DIM, lh=1) if qualifier else ""
     unit_html = _h(e(unit), 110, top=8, lh=1) if unit else ""
     # without a photo the frame is all type: the figure and the headline grow into the space the photo held
-    head = _scale(headline, ((50, 64), (75, 58), (999, 52))) if photo else _scale(headline, ((50, 92), (75, 82), (999, 72)))
+    head = _scale(headline, ((50, 64), (75, 58), (999, 52))) if photo else _scale(headline, ((50, 112), (75, 100), (999, 88)))
     if not photo:
         size = min(int(size * 1.3), int(936 / (0.62 * max(len(figure), 1))))
     body = (pre + _h(e(figure), size, top=8 if qualifier else 0, lh=0.84, track=-0.055) + unit_html
@@ -911,11 +912,13 @@ def _move_color(move, paper=False):
 def story_markets(title, rows, label, source, more=False):
     """Markets close: official prints only, one row each. A row is (name, value, move, date); the move is against the
     previous print, set with an arrow, never colour; the date is shown only when the print is not today's."""
-    items = "".join(f'<div style="display:grid;grid-template-columns:1fr auto;column-gap:32px;align-items:center;margin-top:{24 if i else 0}px">'
-                    f'<div><div style="font-size:50px;font-weight:800;letter-spacing:-0.025em;line-height:1.05">{e(n)}</div>'
+    # the rows fill the frame: at 50 px with 24 px between, a fifth of the frame stood empty under the title (gate.py)
+    gap = 64 if len(rows) <= 5 else 40
+    items = "".join(f'<div style="display:grid;grid-template-columns:1fr auto;column-gap:32px;align-items:center;margin-top:{gap if i else 0}px">'
+                    f'<div><div style="font-size:58px;font-weight:800;letter-spacing:-0.025em;line-height:1.05">{e(n)}</div>'
                     + (f'<div style="margin-top:4px;font-size:34px;font-weight:600;color:{MUTE}">{e(d)}</div>' if d else "")
-                    + f'</div><div style="text-align:right;white-space:nowrap"><div style="font-size:62px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
-                    f'<div data-move style="margin-top:4px;font-size:34px;font-weight:700;color:{_move_color(c)}">{e(c)}</div></div></div>'
+                    + f'</div><div style="text-align:right;white-space:nowrap"><div style="font-size:72px;font-weight:800;letter-spacing:-0.04em;line-height:1">{e(v)}</div>'
+                    f'<div data-move style="margin-top:6px;font-size:38px;font-weight:700;color:{_move_color(c)}">{e(c)}</div></div></div>'
                     for i, (n, v, c, d) in enumerate(rows))
     body = (f'{_story_head(e(title), 104)}<div style="flex:1;min-height:40px"></div>{items}'
             f'<div data-credit style="margin-top:40px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
@@ -942,7 +945,7 @@ def story_chart(name, pts, first, last, move, span, label, source):
     against the line, the first and last values with their dates under the ends of the line."""
     body = (f'{_h(e(name), 120, lh=0.92, track=-0.04)}'
             f'{_h(e(move), 64, color=_move_color(move), top=24, lh=1.05, track=-0.03)}'
-            f'<div style="flex:1;min-height:40px"></div>{_chart_svg(pts)}'
+            f'<div style="flex:1;min-height:40px"></div>{_chart_svg(pts, h=820)}'
             f'<div style="margin-top:28px;display:flex;justify-content:space-between;font-size:34px;font-weight:700;color:{DIM}">'
             f'<span>{e(first)}</span><span style="color:{INK}">{e(last)}</span></div>'
             f'<div data-credit style="margin-top:28px;font-size:28px;line-height:1.3;color:{MUTE}">{e(source)}</div>')
@@ -993,19 +996,22 @@ def feed_close(groups, label, source):
 def story_follow(handle, line, label):
     # centred and set larger: anchored at the foot, the frame was more than half empty (post QA 2026-11-27)
     body = ('<div style="flex:1"></div>' + _h(e(handle), 168, lh=0.9, track=-0.05)
-            + _h(e(line), 104, color=DIM, top=64, lh=1.02, track=-0.035))
+            + _h(e(line), 116, color=DIM, top=72, lh=1.02, track=-0.035)
+            + _h("Business, markets, tech and world news from named newsrooms, every day.", 76, color=MUTE, top=88,
+                 weight=700, lh=1.12, track=-0.02))
     return _frame(body, "Follow", label, "Tap the name above to follow", align="center")
 
 
 def story_games(rows, label, link):
     """Today's games: each game's name and puzzle number, then where to play. No hint of any answer."""
-    items = "".join(f'<div style="display:flex;justify-content:space-between;align-items:baseline;padding:34px 0;'
-                    f'border-top:2px solid {RULE}"><span style="font-size:76px;font-weight:800;letter-spacing:-0.03em">{e(n)}</span>'
-                    f'<span class="num" style="font-size:52px;color:{DIM}">{e(no)}</span></div>' for n, no in rows)
-    body = (_h("Today&rsquo;s<br>games.", 150, lh=0.92, track=-0.045)
-            + f'<div style="margin-top:72px">{items}</div>'
-            + _h(e(link), 56, color=DIM, top=56, weight=500, track=-0.01))
-    return _frame(body, "Play", label, "New puzzles every day")
+    items = "".join(f'<div style="display:flex;justify-content:space-between;align-items:baseline;padding:52px 0;'
+                    f'border-top:2px solid {RULE}"><span style="font-size:88px;font-weight:800;letter-spacing:-0.03em">{e(n)}</span>'
+                    f'<span class="num" style="font-size:60px;color:{DIM}">{e(no)}</span></div>' for n, no in rows)
+    # the title under the kicker and the rows grown to fill the frame (gate.py measured a sixth of it empty)
+    body = (_h("Today&rsquo;s<br>games.", 160, lh=0.92, track=-0.045)
+            + f'<div style="flex:1;min-height:56px"></div><div>{items}</div>'
+            + _h(e(link), 64, color=DIM, top=56, weight=500, track=-0.01))
+    return _frame(body, "Play", label, "New puzzles every day", align="space-between")
 
 
 def feed_card(story, brand=BRAND, tag=None):

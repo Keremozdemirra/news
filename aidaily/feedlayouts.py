@@ -249,6 +249,8 @@ def photo_fit(story):
     file_ = a.get("file") or story.get("photo_file") or ""
     if not (a.get("photo") or file_):
         return "none"
+    if story.get("_safe"):  # the visual gate's fallback: the card goes without its photo
+        return "low"
     kind = a.get("kind") or story.get("photo_kind") or ""
     if kind == "company" and not story.get("person") and _face(a.get("photo", "")):
         # a company's photo with a face in it shows someone the story does not name (a model on the Musinsa card,
@@ -344,7 +346,7 @@ def _credits(shots, dark):
     text = ("Archive photos, not from this event. Photos: " if len(parts) > 1 else
             entities.archive_label("", "") + " Photo: ") + "; ".join(parts)
     grey = T.GREY_DARK if dark else T.GREY
-    return f'<div data-credit style="margin-top:10px;font-size:16px;line-height:1.3;color:{grey}">{T.e(text)}</div>'
+    return f'<div data-credit style="margin-top:10px;font-size:22px;line-height:1.3;color:{grey}">{T.e(text)}</div>'
 
 
 def _foot(brand, dark, shots):
@@ -373,9 +375,10 @@ def _img(uri, w, h, about=None, extra=""):
 
 
 # The headline grows until its column is full, measured in the browser on the real font: the size estimate in
-# fill_size is only the starting point (it left a fifth of some cards empty). A column that would overflow steps back.
+# fill_size is only the starting point (it left a fifth of some cards empty). A column that would overflow steps back,
+# and so does a headline whose longest word would run past the margin ("Johannesburg" did, caught by gate.py).
 FIT = """<script>document.fonts.ready.then(()=>{document.querySelectorAll('[data-fill]').forEach(h=>{
-const col=h.closest('[data-col]');if(!col)return;const fits=()=>col.scrollHeight<=col.clientHeight+1;
+const col=h.closest('[data-col]');if(!col)return;const fits=()=>col.scrollHeight<=col.clientHeight+1&&h.scrollWidth<=h.clientWidth+1;
 let lo=40,hi=+h.dataset.max;while(hi-lo>1){const m=(lo+hi)>>1;h.style.fontSize=m+'px';fits()?lo=m:hi=m}
 h.style.fontSize=Math.floor(lo*0.985)+'px'});document.body.setAttribute('data-fitted','1')})</script>"""
 

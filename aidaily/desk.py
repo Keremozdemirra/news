@@ -702,7 +702,7 @@ def audit(post):
         cap = post.get("caption", "")
         return ([] if "Source: " in cap else ["no source line"]) + [f"{w} is licensed data" for w in LICENSED
                                                                      if re.search(rf"\b{re.escape(w)}\b", cap)]
-    problems = []
+    problems = [f"visual gate: {x}" for x in post.get("gate") or []]
     head_ = post["headlines"][0]
     if post.get("topic") not in TOPICS:
         problems.append(f"topic {post.get('topic')!r} is not one of the nine")
@@ -887,6 +887,7 @@ def _queue_story(pid, html, title, delay=0, **extra):
     img.mkdir(parents=True, exist_ok=True)
     png = img / "story.png"
     R.shoot(html, png, 1080, 1920)
+    problems = _gate(html, png, None, "", "", fmt="story")
     R.jpeg(png)
     png.unlink()
     when = (now() + timedelta(minutes=delay)).isoformat(timespec="seconds")
@@ -894,6 +895,9 @@ def _queue_story(pid, html, title, delay=0, **extra):
             "publish_after": when, "status": "queued", "story": "story.jpg",
             "urls": [], "headlines": [title]}
     post.update(extra)
+    if problems:  # a story frame has no safer layout to fall back to: it is held, and neither app takes it
+        post.update(status="held", held=[f"visual gate: {x}" for x in problems])
+        print(f"{pid}: story held by the visual gate: {'; '.join(problems)[:300]}")
     _save(QUEUE / pid / "post.json", post)
     print(f"queued {pid}: {title}")
     return QUEUE / pid / "post.json"
@@ -1809,13 +1813,36 @@ def _card(img, m, s, prev):
                      kind=m.get("photo_kind", a.get("kind", "")))
         lay = FL.choose(s, prev)
         png = img / "card.png"
-        R.shoot(FL.html(s, lay), png, 1080, 1350)
+        page = FL.html(s, lay)
+        R.shoot(page, png, 1080, 1350)
+        problems = _gate(page, png, s, lay, prev)
+        if problems:
+            # the safest card: pure type, no photo, no logo; if that fails too the post is held (audit reads "gate")
+            print(f"{img.name}: visual gate on {lay}: {'; '.join(problems)[:300]}; rendering pure type")
+            s["_safe"] = True
+            lay = "type" if prev != "type" else "brief"
+            page = FL.html(s, lay)
+            R.shoot(page, png, 1080, 1350)
+            s["_gate"] = _gate(page, png, s, lay, prev)
         R.jpeg(png).replace(img / "card.jpg")
         png.unlink()
         return lay, FL.credits(s, lay)
     except Exception as exc:  # noqa: BLE001
         print(f"layout fell back to the pack card: {exc}")
         return "photo", [{"file": m.get("photo_file", ""), "credit": m.get("credit", ""), "name": ""}]
+
+
+def _gate(page, png, s, lay, prev, fmt="feed"):
+    """The visual gate's problems with one rendered asset (gate.py). A gate that cannot measure is a problem too:
+    nothing goes out unchecked."""
+    from . import gate
+    try:
+        a = s.get("_assets") or {} if s else {}
+        face = (gate.face_box(a["photo"], 1080, 1350, 0, {"person": s.get("person"), "photo_file": s.get("photo_file")})
+                if lay == "photo" and a.get("kind") == "person" and a.get("photo") else None)
+        return gate.check(page, fmt, png, s, lay, prev, face)
+    except Exception as e:  # noqa: BLE001
+        return [f"the gate could not measure the page: {str(e)[:120]}"]
 
 
 def _row_score(row):
@@ -1877,7 +1904,9 @@ def queue(day_dir, batch=None, render=True):
             layout, photos = _card(img, m, s, prev[tier])
             prev[tier] = layout
             png = img / "detail.png"
-            R.shoot(R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
+            detail_page = R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means'))
+            R.shoot(detail_page, png, 1080, 1350)
+            s["_gate"] = (s.get("_gate") or []) + [f"detail slide: {x}" for x in _gate(detail_page, None, None, "", "")]
             R.jpeg(png)
             png.unlink()
             for name, html in extra_slides(m, s, web, ctas):
@@ -1916,7 +1945,7 @@ def queue(day_dir, batch=None, render=True):
         if not render:
             layout, photos = "", []
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
-                "layout": layout, "photos": photos,
+                "layout": layout, "photos": photos, "gate": s.pop("_gate", []) if render else [],
                 "tier": "web" if web else "instagram",
                 "cards": ["card.jpg", "detail.jpg"] + [f"{n}.jpg" for n, _ in extra_slides(m, s, web, ctas)],
                 "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),
