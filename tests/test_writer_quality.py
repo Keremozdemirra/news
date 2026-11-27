@@ -233,5 +233,48 @@ class Glossary(unittest.TestCase):
         self.assertIn("Legislative Yuan", text)
 
 
+class CompanyTag(unittest.TestCase):
+    def tagged(self, title, headline, summary="", company="", orgs=()):
+        s = story(title, summary or title)
+        rows = [row(headline=headline, dek="", x_post="x", linkedin_post="", company=company, orgs=list(orgs))]
+        copy.apply([s], rows)
+        return s
+
+    def test_the_company_the_headline_names_is_tagged(self):
+        s = self.tagged("OpenAI raises $40 billion", "OpenAI raises $40 billion")
+        self.assertEqual(s["company"], "OpenAI")
+        self.assertEqual(s["orgs"][0], "OpenAI")
+        self.assertEqual(self.tagged("Nvidia chips face new China limits", "Nvidia chips face new China limits")["company"], "Nvidia")
+
+    def test_a_product_stands_for_its_maker(self):
+        s = self.tagged("Apple unveils new iPhone", "Apple unveils a new iPhone")
+        self.assertEqual(s["company"], "Apple")
+        self.assertEqual(self.tagged("The new iPhone sells out", "The new iPhone sells out")["company"], "Apple")
+
+    def test_a_company_the_model_listed_is_tagged_when_the_headline_names_it(self):
+        s = self.tagged("Swiggy's Instamart to lay off 340 employees", "Swiggy's Instamart to lay off 340 employees",
+                        orgs=["Swiggy", "Instamart"])
+        self.assertEqual(s["company"], "Swiggy")
+
+    def test_a_company_the_headline_does_not_name_is_replaced_by_the_one_it_does(self):
+        s = self.tagged("Meta and Amazon talk about lifting the block on its agent", "Meta and Amazon talk about lifting the block on its agent",
+                        company="Muse", orgs=["Meta", "Amazon"])
+        self.assertEqual(s["company"], "Meta")
+
+    def test_the_models_own_company_stands_when_the_headline_has_it(self):
+        s = self.tagged("Coupang revenue rises", "Coupang revenue rises", company="Coupang", orgs=["Coupang"])
+        self.assertEqual(s["company"], "Coupang")
+
+    def test_ordinary_words_are_not_companies(self):
+        for h in ("Police target a ring of smugglers", "Shell shock hits markets as ceasefire fails", "Wall Street rises as AI trade rebounds"):
+            self.assertEqual(self.tagged(h, h)["company"], "", h)
+
+    def test_a_name_missing_from_the_source_is_not_tagged(self):
+        s = story("Chipmaker raises $40 billion", "A chipmaker raised money.")
+        rows = [row(headline="Nvidia raises $40 billion", dek="", x_post="x", linkedin_post="")]
+        copy.apply([s], rows)
+        self.assertEqual(s["company"], "")
+
+
 if __name__ == "__main__":
     unittest.main()

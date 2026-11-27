@@ -847,6 +847,53 @@ def thin(s):
     return ""
 
 
+# a name that is also an ordinary word or a surname is not read as a company without the model saying so
+AMBIGUOUS_BRANDS = {"target", "shell", "arm", "ford", "windows", "pixel", "ati", "citi"}
+# the product in a headline, and the company that makes it
+MAKER = {"iphone": "Apple", "ipad": "Apple", "macbook": "Apple", "radeon": "AMD", "geforce": "Nvidia", "snapdragon": "Qualcomm",
+         "xbox": "Microsoft", "facebook": "Meta", "instagram": "Meta", "whatsapp": "Meta", "alexa": "Amazon", "kindle": "Amazon",
+         "chatgpt": "OpenAI", "starlink": "SpaceX", "playstation": "Sony"}
+
+
+def headline_company(headline, text=""):
+    """(company, position) of the first company a headline names, spelled as the headline spells it, or ("", 0).
+    Only a well-known company written with its capital, found in the source text too; a product stands for its maker
+    ("iPhone" for Apple). The model leaves the field empty on "OpenAI raises ..." often enough that the tag, the
+    hashtag and the page's "about" went missing."""
+    from .entities import BRANDS
+    low = (text or "").lower()
+    for m in BRANDS.finditer(headline or ""):
+        word = m.group(0)
+        key = word.lower()
+        if (not word[0].isupper() and key not in ("openai", "nvidia", "iphone", "chatgpt")) or key in AMBIGUOUS_BRANDS:
+            continue
+        name = MAKER.get(key, word)
+        if name.lower() in low or key in low:
+            return name, m.start()
+    return "", 0
+
+
+def tag_company(s):
+    """The company field follows the headline: set when the headline names a company and the field is empty or names
+    one the headline does not. The company is the first one the headline names, a well-known brand or an
+    organisation the model listed from the source; it also leads the `orgs` list."""
+    head_ = s.get("headline", "")
+    low = head_.lower()
+    found = [(m.start(), m.group(0)) for o in s.get("orgs") or [] if isinstance(o, str) and len(o) > 2
+             for m in [re.search(rf"(?<![\w])({re.escape(o)})(?![\w])", head_)] if m]
+    brand, at = headline_company(head_, source_text(s))
+    if brand:
+        found.append((at, brand))
+    if not found:
+        return
+    named = min(found)[1]
+    have = s.get("company") or ""
+    if not have or have.lower() not in low:
+        s["company"] = named
+    if named.lower() not in [o.lower() for o in s.get("orgs") or []]:
+        s["orgs"] = ([named] + list(s.get("orgs") or []))[:3]
+
+
 def fall_back(s):
     """The story as its source worded it: no checked copy, so the desk will not post it."""
     s.update(headline=s["title"][:MAX_HEADLINE], dek="", x_post=s["title"],
@@ -961,6 +1008,8 @@ def apply(stories, reply_rows):
             for field in ("company", "backer"):
                 if s.get(field) and s[field].lower() not in src:
                     s[field] = ""
+            if s.get("lane") != "sport":
+                tag_company(s)
             # a big figure the reader cannot find in the headline or dek reads as the story's number when it is not
             seen = s["headline"] + " " + s["dek"]
             fig = s["figure"]
