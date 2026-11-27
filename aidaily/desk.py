@@ -574,6 +574,11 @@ def make_video(s, img, post_id, clip=None, shape=None):
         print(f"{post_id}: no video card: {why}")
         return None
     shape = shape or video_shape()
+    if shape == "card" and not clip and not CV.photo_fits(s):
+        # a generic archive scene does not move on its own: the feed card leaves such a photo out (feedlayouts.fits),
+        # so the post goes as its stills; a Reel sets the story on black instead (reelcard "plain")
+        print(f"{post_id}: no card video: the photo does not show the story")
+        return None
     seconds = float(video_cfg("seconds", CV.SECONDS))
     footage = layout = None
     reels = shape == "reel" and video_cfg("reel_layouts", True)

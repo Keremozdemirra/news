@@ -139,6 +139,10 @@ def allowed(src_size, fxy, face, path=None, head=None):
         if b:
             low = min(b)
             free = [n for n, v in zip(free, b) if v <= low * QUIET_RATIO and v <= BUSY_MAX]
+    if face:
+        # a face is cropped into its band and the text sits on black, so the band layouts are always safe: they keep
+        # two portrait Reels in a row from taking the same place (QA, 2026-11-27)
+        return free + ["photo-top", "photo-bottom"]
     return free or ["photo-top", "photo-bottom"]
 
 

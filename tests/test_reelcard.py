@@ -163,7 +163,7 @@ class Desk(Tmp):
         with tempfile.TemporaryDirectory() as tmp, \
                 mock.patch.object(CV, "eligible", return_value=""), mock.patch.object(CV, "build", side_effect=fake_build), \
                 mock.patch.object(CV, "cover"), mock.patch.object(CV, "audit_file", return_value=[]), \
-                mock.patch.object(CV, "focus", return_value=(0.5, 0.5)):
+                mock.patch.object(CV, "focus", return_value=(0.5, 0.5)), mock.patch.object(CV, "photo_fits", return_value=True):
             rec = desk.make_video(dict(STORY, _assets={}), Path(tmp), "new", shape="card")
         self.assertIsNone(seen["layout"])
         self.assertNotIn("layout", rec)
@@ -171,3 +171,30 @@ class Desk(Tmp):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FaceAnywhere(unittest.TestCase):
+    def test_a_face_counts_even_when_the_story_names_no_person(self):
+        from aidaily import focus as F
+        s = {"headline": "Musinsa profit jumps", "_assets": {"file": "Model.jpg", "kind": "company"}}
+        with mock.patch.object(CV, "photo_path", return_value="p.jpg"), mock.patch.object(CV, "probe_size", return_value=(1000, 1500)), \
+                mock.patch.object(F, "detect_face", return_value=(0.6, 0.2, 0.4)):
+            fx, fy, face, head = CV.reel_focus(s)
+        self.assertTrue(face)
+        self.assertEqual((fx, fy), (0.6, 0.2))
+        self.assertGreater(head, 0)
+
+
+class CardVideoFit(Tmp):
+    def test_no_card_video_for_a_photo_that_does_not_show_the_story(self):
+        from aidaily import desk
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(CV, "eligible", return_value=""), \
+                mock.patch.object(CV, "photo_fits", return_value=False), mock.patch.object(CV, "build") as build:
+            self.assertIsNone(desk.make_video(dict(STORY, _assets={}), Path(tmp), "x", shape="card"))
+        build.assert_not_called()
+
+    def test_the_video_credit_is_set_larger_than_the_still_card(self):
+        s = dict(STORY, _assets={"photo": "file:///p.jpg", "credit": "Photo: A, CC0, via Wikimedia Commons", "file": "p.jpg",
+                                 "kind": "person", "logos": []})
+        with mock.patch.object(T, "layout", return_value="photo"):
+            self.assertIn("font-size:22px!important", CV.layer_html(s, "card", "base"))

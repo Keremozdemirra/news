@@ -157,6 +157,10 @@ def post_timeline(name, post, story, layout, facts, outlets, say=None):
     head = ([RC.layer(story, layout, "meta"), RC.layer(story, layout, "head")], 5.0, story["headline"])
     src = ([RC.page(layout, line(f"Reported by {outlets}", 84, room=room))], 2.8, f"Reported by {outlets}.") if outlets else None
     fact_beats = [([RC.page(layout, line(f, room=room))], read_seconds(f), f) for f in facts]
+    # a structure without its material is refused (build() then falls back to story), never shown half empty
+    if (name == "know" and not unknown_of(post)) or (name == "quote" and not quote_of(post)) or \
+            (name == "figure" and not figure_of(post, story)[0]):
+        return None
     if name == "story":
         beats = [head] + fact_beats[:3]
     elif name == "figure":

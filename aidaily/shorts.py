@@ -101,7 +101,7 @@ def story_from(post, photo, credit):
             "focus": post.get("focus"), "score": post.get("score"),
             "_assets": {"logo": "", "backer": "", "logos": [], "logo_names": [], "ticker": None,
                         "photo": Path(photo).resolve().as_uri(), "credit": credit, "file": post.get("photo_file", ""),
-                        "kind": "photo", "alt": ""}}
+                        "kind": post.get("photo_kind") or "photo", "alt": ""}}
 
 
 def source_photo(post, dest, fetch=True):

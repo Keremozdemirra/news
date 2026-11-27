@@ -109,3 +109,11 @@ class Plan(Tmp):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Refuse(unittest.TestCase):
+    def test_a_structure_without_its_material_is_refused(self):
+        p = post()
+        story = SH._light_story(p)
+        for name in ("know", "quote", "figure"):
+            self.assertIsNone(SF.post_timeline(name, p, story, "lower", SH.facts(p, 3), "Bloomberg"), name)

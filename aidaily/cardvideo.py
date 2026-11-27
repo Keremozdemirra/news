@@ -119,6 +119,9 @@ def layer_html(story, shape, only):
              "head": (".c-grad", ".c-meta", ".c-chips", ".c-foot"), "chips": (".c-grad", ".c-meta", ".c-head", ".c-foot"),
              "foot": (".c-grad", ".c-meta", ".c-head", ".c-chips")}[only]
     css = ",".join(parts) + "{visibility:hidden}"
+    # the credit line is set at 16 px for the still card; on a moving video in a phone feed that does not read (QA,
+    # 2026-11-27), so the video layers set it at 22 px
+    css += '.c-foot div[style*="font-size:16px"]{font-size:22px!important}'
     return html_.replace("</body>", f"<style>{css}</style></body>")
 
 
@@ -164,19 +167,44 @@ def reel_focus(story):
     post = {"person": story.get("person", ""), "photo_file": a.get("file", "")}
     (fx, fy), face = F.for_post(post, src)
     head = None
-    if face and F.about_a_face(post):
-        size = probe_size(src)
-        found = F.detect_face(src, size)
-        if found:  # a head is about 1.35 times as tall as it is wide, hair to chin
-            head = min(found[2] * size[0] * 1.35 / size[1], 1.0)
+    size = probe_size(src)
+    # the detector runs on every photo, not only stories that name a person: a model at a company's event is a face
+    # too (the Musinsa Reel, 2026-11-27). A false find only removes layouts, it never puts text on a face.
+    found = F.detect_face(src, size)
+    if found:  # a head is about 1.35 times as tall as it is wide, hair to chin
+        head = min(found[2] * size[0] * 1.35 / size[1], 1.0)
+        if not face:
+            fx, fy, face = found[0], found[1], True
     return fx, fy, face, head
 
 
+FITTING_KINDS = ("person", "company", "place", "name")
+
+
+def photo_fits(story):
+    """The photo shows what the story is about: the person, the company, the place, or a vetted view of a place the
+    story names. A generic archive scene (a factory floor under an election headline) does not, and the Reel then
+    goes without it, as the feed cards do (feedlayouts.fits, 2026-11-27)."""
+    a = story.get("_assets") or {}
+    if a.get("kind") in FITTING_KINDS:
+        return True
+    from . import feedlayouts as FL
+    text = " ".join([story.get("headline") or story.get("title") or "", story.get("dek", ""), story.get("body", "") or ""])
+    try:
+        return FL._place_scene(a.get("file", ""), text)
+    except Exception:  # noqa: BLE001  no scene data: keep the photo rather than fail the render
+        return True
+
+
 def reel_layout(story, seed, footage=False, avoid=None):
-    """The Reel's layout (reelcard.LAYOUTS): one whose text stays off the subject, not the last Reel's when another fits."""
+    """The Reel's layout (reelcard.LAYOUTS): one whose text stays off the subject, not the last Reel's when another
+    fits; "plain" (type on black) when the photo does not fit the story. Archive footage is picked by subject
+    (broll.pick), so it always counts as fitting."""
     from . import reelcard as RC
     if footage:
         return RC.pick(seed, RC.allowed(None, None, False), avoid)
+    if not photo_fits(story):
+        return "plain"
     fx, fy, face, head = reel_focus(story)
     src = photo_path(story)
     return RC.pick(seed, RC.allowed(probe_size(src), (fx, fy), face, src, head), avoid)
