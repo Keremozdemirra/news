@@ -151,11 +151,11 @@ def front(shown, cos, m, sport=()):
 
 
 def rail(shown):
-    """Beside the panel on a desktop: the newest stories with their age, and the five most important. Compact, no pictures; a phone drops it."""
-    latest = sorted(shown, key=lambda p: p["published"], reverse=True)[:6]
-    top = S.by_score(S.window(shown))[:5]
-    return (f'<aside class="frail" aria-label="Latest and most important"><section class="latest"><h2 class="sh"><a href="{S.BASE}/latest/">Latest</a></h2>{latest_list(latest)}</section>'
-            f'<section><h2 class="sh">Most important</h2>{S.ranked(top, 5)}</section></aside>' if shown else "")
+    """Beside the panel on a desktop: the newest stories with their age, as many rows as fit the panel's height (the stylesheet trims
+    the rest), ending with "All latest". The panel is already in importance order, so the rail is only the clock. A phone drops it."""
+    latest = sorted(shown, key=lambda p: p["published"], reverse=True)[:8]
+    return (f'<aside class="frail latest" aria-label="Latest"><h2 class="sh"><a href="{S.BASE}/latest/">Latest</a></h2>{latest_list(latest)}'
+            f'<p class="earlier"><a href="{S.BASE}/latest/">All latest</a></p></aside>' if shown else "")
 
 
 def panel(inner):

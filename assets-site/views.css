@@ -365,7 +365,7 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .pcap{display:block;font:500 12.5px/1.4 var(--f);color:var(--soft);margin:6px 0 var(--s1)}
 
 /* ---- the front page's news is one panel that scrolls inside the page, so the footer is a short scroll away ---- */
-.newspanel{height:72vh;height:72dvh;min-height:360px;overflow-y:auto;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;margin-top:var(--s2);padding:0 var(--s2) var(--s4);
+.newspanel{overflow-y:auto;overscroll-behavior:auto;-webkit-overflow-scrolling:touch;margin-top:var(--s2);padding:0 var(--s2) var(--s4);
   border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);scrollbar-width:thin;scrollbar-color:var(--soft) transparent;scroll-padding-top:56px}
 .newspanel::-webkit-scrollbar{width:8px}.newspanel::-webkit-scrollbar-thumb{background:var(--soft)}
 .newspanel:focus-visible{outline:2px solid var(--ink);outline-offset:-4px}
@@ -373,10 +373,23 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .topstories .leadrow{padding-top:var(--s3)}
 .puzzles.inrow{display:block}.puzzles.inrow ul{display:flex;flex-wrap:wrap;gap:0 var(--s4)}.puzzles.inrow li{border-bottom:0}
 
-/* desktop: the panel with the compact rail beside it; a phone has the panel only */
-.frontgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--gut);align-items:start}
-.frail{margin-top:var(--s2)}.frail .latest{margin-top:0}.frail .sh:first-child{margin-top:0}.frail section+section{margin-top:var(--s4)}
-.frail .latest ul{list-style:none;margin:0;padding:0}
+/* desktop: the panel with the Latest rail beside it. The rail is exactly as tall as the panel (its box takes the panel's row and no more) and
+   shows only the rows that fit; a phone has the panel only */
+:root{--ph:max(360px,72vh)}@supports(height:1dvh){:root{--ph:max(360px,72dvh)}}
+.newspanel{height:var(--ph)}
+.frontgrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--gut);align-items:stretch}
+.frail.latest{margin-top:0}
+.frail{height:0;min-height:100%;overflow:hidden;display:flex;flex-direction:column;padding-top:var(--s2);border-bottom:2px solid var(--ink)}
+.frail .sh{margin-top:0;flex:none}
+.frail ul{list-style:none;margin:0;padding:0;flex:none}
+.frail li:nth-child(n+6){display:none}
+.frail li a{height:96px;overflow:hidden;align-items:start;box-sizing:border-box}
+.frail li span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.frail .earlier{margin:auto 0 0;padding:var(--s1) 0;flex:none}
+/* rows that fit: 96 px each beside a panel of 72% of the window's height, less the heading and the last line */
+@media(max-height:760px){.frail li:nth-child(n+5){display:none}}
+@media(min-height:960px){.frail li:nth-child(6){display:list-item}}
+@media(min-height:1070px){.frail li:nth-child(7){display:list-item}}
 @media(max-width:1000px){.frontgrid{display:block}.frail{display:none}}
 /* a link around a whole row or lead underlines the headline only, and only on hover or focus */
 .row:hover,.leadrow .story-link:hover,.row:focus-visible,.leadrow .story-link:focus-visible{text-decoration:none}

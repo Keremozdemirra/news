@@ -40,17 +40,20 @@ class Ranking(unittest.TestCase):
         self.assertEqual(html.count('class="leadrow"'), 1)
         self.assertIn('href="/latest/">All latest</a>', html)
 
-    def test_the_rail_beside_the_panel_has_latest_with_ages_and_the_five_most_important(self):
+    def test_the_rail_is_latest_only_as_tall_as_the_panel_and_ends_with_all_latest(self):
         rows = [fake(f"r{i}", f"Story number {i} of the day", "Economy", n=2 + i % 4, score=5 + i % 7, hours=i * 0.3) for i in range(20)]
         html = views.front(rows, {}, None)
-        self.assertLess(html.index('class="newspanel"'), html.index('<aside class="frail"'))  # beside it, not above
+        self.assertLess(html.index('class="newspanel"'), html.index('<aside class="frail latest"'))  # beside it, not above
         self.assertTrue(html.startswith('<div class="frontgrid">'))
-        rail = re.search(r'<aside class="frail".*?</aside>', html, re.S).group(0)
-        self.assertEqual(len(re.findall(r'<li><a href="[^"]*/s/', re.search(r'<section class="latest".*?</section>', rail, re.S).group(0))), 6)
-        self.assertEqual(rail.count("data-age"), 6)
-        self.assertEqual(rail.count('<span class="n" aria-hidden="true">'), 5)
+        rail = re.search(r'<aside class="frail latest".*?</aside>', html, re.S).group(0)
+        self.assertEqual(len(re.findall(r'<li><a href="[^"]*/s/', rail)), 8)  # the stylesheet shows the ones that fit
+        self.assertEqual(rail.count("data-age"), 8)
+        self.assertNotIn("Most important", rail)  # the panel is already in importance order
         self.assertNotIn("<img", rail)
+        self.assertTrue(rail.endswith('All latest</a></p></aside>'))
         css = (site.ASSETS / "views.css").read_text()
+        self.assertIn(".frail{height:0;min-height:100%;overflow:hidden;", css)  # its box is the panel's row and no more
+        self.assertIn(".newspanel{height:var(--ph)}", css)
         self.assertIn("@media(max-width:1000px){.frontgrid{display:block}.frail{display:none}}", css)  # a phone has the panel only
         self.assertIn(".leadrow .story-link:hover,", css)  # hovering a lead underlines its headline, not the dek and the age
 
