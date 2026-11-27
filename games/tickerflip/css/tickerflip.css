@@ -18,6 +18,11 @@
 }
 @media (prefers-color-scheme: dark) { :root { --paper: #121212; --ink: #ededed; --soft: #a0a0a0; --faint: #6b6b6b; --rule: #2b2b2b; --wash: #1e1e1e; } }
 @media (max-height: 700px) { :root { --kh: 46px; } }
+/* the three letter states. Each carries white letters at 4.5:1 or better. High contrast swaps green and amber for
+   orange and blue, which stay apart for the common kinds of colour blindness. */
+:root { --ok: #2f7d4c; --near: #9a6700; --out: #6b7075; }
+@media (prefers-color-scheme: dark) { :root { --out: #4a4e52; } }
+.app[data-hc="1"] { --ok: #b84e08; --near: #1f6fb5; }
 
 * { box-sizing: border-box; margin: 0; }
 html, body { height: 100%; }
@@ -49,23 +54,16 @@ a { color: inherit; }
 .frame { flex: 1 1 0; min-height: 0; display: grid; align-content: center; justify-items: center; gap: 14px; padding: 8px 0; }
 .board { --t: min(62px, calc((var(--W) - 2 * var(--pad) - (var(--L) - 1) * var(--gap)) / var(--L)), calc((var(--vh, 100dvh) - 52px - 44px - 30px - 3 * var(--kh) - 44px - var(--sab) - 5 * var(--gap) - 16px) / 6)); display: grid; gap: var(--gap); }
 .row { display: grid; grid-template-columns: repeat(var(--L), var(--t)); gap: var(--gap); }
-.tile { position: relative; width: var(--t); height: var(--t); font: 800 calc(var(--t) * 0.5) / 1 var(--f); text-transform: uppercase; user-select: none; will-change: transform; }
-/* a card and its halves: the state is drawn on the leaf, so a falling half keeps the look of the letter it carries */
-.leaf { position: absolute; inset: 0; display: grid; place-items: center; background: var(--paper); border: 1.5px solid var(--rule); backface-visibility: hidden; }
-.leaf.top { clip-path: inset(0 0 50% 0); will-change: transform; }
-.leaf.bot { clip-path: inset(50% 0 0 0); will-change: transform; }
-.leaf[data-s="typed"] { border-color: var(--ink); }
-.leaf[data-s="correct"], .leaf[data-s="revealed"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-.leaf[data-s="present"] { border: 2px solid var(--ink); border-bottom-width: calc(var(--t) * 0.12); }
-.leaf[data-s="absent"] { background: var(--wash); border-color: var(--wash); color: var(--faint); }
-/* the seam: a hairline across the card, over everything */
-.tile::after { content: ""; position: absolute; z-index: 2; left: 0; right: 0; top: calc(50% - 0.5px); height: 1px; background: var(--paper); opacity: 0.6; pointer-events: none; }
-.tile[data-s="empty"]::after { background: var(--rule); opacity: 1; }
-.tile[data-s="typed"]::after { opacity: 0; }
+.tile { position: relative; width: var(--t); height: var(--t); display: grid; place-items: center; border: 1.5px solid var(--rule); font: 800 calc(var(--t) * 0.5) / 1 var(--f); text-transform: uppercase; user-select: none; will-change: transform; backface-visibility: hidden; }
+.tile[data-has="1"] { border-color: var(--ink); }
+/* a scored letter is a colour, as in every word game: right place, in the word, not in it. White letters on all three. */
+.tile[data-s="correct"], .tile[data-s="revealed"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+.tile[data-s="present"] { background: var(--near); border-color: var(--near); color: #fff; }
+.tile[data-s="absent"] { background: var(--out); border-color: var(--out); color: #fff; }
 .row.shake { animation: shake 240ms linear; }
 @keyframes shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
-.row.ripple .tile { animation: hop 220ms var(--ease) calc(var(--i) * 55ms); }
-@keyframes hop { 40% { transform: translateY(-7px); } }
+.row.ripple .tile { animation: hop 240ms var(--ease) calc(var(--i) * 70ms); }
+@keyframes hop { 35% { transform: translateY(-9px); } 70% { transform: translateY(1px); } }
 .ansrow { grid-template-columns: repeat(var(--L), var(--t)); position: relative; }
 .ansrow .ans-k { position: absolute; left: 0; top: -16px; }
 
@@ -79,9 +77,9 @@ a { color: inherit; }
 .key.wide { flex: 1.55 1 0; font-size: 12px; letter-spacing: 0.04em; }
 .key:active { transform: scale(0.94); }
 .key .kmark { display: none; }
-.key[data-k="correct"] { background: var(--ink); color: var(--paper); }
-.key[data-k="present"] { background: var(--paper); border: 2px solid var(--ink); border-bottom-width: 6px; }
-.key[data-k="absent"] { background: var(--paper); color: var(--faint); box-shadow: inset 0 0 0 1px var(--rule); }
+.key[data-k="correct"] { background: var(--ok); color: #fff; }
+.key[data-k="present"] { background: var(--near); color: #fff; }
+.key[data-k="absent"] { background: var(--out); color: #fff; }
 @media (hover: hover) and (pointer: fine) { .key:hover:not([data-k]) { background: var(--rule); } .icon-btn:hover { background: var(--wash); } }
 
 .btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 52px; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); font: 600 15px/1 var(--f); letter-spacing: 0.02em; transition: transform 120ms var(--ease); }
@@ -104,6 +102,7 @@ a { color: inherit; }
 .legend { list-style: none; padding: 16px 0; display: grid; gap: 10px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); justify-self: stretch; }
 .legend li { display: flex; align-items: center; gap: 12px; font: 400 15px/1 var(--f); }
 .legend .tile { --t: 32px; }
+.hc { justify-self: start; padding: 4px 0; }
 
 /* the result: a sheet over the board */
 .end { position: absolute; inset: 0; background: var(--paper); overflow: hidden auto; overscroll-behavior: contain; padding: 28px var(--pad) calc(32px + var(--sab)); display: grid; align-content: start; gap: 24px; animation: sheet 220ms var(--ease); }
@@ -116,9 +115,9 @@ a { color: inherit; }
 .e-score { font: 800 30px/1 var(--f); letter-spacing: -0.02em; }
 .mini { display: grid; grid-template-columns: repeat(var(--L), 30px); gap: 5px; }
 .mini i { width: 30px; height: 30px; border: 1.5px solid var(--rule); }
-.mini i[data-s="correct"] { background: var(--ink); border-color: var(--ink); }
-.mini i[data-s="present"] { border: 2px solid var(--ink); border-bottom-width: 8px; }
-.mini i[data-s="absent"] { background: var(--wash); border-color: var(--wash); }
+.mini i[data-s="correct"] { background: var(--ok); border-color: var(--ok); }
+.mini i[data-s="present"] { background: var(--near); border-color: var(--near); }
+.mini i[data-s="absent"] { background: var(--out); border-color: var(--out); }
 .share-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); font: 400 13px/1.3 ui-monospace, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .share-text.open { position: static; width: auto; height: auto; clip-path: none; }
 .next-in { display: flex; align-items: baseline; justify-content: space-between; padding-top: 16px; border-top: 1px solid var(--rule); }

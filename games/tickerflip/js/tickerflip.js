@@ -383,6 +383,10 @@ async function boot() {
   const sb = $("sound");
   const setSound = (on) => { const v = snd.setEnabled(on); sb.setAttribute("aria-pressed", v); sb.setAttribute("aria-label", v ? "Sound on" : "Sound off"); try { localStorage.setItem("tickerflip:sound", v ? "1" : "0"); } catch { /* ignore */ } };
   sb.addEventListener("click", () => { setSound(!snd.isOn()); if (snd.isOn()) snd.clack(); });
+  // orange and blue in place of green and amber, kept on this device
+  const setHc = (on) => { app.dataset.hc = on ? "1" : ""; $("hc").setAttribute("aria-pressed", on); $("hc").textContent = `High contrast colours: ${on ? "on" : "off"}`; try { localStorage.setItem("tickerflip:hc", on ? "1" : "0"); } catch { /* ignore */ } };
+  setHc(localStorage.getItem("tickerflip:hc") === "1" || (localStorage.getItem("tickerflip:hc") === null && matchMedia("(prefers-contrast: more)").matches));
+  $("hc").addEventListener("click", () => setHc(app.dataset.hc !== "1"));
   $("help").addEventListener("click", () => (helpOpen ? closeIntro() : openIntro(false)));
   $("start").addEventListener("click", () => { if (localStorage.getItem("tickerflip:sound") === "1" && !snd.isOn()) setSound(true); closeIntro(); });
   $("share").addEventListener("click", share);
