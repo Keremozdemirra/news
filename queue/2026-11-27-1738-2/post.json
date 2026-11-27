@@ -94,8 +94,8 @@
   },
   "facebook": {
    "check_error": "facebook GET posts: HTTP 400: {\"error\":{\"message\":\"Unsupported get request. Object with ID 'BURAYA_ID' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph API documentation at https:\\/\\/developers.facebook.com\\/docs\\/graph-api\",\"type",
-   "checked": "2026-11-27T20:12:14+00:00",
-   "checks": 3
+   "checked": "2026-11-27T20:20:17+00:00",
+   "checks": 4
   },
   "bluesky": {
    "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3cxlg5owp2m",

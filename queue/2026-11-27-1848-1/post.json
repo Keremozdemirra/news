@@ -87,5 +87,14 @@
  "attempted": "2026-11-27T20:10:19+00:00",
  "published": "2026-11-27T20:12:05+00:00",
  "media_id": "18135603385666925",
- "permalink": "https://www.instagram.com/p/DgQgj2RAnWH/"
+ "permalink": "https://www.instagram.com/p/DgQgj2RAnWH/",
+ "platforms": {
+  "telegram": {
+   "id": "38",
+   "url": "https://t.me/boardread/38",
+   "at": "2026-11-27T20:20:16+00:00",
+   "video": true,
+   "format": "video"
+  }
+ }
 }
