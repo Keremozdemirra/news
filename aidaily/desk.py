@@ -570,6 +570,12 @@ def audit(post):
     why = copy.thin({"dek": post.get("dek", ""), "linkedin_post": post.get("body", "")})
     if why:
         problems.append(why)
+    for field in ("dek", "body"):
+        for x in copy.sentences(post.get(field) or ""):
+            if copy.META.search(x) or copy.OFFTOPIC.search(x):
+                problems.append(f"{field} sentence is about the source or another story: {x[:80]!r}")
+    if copy.fix_legislature(head_) != head_:
+        problems.append(f"headline calls a chamber the Senate: {copy.SENATE.search(head_).group(0)!r}")
     if (post.get("body") or "").strip() and copy.LEANS.search(copy.sentences(post["body"])[0]):
         problems.append(f"report opens leaning on a sentence that is not there: {copy.sentences(post['body'])[0]!r}")
     if pf and not scene and (E.NOT_PHOTO.search(pf) or E.NATURE.search(pf) or E.ART.search(pf) or E.EVENT.search(pf)

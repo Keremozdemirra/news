@@ -1,7 +1,8 @@
 """Pick a post's photo again under today's rules and re-render its card, detail slide and thumbnails, keeping its
 checked copy, status and schedule.
 
-usage: python3 scripts/repick_photos.py [--audit] [--dry] [ID ...]
+usage: python3 scripts/repick_photos.py [--audit] [--dry] [--keep-photo] [ID ...]
+--keep-photo renders the card and slide again with the photo the post has (after a headline correction)
 --audit takes every queued, web or held post whose scene photo audit now holds (a scene that does not fit the
 article, a retired one, another sport's). Run `scripts/media.sh pull` first and `scripts/media.sh push` after.
 """
@@ -24,7 +25,7 @@ def failing():
     return out
 
 
-def repick(pid, dry=False):
+def repick(pid, dry=False, keep=False):
     path = desk.QUEUE / pid / "post.json"
     post = json.loads(path.read_text())
     head_ = post["headlines"][0]
@@ -38,7 +39,11 @@ def repick(pid, dry=False):
     T.USED.clear()
     T.USED.update(desk.used_photos() - {post.get("photo_file")})
     T.USED.add(post.get("photo_file"))  # never the photo being replaced
-    ph, credit, file_, kind, alt = T.pick_photo(story, head_.lower(), story["company"], fetch=True, sport=sport)
+    if keep:
+        ph = desk.MEDIA / pid / "photo.jpg"  # the photo the post already carries, as the media branch holds it
+        credit, file_, kind, alt = post.get("credit", ""), post["photo_file"], post.get("photo_kind", ""), post.get("photo_alt", "")
+    else:
+        ph, credit, file_, kind, alt = T.pick_photo(story, head_.lower(), story["company"], fetch=True, sport=sport)
     if not file_:
         print(f"{pid}: no photo passes; left as it is")
         return False
@@ -64,7 +69,8 @@ def repick(pid, dry=False):
         R.jpeg(png)
         png.unlink()
     R.thumb(img / "card.jpg", img / "thumb.jpg", 540)
-    R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(ph.as_uri()).path)), img / "photo.jpg", 1400)
+    if not keep:
+        R.thumb(Path(urllib.parse.unquote(urllib.parse.urlparse(ph.as_uri()).path)), img / "photo.jpg", 1400)
     desk._save(path, new)
     return True
 
@@ -74,6 +80,7 @@ if __name__ == "__main__":
     a.add_argument("ids", nargs="*")
     a.add_argument("--audit", action="store_true")
     a.add_argument("--dry", action="store_true")
+    a.add_argument("--keep-photo", action="store_true")
     args = a.parse_args()
     for pid in (failing() if args.audit else []) + args.ids:
-        repick(pid, dry=args.dry)
+        repick(pid, dry=args.dry, keep=args.keep_photo)

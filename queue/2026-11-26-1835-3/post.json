@@ -38,10 +38,14 @@
   "https://www.theguardian.com/politics/live/2026/nov/26/uk-eu-food-deal-farage-penalty-compensation-reform-net-migration-latest-news-updates"
  ],
  "credit": "Photo: Wilfredor, CC0, via Wikimedia Commons",
- "status": "web",
+ "status": "held",
  "published": "2026-11-26T18:35:28+00:00",
  "story": "",
  "photo_kind": "scene",
  "photo_alt": "A glass office tower seen from below",
- "credit_file": "Glass office tower seen from below, São Paulo.jpg"
+ "credit_file": "Glass office tower seen from below, São Paulo.jpg",
+ "held": [
+  "dek and half the report are another story (Liberal Democrats on immigration); the rest restates the headline"
+ ],
+ "held_from": "web"
 }

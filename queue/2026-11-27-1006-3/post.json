@@ -46,7 +46,11 @@
  ],
  "credit": "Photo: http://www.president.gov.ua/, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "Volodymyr Zelensky Official portrait.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T10:06:54+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report does not support the headline: it is about a drone over Latvia, with no Zelenskyy quote"
+ ],
+ "held_from": "web"
 }

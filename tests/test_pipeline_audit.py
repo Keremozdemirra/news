@@ -188,3 +188,36 @@ class PersonInCompanyPhoto(unittest.TestCase):
     def test_never_beside_bad_news(self):
         self.assertEqual(self.pick([self.STELLA], "Musinsa cuts 200 jobs after a loss Musinsa"), "")
         self.assertEqual(self.pick([self.STELLA], "Musinsa sued over counterfeit sales Musinsa"), "")
+
+
+class WriterReview(unittest.TestCase):
+    """The 2026-11-27 deep review of the live site, writer side."""
+    H = "Zelenskyy compares Trump calling Putin a friend to befriending Hitler in WW2"
+    D = "Ukraine's president calls the comments strange and urges Washington to increase pressure on Moscow."
+
+    def test_a_report_about_another_event_does_not_stand_under_the_headline(self):
+        out = copy.drop_offtopic("Overnight, Nato fighter jets and an interceptor drone were scrambled in Latvia after a "
+                                 "drone briefly entered its airspace near the Russian border, the army said.", self.H, self.D)
+        self.assertEqual(out, "")
+
+    def test_a_name_the_lead_source_carries_is_on_topic(self):
+        body = "Governor Kazuo Ueda will give a speech on Nov 30, ahead of the Dec 18 BOJ decision."
+        self.assertEqual(copy.drop_offtopic(body, "Tokyo core inflation hits 16-month high", "",
+                                            "Tokyo core CPI rises; Governor Kazuo Ueda speaks next week"), body)
+
+    def test_source_meta_and_another_story_are_cut_and_held(self):
+        self.assertEqual(copy.drop_offtopic("Thomas Frank has his first Palace win, with Dwight McNeil named in the "
+                                            "report's headline. Palace trailed to a Sarr goal.", "Thomas Frank earns first "
+                                            "Crystal Palace win"), "Palace trailed to a Sarr goal.")
+        self.assertEqual(copy.drop_offtopic("Separately, the Liberal Democrats want an immigration plan.", "Mandelson tried "
+                                            "to influence the reshuffle"), "")
+        base = {"headlines": ["Lab ships a model"], "topic": "Tech", "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene",
+                "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons", "caption": "x #news", "dek": "It runs on its own chips."}
+        self.assertTrue(any("another story" in p for p in desk.audit({**base, "body": TWO + " Separately, rivals cut prices."})))
+
+    def test_a_chamber_goes_by_its_own_name(self):
+        self.assertEqual(copy.fix_legislature("Japan's Senate narrowly rejects censure motion"),
+                         "Japan's upper house narrowly rejects censure motion")
+        self.assertEqual(copy.fix_legislature("Argentina's Senate approves bill"), "Argentina's Senate approves bill")
+        post = {"headlines": ["Japan's Senate narrowly rejects censure motion"], "topic": "Politics", "dek": "x.", "body": TWO}
+        self.assertTrue(any("Senate" in p for p in desk.audit(post)))

@@ -65,7 +65,10 @@ Fields:
 - topic: {topic_rule}
 - headline: max 80 characters, present tense, names the actor and the action, the key figure if any. Plain
   words: "more than £400m", never "£400m+"; no question; no quote marks around a single word. Name the
-  country when a senate, parliament, court, central bank or election is not American ("Argentina's Senate")
+  country when a senate, parliament, court, central bank or election is not American ("Argentina's Senate"), and
+  call a chamber by its own name: Japan's upper house (House of Councillors), India's Rajya Sabha or Lok Sabha,
+  Britain's House of Commons or House of Lords, Germany's Bundestag or Bundesrat, Russia's State Duma, South
+  Korea's National Assembly, Israel's Knesset; "Senate" only where the chamber is called that
 - dek: one sentence, max 140 characters, the most useful extra fact (not a restatement of the headline); it
   sums up the story the headline names, so it never leads with a company or person the headline leaves out
 - company: {company_rule}
@@ -85,7 +88,9 @@ Fields:
 - linkedin_post: the report, printed under the headline and the dek: 2 to 4 short sentences, each a fact that
   is in neither of them (a sentence that says the headline or the dek again is deleted). Draw on every report
   listed: who, what, how much, when, where, what was said, what happens next as the source states it. The first
-  sentence names its subject: never open with "It", "This", "They", "These", "Together" or "also". Each sentence
+  sentence names its subject: never open with "It", "This", "They", "These", "Together" or "also". Every sentence is
+  about the story the headline names: nothing from another story ("Separately, ..."), nothing about the source
+  article itself ("named in the report's headline"). Each sentence
   complete and grammatical, never a source phrase pasted into another sentence. If the sources hold no fact beyond
   the headline and dek, write only the Source line. End with the line "Source: <outlet>"
 - fits_category: false if the story does not match its slot, e.g. a profile or retrospective in a funding
@@ -455,6 +460,58 @@ def drop_repeats(post, deks, headline):
     return (body + ("\n\n" + "\n".join(tail) if tail else "")).strip() if body else "\n".join(tail)
 
 
+# a sentence about the source rather than the news ("with Dwight McNeil named in the report's headline"), or about
+# another story ("Separately, the Liberal Democrats say ..."): never report
+META = re.compile(r"\b(?:the (?:report|article|story|source)['’]s (?:headline|title)|named in the (?:report|headline|article|"
+                  r"story)|the (?:article|report|story|source|piece) (?:says|said|notes|adds|reports|describes))\b", re.I)
+OFFTOPIC = re.compile(r"^(?:Separately|In other news|Elsewhere|In a separate (?:development|story|move))\b", re.I)
+
+
+NAME_WORD = re.compile(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-zA-Z’'-]{2,}")
+CALENDAR = set("January February March April May June July August September October November December Jan Feb Mar Apr "
+               "Jun Jul Aug Sep Sept Oct Nov Dec Monday Tuesday Wednesday Thursday Friday Saturday Sunday".split())
+
+
+def _names(text):
+    return {re.sub(r"['’]s$", "", w).lower() for w in NAME_WORD.findall(text or "") if w not in CALENDAR}
+
+
+def drop_offtopic(post, headline, dek="", source=""):
+    """The report without sentences about something else. Cut: a sentence about the source article ("named in the
+    report's headline"), one that opens another story ("Separately, ..."), and one that shares no word with the
+    headline, the dek or a sentence kept before it while bringing in two names none of them nor the lead source
+    carries. The Zelenskyy article (2026-11-27) ran a headline about Hitler and Putin over drones in Latvia."""
+    lines = (post or "").split("\n")
+    tail = [l for l in lines if l.startswith("Source:")]
+    known = _names(" ".join([headline, dek, source])) | {w.lower() for w in WORD.findall(_fold(headline + " " + dek))}
+    kept = []
+    for x in sentences(" ".join(l for l in lines if l.strip() and not l.startswith("Source:"))):
+        context = _stems(" ".join([headline, dek] + kept), short=True) | _stems(" ".join([headline, dek] + kept))
+        new_names = {n for n in _names(x) if n not in known and _fold(n) not in known}
+        unrelated = not (_stems(x, short=True) & context) and not (_numbers(x) & _numbers(headline + " " + dek + " " + " ".join(kept)))
+        if META.search(x) or OFFTOPIC.search(x) or (unrelated and len(new_names) >= 2):
+            continue
+        kept.append(x)
+    body = " ".join(kept)
+    return (body + ("\n\n" + "\n".join(tail) if tail else "")).strip() if body else "\n".join(tail)
+
+
+# Upper houses that are not called a Senate: "Japan's Senate" is the House of Councillors (2026-11-27)
+UPPER_HOUSE = {"Japan": "upper house", "India": "upper house", "Germany": "Bundesrat", "Russia": "upper house",
+               "Britain": "House of Lords", "UK": "House of Lords", "U.K.": "House of Lords", "Malaysia": "upper house",
+               "Netherlands": "upper house", "Austria": "upper house", "Switzerland": "upper house", "Ireland": "upper house",
+               "South Korea": "National Assembly", "Taiwan": "legislature", "Israel": "Knesset", "Turkey": "parliament",
+               "China": "legislature", "Sweden": "parliament", "Denmark": "parliament", "Norway": "parliament",
+               "Finland": "parliament", "New Zealand": "parliament", "Indonesia": "upper house", "Ukraine": "parliament",
+               "Hungary": "parliament", "Portugal": "parliament", "Greece": "parliament", "Vietnam": "National Assembly"}
+SENATE = re.compile(r"\b(" + "|".join(map(re.escape, sorted(UPPER_HOUSE, key=len, reverse=True))) + r")(['’]s)?\s+Senate\b")
+
+
+def fix_legislature(headline):
+    """A country's chamber by its own name: "Japan's Senate" becomes "Japan's upper house"."""
+    return SENATE.sub(lambda m: f"{m.group(1)}{m.group(2) or ''} {UPPER_HOUSE[m.group(1)]}", headline or "")
+
+
 MIN_SENTENCES, MIN_WORDS = 2, 15
 
 
@@ -516,6 +573,11 @@ def apply(stories, reply_rows):
                                                  "person_role", "figure", "x_post", "linkedin_post", "image_query",
                                                  "topic")},
                      copy_status="ok")
+            s["headline"] = fix_legislature(s["headline"])
+            if s.get("dek") and (META.search(s["dek"]) or OFFTOPIC.search(s["dek"])):
+                s["dek"] = ""
+            s["linkedin_post"] = drop_offtopic(s["linkedin_post"], s["headline"], s.get("dek", ""),
+                                               s.get("title", "") + " " + s.get("summary", ""))
             s["linkedin_post"] = drop_restated_lead(s["linkedin_post"], s["headline"])
             # a dek that only says the headline again is no dek ("Congress passed the overhaul ... in its final vote")
             if s.get("dek") and repeats(s["dek"], s["headline"]):
