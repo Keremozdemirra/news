@@ -17,6 +17,11 @@ Rules the build enforces:
   - the two figures of a round are at most MAX_YEAR_APART years apart (founding years excepted)
   - pairs within 5 percent of each other are skipped (founding years: a gap under 2 years)
   - no company comes back once it has been weighed; no two figures of a round are a tie
+  - the larger figure of a round is at most MAX_RATIO times the smaller (founding years excepted); a day that
+    cannot be dealt that way is dealt once more at RELAXED_RATIO
+  - at most MAX_FOUNDED rounds ask for a founding year
+  - a company from Wikidata must be one a reader can place: on a Topfloor list, the named company of a
+    Boardread story of the last KNOWN_DAYS days, or with MIN_SITELINKS Wikipedia language editions
   - when the pool cannot make a chain of six, the day falls back to ten separate pairs
 
 Usage: python3 build_data.py [--date YYYY-MM-DD] [--queue ../../queue] [--out assets/data/today.json]
@@ -38,6 +43,11 @@ MIN_YEAR_GAP = 2     # founding years: skip pairs closer than this many years
 MAX_YEAR_APART = 2   # the two figures of a round come from years this close or closer
 MAX_PER_SUBJECT = 2
 MAX_PER_KIND = 4
+MAX_RATIO = 8        # 2,850x apart is a gimme; inside 8x the call has to be thought about
+RELAXED_RATIO = 15   # one wider deal for a thin day before the build gives up
+MAX_FOUNDED = 2      # founding-year rounds in a day
+MIN_SITELINKS = 20   # Wikipedia language editions: the floor for a company no list or story of ours names
+KNOWN_DAYS = 30
 SKIP_STATUS = {"held", "deleted", "failed", "expired"}
 
 try:
@@ -260,7 +270,45 @@ def wd_figures(qid, ent, today_year):
     return [{**f, "subject": label, "qid": qid, "src": {"name": "Wikidata", "url": page + "#" + f["anchor"], "label": "Wikidata"}} for f in out]
 
 
-def wikidata_pool(posts, today_year, report):
+def squash(s):
+    return norm(s).replace(" ", "")
+
+
+def topfloor_names():
+    """Every answer Topfloor accepts, spellings included: a company on those lists is one players are asked to name."""
+    names = set()
+    for f in sorted((HERE.parent / "topfloor" / "assets" / "data" / "lists").glob("*.json")):
+        try:
+            for e in json.loads(f.read_text())["entries"]:
+                names.add(squash(e[0])); names.update(e[3])
+        except Exception:
+            continue
+    return names
+
+
+def story_companies(posts, today):
+    """The company a recent story of ours is about (its company and logo fields, not every capitalised word in it)."""
+    names = set()
+    for d in posts:
+        try:
+            age = (today - dt.date.fromisoformat(str(d.get("created", ""))[:10])).days
+        except ValueError:
+            continue
+        if 0 <= age <= KNOWN_DAYS:
+            names.update(squash(n) for n in [d.get("company"), *(d.get("logo_names") or [])] if n)
+    return names
+
+
+def wiki_editions(ent):
+    return sum(1 for k in ent.get("sitelinks", {}) if k.endswith("wiki") and k not in ("commonswiki", "specieswiki", "metawiki", "wikidatawiki"))
+
+
+def known_subject(subject, editions, listed, named):
+    k = squash(subject)
+    return k in listed or k in named or editions >= MIN_SITELINKS
+
+
+def wikidata_pool(posts, today_year, report, today=None):
     names = candidate_names(posts)
     found = wd_companies(names)
     report.append(f"candidate names {len(names)}, resolved to businesses {len(found)}")
@@ -268,11 +316,18 @@ def wikidata_pool(posts, today_year, report):
     ents = {}
     for i in range(0, len(ids), 40):
         chunk = ids[i:i + 40]
-        url = API + "?action=wbgetentities&props=claims|labels&languages=en&format=json&ids=" + "|".join(chunk)
-        ents.update(cached("e|" + "|".join(chunk), url)["entities"])
-    figs = []
+        url = API + "?action=wbgetentities&props=claims|labels|sitelinks&languages=en&format=json&ids=" + "|".join(chunk)
+        ents.update(cached("es|" + "|".join(chunk), url)["entities"])
+    listed, named = topfloor_names(), story_companies(posts, today or dt.datetime.now(dt.timezone.utc).date())
+    figs, unknown = [], []
     for qid in ids:
-        figs.extend(wd_figures(qid, ents.get(qid, {}), today_year))
+        ent = ents.get(qid, {})
+        got = wd_figures(qid, ent, today_year)
+        if got and not known_subject(got[0]["subject"], wiki_editions(ent), listed, named):
+            unknown.append(got[0]["subject"])
+            continue
+        figs.extend(got)
+    report.append(f"left out as not widely known {len(unknown)}: " + ", ".join(sorted(unknown)))
     return figs
 
 
@@ -283,6 +338,13 @@ def gap(a, b):
         return abs(a["value"] - b["value"]) / 40.0, abs(a["value"] - b["value"]) >= MIN_YEAR_GAP
     hi, lo = max(a["value"], b["value"]), min(a["value"], b["value"])
     return math.log(hi / lo), (hi - lo) / hi >= MIN_GAP
+
+
+def ratio(a, b):
+    """Larger over smaller; founding years have no ratio to cap."""
+    if a["kind"] == "founded":
+        return 1.0
+    return max(a["value"], b["value"]) / min(a["value"], b["value"])
 
 
 def key_of(f):
@@ -309,20 +371,21 @@ def build_pairs(figs):
                 if kind != "founded" and abs(a["year"] - b["year"]) > MAX_YEAR_APART:
                     continue
                 if ok:
-                    pairs.append({"a": a, "b": b, "kind": kind, "d": d,
+                    pairs.append({"a": a, "b": b, "kind": kind, "d": d, "ratio": ratio(a, b),
                                   "news": (a["src"]["name"] == "Boardread") + (b["src"]["name"] == "Boardread")})
     return pairs
 
 
-def choose(pairs, rng):
+def choose(pairs, rng, max_ratio=MAX_RATIO):
     """Ten rounds: wide gaps first, narrow last. News figures get a heavier draw."""
+    pairs = [p for p in pairs if p["ratio"] <= max_ratio]
     used, kinds, picked = {}, {}, []
     order = sorted({p["d"] for p in pairs}, reverse=True)
     for i in range(ROUNDS):
         target = 1 - i / (ROUNDS - 1)  # 1 = widest gap, 0 = narrowest
         pool = [p for p in pairs if p not in picked
                 and used.get(key_of(p["a"]), 0) < MAX_PER_SUBJECT and used.get(key_of(p["b"]), 0) < MAX_PER_SUBJECT
-                and kinds.get(p["kind"], 0) < MAX_PER_KIND]
+                and kinds.get(p["kind"], 0) < (MAX_FOUNDED if p["kind"] == "founded" else MAX_PER_KIND)]
         if not pool:
             return None
         ranks = sorted(pool, key=lambda p: -p["d"])
@@ -356,7 +419,7 @@ def subject_key(f):
     return norm(f["subject"])
 
 
-def chain(figs, pairs, rng, tries=6000):
+def chain(figs, pairs, rng, tries=6000, max_ratio=MAX_RATIO):
     """One run for the day: the figure just revealed stays on the balance as A of the next round.
 
     Nodes are subjects (a company is weighed once and never comes back), an edge is a valid pair of
@@ -368,6 +431,8 @@ def chain(figs, pairs, rng, tries=6000):
     edges = {}
     for p in pairs:
         ka, kb = subject_key(p["a"]), subject_key(p["b"])
+        if p["ratio"] > max_ratio:
+            continue
         if ka == kb or fig[(ka, p["kind"])] is not p["a"] or fig[(kb, p["kind"])] is not p["b"]:
             continue
         edges.setdefault(ka, []).append((kb, p["kind"], p["d"], p["news"]))
@@ -385,7 +450,7 @@ def chain(figs, pairs, rng, tries=6000):
                 ans = "higher" if fig[(nb, k)]["value"] > fig[(cur, k)]["value"] else "lower"
                 if ans == last_ans and run_ans >= MAX_SAME_ANSWER:
                     continue
-                if kinds.get(k, 0) >= 6:
+                if kinds.get(k, 0) >= (MAX_FOUNDED if k == "founded" else 6):
                     continue
                 w = (3.0 if k == kind else 1.0) * (1 + 2 * news) * (1.5 if ans != last_ans else 1.0)
                 opts.append((w, nb, k, d, ans))
@@ -419,7 +484,7 @@ def build(date, queue):
     for d in posts:
         news.extend(article_figures(d))
     report.append(f"figures from articles {len(news)}: " + ", ".join(f"{f['show']} ({f['kind']})" for f in news))
-    wd = wikidata_pool(posts, dt.datetime.now(dt.timezone.utc).year, report)
+    wd = wikidata_pool(posts, dt.datetime.now(dt.timezone.utc).year, report, date)
     kinds = {}
     for f in wd:
         kinds[f["kind"]] = kinds.get(f["kind"], 0) + 1
@@ -427,8 +492,11 @@ def build(date, queue):
     pairs = build_pairs(news + wd)
     report.append(f"valid pairs {len(pairs)} (news in {sum(1 for p in pairs if p['news'])})")
     rng = random.Random(int(hashlib.sha256(f"face-the-figure|{date.isoformat()}".encode()).hexdigest(), 16))
-    rounds = []
+    rounds, cap = [], MAX_RATIO
     links = chain(news + wd, pairs, rng)
+    if not links:      # a thin day: one wider deal before the chain is given up
+        cap, links = RELAXED_RATIO, chain(news + wd, pairs, rng, max_ratio=RELAXED_RATIO)
+    report.append(f"figures at most {cap}x apart")
     if links:
         report.append(f"chain of {len(links)} links, {sum(1 for l in links if l[2] == 'turn')} column changes")
         for a, b, link in links:
@@ -436,7 +504,7 @@ def build(date, queue):
                            "a": public(a), "b": public(b), "answer": "higher" if b["value"] > a["value"] else "lower", "link": link})
     else:
         report.append("no chain in this pool: separate pairs")
-        picked = choose(pairs, rng)
+        picked = choose(pairs, rng) or choose(pairs, rng, RELAXED_RATIO)
         if not picked:
             return None, report
         # balance: five of each answer, in a seeded order, so a pattern cannot be guessed
@@ -457,9 +525,9 @@ def build(date, queue):
             seen.add(k)
             pool.append({**public(f), "k": k[0]})
     sig = hashlib.sha256("|".join(r["a"]["subject"] + ">" + r["b"]["subject"] + r["kind"] for r in rounds).encode()).hexdigest()[:10]
-    return {"v": 2, "date": date.isoformat(), "no": (date - LAUNCH).days + 1, "sig": sig,
+    return {"v": 3, "date": date.isoformat(), "no": (date - LAUNCH).days + 1, "sig": sig,
             "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "rounds": rounds, "pool": pool,
-            "rules": {"gap": MIN_GAP, "year_gap": MIN_YEAR_GAP, "years_apart": MAX_YEAR_APART},
+            "rules": {"gap": MIN_GAP, "year_gap": MIN_YEAR_GAP, "years_apart": MAX_YEAR_APART, "ratio": cap, "founded": MAX_FOUNDED},
             "credit": "Figures: Boardread stories and Wikidata (CC0). Each card links to its source. No market data is used."}, report
 
 

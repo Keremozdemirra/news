@@ -19,7 +19,7 @@ GAMES_DIR = Path(__file__).resolve().parent.parent / "games"
 GAMES = [
     ("topfloor", "Topfloor", "Seven prompts. The rarer your answer, the higher you ride.", True),
     ("tickerflip", "Tickerflip", "One word from today's news. Six guesses.", True),
-    ("face-the-figure", "Face the Figure", "Higher or lower? Each figure meets the next. A chain of ten.", True),
+    ("face-the-figure", "Face the Figure", "Higher or lower? Each figure meets the next.", True),
 ]
 SKIP = shutil.ignore_patterns(".cache", "__pycache__", "*.py", "DESIGN.md", "lockup.html", "extras.json", ".DS_Store")
 

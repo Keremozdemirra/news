@@ -82,5 +82,67 @@ class Chain(unittest.TestCase):
                 self.assertEqual(r["a"]["subject"], prev["b"]["subject"])
 
 
+class Selection(unittest.TestCase):
+    """The rounds published on 27 Nov 2026 that these rules exist to stop."""
+
+    def test_the_gimme_pairs_of_27_november_are_not_dealt(self):
+        figs = pool() + [fig("Altria", "usd", 24018000000), fig("Hugging Face", "usd", 15000000),      # 1,601x apart
+                         fig("Hugging Face", "people", 250), fig("Microsoft", "people", 228000)]       # 912x apart
+        pairs = ftf.build_pairs(figs)
+        wide = [p for p in pairs if {p["a"]["subject"], p["b"]["subject"]} in ({"Altria", "Hugging Face"}, {"Hugging Face", "Microsoft"})]
+        self.assertEqual(len(wide), 2)
+        self.assertTrue(all(p["ratio"] > 900 for p in wide))
+        for seed in ("2026-11-27", "2026-11-28", "2026-12-24"):
+            for cap in (ftf.MAX_RATIO, ftf.RELAXED_RATIO):
+                rng = random.Random(int(hashlib.sha256(seed.encode()).hexdigest(), 16))
+                for a, b, _ in ftf.chain(figs, pairs, rng, tries=800, max_ratio=cap):
+                    if a["kind"] != "founded":
+                        self.assertLessEqual(max(a["value"], b["value"]) / min(a["value"], b["value"]), cap, (a["subject"], b["subject"]))
+                rng = random.Random(1)
+                for p in ftf.choose(pairs, rng, cap) or []:
+                    self.assertLessEqual(p["ratio"], cap)
+
+    def test_at_most_two_founding_year_rounds(self):
+        # 27 Nov had six; a pool that is mostly founding years must still not deal more than two
+        figs = [fig(f"Old{i:02d}", "founded", 1850 + 7 * i, year=2000) for i in range(20)] + pool()
+        pairs = ftf.build_pairs(figs)
+        for seed in ("2026-11-27", "2026-11-28", "2026-12-24", "2027-01-01"):
+            rng = random.Random(int(hashlib.sha256(seed.encode()).hexdigest(), 16))
+            links = ftf.chain(figs, pairs, rng, tries=800)
+            self.assertLessEqual(sum(1 for a, _, _ in links if a["kind"] == "founded"), ftf.MAX_FOUNDED)
+            picked = ftf.choose(pairs, random.Random(seed))
+            self.assertLessEqual(sum(1 for p in picked if p["kind"] == "founded"), ftf.MAX_FOUNDED)
+
+    def test_a_company_nobody_can_place_is_left_out(self):
+        listed, named = ftf.topfloor_names(), {ftf.squash("Hugging Face")}
+        # Network For Teaching Entrepreneurship: 4 Wikipedia editions on 27 Nov 2026, on no list, in no story's company field
+        self.assertFalse(ftf.known_subject("Network For Teaching Entrepreneurship", 4, listed, named))
+        self.assertTrue(ftf.known_subject("Microsoft", 178, listed, named), "widely covered")
+        self.assertTrue(ftf.known_subject("Hugging Face", 10, listed, named), "the company of a recent Boardread story")
+        self.assertTrue(ftf.known_subject("Lufthansa", 0, listed, named), "on a Topfloor list")
+
+    def test_story_companies_are_the_last_thirty_days_only(self):
+        today = ftf.dt.date(2026, 11, 27)
+        posts = [{"company": "Acme Corp", "created": "2026-11-20T08:00:00Z"}, {"company": "Old Co", "created": "2026-09-01T08:00:00Z"},
+                 {"logo_names": ["Globex"], "created": "2026-10-28"}]
+        self.assertEqual(ftf.story_companies(posts, today), {"acmecorp", "globex"})
+
+    def test_a_thin_day_is_dealt_once_more_at_fifteen_times(self):
+        # two clusters about 10x apart: three links at the strict cap, a full chain at the relaxed one
+        figs = ([fig(f"Small{i}", "usd", v) for i, v in enumerate((1.0e6, 1.1e6, 1.2e6, 1.35e6))]
+                + [fig(f"Large{i}", "usd", v) for i, v in enumerate((1.2e7, 1.3e7, 1.4e7, 1.5e7))])
+        pairs = ftf.build_pairs(figs)
+        self.assertIsNone(ftf.chain(figs, pairs, random.Random(3), tries=300))
+        links = ftf.chain(figs, pairs, random.Random(3), tries=300, max_ratio=ftf.RELAXED_RATIO)
+        self.assertGreaterEqual(len(links), ftf.CHAIN_MIN)
+
+    def test_the_committed_puzzle_keeps_the_rules(self):
+        d = json.loads((GAME / "assets" / "data" / "today.json").read_text())
+        self.assertLessEqual(sum(1 for r in d["rounds"] if r["kind"] == "founded"), ftf.MAX_FOUNDED)
+        for r in d["rounds"]:
+            if r["kind"] != "founded":
+                self.assertLessEqual(max(r["a"]["value"], r["b"]["value"]) / min(r["a"]["value"], r["b"]["value"]), d["rules"]["ratio"])
+
+
 if __name__ == "__main__":
     unittest.main()

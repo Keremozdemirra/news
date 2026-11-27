@@ -148,7 +148,7 @@ const fair = (a, b) => {
   if (a.kind !== b.kind || a.k === b.k || (a.src.name === "Boardread") !== (b.src.name === "Boardread")) return false;
   if (a.kind === "founded") return Math.abs(a.value - b.value) >= data.rules.year_gap;
   const hi = Math.max(a.value, b.value), lo = Math.min(a.value, b.value);
-  return lo > 0 && (hi - lo) / hi >= data.rules.gap && Math.abs(a.year - b.year) <= data.rules.years_apart;
+  return lo > 0 && (hi - lo) / hi >= data.rules.gap && hi / lo <= (data.rules.ratio || 15) && Math.abs(a.year - b.year) <= data.rules.years_apart;
 };
 const draw = (list) => list[Math.floor(Math.random() * list.length)];
 function deal() {
