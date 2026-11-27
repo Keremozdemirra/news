@@ -87,6 +87,9 @@
    "at": "2026-11-27T16:00:30+00:00",
    "video": true,
    "format": "video"
+  },
+  "facebook": {
+   "skipped": "below facebook_min_score"
   }
  },
  "lead_published": "2026-11-27T13:20:24+00:00",
