@@ -47,7 +47,7 @@ class Metadata(unittest.TestCase):
             m = SH.metadata(post(), CREDIT)
         self.assertEqual(m["snippet"]["categoryId"], "25")
         self.assertIs(m["status"]["selfDeclaredMadeForKids"], False)
-        self.assertIs(m["status"]["containsSyntheticMedia"], False)
+        self.assertIs(m["status"]["containsSyntheticMedia"], True)  # the conservative disclosure (playbook move 4)
         d = m["snippet"]["description"]
         self.assertIn("https://boardread.news/s/a/", d)
         self.assertIn("Reported by Bloomberg and France 24.", d)
@@ -221,9 +221,9 @@ class Render(Tmp):
         d.mkdir(parents=True)
         render.subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=1600x1200",
                                "-frames:v", "1", str(d / "photo.jpg")], check=True)
-        p = post(dek="", body="")  # no fact beats: a short render
-        with mock.patch.multiple(SH, HEAD_SECONDS=2.0, SOURCES_SECONDS=1.5, END_SECONDS=1.5):
-            out, credit = SH.build(p, Path(self.tmp.name) / "s.mp4", fetch=False)
+        info = {}
+        out, credit = SH.build(post(), Path(self.tmp.name) / "s.mp4", fetch=False, info=info)
+        self.assertGreaterEqual(info["seconds"], 20)
         self.assertEqual(credit, CREDIT)
         self.assertEqual(CV.audit_file(out, "reel"), [])
 

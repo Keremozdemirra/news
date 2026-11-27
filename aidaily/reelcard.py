@@ -48,6 +48,8 @@ GEO = {
               "span": (840, SAFE_BOTTOM)},
     "photo-top": {"band": (0, 760), "box": (880, 1390, "start"), "foot": ("bottom", SAFE_BOTTOM), "credit": 776},
     "photo-bottom": {"band": (990, 1610), "box": (320, 890, "start"), "foot": ("top", SAFE_TOP), "credit": 904},
+    # no picture: type on black (the Short's data and brief structures); never picked for a photo
+    "plain": {"band": (0, 0), "box": (400, 1420, "center"), "foot": ("top", SAFE_TOP), "credit": None},
 }
 SCRIM = {  # the card's own gradient (templates.card, tall), the same turned over, and the same as a band
     "bottom": "rgba(0,0,0,.35) 0%,rgba(0,0,0,0) 18%,rgba(0,0,0,0) 34%,rgba(0,0,0,.84) 58%,rgba(0,0,0,.94) 100%",
@@ -253,10 +255,12 @@ def layer(story, name, part):
                      f'<div style="position:absolute;left:0;right:0;top:{y1}px;bottom:0;background:{T.BLACK}"></div>')
         side, y = g["foot"]
         pos = f"bottom:{H - y}px" if side == "bottom" else f"top:{y}px"
-        credit = _credit_text(story)
+        credit = _credit_text(story) if name != "plain" else ""
         cred = (f'<div style="margin-top:10px;font-size:{CREDIT_PX}px;line-height:1.3;color:{T.GREY_DARK}">{credit}</div>'
                 if credit else "")
-        if "credit" in g:  # the band layouts: the wordmark row where the foot goes, the credit as a caption by the photo
+        if name == "plain":
+            inner += f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
+        elif "credit" in g:  # the band layouts: the wordmark row where the foot goes, the credit as a caption by the photo
             inner += f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;{pos}">{_wordmark()}</div>'
             if credit:
                 inner += (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:{g["credit"]}px;'
@@ -283,11 +287,28 @@ def layer(story, name, part):
         inner = (f'<div style="position:absolute;inset:0;background:{T.STORY_BG};display:flex;flex-direction:column;'
                  f'justify-content:center;padding:0 {W - RIGHT}px 180px {LEFT}px">'
                  f'<div style="font-size:150px;font-weight:800;letter-spacing:-6px;line-height:1">{T.e(T.BRAND["name"])}</div>'
-                 f'<div style="margin-top:48px;font-size:64px;font-weight:700;letter-spacing:-1.5px">{T.e(T.domain())}</div>'
-                 f'<div style="margin-top:20px;font-size:52px;font-weight:500;color:#9aa0a8;letter-spacing:-1px">'
-                 f'Full story and sources</div></div>')
+                 f'<div style="margin-top:56px;font-size:60px;font-weight:700;letter-spacing:-1.5px;line-height:1.15">'
+                 f'<span style="color:#9aa0a8;font-weight:500">{T.e(story.get("end_line", "Full story on"))}</span><br>'
+                 f'{T.e(T.domain())}</div></div>')
     else:
         raise ValueError(part)
+    return _wrap(inner)
+
+
+def _wrap(inner):
     return T.head().replace("<body>", '<body style="background:transparent">') + (
         f'<div style="position:relative;width:{W}px;height:{H}px;color:{T.WHITE};font-family:\'Libre Franklin\',sans-serif;'
         f'overflow:hidden">{inner}</div>{FIT}</body></html>')
+
+
+def page(name, inner):
+    """A transparent layer with `inner` in layout `name`'s text box: the Short's beats use the Reel's geometry."""
+    top, bottom, anchor = GEO[name]["box"]
+    just = "center" if anchor == "center" else "flex-" + anchor
+    return _wrap(f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:{top}px;height:{bottom - top}px;'
+                 f'display:flex;flex-direction:column;justify-content:{just}">{inner}</div>')
+
+
+def room(name):
+    top, bottom, _ = GEO[name]["box"]
+    return bottom - top

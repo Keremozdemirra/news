@@ -177,17 +177,19 @@ def choose_footage(post, seconds, fetch=True):
     return clip
 
 
-def build(post, out_mp4, fetch=True, clip=None):
-    """Render the Short. Returns (path, credit); raises when the post cannot be one or a tool fails. With a clip
-    (choose_footage) the archive footage replaces the moving photo and its credit replaces the photo's."""
+def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, info=None):
+    """Render a post-based Short in `structure` (shortforms.py). Returns (path, credit); raises when the post cannot
+    be one or a tool fails. With a clip (choose_footage) the archive footage replaces the moving photo and its credit
+    replaces the photo's. The text goes where the picture leaves room (reelcard layouts); `avoid` is the last Short's
+    layout. info, when given, receives the structure, layout and length used."""
+    from . import reelcard as RC
+    from . import shortforms as SF
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
     if not post.get("photo_file") or not V.photo_ok({"credit": post.get("credit", "")}):
         raise ValueError("no photo under CC0, CC BY or public domain")
-    h, out_mp4 = CV.HEIGHT["reel"], Path(out_mp4)
+    out_mp4 = Path(out_mp4)
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
-    plan = beats(post)
-    total = sum(d for _, d in plan)
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         photo, credit = source_photo(post, tmp / "photo.jpg", fetch)
@@ -197,84 +199,44 @@ def build(post, out_mp4, fetch=True, clip=None):
         why = CV.eligible(story)
         if why:
             raise ValueError(why)
-        clip = clip if clip is not None else choose_footage(post, total, fetch)
-        footage, span, photo_story = None, total, story
+        clip = clip if clip is not None else choose_footage(post, SF.MAX_SECONDS, fetch)
+        footage = None
         if clip:
             from . import broll
-            span = min(total, broll.usable(clip))
             try:
-                footage = broll.fetch(clip, tmp / "clip.mp4", span)
+                footage = broll.fetch(clip, tmp / "clip.mp4", min(broll.usable(clip), SF.MAX_SECONDS))
                 story, credit = CV.with_footage(story, clip), broll.credit(clip)
-                if span < total:
-                    credit = f"{credit}. {entities_clean(post.get('credit', ''))}"  # both works are on screen
             except Exception as e:  # noqa: BLE001  no footage this time: the photo moves instead
                 print(f"shorts: footage {clip['id']} not fetched, photo instead: {str(e)[:160]}")
-        handover = footage is not None and span < total  # footage first, then the moving photo
-        layers = []  # (png, t_in, t_out, rise, fade_in)
-        t = 0.0
-        for name, d in plan:
-            if name == "head":
-                for part in CV.LAYERS:
-                    png = tmp / f"head-{part}.png"
-                    CV.shoot_layer(CV.layer_html(story, "reel", part), png, CV.W, h)
-                    if part == "base":  # gradient, wordmark and credit: on screen for every picture beat
-                        if handover:
-                            layers.append((png, 0.0, span, 0, 0.01))  # the footage credit while the clip plays
-                            png2 = tmp / "head-base-photo.png"
-                            CV.shoot_layer(CV.layer_html(photo_story, "reel", "base"), png2, CV.W, h)
-                            layers.append((png2, span - 0.3, total - END_SECONDS + 0.4, 0, 0.3))
-                        else:
-                            layers.append((png, 0.0, total - END_SECONDS + 0.4, 0, 0.01))
-                    else:
-                        t0, fd, rise = CV.REVEAL[part]
-                        layers.append((png, t0, d, rise, fd))
-            elif name.startswith("fact"):
-                png = tmp / f"{name}.png"
-                CV.shoot_layer(text_layer(story, facts(post)[int(name[4:])]), png, CV.W, h)
-                layers.append((png, t, t + d, RISE, FADE_IN))
-            elif name == "sources":
-                png = tmp / "sources.png"
-                CV.shoot_layer(text_layer(story, f"Reported by {outlets_line(post)}", weight=700, size=72), png, CV.W, h)
-                layers.append((png, t, t + d + 0.4, RISE, FADE_IN))
-            else:
-                png = tmp / "end.png"
-                from . import render as R
-                R.shoot(end_frame(), png, CV.W, h)
-                layers.append((png, t - 0.4, None, 0, 0.4))  # a crossfade out of the photo
-            t += d
-        sw, sh = CV.probe_size(photo)
-        fx, fy = CV.focus(story)
-        if footage and not handover:
-            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-t", f"{total}", "-i", str(footage)]
-        else:
-            cmd = ["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(photo)]
-        first = 1
-        if handover:
-            cmd += ["-t", f"{span}", "-i", str(footage)]
-            first = 2
-        for png, *_ in layers:
-            cmd += ["-loop", "1", "-framerate", str(CV.FPS), "-t", f"{total}", "-i", str(png)]
-        from . import audio
-        cmd += ["-i", str(audio.track(tmp / "sound.wav", total, footage))]
-        from . import broll
-        if footage and not handover:
-            chain, last = [broll.background(*CV.probe_size(footage), CV.W, h, total, CV.FPS)], "bg"
-        elif handover:
-            cam = CV.camera(sw, sh, h, fx, fy, total, PUSH).replace("[bg]", "[bgp]")
-            clipf = broll.background(*CV.probe_size(footage), CV.W, h, span, CV.FPS, src="[1:v]", out="[fv0]")
-            chain = [cam, clipf, f"[fv0]fade=t=out:st={span - 0.6:.2f}:d=0.6:alpha=1[fv];[bgp][fv]overlay=0:0:format=auto:eof_action=pass[bg]"]
-            last = "bg"
-        else:
-            chain, last = [CV.camera(sw, sh, h, fx, fy, total, PUSH)], "bg"
-        for i, (png, t_in, t_out, rise, fade_in) in enumerate(layers, start=first):
-            f, y = overlay(i, t_in, t_out, rise, fade_in)
-            chain.append(f"[{i}:v]{f}[l{i}];[{last}][l{i}]overlay=x=0:y='{y}':format=auto:eval=frame[v{i}]")
-            last = f"v{i}"
-        chain.append(f"[{last}]scale=out_color_matrix=bt709:out_range=tv:flags=lanczos,format=yuv420p[v]")
-        cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(layers) + first}:a",
-                "-t", f"{total}", "-r", str(CV.FPS)] + CV.ENCODE + [str(out_mp4)]
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=900)
+        layout = CV.reel_layout(story, post["id"], footage=bool(footage), avoid=avoid)
+        plan = None
+        for name in dict.fromkeys([structure, "story"]):
+            plan = SF.post_timeline(name, post, story, layout, facts(post, 3), outlets_line(post))
+            if plan:
+                structure = name
+                break
+        if not plan:
+            raise ValueError("not enough published copy for a 20-second Short")
+        pages, total = plan
+        fx, fy = CV.reel_focus(story)[:2] if not footage else (0.5, 0.5)
+        CV.build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy), footage=footage)
+    if info is not None:
+        info.update(structure=structure, layout=layout, seconds=total)
     return out_mp4, credit
+
+
+def build_plain(job, out_mp4):
+    """Render a Short with no photo (the brief and the number of the day). Returns (path, "")."""
+    from . import shortforms as SF
+    if job["structure"] == "brief":
+        _, plan = SF.brief_timeline(job["posts"], outlets_line, job["markets"])
+    else:
+        _, _, _, plan = SF.data_timeline(job["m"], job["series"], job["why"])
+    if not plan:
+        raise ValueError("too short")
+    pages, total = plan
+    CV.build_sequence(out_mp4, pages, total, (0, 0))
+    return Path(out_mp4), ""
 
 
 def entities_clean(credit):
@@ -314,20 +276,63 @@ def description(post, credit):
         credit = entities.clean_credit(credit)
         edited = re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited")
         lines += ["", _clean(credit) + (". Edited" if edited else "")]
-    lines += ["", hashtags(post)]
+    lines += ["", AI_LINE, "", hashtags(post)] if cfg("shorts_ai_line", False) else ["", hashtags(post)]
     text = "\n".join(lines).strip()
     while len(text.encode("utf-8")) > DESCRIPTION_MAX:
         text = text[:-50]
     return text
 
 
+# off until Kerem decides: his standing rule was no "Written by AI" line in social output (tests/test_shorts.py), the
+# 2026-11-27 playbook asks for one. The containsSyntheticMedia flag below discloses either way.
+AI_LINE = "Written by AI from the reporting named above. Photos and footage are real, licensed and credited."
+
+
 def metadata(post, credit):
-    """The videos resource for insert. Real photographs only, so containsSyntheticMedia is false."""
+    """The videos resource for insert. containsSyntheticMedia is set although the pictures are real: the text is
+    written by AI, and the flag is the conservative choice (YouTube says it does not limit reach,
+    support.google.com/youtube/answer/14328491)."""
     tags = [x for x in (post.get("topic"), "business news", "news") if x]
     return {"snippet": {"title": title(post), "description": description(post, credit), "categoryId": NEWS_CATEGORY,
                         "tags": tags, "defaultLanguage": "en", "defaultAudioLanguage": "en"},
-            "status": {"privacyStatus": cfg("shorts_privacy", "public"), "selfDeclaredMadeForKids": False,
-                       "containsSyntheticMedia": False, "embeddable": True}}
+            "status": _status()}
+
+
+def _status():
+    return {"privacyStatus": cfg("shorts_privacy", "public"), "selfDeclaredMadeForKids": False,
+            "containsSyntheticMedia": True, "embeddable": True}
+
+
+def _resource(title_, lines):
+    text = "\n".join(lines).strip()
+    while len(text.encode("utf-8")) > DESCRIPTION_MAX:
+        text = text[:-50]
+    return {"snippet": {"title": _clean(title_)[:TITLE_MAX], "description": text, "categoryId": NEWS_CATEGORY,
+                        "tags": ["business news", "news", "markets"], "defaultLanguage": "en", "defaultAudioLanguage": "en"},
+            "status": _status()}
+
+
+def home_url():
+    url = desk.CONFIG["site_url"] + "/"
+    return url + ("?utm_source=youtube&utm_medium=social" if desk.growth("utm") else "")
+
+
+def metadata_job(job, credit=""):
+    """The videos resource for any Short: the post's own, or the brief's and the number of the day's."""
+    if job["structure"] == "brief":
+        from . import shortforms as SF
+        title_, _ = SF.brief_timeline(job["posts"], outlets_line, job["markets"])
+        lines = [f"Full stories and sources: {home_url()}", ""]
+        for i, p in enumerate(job["posts"][:3], start=1):
+            lines += [f"{i}. {_clean(p['headlines'][0])}", f"   Reported by {outlets_line(p)}. {desk.story_url(p['id'], 'youtube')}"]
+        return _resource(f"{title_}: {_clean(job['posts'][0]['headlines'][0])}", lines + (["", AI_LINE] if cfg("shorts_ai_line", False) else []) + ["", "#Shorts #BusinessNews #Markets"])
+    if job["structure"] == "data":
+        from . import shortforms as SF
+        title_, caption, src, _ = SF.data_timeline(job["m"], job["series"], job["why"])
+        url = desk.CONFIG["site_url"] + "/numbers/" + ("?utm_source=youtube&utm_medium=social" if desk.growth("utm") else "")
+        return _resource(title_, [f"More numbers: {url}", "", caption, f"{src}. Chart drawn by Boardread from the published series.",
+                                  "", "#Shorts #Markets #Economy"])
+    return metadata(job["post"], credit)
 
 
 # choice
@@ -363,6 +368,57 @@ def candidates():
     return rows
 
 
+def brief_pool():
+    """(posts, markets): up to three of the last 12 hours' social stories for the brief, markets ones when there are
+    three, else the top three of any topic."""
+    since = desk.now() - timedelta(hours=12)
+    floor = float(desk.CONFIG.get("social_min_score", 0) or 0)
+    rows, seen = [], set()
+    for p, _ in desk.posts():
+        if p.get("status") not in ("published", "web") or p.get("kind") in desk.NO_CROSSPOST or not desk.social_allowed(p):
+            continue
+        when = _dt(p["published"]) if p.get("published") else None
+        if not when or when < since or (p.get("score") or 0) < floor or _norm(p["headlines"][0]) in seen:
+            continue
+        seen.add(_norm(p["headlines"][0]))
+        rows.append(p)
+    rows.sort(key=lambda p: (p.get("score") or 0, p.get("published", "")), reverse=True)
+    mk = [p for p in rows if p.get("topic") in ("Markets", "Economy", "Business")]
+    return (mk[:3], True) if len(mk) >= 3 else (rows[:3], False)
+
+
+def _light_story(post):
+    return story_from(post, Path("photo.jpg"), post.get("credit", ""))
+
+
+def plan_next(st=None):
+    """The next Short as a job {structure, key, ...}, or None: the first structure (shortforms.ORDER) that has the
+    material and is not the one the last Short used. The brief and the number of the day run once a day each."""
+    from . import shortforms as SF
+    st = st or _state()
+    day = f"{desk.now():%Y-%m-%d}"
+    avail = {}
+    cands = candidates()
+    if cands:
+        p = cands[0]
+        for name in SF.post_structures(p, _light_story(p), facts(p, 3)):
+            avail[name] = {"structure": name, "key": p["id"], "post": p}
+    if st.get("data_day") != day:
+        from . import markets as M
+        m = M.load(live=False)
+        pick = SF.data_pick(m, used=set(st.get("data_used", [])), today=desk.now().date()) if m else None
+        if pick:
+            key, why = pick
+            d = m["series"][key][-1][0]
+            avail["data"] = {"structure": "data", "key": f"data-{key}-{d}", "m": m, "series": key, "why": why}
+    if st.get("brief_day") != day:
+        posts, markets = brief_pool()
+        if len(posts) == 3:
+            avail["brief"] = {"structure": "brief", "key": f"brief-{day}", "posts": posts, "markets": markets}
+    name = SF.choose(avail, st.get("last_structure"))
+    return avail[name] if name else None
+
+
 def today_count(st=None):
     day = f"{desk.now():%Y-%m-%d}"
     return sum(1 for v in (st or _state()).get("attempted", {}).values() if (v.get("at") or "").startswith(day))
@@ -384,7 +440,7 @@ def due():
         return False, "spacing"
     if st.get("build_date") == f"{desk.now():%Y-%m-%d}" and st.get("build_failures", 0) >= 3:
         return False, "build failed repeatedly today"
-    if not candidates():
+    if not plan_next(st):
         return False, "no candidate"
     return True, ""
 
@@ -481,8 +537,9 @@ def run(http=_http, render=build):
     if not ok:
         print(f"shorts: not now ({why})")
         return None
-    post = candidates()[0]
     st = _state()
+    job = plan_next(st)
+    post = job.get("post")
     day = f"{desk.now():%Y-%m-%d}"
     try:
         token = access_token(http)
@@ -492,31 +549,50 @@ def run(http=_http, render=build):
     except Rejected as e:
         print(f"shorts: {e}")
         return None
+    info, clip = {"structure": job["structure"]}, None
+    last_layout = next((v.get("layout") for v in sorted(st.get("attempted", {}).values(), key=lambda v: v.get("at", ""),
+                                                          reverse=True) if v.get("layout")), None)
     with tempfile.TemporaryDirectory() as tmp:
         try:
-            clip = choose_footage(post, sum(d for _, d in beats(post))) if render is build else None
-            mp4, credit = render(post, Path(tmp) / "short.mp4", clip=clip) if clip else render(post, Path(tmp) / "short.mp4")
+            out = Path(tmp) / "short.mp4"
+            if not post:
+                mp4, credit = build_plain(job, out)
+                info["layout"] = "plain"
+            elif render is build:
+                from . import shortforms as SF
+                clip = choose_footage(post, SF.MAX_SECONDS)
+                mp4, credit = build(post, out, clip=clip, structure=job["structure"], avoid=last_layout, info=info)
+            else:
+                mp4, credit = render(post, out)
             spec = CV.audit_file(mp4, "reel") if Path(mp4).stat().st_size else ["empty file"]
             if spec:
                 raise ValueError("; ".join(spec))
         except Exception as e:  # noqa: BLE001
             failures = (st.get("build_failures", 0) if st.get("build_date") == day else 0) + 1
-            st.update(build_date=day, build_failures=failures, build_error=f"{post['id']}: {str(e)[-300:]}")
+            st.update(build_date=day, build_failures=failures, build_error=f"{job['key']}: {str(e)[-300:]}")
             _save(st)
             print(f"shorts: build failed ({failures}): {str(e)[-200:]}")
             return None
-        rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": post["headlines"][0],
-               **({"footage": clip["id"]} if clip else {})}
-        st.setdefault("attempted", {})[post["id"]] = rec
+        headline = post["headlines"][0] if post else metadata_job(job)["snippet"]["title"]
+        rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": headline, "structure": info["structure"],
+               **({"layout": info["layout"]} if info.get("layout") else {}), **({"footage": clip["id"]} if clip else {})}
+        st.setdefault("attempted", {})[job["key"]] = rec
+        st["last_structure"] = info["structure"]
+        if job["structure"] == "data":
+            st["data_day"] = day
+            st.setdefault("data_used", []).append(job["key"][5:])
+            st["data_used"] = st["data_used"][-60:]
+        if job["structure"] == "brief":
+            st["brief_day"] = day
         _save(st)  # on disk before the upload: never twice
         try:
-            vid = upload(mp4, metadata(post, credit), token, http)
+            vid = upload(mp4, metadata_job(job, credit), token, http)
         except Exception as e:  # noqa: BLE001
             rec["error"] = str(e)[:300]
             _save(st)
-            print(f"shorts: {post['id']} failed, not retried: {rec['error'][:200]}")
+            print(f"shorts: {job['key']} failed, not retried: {rec['error'][:200]}")
             return None
     rec.update(video_id=vid, url=f"https://youtube.com/shorts/{vid}")
     _save(st)
-    print(f"shorts: uploaded {post['id']} as {rec['url']}")
+    print(f"shorts: uploaded {job['key']} ({info['structure']}) as {rec['url']}")
     return vid

@@ -238,51 +238,70 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=No
 def build_reel(story, out_mp4, layout, footage=None):
     """The sequenced Reel (reelcard): the picture fills its layout's band (the rest black), and the layers come and go
     on the plan's clock: headline, fact, who reported it, end frame."""
-    from . import audio
     from . import reelcard as RC
     parts, total = RC.plan(story)
-    y0, y1 = RC.GEO[layout]["band"]
-    band = y1 - y0
+    pages = [(RC.layer(story, layout, name), t_in, t_out, "base" if name == "base" else "end" if name == "end" else "text")
+             for name, t_in, t_out in parts]
+    fx, fy, _, _ = reel_focus(story) if not footage else (0.5, 0.5, False, None)
+    return build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo_path(story), focus_xy=(fx, fy),
+                          footage=footage)
+
+
+def build_sequence(out_mp4, pages, total, band, photo=None, focus_xy=(0.5, 0.5), footage=None):
+    """A 1080x1920 video of transparent pages over a picture: footage (a clip, held on its last frame when short), else
+    the photo with the camera move, else plain black. The picture fills `band` (y0, y1), black around it.
+    pages: (html, t_in, t_out, kind); kind "base" is on screen throughout, "text" fades in rising and fades out,
+    "end" fades in and stays (an opaque end frame). Used by the Reel and the YouTube Short."""
+    from . import audio
+    from . import reelcard as RC
     h = HEIGHT["reel"]
+    y0, y1 = band
+    bh = y1 - y0
     out_mp4 = Path(out_mp4)
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         pngs = []
-        for name, _, _ in parts:
-            png = Path(tmp) / f"{name}.png"
-            shoot_layer(RC.layer(story, layout, name), png, W, h)
+        for i, (html_, *_rest) in enumerate(pages):
+            png = Path(tmp) / f"p{i}.png"
+            shoot_layer(html_, png, W, h)
             pngs.append(png)
-        src = Path(footage) if footage else photo_path(story)
         cmd = ["ffmpeg", "-y", "-loglevel", "error"]
-        cmd += ["-t", f"{total}", "-i", str(src)] if footage else ["-loop", "1", "-framerate", str(FPS), "-t", f"{total}", "-i", str(src)]
+        if footage:
+            cmd += ["-t", f"{total}", "-i", str(footage)]
+        elif photo and bh > 0:
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{total}", "-i", str(photo)]
+        else:
+            cmd += ["-f", "lavfi", "-t", f"{total}", "-i", f"color=c=black:s={W}x{h}:r={FPS}"]
         for png in pngs:
             cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{total}", "-i", str(png)]
         cmd += ["-i", str(audio.track(Path(tmp) / "sound.wav", total, footage))]
         if footage:
             from . import broll
-            # a clip shorter than the Reel holds its last frame; the end frame covers the tail anyway
-            chain = [broll.background(*probe_size(src), W, band, total, FPS, out="[clip]"),
+            # a clip shorter than the video holds its last frame; the end frame covers the tail anyway
+            chain = [broll.background(*probe_size(footage), W, bh, total, FPS, out="[clip]"),
                      f"[clip]tpad=stop_mode=clone:stop_duration={total},trim=duration={total},setpts=PTS-STARTPTS[cam]"]
+        elif photo and bh > 0:
+            chain = [camera(*probe_size(photo), bh, *focus_xy, total).replace("[bg]", "[cam]")]
         else:
-            fx, fy, _, _ = reel_focus(story)
-            chain = [camera(*probe_size(src), band, fx, fy, total).replace("[bg]", "[cam]")]
-        chain.append(f"[cam]pad={W}:{h}:0:{y0}:color=black,format=rgba[v0]" if band != h else "[cam]null[v0]")
+            chain, bh = ["[0:v]format=rgba[cam]"], h
+            y0 = 0
+        chain.append(f"[cam]pad={W}:{h}:0:{y0}:color=black,format=rgba[v0]" if bh != h else "[cam]null[v0]")
         last = "v0"
-        for i, (name, t_in, t_out) in enumerate(parts, start=1):
-            if name == "base":
+        for i, (_, t_in, t_out, kind) in enumerate(pages, start=1):
+            if kind == "base":
                 f, y = "format=rgba", "0"
             else:
                 f = f"format=rgba,fade=t=in:st={t_in:.2f}:d={RC.FADE_IN}:alpha=1"
                 if t_out is not None:
                     f += f",fade=t=out:st={t_out - RC.FADE_OUT:.2f}:d={RC.FADE_OUT}:alpha=1"
                 p = f"min(max((t-{t_in:.2f})/{RC.FADE_IN},0),1)"
-                y = f"{RC.RISE}*pow(1-{p},3)" if name in ("meta", "head", "fact", "source") else "0"
+                y = f"{RC.RISE}*pow(1-{p},3)" if kind == "text" else "0"
             chain.append(f"[{i}:v]{f}[l{i}];[{last}][l{i}]overlay=x=0:y='{y}':format=auto:eval=frame[v{i}]")
             last = f"v{i}"
         chain.append(f"[{last}]scale=out_color_matrix=bt709:out_range=tv:flags=lanczos,format=yuv420p[v]")
-        cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(parts) + 1}:a",
+        cmd += ["-filter_complex", ";".join(chain), "-map", "[v]", "-map", f"{len(pages) + 1}:a",
                 "-t", f"{total}", "-r", str(FPS)] + ENCODE + [str(out_mp4)]
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=900)
     return out_mp4
 
 
