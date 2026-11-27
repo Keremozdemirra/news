@@ -950,6 +950,8 @@ def build(out=desk.HERE / "_site"):
     shutil.copy(ASSETS / "words-NOTICE.txt", out / "assets" / "words-NOTICE.txt")
     for f in ("og-default.png", "logo.png", "icon.svg", "favicon.ico", "apple-touch-icon.png", "icon-192.png", "icon-512.png"):  # the preview image of every non-story page, the publisher logo, the favicon
         shutil.copy(ASSETS / f, out / f)
+    for f in ASSETS.glob("google*.html"):  # Search Console ownership files; they must stay for the property to stay verified
+        shutil.copy(f, out / f.name)
     if (ASSETS / "CNAME").exists():  # the custom domain GitHub Pages serves this site under; added at the cut-over
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
     shown = []
