@@ -31,7 +31,7 @@ except Exception:  # noqa: BLE001
     CTX = ssl.create_default_context()
 
 LINES = {"topfloor": "Topfloor", "tickerflip": "Tickerflip", "face-the-figure": "Face the Figure"}
-PLATFORMS = ("threads", "bluesky", "telegram", "facebook")
+PLATFORMS = ("telegram", "threads", "bluesky", "facebook")     # the order they are tried in; one is sent per run
 
 
 def today_utc():
@@ -218,7 +218,7 @@ def waits(name):
 TRY_MINUTES = 15     # of each hour: a platform that refuses is asked again 24 times a day at most, not every run
 
 
-def run(send=False, clients=None, opener=urllib.request.urlopen, day=None, minute=None):
+def run(send=False, clients=None, opener=urllib.request.urlopen, day=None, minute=None, limit=1):
     """Prints what it did. Returns {platform: {"id", "url"}} for the posts sent in this run."""
     day = day or today_utc()
     minute = desk.now().minute if minute is None else minute
@@ -270,6 +270,8 @@ def run(send=False, clients=None, opener=urllib.request.urlopen, day=None, minut
         try:
             sent[name] = SEND[name](client, nos, day)
             print(f"games post: {name} sent, {sent[name]['url'] or sent[name]['id']}")
+            if len(sent) >= limit:      # one platform a run: the four posts go out runs apart, never as a burst
+                break
         except Exception as e:  # noqa: BLE001  one platform's failure never stops the others
             print(f"games post: {name} failed ({str(e)[:200]})")
     return sent

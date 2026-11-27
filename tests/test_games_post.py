@@ -146,7 +146,7 @@ def on(value=True, **config):
 
 def run(cs, **kw):
     with mock.patch.object(desk, "_last_sent", kw.pop("last", lambda name: None)), mock.patch.object(desk, "platform_cooldown", kw.pop("cool", lambda name: None)):
-        return games_post.run(send=True, clients=cs, opener=kw.pop("opener", site_opener()), day=DAY, minute=kw.pop("minute", 5))
+        return games_post.run(send=True, clients=cs, opener=kw.pop("opener", site_opener()), day=DAY, minute=kw.pop("minute", 5), limit=kw.pop("limit", 4))
 
 
 class Text(unittest.TestCase):
@@ -226,6 +226,19 @@ class Send(unittest.TestCase):
         self.assertIn("thumb", rec["embed"]["external"])
         self.assertLessEqual(len(rec["text"]), 300)
         self.assertEqual(got["bluesky"]["url"], "https://bsky.app/profile/boardread.news/post/xyz")
+
+    def test_one_platform_a_run_and_telegram_first(self):
+        cs = clients()
+        with on(), mock.patch.object(desk, "_last_sent", lambda name: None), mock.patch.object(desk, "platform_cooldown", lambda name: None):
+            got = games_post.run(send=True, clients=cs, opener=site_opener(), day=DAY, minute=5)
+        self.assertEqual(list(got), ["telegram"])
+        self.assertEqual([cs[n].calls for n in ("threads", "bluesky", "facebook")], [[], [], []])
+        self.assertEqual(games_post.PLATFORMS[0], "telegram")
+
+    def test_the_next_run_moves_on_to_the_next_platform(self):
+        cs = clients(telegram=Telegram(page=CHANNEL + SENT))
+        with on():
+            self.assertEqual(list(run(cs, limit=1)), ["threads"])
 
     def test_instagram_is_never_a_target(self):
         self.assertNotIn("instagram", games_post.PLATFORMS)

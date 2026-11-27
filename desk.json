@@ -183,7 +183,7 @@
     "platforms": {"threads": true, "bluesky": true, "telegram": true, "facebook": true}
   },
   "growth": {
-    "games_post": false,
+    "games_post": true,
     "so_what": false,
     "by_source": false,
     "carousel_extended": false,
