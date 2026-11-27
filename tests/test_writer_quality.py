@@ -142,5 +142,58 @@ class Conversions(unittest.TestCase):
         self.assertTrue(any("currency conversion on its own" in p for p in desk.audit(post)))
 
 
+GUARDIAN = story("Labour MPs write to Starmer urging him to name a successor",
+                 "Dozens of Labour MPs signed a letter to Keir Starmer. A handful of frontbenchers joined scores of colleagues.",
+                 source="The Guardian", reports=[{"outlet": "Financial Times", "title": "Labour MPs press Starmer",
+                                                  "summary": "The letter was sent on Thursday."}])
+
+
+class Attribution(unittest.TestCase):
+    def run_apply(self, dek, post, s=None):
+        s = dict(s or GUARDIAN)
+        rows = [row(headline="Labour MPs write to Starmer urging him to name a successor", dek=dek, x_post="x",
+                    linkedin_post=post + "\n\nSource: The Guardian")]
+        copy.apply([s], rows)
+        return s
+
+    def test_an_opener_naming_a_newsroom_is_cut_and_the_clause_stands(self):
+        c = {"dek": "", "linkedin_post": "The Guardian reports that dozens of Labour MPs signed a letter to Keir Starmer.\n\n"
+                                         "Source: The Guardian"}
+        self.assertEqual(copy.strip_attributions(GUARDIAN, c), [])
+        self.assertEqual(c["linkedin_post"], "Dozens of Labour MPs signed a letter to Keir Starmer.\n\nSource: The Guardian")
+        c = {"dek": "According to the Financial Times, the letter was sent on Thursday.", "linkedin_post": ""}
+        copy.strip_attributions(GUARDIAN, c)
+        self.assertEqual(c["dek"], "The letter was sent on Thursday.")
+
+    def test_a_sentence_about_the_source_is_cut(self):
+        c = {"dek": "", "linkedin_post": "The Guardian describes the letter as exposing a split in Labour. The letter was sent "
+                                         "on Thursday.\n\nSource: The Guardian"}
+        self.assertEqual(copy.strip_attributions(GUARDIAN, c), ["The Guardian describes the letter as exposing a split in Labour."])
+
+    def test_only_one_attribution_survives(self):
+        c = {"dek": "A handful of frontbenchers joined, the Financial Times reported.",
+             "linkedin_post": "The letter was sent on Thursday, according to the Financial Times. Dozens of MPs signed it.\n\n"
+                              "Source: The Guardian"}
+        copy.strip_attributions(GUARDIAN, c)
+        self.assertEqual(c["dek"], "A handful of frontbenchers joined, the Financial Times reported.")
+        self.assertEqual(c["linkedin_post"], "The letter was sent on Thursday. Dozens of MPs signed it.\n\nSource: The Guardian")
+
+    def test_source_meta_sentences_are_rejected(self):
+        for x in ("The report cites sources.", "The report cites unnamed officials.", "With Dwight McNeil named in the report's headline."):
+            self.assertTrue(copy.META.search(x), x)
+        self.assertFalse(copy.META.search("The IMF report found growth of 3%."))
+
+    def test_apply_drops_the_meta_report_sentence(self):
+        s = self.run_apply("A handful of frontbenchers joined scores of colleagues.",
+                           "The report cites sources. Dozens of Labour MPs signed a letter to Keir Starmer.")
+        self.assertNotIn("cites sources", s["linkedin_post"])
+
+    def test_audit_holds_a_post_that_opens_with_a_newsroom(self):
+        from aidaily import desk
+        post = {"headlines": ["Labour MPs write to Starmer"], "dek": "Dozens signed.", "sources": ["The Guardian", "Financial Times"],
+                "body": "The Guardian reports that the letter was sent on Thursday. A handful of frontbenchers joined."}
+        self.assertTrue(any("opens with a newsroom" in p for p in desk.audit(post)))
+
+
 if __name__ == "__main__":
     unittest.main()

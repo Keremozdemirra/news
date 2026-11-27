@@ -659,6 +659,9 @@ def audit(post):
         for x in copy.sentences(post.get(field) or ""):
             if copy.META.search(x) or copy.OFFTOPIC.search(x):
                 problems.append(f"{field} sentence is about the source or another story: {x[:80]!r}")
+            names = copy.outlet_names({"newsrooms": post.get("sources") or []})
+            if names and re.search(rf"^(?:the )?{copy._outlet_rx(names)}\s+(?:also )?{copy.SAYS}\b", x, re.I):
+                problems.append(f"{field} sentence opens with a newsroom's name, which the sources list already gives: {x[:80]!r}")
             if copy.CONVERSION_SENTENCE.search(x):
                 problems.append(f"{field} sentence is a currency conversion on its own: {x[:80]!r}")
     if copy.fix_legislature(head_) != head_:

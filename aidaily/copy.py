@@ -53,6 +53,9 @@ the reports from other newsrooms listed under it ("also reported").
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
 that sounds quotable. American English. No em or en dashes. No hype words. No "not X but Y" constructions.
+The page lists its sources, so no sentence opens with a newsroom's name ("Bloomberg reports that ..."), and a
+report names a newsroom at most once, only for a claim that newsroom alone makes. Reports do not all open the same
+way: not every one with "The company".
 A currency conversion the source gives goes in parentheses right after the figure it converts, once, on its first
 mention: "405.8 billion won ($303 million)". Never a sentence of its own, never one you work out yourself.
 A percentage names its period as the source states it ("year on year", "on the month", "quarter on quarter",
@@ -590,8 +593,84 @@ def drop_repeats(post, deks, headline):
 # a sentence about the source rather than the news ("with Dwight McNeil named in the report's headline"), or about
 # another story ("Separately, the Liberal Democrats say ..."): never report
 META = re.compile(r"\b(?:the (?:report|article|story|source)['’]s (?:headline|title)|named in the (?:report|headline|article|"
-                  r"story)|the (?:article|report|story|source|piece) (?:says|said|notes|adds|reports|describes))\b", re.I)
+                  r"story)|the (?:article|report|story|source|piece) (?:says|said|notes|adds|reports|describes)|"
+                  r"(?:the|this) (?:report|article|story|piece) (?:cites|cited|quotes|quoted|mentions|mentioned|names|identifies|"
+                  r"gives|offers|provides|includes|relies|is based|draws|attributes|did not|didn['’]t|does not|doesn['’]t)|"
+                  r"according to the (?:report|article|story|piece))\b", re.I)
 OFFTOPIC = re.compile(r"^(?:Separately|In other news|Elsewhere|In a separate (?:development|story|move))\b", re.I)
+
+
+ALIAS_NAMES = {"FT": "Financial Times", "WSJ": "The Wall Street Journal", "NYT": "The New York Times"}
+FEED_SUFFIX = re.compile(r"\s+(AI|Tech|Technology|Companies|Business|Main|Top Stories|Top News|News|World|US Politics|Politics|"
+                         r"Economy|Economics|Markets|Finance|Venture|Asia)$")
+SAYS = r"(?:reports?|reported|says?|said|writes?|wrote|states?|stated|adds?|added|notes?|noted|claims?|claimed|reveals?|revealed)"
+DESCRIBES = r"(?:describes?|described|cites?|cited|quotes?|quoted|mentions?|mentioned|according to)"
+
+
+def outlet_names(story):
+    """Every way the page's own source list names the newsrooms that reported the story."""
+    raw = [story.get("source", "")] + [r.get("outlet", "") for r in story.get("reports") or []] \
+        + list(story.get("newsrooms") or story.get("outlets") or [])
+    names = set()
+    for n in raw:
+        n = FEED_SUFFIX.sub("", n or "").strip()
+        for x in {n, ALIAS_NAMES.get(n, n)}:
+            if len(x) >= 2:
+                names |= {x, re.sub(r"^The ", "", x)}
+    return {n for n in names if len(n) >= 2}
+
+
+def _outlet_rx(names):
+    return "(?:" + "|".join(re.escape(n) for n in sorted(names, key=len, reverse=True)) + ")"
+
+
+def strip_attributions(story, c):
+    """The page lists its sources: a sentence never opens with "Bloomberg reports that ...", and a text names a
+    newsroom at most once. An opener is cut and the clause stands ("Bloomberg reports that prices fell" becomes
+    "Prices fell"); a sentence that only describes the source ("The Guardian describes the letter as ...") goes.
+    Returns the sentences cut."""
+    names = outlet_names(story)
+    if not names:
+        return []
+    O = _outlet_rx(names)
+    opener = re.compile(rf"^(?:the )?{O}(?:['’]s [a-z]+(?: [a-z]+)?)? (?:also )?{SAYS}(?: that)?\s+(?=\S)", re.I)
+    according = re.compile(rf"^according to (?:the )?{O},?\s+(?=\S)", re.I)
+    about = re.compile(rf"^(?:the )?{O}(?:['’]s [a-z]+(?: [a-z]+)?)? (?:also )?{DESCRIBES}\b", re.I)
+    mid = re.compile(rf",?\s*\b(?:according to|as reported by|reported by|per)\s+(?:the )?{O}\b|,?\s*\b(?:the )?{O}\s+(?:reported|reports|said|says|writes|wrote)\b", re.I)
+    cut, named = [], False
+    for field in ("dek", "linkedin_post"):
+        text = c.get(field)
+        if not isinstance(text, str) or not text:
+            continue
+        lines = []
+        for line in text.split("\n"):
+            if line.startswith("Source:") or not line.strip():
+                lines.append(line)
+                continue
+            kept = []
+            for sent in sentences(line):
+                if about.search(sent):
+                    cut.append(sent)
+                    continue
+                rest = opener.sub("", sent, count=1) if opener.search(sent) else according.sub("", sent, count=1)
+                if rest != sent:
+                    if len(rest.split()) < 4:
+                        cut.append(sent)
+                        continue
+                    sent = rest[0].upper() + rest[1:]
+                if mid.search(sent):
+                    if named:
+                        trimmed = mid.sub("", sent).strip()
+                        if len(trimmed.split()) < 4 or mid.search(trimmed):
+                            cut.append(sent)
+                            continue
+                        sent = trimmed if trimmed.endswith((".", "!", "?")) else trimmed + "."
+                    named = True
+                kept.append(sent)
+            if kept:
+                lines.append(" ".join(kept))
+        c[field] = "\n".join(lines).strip()
+    return cut
 
 
 NAME_WORD = re.compile(r"(?<![.!?]\s)(?<!^)\b[A-Z][a-zA-Z’'-]{2,}")
@@ -752,6 +831,7 @@ def apply(stories, reply_rows):
             rejected.append((s["title"], [f"repeats recent headline {same}"]))
             continue
         if c:
+            strip_attributions(s, c)
             fix_conversions(c)
             strip_ungrounded(s, c)
             trim_periods(s, c)
