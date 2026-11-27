@@ -25,8 +25,8 @@
    "match": "\\b(wind (?:power|farms?|turbines?|energy|parks?)|turbines?|offshore wind|renewables?|clean energy)\\b",
    "alt": "A wind turbine turning against a blue sky",
    "checked": "2026-11-27",
-   "audio": true,
-   "audio_note": "wind and rotor sound only; spectrogram broadband, no music or speech (checked 2026-11-27)"
+   "audio": false,
+   "audio_note": "a loud handling or gust burst mid-clip: treated as silent (2026-11-27)"
   },
   {
    "id": "wind-farm-albany",

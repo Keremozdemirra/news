@@ -33,6 +33,7 @@ class NoMusic(unittest.TestCase):
             self.assertIn("audio", c, c["id"])
             if c["audio"]:
                 self.assertIn("no music or speech", c.get("audio_note", ""), c["id"])
+        self.assertEqual([c["id"] for c in broll.load()["clips"] if c["audio"]], ["wind-farm-albany"])
 
 
 @unittest.skipUnless(HAVE, "needs ffmpeg")
@@ -45,19 +46,20 @@ class Track(unittest.TestCase):
             self.assertAlmostEqual(float(s["format"]["duration"]), 5.0, delta=0.05)
             self.assertLessEqual(peak(wav), -90.0)  # volumedetect reports digital zero as its floor, -91 dB
 
-    def test_a_source_keeps_its_sound_levelled_and_padded(self):
+    def test_a_source_keeps_its_sound_as_quiet_even_ambience(self):
         with tempfile.TemporaryDirectory() as tmp:
-            src = Path(tmp) / "src.mp4"
-            # a quiet noise track stands in for a field recording: it is raised, but at most MAX_GAIN dB
-            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anoisesrc=a=0.01:d=4", "-ac", "2",
-                            "-c:a", "aac", str(src)], check=True)
-            before = audio.loudness(src)
-            wav = audio.track(Path(tmp) / "a.wav", 6.0, src)
-            self.assertAlmostEqual(float(probe(wav)["format"]["duration"]), 6.0, delta=0.05)
-            after = audio.loudness(wav)
-            self.assertLessEqual(after - before, audio.MAX_GAIN + 1)
-            self.assertGreater(after, before)
-            self.assertLess(peak(wav), -1.0)
+            levels = []
+            for k, amp in enumerate((0.01, 0.5)):  # a quiet and a loud recording end up alike
+                src = Path(tmp) / f"src{k}.mp4"
+                subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", f"anoisesrc=a={amp}:d=8", "-ac", "2",
+                                "-c:a", "aac", str(src)], check=True)
+                wav = audio.track(Path(tmp) / f"a{k}.wav", 9.0, src)
+                self.assertAlmostEqual(float(probe(wav)["format"]["duration"]), 9.0, delta=0.05)
+                levels.append(audio.loudness(wav))
+                self.assertLess(peak(wav), -6.0)
+            for lv in levels:
+                self.assertAlmostEqual(lv, audio.TARGET, delta=1.5)
+            self.assertLess(abs(levels[0] - levels[1]), 1.0)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,9 @@
 
 No music is added (Kerem's call, 2026-11-27: the generated bed sounded wrong). A clip keeps its original sound
 only when the library marks it `audio: true`: the sound is part of the same Commons file under the same licence,
-and a person checked it carries no music and no speech (aidaily/broll.json). It is brought to about -16 LUFS
-integrated, but never raised more than MAX_GAIN dB, so a quiet field recording does not turn into loud hiss.
+and a person checked it carries no music and no speech (aidaily/broll.json). It plays as quiet ambience: high-passed
+against wind rumble and levelled with a two-pass loudnorm to about -27 LUFS, true peak under -6 dBTP, so every
+clip sits at the same low level.
 
 Photo videos and clips without usable sound get digital silence. A silent AAC track stays in the file: the
 Instagram and Threads video specs describe the audio stream (AAC, 48 kHz at most, one or two channels) and the
@@ -16,7 +17,8 @@ import re
 import subprocess
 from pathlib import Path
 
-TARGET, MAX_GAIN = -16.0, 12.0
+# ambience, not foreground (Kerem, 2026-11-27: the wind was too loud): every clip lands at the same quiet level
+TARGET, PEAK, LRA, HIGHPASS = -27.0, -6.0, 7.0, 90
 
 
 def has_audio(path):
@@ -39,13 +41,22 @@ def silence(out_wav, seconds):
 
 
 def track(out_wav, seconds, source=None):
-    """A WAV of `seconds`: the source's own sound (short fades, levelled, padded with silence if the source is
-    shorter), or silence when there is no source or it has no sound."""
+    """A WAV of `seconds`: the source's own sound as quiet ambience (high-passed at HIGHPASS Hz against wind rumble,
+    two-pass loudnorm to TARGET LUFS integrated with true peak under PEAK dBTP, 0.5 s fades, padded with silence if
+    the source is shorter), or silence when there is no source or it has no sound."""
     if not source or not has_audio(source):
         return silence(out_wav, seconds)
-    gain = min(TARGET - loudness(source), MAX_GAIN)
-    af = (f"volume={gain:.1f}dB,afade=t=in:st=0:d=0.2,alimiter=limit=0.79:level=false,apad,"
-          f"atrim=duration={seconds:.2f},afade=t=out:st={max(0.0, seconds - 0.5):.2f}:d=0.5,aresample=48000")
+    pre = f"highpass=f={HIGHPASS}"
+    norm = f"loudnorm=I={TARGET}:TP={PEAK}:LRA={LRA}"
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(source), "-vn", "-af", f"{pre},{norm}:print_format=json",
+                        "-f", "null", "-"], capture_output=True, text=True, timeout=120)
+    m = json.loads(r.stderr[r.stderr.rindex("{"):r.stderr.rindex("}") + 1])
+    if float(m["input_i"]) < -60:
+        return silence(out_wav, seconds)  # nothing audible after the filter
+    second = (f"{norm}:measured_I={m['input_i']}:measured_TP={m['input_tp']}:measured_LRA={m['input_lra']}"
+              f":measured_thresh={m['input_thresh']}:offset={m['target_offset']}:linear=true")
+    af = (f"{pre},{second},aresample=48000,afade=t=in:st=0:d=0.5,apad,atrim=duration={seconds:.2f},"
+          f"afade=t=out:st={max(0.0, seconds - 0.5):.2f}:d=0.5")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(source), "-vn", "-af", af, "-ac", "2",
                     "-c:a", "pcm_s16le", str(out_wav)], check=True, capture_output=True, timeout=120)
     return Path(out_wav)
