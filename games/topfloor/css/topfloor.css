@@ -32,7 +32,7 @@ a { color: inherit; }
 
 .app { position: fixed; inset: 0 0 auto 0; height: var(--vh, 100dvh); display: flex; flex-direction: column; max-width: 520px; margin: 0 auto; --W: min(100vw, 520px); }
 .top { flex: none; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 var(--pad); border-bottom: 1px solid var(--ink); }
-.brand { font: 600 23px/1 var(--serif); letter-spacing: -0.01em; text-decoration: none; }
+.brand { font: 600 23px/1 var(--serif); letter-spacing: -0.01em; text-decoration: none; padding: 11px 0; margin: -11px 0; } /* 44 px to hit, the bar does not grow */
 .tools { display: flex; }
 .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; transition: transform 120ms var(--ease); }
 .icon-btn:active { transform: scale(0.92); }

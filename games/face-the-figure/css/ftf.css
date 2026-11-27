@@ -32,7 +32,7 @@ a { color: inherit; }
 
 .app { position: fixed; inset: 0 0 auto 0; height: var(--vh, 100dvh); display: flex; flex-direction: column; max-width: 520px; margin: 0 auto; --W: min(100vw, 520px); }
 .top { flex: none; height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 var(--pad); border-bottom: 1px solid var(--ink); }
-.brand { font: 600 23px/1 var(--serif); letter-spacing: -0.01em; text-decoration: none; }
+.brand { font: 600 23px/1 var(--serif); letter-spacing: -0.01em; text-decoration: none; padding: 11px 0; margin: -11px 0; } /* 44 px to hit, the bar does not grow */
 .tools { display: flex; }
 .icon-btn { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; transition: transform 120ms var(--ease); }
 .icon-btn:active { transform: scale(0.92); }
@@ -143,6 +143,8 @@ a { color: inherit; }
 .rows .no .a { color: var(--soft); text-decoration: line-through; text-decoration-thickness: 1px; }
 .rows .sub { grid-column: 2 / -1; font: 400 12.5px/1.4 var(--f); color: var(--soft); }
 .rows .sub a { text-underline-offset: 2px; }
+/* a link on a phone is 44 px to hit: padding for the hit area, equal negative margin so the row does not grow */
+@media (max-width: 900px), (pointer: coarse) { .rows .sub a { display: inline-block; padding: 14px 4px; margin: -14px -4px; } }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .stats div { display: grid; gap: 6px; }
 .stats dt { font: 600 10.5px/1.2 var(--f); letter-spacing: 0.1em; text-transform: uppercase; color: var(--soft); order: 2; }
