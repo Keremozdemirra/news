@@ -222,6 +222,28 @@
    ]
   },
   {
+   "id": "gas",
+   "match": "\\b(lng|liquefied natural gas|natural gas|gas (?:exports?|exporters?|fields?|supply|supplies|reserves?|terminals?|carriers?|tankers?|pipelines?|prices?|market))\\b",
+   "files": [
+    {
+     "file": "Shahamah LNG carrier.jpg",
+     "alt": "An LNG carrier with spherical tanks at sea"
+    },
+    {
+     "file": "LNG Carrier Fuji Lng.jpg",
+     "alt": "An LNG carrier with spherical tanks at a jetty"
+    },
+    {
+     "file": "Negishi LNG Terminal 01.jpg",
+     "alt": "Storage tanks at an LNG terminal on a harbour"
+    },
+    {
+     "file": "LNG carrier Aman Hakata.jpg",
+     "alt": "An LNG carrier moored at a lit terminal at night"
+    }
+   ]
+  },
+  {
    "id": "energy",
    "match": "\\b(oil|crude|opec|brent|gas|lng|petrol|gasoline|diesel|fuel|refiner\\w*|pipelines?|drilling|energy prices?)\\b",
    "files": [

@@ -119,11 +119,28 @@ def _commons_info(filename, width=None):
     return list(pages.values())[0]["imageinfo"][0]
 
 
+# Commons authors sometimes write the label into the author field ("Foto: Nebojša Tejić/STA"), which made the card
+# read "Photo: Foto: ...". The label is ours to add once.
+CREDIT_LABEL = re.compile(r"^\s*(?:photo(?:graph)?|foto(?:grafie|grafia|graf)?|bild)(?:\s+by)?\s*[:：]\s*", re.I)
+
+
+def strip_label(author):
+    while CREDIT_LABEL.match(author or ""):
+        author = CREDIT_LABEL.sub("", author, count=1)
+    return (author or "").strip()
+
+
+def clean_credit(credit):
+    """A stored credit line with the label once: "Photo: Foto: X, CC0" becomes "Photo: X, CC0"."""
+    m = re.match(r"^(Photo|Video|Footage):\s*(.*)$", credit or "", re.S)
+    return f"{m.group(1)}: {strip_label(m.group(2))}" if m else (credit or "")
+
+
 def photo_ok(info):
     """(ok, credit). Reuse needs a free licence and no agency in author, credit or EXIF copyright."""
     meta = info.get("extmetadata", {})
     lic = meta.get("LicenseShortName", {}).get("value", "")
-    artist = re.sub(r"<[^>]+>", "", meta.get("Artist", {}).get("value", "")).strip()
+    artist = strip_label(re.sub(r"<[^>]+>", "", meta.get("Artist", {}).get("value", "")))
     exif = " ".join(str(m.get("value", "")) for m in (info.get("metadata") or []) if m.get("name") in ("Copyright", "Artist"))
     credit_line = re.sub(r"<[^>]+>", "", meta.get("Credit", {}).get("value", ""))
     if not OK_LICENCES.match(lic) or AGENCIES.search(" ".join((artist, exif, credit_line))):

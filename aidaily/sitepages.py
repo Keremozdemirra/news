@@ -8,7 +8,7 @@ import shutil
 from datetime import timedelta
 from email.utils import format_datetime
 
-from . import desk, markets, outlets, play
+from . import desk, entities, markets, outlets, play
 from . import site as S
 from . import views as V
 
@@ -70,7 +70,7 @@ def _question(i, q):
     else:
         prompt = E(q["question"])
     photo = (f'<figure class="qpic"><span class="pic sq" style="aspect-ratio:4/3">{S.photo_img(posts[0], False, "4/3", box=False)}</span>'
-             f'<figcaption class="meta">{E(q.get("credit") or posts[0].get("credit", ""))}</figcaption></figure>') if q["type"] == "whois" else ""
+             f'<figcaption class="meta">{E(entities.clean_credit(q.get("credit") or posts[0].get("credit", "")))}</figcaption></figure>') if q["type"] == "whois" else ""
     opts = "".join(f'<li><button type="button" class="opt">{E(o)}</button></li>' for o in q["options"])
     ans = q["options"][q["answer"]]
     if q["type"] == "bigger":

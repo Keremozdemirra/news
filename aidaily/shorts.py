@@ -237,6 +237,8 @@ def description(post, credit):
     if outlets_line(post):
         lines.append(f"Reported by {outlets_line(post)}.")
     if credit:
+        from . import entities
+        credit = entities.clean_credit(credit)
         lines += ["", _clean(credit) + (". Edited" if re.search(r"\bCC BY\b", credit) else "")]
     lines += ["", "#Shorts #news #business"]
     text = "\n".join(lines).strip()

@@ -567,7 +567,8 @@ def photo_alt(p):
 
 def credit_line(p):
     """The photo credit as licensed. A stand-in scene says so: it is not a photo of this event."""
-    c = (p.get("credit") or "").strip()
+    from . import entities
+    c = entities.clean_credit((p.get("credit") or "").strip())
     if not c or p.get("photo_kind") != "scene":
         return c
     what = "of the sport" if p.get("topic") == "Sport" else ""

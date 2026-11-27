@@ -280,7 +280,7 @@ def _logo_block(uri, name, h=60, invert=False):
 
 def _foot(story, brand, dark=False, edited=False):
     grey = GREY_DARK if dark else GREY
-    credit = assets(story)["credit"]
+    credit = entities.clean_credit(assets(story)["credit"])
     if edited and credit and re.search(r"\bCC BY\b", credit):
         credit += ". Edited"  # CC BY 4.0 3(a)(1)(B): say the material was modified; a moving crop is a modification
     c = f'<div style="margin-top:10px;font-size:16px;color:{grey}">{e(credit)}</div>' if credit and layout(story) == "photo" else ""
@@ -530,6 +530,7 @@ def _scale(text, steps):
 
 def _credit(text, size=28):
     """A photo credit is part of the licence, so it is always set, in the same place in the bottom block."""
+    text = entities.clean_credit(text)
     return f'<div data-credit style="margin-top:28px;font-size:{size}px;line-height:1.3;color:{MUTE}">{e(text)}</div>' if text else ""
 
 
