@@ -662,6 +662,15 @@ class Facebook(Client):
         pid = self.call(f"{page}/feed", {"message": facebook_link_text(post), "link": story_page(post, "facebook")})["id"]
         return {"id": pid, "url": f"https://www.facebook.com/{pid}", "format": "link"}
 
+    def last_story_at(self):
+        """When the Page's newest story went up (GET /{page-id}/stories, creation_time, same docs), or None. The
+        Page is the record: two publish runs started from one commit sent the same frame twice on 2026-11-27."""
+        self.page_token()
+        got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}/stories",
+                        {"fields": "creation_time,status", "limit": 5, "access_token": self.page_token()}, "facebook GET stories")
+        stamps = [int(x["creation_time"]) for x in got.get("data", []) if str(x.get("creation_time", "")).isdigit()]
+        return datetime.fromtimestamp(max(stamps), timezone.utc) if stamps else None
+
     def post_story(self, image_url):
         """A photo story on the Page (docs read 2026-11-27: developers.facebook.com/docs/page-stories-api/). The photo
         is uploaded unpublished with POST /{page-id}/photos (url, published=false), then POST /{page-id}/photo_stories

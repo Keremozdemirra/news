@@ -2790,6 +2790,20 @@ def fb_stories(factory=None):
         client = (factory or platforms.Facebook)()
     except platforms.Missing:
         return 0
+    # the Page, not this checkout, says when its last story went up: a run that started before another run's commit
+    # landed would otherwise send the same frame again. Unreadable: nothing is sent this run.
+    try:
+        last = client.last_story_at()
+    except Exception as e:  # noqa: BLE001
+        print(f"{post['id']}: facebook stories not readable, not sent now: {str(e)[:160]}")
+        return 0
+    if last:
+        q = _load(QUEUE / post["after"] / "post.json", {}) if post.get("after") else {}
+        q_at = _stamp((q.get("fb_story") or {}).get("at", ""))
+        gap = timedelta(minutes=CONFIG.get("story_spacing_minutes", 0))
+        if (q_at and last > q_at + timedelta(seconds=20)) or (not q_at and now() - last < max(gap, timedelta(minutes=5))):
+            print(f"{post['id']}: the Page took a story at {last:%H:%M:%S} UTC, not sent now")
+            return 0
     post["fb_story"] = {"attempted": now().isoformat(timespec="seconds")}
     _save(path, post)
     try:

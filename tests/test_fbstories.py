@@ -12,6 +12,11 @@ class FakePage:
     def __init__(self, fail=None):
         self.sent, self.fail = [], fail
 
+    last = None
+
+    def last_story_at(self):
+        return self.last
+
     def post_story(self, url):
         if self.fail:
             raise platforms.PlatformError(self.fail)
@@ -45,6 +50,24 @@ class Stories(Tmp):
         # the next frame waits out story_spacing_minutes after the Page's last story
         self.assertEqual(desk.fb_stories(lambda: page), 0)
         self.assertNotIn("fb_story", json.loads(b.read_text()))
+
+    def test_the_page_is_asked_before_a_send_so_a_stale_run_sends_nothing(self):
+        """2026-11-27: runs at 19:00 and 19:02 started from one commit and both sent 2026-11-27-today."""
+        p = self.story("2026-11-25-today", 30)
+        page = FakePage()
+        page.last = self.t - timedelta(minutes=1)  # the other run's send, not yet in this checkout
+        self.assertEqual(desk.fb_stories(lambda: page), 0)
+        self.assertEqual(page.sent, [])
+        self.assertNotIn("fb_story", json.loads(p.read_text()))
+        page.last = self.t - timedelta(hours=2)
+        self.assertEqual(desk.fb_stories(lambda: page), 1)
+
+    def test_an_unreadable_page_sends_nothing(self):
+        self.story("2026-11-25-today", 30)
+        page = FakePage()
+        page.last_story_at = lambda: (_ for _ in ()).throw(platforms.PlatformError("HTTP 500"))
+        self.assertEqual(desk.fb_stories(lambda: page), 0)
+        self.assertEqual(page.sent, [])
 
     def test_it_does_not_wait_for_instagram(self):
         self.story("2026-11-25-last12", 30, status="expired", error="too old to go out")
