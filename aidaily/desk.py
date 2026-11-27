@@ -108,8 +108,11 @@ NO_SOCIAL_TOPICS = frozenset({"Sport"})
 
 
 def social_allowed(item):
-    """False for a post or story on a website-only topic, unless it scores at the exceptional-sport bar."""
+    """False for a post or story on a website-only topic, unless it scores at the exceptional-sport bar, and for a
+    post the owner withdrew."""
     item = item or {}
+    if item.get("withdrawn"):  # taken down by the owner: never mirrored, posted to stories or made a Short again
+        return False
     if item.get("topic") not in NO_SOCIAL_TOPICS:
         return True
     bar = CONFIG.get("sport_social_min_score")

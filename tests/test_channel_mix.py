@@ -156,3 +156,9 @@ class BlueskyLabel(Tmp):
             self.assertEqual(calls, [])
             profile["value"]["labels"] = {"values": [{"val": "bot"}]}
             self.assertEqual(Fake().ensure_bot_label(), "already")
+
+
+class Withdrawn(Tmp):
+    def test_a_withdrawn_post_goes_nowhere_else(self):
+        self.assertFalse(desk.social_allowed({"topic": "Tech", "withdrawn": {"at": "x"}}))
+        self.assertTrue(desk.social_allowed({"topic": "Tech"}))

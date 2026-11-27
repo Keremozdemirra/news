@@ -96,5 +96,9 @@
    "video": true,
    "format": "video"
   }
+ },
+ "withdrawn": {
+  "at": "2026-11-27T20:20:00+00:00",
+  "why": "wrong logo on the cards (OpenAIRE); Kerem archived it on Instagram and asked for it to come down everywhere"
  }
 }
