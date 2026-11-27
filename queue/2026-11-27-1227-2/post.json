@@ -70,6 +70,16 @@
    "url": "https://t.me/boardread/32",
    "at": "2026-11-27T13:20:24+00:00",
    "video": true
+  },
+  "threads": {
+   "id": "18121984552963251",
+   "url": "https://www.threads.com/@boardread/post/DgQBj0xERZn",
+   "at": "2026-11-27T15:42:03+00:00",
+   "reply": {
+    "id": "18029804717935889"
+   },
+   "format": "photo",
+   "video_error": "threads video: threads container 18132538756699877: ERROR UNKNOWN"
   }
  },
  "lead_published": "2026-11-27T13:20:24+00:00",
