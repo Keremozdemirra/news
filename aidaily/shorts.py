@@ -296,9 +296,17 @@ def title(post):
     return t[:TITLE_MAX - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
 
 
+def hashtags(post):
+    """#Shorts and the topic: YouTube shows up to three description hashtags above the title
+    (support.google.com/youtube/answer/6390658)."""
+    topic = re.sub(r"[^A-Za-z0-9]", "", (desk.CONFIG.get("bluesky_topic_tags") or {}).get(post.get("topic") or "", "")
+                   or post.get("topic") or "")
+    return " ".join(x for x in ("#Shorts", f"#{topic}" if topic else "", "#BusinessNews") if x)
+
+
 def description(post, credit):
-    lines = [_clean(post.get("dek")), "",
-             f"Full story and sources: {desk.story_url(post['id'], 'youtube')}"]
+    # the link first: only the first lines show under a Short before "more" (growth-options 2026-11-27, option 8)
+    lines = [f"Full story and sources: {desk.story_url(post['id'], 'youtube')}", "", _clean(post.get("dek"))]
     if outlets_line(post):
         lines.append(f"Reported by {outlets_line(post)}.")
     if credit:
@@ -306,7 +314,7 @@ def description(post, credit):
         credit = entities.clean_credit(credit)
         edited = re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited")
         lines += ["", _clean(credit) + (". Edited" if edited else "")]
-    lines += ["", "#Shorts #news #business"]
+    lines += ["", hashtags(post)]
     text = "\n".join(lines).strip()
     while len(text.encode("utf-8")) > DESCRIPTION_MAX:
         text = text[:-50]
@@ -370,7 +378,9 @@ def due():
     if today_count(st) >= per_day():
         return False, "daily cap reached"
     last = max((v.get("at", "") for v in st.get("attempted", {}).values()), default="")
-    if last and _dt(last) > desk.now() - timedelta(minutes=int(cfg("shorts_spacing_minutes", 180))):
+    # the spacing floor plus a fixed 0..30 minutes drawn from the last upload, so Shorts do not land on a beat
+    wait = int(cfg("shorts_spacing_minutes", 180)) + desk.zlib.crc32(last.encode()) % 31 if last else 0
+    if last and _dt(last) > desk.now() - timedelta(minutes=wait):
         return False, "spacing"
     if st.get("build_date") == f"{desk.now():%Y-%m-%d}" and st.get("build_failures", 0) >= 3:
         return False, "build failed repeatedly today"

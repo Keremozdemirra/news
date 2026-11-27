@@ -201,7 +201,8 @@ class Social(Tmp):
         self.assertEqual({i for _, i in self.sent}, {"high"})
         self.assertEqual(self.run_social(), 0)  # inside social_spacing_minutes
         self.assertEqual({i for _, i in self.sent}, {"high"})
-        gap = desk.CONFIG["social_spacing_minutes"] + 1
+        # each platform also keeps its own spacing (lead_spacing_minutes), the longer of the two
+        gap = max(desk.CONFIG["social_spacing_minutes"], *(desk.lead_spacing(n).seconds // 60 for n in desk.WEB_PLATFORMS)) + 1
         sent = desk.QUEUE / "high" / "post.json"
         got = json.loads(sent.read_text())
         for slot in got["platforms"].values():

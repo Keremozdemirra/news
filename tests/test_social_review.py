@@ -55,6 +55,9 @@ class Ticker(Env):
                  headlines=["Meituan posts earnings beat as price war cools"])
         text, facets = platforms.bluesky_video_text(p)
         self.assertIn("Meituan (HKEX: 3690)", text)
-        self.assertEqual(text.split("\n")[0], platforms.bluesky_text(p).split("\n")[0])
+        self.assertTrue(text.startswith("Meituan (HKEX: 3690) posts earnings beat"))  # no card here: the headline leads
+        self.assertTrue(text.endswith("#Business"))
+        tag = facets[-1]["index"]
+        self.assertEqual(text.encode()[tag["byteStart"]:tag["byteEnd"]].decode(), "#Business")
         idx = facets[0]["index"]
         self.assertEqual(text.encode()[idx["byteStart"]:idx["byteEnd"]].decode(), facets[0]["features"][0]["uri"])

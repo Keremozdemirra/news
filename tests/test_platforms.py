@@ -81,7 +81,8 @@ class Env(unittest.TestCase):
         root = Path(self.tmp.name)
         self.patches = [mock.patch.object(desk, "QUEUE", root / "queue"), mock.patch.object(desk, "STATE", root / "state"),
                         mock.patch.dict(os.environ, {**SECRETS, "DESK_MEDIA_BASE": "https://raw.example/r/media"}),
-                        mock.patch.dict(desk.CONFIG, {"platforms": {n: True for n in platforms.NAMES}})]
+                        mock.patch.dict(desk.CONFIG, {"platforms": {n: True for n in platforms.NAMES},
+                                                      "mirror_delay_minutes": {}, "slot_jitter_minutes": 0})]
         for p in self.patches:
             p.start()
 
@@ -150,8 +151,8 @@ class Text(Env):
     def test_no_platform_text_carries_an_ai_disclosure(self):
         # the disclosure lives on the website and in the hand-set bios, not in posts
         p = post(caption="x\n\nReported by CNBC. Written by AI.")  # a stale queued caption must not leak either
-        for text in (platforms.threads_text(p), platforms.bluesky_text(p), platforms.telegram_caption(p),
-                     platforms.facebook_text(p), platforms.threads_reply_text(p)):
+        for text in (platforms.threads_text(p), platforms.bluesky_text(p)[0], platforms.telegram_caption(p),
+                     platforms.facebook_text(p), platforms.facebook_link_text(p), platforms.threads_reply_text(p)):
             self.assertNotRegex(text, DISCLOSURE)
 
     def test_social_modules_hold_no_disclosure_line(self):
@@ -164,19 +165,27 @@ class Text(Env):
     def test_threads_one_tag_clean(self):
         self.assertEqual(platforms.threads_tag(post(topic="Markets")), "markets")
 
-    def test_bluesky_text_is_headline_and_dek_within_300_with_no_url(self):
-        t = platforms.bluesky_text(post(dek="word " * 200))
+    def test_bluesky_text_within_300_with_no_url(self):
+        t, _ = platforms.bluesky_text(post(dek="word " * 200))
         self.assertLessEqual(len(t), 300)
-        self.assertTrue(t.startswith("Denny's reshares"))
         self.assertNotIn("keremozdemir", t)
-        self.assertNotIn("http", platforms.bluesky_text(post()))
+        self.assertNotIn("http", platforms.bluesky_text(post())[0])
 
-    def test_bluesky_text_adds_a_fact_the_card_does_not_show(self):
-        t = platforms.bluesky_text(post())
-        head, extra = t.split("\n\n")
-        self.assertEqual(head, "Denny's reshares Nvidia origin story after Jensen Huang's return")
+    def test_bluesky_text_says_neither_headline_nor_dek_and_carries_one_tag(self):
+        t, facets = platforms.bluesky_text(post())
+        extra, tag = t.split("\n\n")
+        self.assertNotIn("Denny's reshares Nvidia origin story", t)  # the card's title says it
         self.assertNotIn("reinstalled a plaque", t)  # the card's description already says it
         self.assertTrue(extra.startswith("Denny's used Jensen Huang's return"))
+        self.assertEqual(tag, "#Business")
+        self.assertEqual(len(facets), 1)
+        idx = facets[0]["index"]
+        self.assertEqual(t.encode()[idx["byteStart"]:idx["byteEnd"]].decode(), "#Business")
+        self.assertEqual(facets[0]["features"][0], {"$type": "app.bsky.richtext.facet#tag", "tag": "Business"})
+
+    def test_bluesky_text_falls_back_to_the_headline(self):
+        t, _ = platforms.bluesky_text(post(dek="", body=""))
+        self.assertTrue(t.startswith("Denny's reshares Nvidia origin story"))
 
     def test_telegram_caption_is_bold_headline_two_sentences_and_one_quiet_line(self):
         c = platforms.telegram_caption(post())
@@ -250,7 +259,7 @@ class Clients(Env):
     def test_threads_one_image_then_a_sources_reply(self):
         fake, calls = self.threads_fake()
         got = platforms.Threads(opener=fake, sleep=lambda s: None).post(post())
-        self.assertEqual(got, {"id": "m9", "url": "https://www.threads.com/@x/post/abc", "reply": {"id": "r9"}})
+        self.assertEqual(got, {"id": "m9", "url": "https://www.threads.com/@x/post/abc", "reply": {"id": "r9"}, "format": "photo"})
         first = urllib.parse.parse_qs(calls[0].data.decode())
         self.assertEqual(first["media_type"], ["IMAGE"])
         self.assertEqual(first["image_url"], ["https://raw.example/r/media/2026-11-26-1446-1/card.jpg"])
@@ -286,7 +295,8 @@ class Clients(Env):
         self.assertEqual(sent["access_token"], ["page-tok"])
         self.assertEqual(sent["link"], ["https://boardread.news/s/2026-11-26-1446-1/"])
         msg = sent["message"][0]
-        self.assertTrue(msg.startswith("Denny's reshares Nvidia"))
+        self.assertTrue(msg.startswith("Denny's used Jensen Huang's return"))  # the preview carries the headline
+        self.assertNotIn("Denny's reshares Nvidia origin story", msg)
         self.assertNotIn("#", msg)
         self.assertNotIn("reinstalled a plaque", msg)  # the dek is the preview's, not said twice
         self.assertTrue(msg.endswith("\n\nSources: https://boardread.news/s/2026-11-26-1446-1/"))
@@ -342,7 +352,7 @@ class Clients(Env):
         self.assertEqual((ext["uri"], ext["title"], ext["description"]),
                          ("https://boardread.news/s/2026-11-26-1446-1/", post()["headlines"][0], post()["dek"]))
         self.assertEqual(ext["thumb"]["mimeType"], "image/jpeg")
-        self.assertNotIn("facets", rec)
+        self.assertEqual([f["features"][0]["$type"] for f in rec["facets"]], ["app.bsky.richtext.facet#tag"])  # the card carries the URL
         self.assertLessEqual(len(rec["text"]), 300)
         # one image fetched and uploaded: the card, not the detail slide
         self.assertEqual(len([r for r in fake.seen if "uploadBlob" in r.full_url]), 1)
@@ -369,13 +379,14 @@ class Clients(Env):
         self.assertEqual(ext["uri"], "https://boardread.news/s/2026-11-26-1446-1/")
         self.assertFalse([r for r in fake.seen if "uploadBlob" in r.full_url])
 
-    def test_telegram_album_caption_on_first_photo(self):
-        fake = Fake({"sendMediaGroup": {"ok": True, "result": [{"message_id": 7, "chat": {"username": "chan"}}, {"message_id": 8}]}})
+    def test_telegram_is_one_photo_with_the_caption(self):
+        fake = Fake({"sendPhoto": {"ok": True, "result": {"message_id": 7, "chat": {"username": "chan"}}}})
         got = platforms.Telegram(opener=fake).post(post())
-        self.assertEqual(got, {"id": "7", "url": "https://t.me/chan/7"})
-        media = json.loads(fake.seen[0].data)["media"]
-        self.assertIn("caption", media[0])
-        self.assertNotIn("caption", media[1])
+        self.assertEqual(got, {"id": "7", "url": "https://t.me/chan/7", "format": "photo"})
+        b = json.loads(fake.seen[0].data)
+        self.assertTrue(b["photo"].endswith(post()["cards"][0]))
+        self.assertIn("<b>", b["caption"])
+        self.assertFalse([r for r in fake.seen if "sendMediaGroup" in r.full_url])
 
     def tg_sent(self, **kw):
         fake = Fake({"sendMediaGroup": {"ok": True, "result": [{"message_id": 7, "chat": {"username": "chan"}}]},
@@ -411,7 +422,7 @@ class Clients(Env):
             platforms.Facebook(opener=fake).post(post())
         self.assertNotIn("fb-secret", str(cm.exception))
         self.assertNotIn("page-secret", str(cm.exception))
-        fake = Fake({"sendMediaGroup": {"ok": False, "description": "tg-secret"}})
+        fake = Fake({"sendPhoto": {"ok": False, "description": "tg-secret"}})
         with self.assertRaises(platforms.PlatformError) as cm:
             platforms.Telegram(opener=fake).post(post())
         self.assertNotIn("tg-secret", str(cm.exception))

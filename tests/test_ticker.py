@@ -168,13 +168,13 @@ class PlatformTexts(unittest.TestCase):
     P = dict(company="Nvidia", ticker={"exchange": "NASDAQ", "symbol": "NVDA"})
 
     def test_ticker_follows_the_first_mention(self):
-        t = platforms.bluesky_text(platform_post(**self.P))
+        t, _ = platforms.bluesky_video_text(platform_post(**self.P))
         self.assertTrue(t.startswith("Denny's reshares Nvidia (NASDAQ: NVDA) origin story"))
         self.assertEqual(t.count("NVDA"), 1)
 
     def test_skipped_when_it_would_pass_the_limit(self):
-        p = platform_post(**self.P, headlines=["Nvidia " + "x" * 293], dek="")
-        t = platforms.bluesky_text(p)
+        p = platform_post(**self.P, headlines=["Nvidia " + "x" * 293], dek="", body="")
+        t, _ = platforms.bluesky_text(p)
         self.assertNotIn("NVDA", t)
         self.assertLessEqual(len(t), 300)
 

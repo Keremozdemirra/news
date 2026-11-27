@@ -49,7 +49,8 @@ class Tmp(unittest.TestCase):
                         mock.patch.object(desk, "MEDIA", root / "media"),
                         mock.patch.dict("os.environ", {"GITHUB_TOKEN": "", "DESK_MEDIA_BASE": "https://raw.example/r/main"}),
                         mock.patch.dict(desk.CONFIG, {"story_concepts": True, "ig_gap_minutes": 0, "slot_jitter_minutes": 0,
-                                                        "story_jitter_minutes": 0, "story_spacing_minutes": 0})]  # InstagramGap and test_ig_mix test these
+                                                        "story_jitter_minutes": 0, "story_spacing_minutes": 0,
+                                                        "mirror_delay_minutes": {}})]  # InstagramGap and test_ig_mix test these
         for p in self.patches:
             p.start()
         self.root = root

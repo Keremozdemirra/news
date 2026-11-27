@@ -1925,6 +1925,28 @@ def facebook_min_score_now():
     return CONFIG["facebook_min_score"]
 
 
+def platform_formats(name, hours=24):
+    """The formats this platform took, oldest first, within `hours`: what each send recorded ("video", "photo",
+    "text", "link"); a send from before formats were recorded counts as its video flag says."""
+    cut = now() - timedelta(hours=hours)
+    rows = []
+    for p, _ in posts():
+        slot = (p.get("platforms") or {}).get(name) or {}
+        stamp = _stamp(slot.get("at") or "")
+        if slot.get("id") and stamp and stamp > cut:
+            rows.append((stamp, slot.get("format") or ("video" if slot.get("video") else "photo")))
+    return [f for _, f in sorted(rows)]
+
+
+def platform_wants_video(name):
+    """The same rule as Instagram's mix: after a video comes something else, unless the platform's last day is under
+    MIX_TARGET's video share."""
+    fmts = platform_formats(name)
+    if not fmts or fmts[-1] != "video":
+        return True
+    return sum(f == "video" for f in fmts) / len(fmts) < MIX_TARGET["video"]
+
+
 def platform_sent_last_24h(name):
     """Posts a platform took (or may have taken: a marker without a result counts) in the last 24 hours."""
     cut = now() - timedelta(hours=24)
@@ -2085,8 +2107,9 @@ NO_CROSSPOST = ("story", "reel", "data")
 
 
 def _cross_post(post, path):
-    """Never let a cross-post problem reach the Instagram flow that called it."""
-    if post.get("kind") in NO_CROSSPOST:
+    """Never let a cross-post problem reach the Instagram flow that called it. With mirror_delay_minutes set, nothing
+    goes out here: mirror_social sends the post to each platform later, at its own pace."""
+    if post.get("kind") in NO_CROSSPOST or CONFIG.get("mirror_delay_minutes"):
         return
     try:
         cross_post(post, path)
@@ -2111,9 +2134,8 @@ def web_social(factories=None):
     A platform in cooldown is left alone. The per-platform markers in cross_post keep every post from going
     out twice. Returns 1 when a post was offered to the platforms, else 0."""
     names = [n for n in WEB_PLATFORMS if CONFIG.get("platforms", {}).get(n)]
-    leading = lead_active()
-    if leading:  # a platform that just took a lead post waits out its own spacing
-        names = [n for n in names if _lead_slot(n) <= now()]
+    # a platform that just took a post (lead, mirror or web) waits out its own spacing
+    names = [n for n in names if _lead_slot(n) <= now()]
     if not names:
         return 0
     web = [(p, path) for p, path in posts() if p.get("status") == "web" and p.get("kind") not in NO_CROSSPOST and social_allowed(p)]
@@ -2135,7 +2157,7 @@ def web_social(factories=None):
     if not ready:
         return 0
     post, path = min(ready, key=lambda r: (-(r[0].get("score") or 0), r[0].get("published", "")))
-    cross_post(post, path, factories, names=names if leading else WEB_PLATFORMS)
+    cross_post(post, path, factories, names=names)
     return 1
 
 
@@ -2167,9 +2189,43 @@ def _last_sent(name):
 
 
 def _lead_slot(name):
-    """When the platform may take its next lead post."""
+    """When the platform may take its next post: its spacing after the last send, plus a fixed 0..slot_jitter_minutes
+    drawn from that send, so a platform does not post on an exact beat."""
     last = _last_sent(name)
-    return max(now(), last + lead_spacing(name)) if last else now()
+    return max(now(), last + lead_spacing(name) + timedelta(minutes=extra_minutes(f"{name}-{last.isoformat()}"))) if last else now()
+
+
+def mirror_delay(name, post):
+    """Minutes after Instagram before this platform takes the post: a fixed point in desk.json mirror_delay_minutes
+    [low, high] for the platform, from a hash of the post and platform, so the four never post in the same minute."""
+    lo, hi = (CONFIG.get("mirror_delay_minutes") or {}).get(name, [0, 0])
+    return lo + zlib.crc32(f"{post['id']}-{name}".encode()) % (hi - lo + 1)
+
+
+def mirror_social(factories=None):
+    """Instagram posts reach the other platforms one at a time: each platform takes the oldest post Instagram has
+    published and it has not, once mirror_delay has passed and its own spacing (_lead_slot) allows. At most one
+    send per platform per run. Returns how many sends were offered."""
+    if not CONFIG.get("mirror_delay_minutes"):
+        return 0
+    from . import platforms
+    cut = now() - timedelta(hours=CONFIG["max_publish_age_hours"])
+    rows = sorted(((p, path) for p, path in posts() if p.get("status") == "published" and p.get("kind") not in NO_CROSSPOST
+                   and p.get("tier") != "web" and social_allowed(p) and (_stamp(p.get("published", "")) or cut) > cut),
+                  key=lambda r: r[0]["published"])
+    sent = 0
+    for name in platforms.NAMES:
+        if not CONFIG.get("platforms", {}).get(name) or platform_cooldown(name) or _lead_slot(name) > now():
+            continue
+        for post, path in rows:
+            if _slot_done(post, name) or (post.get("platforms") or {}).get(name, {}).get("check_error"):
+                continue  # retry_unchecked owns a post whose check failed
+            if _stamp(post["published"]) + timedelta(minutes=mirror_delay(name, post)) > now():
+                continue
+            cross_post(post, path, factories, names=[name])
+            sent += 1
+            break
+    return sent
 
 
 def _lead_candidates():
@@ -2421,6 +2477,10 @@ def publish(client=None, dry=False):
                 lead_social()
             except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
                 print(f"lead posts crashed: {str(e)[:200]}")
+        try:
+            mirror_social()
+        except Exception as e:  # noqa: BLE001  never reaches the Instagram flow
+            print(f"mirror posts crashed: {str(e)[:200]}")
         try:
             web_social()
         except Exception as e:  # noqa: BLE001  a web-tier problem never reaches the Instagram flow

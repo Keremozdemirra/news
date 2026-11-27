@@ -114,9 +114,9 @@ class TelegramVideo(VideoEnv):
         self.assertIn("<b>", b["caption"])
         self.assertEqual(got["url"], "https://t.me/chan/5")
 
-    def test_refused_video_sends_the_album(self):
+    def test_refused_video_sends_the_photo(self):
         f = Fake({"sendVideo": http_error(400, '{"ok": false, "description": "failed to get HTTP URL content"}'),
-                  "sendMediaGroup": {"ok": True, "result": [{"message_id": 6, "chat": {"username": "chan"}}]}})
+                  "sendPhoto": {"ok": True, "result": {"message_id": 6, "chat": {"username": "chan"}}}})
         got = platforms.Telegram(opener=f).post(vpost())
         self.assertEqual(got["id"], "6")
         self.assertIn("HTTP URL content", got["video_error"])

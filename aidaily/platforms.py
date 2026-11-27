@@ -201,18 +201,37 @@ def threads_tag(post):
     return re.sub(r"[.&]", "", tag)[:50]
 
 
+def bluesky_tag(post):
+    """One tag, CamelCase so screen readers say it as words (desk.json bluesky_topic_tags), else the topic itself."""
+    topic = post.get("topic") or ""
+    return re.sub(r"[^A-Za-z0-9_]", "", (desk.CONFIG.get("bluesky_topic_tags") or {}).get(topic) or topic)
+
+
+def _tag_facet(text, tag):
+    """app.bsky.richtext.facet#tag over "#tag" at the end of text (byte offsets, tag without the #)."""
+    end = len(text.encode("utf-8"))
+    return {"index": {"byteStart": end - len(tag.encode("utf-8")) - 1, "byteEnd": end},
+            "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": tag}]}
+
+
+def _plus_tag(text, tag, limit=300):
+    """text with one closing "#tag" line when it fits, and its facet list."""
+    if tag and len(f"{text}\n\n#{tag}") <= limit:
+        text = f"{text}\n\n#{tag}"
+        return text, [_tag_facet(text, tag)]
+    return text, []
+
+
 def bluesky_text(post):
-    """Headline, then one sentence the link card does not already show, within 300 graphemes. The card under the
-    post carries the headline as its title and the dek as its description, so the text adds the next fact rather
-    than saying the dek twice. No link and no facets: the card carries the URL. len() counts code points, which is
-    never fewer than graphemes, so the cap holds. Alt text: app.bsky.embed.external has no alt field (only an
-    image embed does, and a post holds one embed), so the card's title and description are the text alternative."""
+    """(text, facets) for a link-card post. The card under the post shows the headline as its title and the dek as
+    its description, so the text says neither: it gives the next fact, then one topic tag (roadmap 2026-11-27:
+    the headline twice, in the text and the card, read as filler). With no such sentence the headline stands
+    alone. 300 graphemes; len() counts code points, never fewer. Alt text: app.bsky.embed.external has no alt
+    field, so the card's title and description are the text alternative."""
     dek = post.get("dek") or ""
-    extra = [x for x in why_it_matters(post) if not _same_line(x, dek)][:1]
-    text = _fit(_head(post), " ".join(extra), "", 300)
-    if not text.startswith(_head(post)) and len(_head(post)) <= 300:
-        text = _head(post)  # the sentence gives way whole before a word of the headline does
-    return _with_ticker(post, text, 300)
+    extra = [x for x in why_it_matters(post) if not _same_line(x, dek) and not _same_line(x, _head(post))][:1]
+    text = extra[0] if extra and len(extra[0]) <= 280 else _head(post)[:300]
+    return _plus_tag(_with_ticker(post, text, 290), bluesky_tag(post))
 
 
 def bluesky_video_text(post):
@@ -226,11 +245,12 @@ def bluesky_video_text(post):
     text = _fit(_head(post), " ".join(extra), tail, 300)
     if not text.endswith(tail):
         text = _fit(_head(post), "", tail, 300)
-    text = _with_ticker(post, text, 300)  # the same headline as the image post; the facet is placed after it
+    text = _with_ticker(post, text, 300)  # no card here, so the headline leads; the facet is placed after it
     start = len(text.encode("utf-8")) - len(url.encode("utf-8"))
     facets = [{"index": {"byteStart": start, "byteEnd": start + len(url.encode("utf-8"))},
                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": url}]}] if text.endswith(url) else []
-    return text, facets
+    text, tag = _plus_tag(text, bluesky_tag(post))
+    return text, facets + tag
 
 
 def bluesky_description(post):
@@ -316,6 +336,15 @@ def facebook_text(post):
     return _with_ticker(post, _fit(_head(post), " ".join(extra), _tail(post, story_page(post, "facebook")), 700), 700)
 
 
+def facebook_link_text(post):
+    """The message above a link preview: the preview shows the headline, so the text gives one or two facts the dek
+    does not, then the address (find() looks for it). The headline only when there is nothing else to say."""
+    dek = post.get("dek") or ""
+    extra = [x for x in why_it_matters(post, 2) if not _same_line(x, dek)]
+    body = " ".join(extra) if extra else _head(post)
+    return _with_ticker(post, _fit(body, "", _tail(post, story_page(post, "facebook")), 700), 700)
+
+
 def _images(post):
     return [desk.media_url(post["id"], c) for c in post["cards"]]
 
@@ -394,11 +423,12 @@ class Client:
     def post(self, post):
         """The video card when the post has one and this platform takes video (desk.json video.platforms), else the
         stills. A video refused before publishing falls back to the stills in the same send, never a second post."""
-        v = video_for(post, self.name)
+        # the platform's own mix (desk.platform_wants_video): after a video, something else, unless the day is short
+        v = video_for(post, self.name) if desk.platform_wants_video(self.name) else None
         if not v:
-            return self.post_stills(post)
+            return {"format": "photo", **self.post_stills(post)}
         try:
-            return {**self.post_video(post, v), "video": True}
+            return {**self.post_video(post, v), "video": True, "format": "video"}
         except VideoFailed as e:
             got = self.post_stills(post)
             got["video_error"] = self._scrub(str(e))[:300]
@@ -466,13 +496,16 @@ class Threads(Client):
     def post_stills(self, post):
         uid = self.env["THREADS_USER_ID"]
         # text first, one image only: the card. No is_made_with_ai label: it marks the media as AI-made, and the
-        # photos are real.
-        params = {"media_type": "IMAGE", "image_url": _images(post)[0], "text": threads_text(post)}
+        # photos are real. After a photo post comes a text-only one, Threads' native format, so the profile is not
+        # a wall of identical cards.
+        text_only = (desk.platform_formats("threads") or ["text"])[-1] == "photo"
+        params = ({"media_type": "TEXT", "text": threads_text(post)} if text_only else
+                  {"media_type": "IMAGE", "image_url": _images(post)[0], "text": threads_text(post)})
         if threads_tag(post):
             params["topic_tag"] = threads_tag(post)
         container = self.call("POST", f"{uid}/threads", params)["id"]
         self.wait(container)
-        return self._published(post, self.publish(container))
+        return {**self._published(post, self.publish(container)), "format": "text" if text_only else "photo"}
 
     def post_video(self, post, v):
         """A VIDEO container with video_url (docs read 2026-11-27: developers.facebook.com/docs/threads/posts; video
@@ -606,12 +639,20 @@ class Facebook(Client):
         return {"id": vid, "url": f"https://www.facebook.com/{page}/videos/{vid}"}
 
     def post_stills(self, post):
-        """A link post: the message and the article address; Facebook builds the preview card from the page's Open
-        Graph tags (POST /{page-id}/feed with message and link, developers.facebook.com/docs/pages-api/posts)."""
+        """A link post or a photo post, in turn. Link post: POST /{page-id}/feed with message and link; Facebook builds
+        the preview from the page's Open Graph tags (developers.facebook.com/docs/pages-api/posts), so the message
+        leaves the headline to the preview. Photo post: POST /{page-id}/photos with url and caption
+        (developers.facebook.com/docs/graph-api/reference/page/photos/), the card with the headline and the address
+        in the text. Alternating halves the link posts: Meta has been testing a monthly cap on them for Pages
+        since December 2025 (TechCrunch 2025-12-17; publisher Pages excluded then)."""
         self.page_token()
         page = self.env["FB_PAGE_ID"]
-        pid = self.call(f"{page}/feed", {"message": facebook_text(post), "link": story_page(post, "facebook")})["id"]
-        return {"id": pid, "url": f"https://www.facebook.com/{pid}"}
+        if (desk.platform_formats("facebook") or ["photo"])[-1] == "link":
+            got = self.call(f"{page}/photos", {"url": _images(post)[0], "caption": facebook_text(post)})
+            pid = got.get("post_id") or got["id"]
+            return {"id": pid, "url": f"https://www.facebook.com/{pid}", "format": "photo"}
+        pid = self.call(f"{page}/feed", {"message": facebook_link_text(post), "link": story_page(post, "facebook")})["id"]
+        return {"id": pid, "url": f"https://www.facebook.com/{pid}", "format": "link"}
 
 
 # Bluesky
@@ -729,14 +770,17 @@ class Bluesky(Client):
         # a link card without a thumbnail still works, so an oversize card is skipped rather than failing the post
         if len(data) <= self.MAX_BYTES:
             card["thumb"] = self.xrpc("com.atproto.repo.uploadBlob", None, jwt, raw=data, mime="image/jpeg")["blob"]
-        record = {"$type": "app.bsky.feed.post", "text": bluesky_text(post), "langs": ["en"],
+        text, facets = bluesky_text(post)
+        record = {"$type": "app.bsky.feed.post", "text": text, "langs": ["en"],
                   "createdAt": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
                   "embed": {"$type": "app.bsky.embed.external", "external": card}}
+        if facets:
+            record["facets"] = facets
         got = self.xrpc("com.atproto.repo.createRecord",
                         {"repo": did, "collection": "app.bsky.feed.post", "record": record}, jwt)
         # the web URL of an at:// URI is bsky.app/profile/<handle>/post/<rkey>
         rkey = got["uri"].rsplit("/", 1)[-1]
-        return {"id": got["uri"], "url": f"https://bsky.app/profile/{self.env['BSKY_HANDLE']}/post/{rkey}"}
+        return {"id": got["uri"], "url": f"https://bsky.app/profile/{self.env['BSKY_HANDLE']}/post/{rkey}", "format": "link"}
 
 
 # Telegram channel
@@ -814,7 +858,8 @@ class Telegram(Client):
         return {"id": str(first["message_id"]), "url": f"https://t.me/{username}/{first['message_id']}" if username else ""}
 
     def post_stills(self, post):
-        urls = _images(post)[:10]
+        # one photo, as news channels post: the detail slides repeat what the caption already says
+        urls = _images(post)[:1]
         chat, caption = self.env["TG_CHANNEL"], telegram_caption(post)
         # routine posts are silent; only a breaking story (score at the desk's breaking bar) notifies subscribers
         silent = {"disable_notification": not is_breaking(post)}

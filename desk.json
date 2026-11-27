@@ -58,6 +58,16 @@
     "World": "#worldnews",
     "Culture": "#entertainment"
   },
+  "bluesky_topic_tags": {
+    "AI": "AI",
+    "Tech": "Tech",
+    "Business": "Business",
+    "Markets": "Markets",
+    "Economy": "Economy",
+    "Politics": "Politics",
+    "World": "WorldNews",
+    "Culture": "Entertainment"
+  },
   "accounts": [
     {
       "name": "Instagram",
@@ -137,6 +147,24 @@
     "bluesky": 30,
     "telegram": 30,
     "facebook": 90
+  },
+  "mirror_delay_minutes": {
+    "telegram": [
+      2,
+      15
+    ],
+    "threads": [
+      8,
+      25
+    ],
+    "bluesky": [
+      12,
+      35
+    ],
+    "facebook": [
+      25,
+      60
+    ]
   },
   "story_concepts": true,
   "platforms": {
