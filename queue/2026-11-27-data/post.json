@@ -1,0 +1,26 @@
+{
+ "id": "2026-11-27-data",
+ "kind": "data",
+ "batch": "2026-11-27-data",
+ "n": 1,
+ "created": "2026-11-27T17:01:34+00:00",
+ "tier": "instagram",
+ "status": "queued",
+ "publish_after": "2026-11-27T17:01:34+00:00",
+ "cards": [
+  "chart.jpg",
+  "close.jpg"
+ ],
+ "caption": "Markets close, 27 Nov 2026\n\nChart: Natural gas, up 16.6% since 24 Aug 2026. $2.83 on 24 Aug 2026, $3.30 on 24 Nov 2026.\n\nCurrencies\nEUR/USD: 1.0957 (27 Nov), ▼ 0.0018 (0.2%)\nUSD/JPY: 159.54 (27 Nov), ▲ 0.28 (0.2%)\nGBP/USD: 1.3122 (27 Nov), ▲ 0.0018 (0.1%)\nEUR/GBP: 0.8350 (27 Nov), ▼ 0.0025 (0.3%)\nEUR/TRY: 55.6474 (27 Nov), ▲ 0.0297 (0.05%)\n\nRates and energy\nECB deposit rate: 2.50%, unchanged since 16 Sep\nUS 2-year: 4.61% (25 Nov), ▼ 0.02\nUS 10-year: 4.85% (25 Nov), ▼ 0.06\nBrent: $91.80 (24 Nov), ▲ 0.60 (0.7%)\nWTI: $82.24 (24 Nov), ▲ 0.82 (1.0%)\nNatural gas: $3.30 (24 Nov), ▲ 0.02 (0.6%)\n\nSource: ECB, U.S. Treasury, U.S. Energy Information Administration. USD/JPY, GBP/USD calculated from ECB reference rates.",
+ "urls": [],
+ "headlines": [
+  "Markets close, 27 Nov 2026"
+ ],
+ "topic": "Markets",
+ "series": "henryhub",
+ "story": "",
+ "alts": [
+  "Line chart of Natural gas over three months: Up 16.6% since 24 Aug 2026, from $2.83 · 24 Aug 2026 to $3.30 · 24 Nov 2026.",
+  "Markets close, 27 Nov 2026: EUR/USD 1.0957, ▼ 0.0018 (0.2%); USD/JPY 159.54, ▲ 0.28 (0.2%); GBP/USD 1.3122, ▲ 0.0018 (0.1%); EUR/GBP 0.8350, ▼ 0.0025 (0.3%); EUR/TRY 55.6474, ▲ 0.0297 (0.05%); ECB deposit rate 2.50%, unchanged; US 2-year 4.61%, ▼ 0.02; US 10-year 4.85%, ▼ 0.06; Brent $91.80, ▲ 0.60 (0.7%); WTI $82.24, ▲ 0.82 (1.0%); Natural gas $3.30, ▲ 0.02 (0.6%)."
+ ]
+}
