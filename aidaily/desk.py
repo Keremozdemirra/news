@@ -384,19 +384,21 @@ def ai_line():
 
 
 def with_ai_line(text, limit=2200):
-    """The caption with the AI line right after its "Reported by" line (else at the end). Within `limit` the
-    hashtags at the end give way first; a caption that already carries the line is returned as it is."""
+    """The caption with the AI line as its quiet last line, after the hashtags (Kerem, 2026-11-27: at the very
+    bottom, after the #, without standing out). A line already elsewhere in the caption moves to the end. Within
+    `limit` the last hashtags give way first."""
     line = ai_line()
-    if not line or line in (text or ""):
+    if not line:
         return text
-    rows = (text or "").split("\n")
-    at = next((i + 1 for i, r in enumerate(rows) if r.startswith("Reported by ")), len(rows))
-    rows.insert(at, line)
-    out = "\n".join(rows)
-    while len(out) > limit and len(rows) > at + 1:
-        rows.pop()
-        out = "\n".join(rows).rstrip()
-    return out
+    body = "\n".join(r for r in (text or "").split("\n") if r.strip() != line).rstrip()
+    body = re.sub(r"\n{3,}", "\n\n", body)
+    while body and len(body) + len(line) + 2 > limit:
+        cut = body.rsplit(" ", 1)[0] if body.rsplit("\n", 1)[-1].startswith("#") and " #" in body.rsplit("\n", 1)[-1] else body.rsplit("\n", 1)[0]
+        if cut == body:
+            body = body[:limit - len(line) - 3]
+            break
+        body = cut.rstrip()
+    return f"{body}\n\n{line}" if body else line
 
 
 def caption(m, s, cta=True):

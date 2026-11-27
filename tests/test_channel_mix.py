@@ -126,7 +126,8 @@ class ShortsText(Tmp):
         p = ppost(topic="World")
         d = SH.description(p, "")
         self.assertTrue(d.startswith("Full story and sources: https://"))
-        self.assertTrue(d.endswith("#Shorts #WorldNews #BusinessNews"))
+        self.assertIn("#Shorts #WorldNews #BusinessNews", d)
+        self.assertEqual(d.rsplit("\n", 1)[-1], SH.AI_LINE if SH.cfg("shorts_ai_line", False) else "#Shorts #WorldNews #BusinessNews")
 
 
 class BlueskyLabel(Tmp):

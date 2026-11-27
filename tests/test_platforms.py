@@ -179,8 +179,12 @@ class Text(Env):
                 self.assertLessEqual(len(fb), 700)
             self.assertNotIn(line, platforms.bluesky_text(p)[0])
             cap = desk.with_ai_line("Head\n\nLead.\n\nReported by Reuters.\n\nLink in bio.\n\n#markets")
-            self.assertEqual(cap.split("\n")[5], line)  # straight after the source line
+            self.assertTrue(cap.endswith("#markets\n\n" + line))  # the quiet last line, after the hashtags
             self.assertEqual(desk.with_ai_line(cap), cap)  # never twice
+            moved = desk.with_ai_line(f"Head\n\nReported by Reuters.\n{line}\n\n#markets")  # queued with the old placement
+            self.assertEqual((moved.count(line), moved.endswith(line)), (1, True))
+            self.assertTrue(platforms.threads_text(p).endswith(line))
+            self.assertTrue(platforms.telegram_caption(p).endswith(line))
             long_ = desk.with_ai_line("Reported by Reuters.\n" + "#tag " * 500, limit=200)
             self.assertIn(line, long_)
             self.assertLessEqual(len(long_), 200)

@@ -313,11 +313,16 @@ def description(post, credit):
         credit = entities.clean_credit(credit)
         edited = re.search(r"\bCC BY\b", credit) and not credit.endswith("Edited")
         lines += ["", _clean(credit) + (". Edited" if edited else "")]
-    lines += ["", AI_LINE, "", hashtags(post)] if cfg("shorts_ai_line", False) else ["", hashtags(post)]
-    text = "\n".join(lines).strip()
-    while len(text.encode("utf-8")) > DESCRIPTION_MAX:
+    lines += ["", hashtags(post)]
+    return _fit_description("\n".join(lines).strip())
+
+
+def _fit_description(text):
+    """Within DESCRIPTION_MAX bytes, then the AI line as the quiet last line (Kerem, 2026-11-27): the body gives way, never the line."""
+    tail = f"\n\n{AI_LINE}" if cfg("shorts_ai_line", False) else ""
+    while len((text + tail).encode("utf-8")) > DESCRIPTION_MAX:
         text = text[:-50]
-    return text
+    return text + tail
 
 
 # Kerem's decision, 2026-11-27: YouTube descriptions say it, in these words (growth.shorts_ai_line)
@@ -340,9 +345,7 @@ def _status():
 
 
 def _resource(title_, lines):
-    text = "\n".join(lines).strip()
-    while len(text.encode("utf-8")) > DESCRIPTION_MAX:
-        text = text[:-50]
+    text = _fit_description("\n".join(lines).strip())
     return {"snippet": {"title": _clean(title_)[:TITLE_MAX], "description": text, "categoryId": NEWS_CATEGORY,
                         "tags": ["business news", "news", "markets"], "defaultLanguage": "en", "defaultAudioLanguage": "en"},
             "status": _status()}
@@ -361,13 +364,13 @@ def metadata_job(job, credit=""):
         lines = [f"Full stories and sources: {home_url()}", ""]
         for i, p in enumerate(job["posts"][:3], start=1):
             lines += [f"{i}. {_clean(p['headlines'][0])}", f"   Reported by {outlets_line(p)}. {desk.story_url(p['id'], 'youtube')}"]
-        return _resource(f"{title_}: {_clean(job['posts'][0]['headlines'][0])}", lines + (["", AI_LINE] if cfg("shorts_ai_line", False) else []) + ["", "#Shorts #BusinessNews #Markets"])
+        return _resource(f"{title_}: {_clean(job['posts'][0]['headlines'][0])}", lines + ["", "#Shorts #BusinessNews #Markets"])
     if job["structure"] == "data":
         from . import shortforms as SF
         title_, caption, src, _ = SF.data_timeline(job["m"], job["series"], job["why"])
         url = desk.CONFIG["site_url"] + "/numbers/" + ("?utm_source=youtube&utm_medium=social" if desk.growth("utm") else "")
-        return _resource(title_, [f"More numbers: {url}", "", caption, f"{src}. Chart drawn by Boardread from the published series."]
-                         + (["", AI_LINE] if cfg("shorts_ai_line", False) else []) + ["", "#Shorts #Markets #Economy"])
+        return _resource(title_, [f"More numbers: {url}", "", caption, f"{src}. Chart drawn by Boardread from the published series.",
+                                  "", "#Shorts #Markets #Economy"])
     return metadata(job["post"], credit)
 
 

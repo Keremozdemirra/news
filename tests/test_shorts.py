@@ -56,7 +56,9 @@ class Metadata(unittest.TestCase):
         self.assertNotRegex(m["snippet"]["title"].lower(), r"written by ai|ai[- ]generated")
         # Kerem, 2026-11-27: the description discloses, the title does not
         with mock.patch.dict(desk.CONFIG, {"site_url": "https://boardread.news", "growth": {"shorts_ai_line": True}}):
-            self.assertIn("Written by AI from the sources listed.", SH.metadata(post(), CREDIT)["snippet"]["description"])
+            d = SH.metadata(post(), CREDIT)["snippet"]["description"]
+            self.assertTrue(d.endswith("#BusinessNews\n\nWritten by AI from the sources listed."))  # last, after the hashtags
+            self.assertTrue(SH.metadata(post(dek="é" * 6000), CREDIT)["snippet"]["description"].endswith("sources listed."))
         with mock.patch.dict(desk.CONFIG, {"site_url": "https://boardread.news", "growth": {"shorts_ai_line": False}}):
             self.assertNotIn("Written by AI", SH.metadata(post(), CREDIT)["snippet"]["description"])
 
