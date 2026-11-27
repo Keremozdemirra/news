@@ -211,6 +211,9 @@ class Chrome(Features):
         for f in ("LibreFranklin-800.woff2", "Newsreader-var.woff2"):
             self.assertTrue((self.out / "fonts" / f).exists(), f)
         self.assertFalse((self.out / "fonts" / "Archivo-var.woff2").exists())
+        self.assertLess((self.out / "fonts" / "Newsreader-var.woff2").stat().st_size, 100_000)  # the largest asset on every page: subset, not whole
+        self.assertRegex(h, r'rel="preload" href="[^"]*Newsreader-var\.woff2\?v=[0-9a-f]{8}"')  # a long cache needs a URL that changes with the bytes
+        self.assertRegex(h, r"Newsreader-var\.woff2\?v=[0-9a-f]{8}'\) format")
         ofl = (self.out / "fonts" / "OFL.txt").read_text()
         self.assertIn("Newsreader", ofl)
         self.assertNotIn("Archivo", ofl)

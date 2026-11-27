@@ -254,16 +254,18 @@ def stats():
 
 ASSET_FILES = ("theme.js", "site.css", "views.css", "paper.css", "play.css", "site.js", "paper.js", "play.js")
 ASSET_V = hashlib.sha1(b"".join((ASSETS / f).read_bytes() for f in ASSET_FILES if (ASSETS / f).exists())).hexdigest()[:8]
+# the serif file is cached for a long time: its URL changes with its bytes
+FONT_V = hashlib.sha1((ASSETS / "fonts" / "Newsreader-var.woff2").read_bytes()).hexdigest()[:8]
 FACES = (
     "@font-face{font-family:'Libre Franklin';font-weight:400;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-400.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:500;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-500.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:600;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-600.woff2') format('woff2')}"
     "@font-face{font-family:'Libre Franklin';font-weight:800;font-style:normal;font-display:swap;src:url('{b}/fonts/LibreFranklin-800.woff2') format('woff2')}"
-    # Newsreader (headlines and article text): one variable file, weights 400 to 700; Source Serif 4 and Georgia stand in
-    "@font-face{font-family:'Newsreader';font-weight:400 700;font-style:normal;font-display:swap;src:url('{b}/fonts/Newsreader-var.woff2') format('woff2')}"
+    # Newsreader (headlines and article text): one variable file, weights 400 to 600 (the only ones the CSS asks for); Source Serif 4 and Georgia stand in
+    "@font-face{font-family:'Newsreader';font-weight:400 600;font-style:normal;font-display:swap;src:url('{b}/fonts/Newsreader-var.woff2?v={v}') format('woff2')}"
     # stand-in sized to the web font, so the swap moves nothing
     "@font-face{font-family:'Franklin Fallback';src:local('Arial');size-adjust:103%;ascent-override:92%;descent-override:22%;line-gap-override:0%}"
-).replace("{b}", BASE)
+).replace("{b}", BASE).replace("{v}", FONT_V)
 
 
 def ld_json(data):
@@ -411,7 +413,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="{BASE}/fonts/Newsreader-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{BASE}/fonts/Newsreader-var.woff2?v={FONT_V}" as="font" type="font/woff2" crossorigin>
 <meta property="og:site_name" content="{NAME}"><meta property="og:type" content="{og_type}">
 <meta property="og:title" content="{E(og_title or title)}"><meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{E(url)}"><meta property="og:image" content="{E(img)}">
