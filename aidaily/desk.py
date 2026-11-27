@@ -1436,7 +1436,11 @@ def select(stories, lane="news"):
 
 
 def _last_slot():
-    slots = [datetime.fromisoformat(p["publish_after"]) for p, _ in posts() if p.get("status") in ("queued", "published")]
+    # feed posts only: stories keep their own clock, and six About stories stamped for midnight (2026-11-27) pushed
+    # every new story's slot past the horizon, so all of them dropped to the web tier and Telegram and Facebook
+    # (which only take the lead path) got nothing all morning
+    slots = [datetime.fromisoformat(p["publish_after"]) for p, _ in posts()
+             if p.get("status") in ("queued", "published") and p.get("kind") != "story"]
     return max(slots) if slots else None
 
 

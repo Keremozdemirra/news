@@ -340,6 +340,14 @@ class Pace(Tmp):
         self.assertEqual(desk.publish(client=FakeIG()), 1)
 
 
+class SlotClock(Tmp):
+    def test_a_story_stamped_far_ahead_does_not_push_feed_slots(self):
+        feed_at = desk.now() - timedelta(minutes=30)
+        self.write_post("f1", status="published", publish_after=feed_at.isoformat(), published=feed_at.isoformat())
+        self.write_post("s1", kind="story", status="published", publish_after=(desk.now() + timedelta(hours=12)).isoformat())
+        self.assertEqual(desk._last_slot(), feed_at)
+
+
 class Ramp(Tmp):
     # the ramp's logic, tested with fixed numbers rather than whatever desk.json holds today
     def setUp(self):
