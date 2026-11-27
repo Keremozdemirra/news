@@ -86,6 +86,55 @@ def published():
     return sorted(rows, key=lambda p: p["published"], reverse=True)
 
 
+CORRECTIONS = {}  # article id -> [{"id", "time", "wrong", "right", "withdrawn"}], oldest first; set by build() from corrections.json
+
+
+def load_corrections():
+    """corrections.json beside desk.json: a list of {"id", "time" (UTC), "wrong", "right", "withdrawn" (optional)}. A missing or broken
+    file is no corrections, never a failed build; an entry without an id or a time is skipped."""
+    try:
+        rows = json.loads((desk.HERE / "corrections.json").read_text())
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for c in rows if isinstance(rows, list) else []:
+        if isinstance(c, dict) and c.get("id") and c.get("time"):
+            try:
+                dt(c["time"])
+            except ValueError:
+                continue
+            out.setdefault(c["id"], []).append(c)
+    return {k: sorted(v, key=lambda c: dt(c["time"])) for k, v in out.items()}
+
+
+def correction_text(c):
+    if c.get("withdrawn"):
+        return f'Withdrawn. {c.get("right", "")}'.strip()
+    return f'Was: {c.get("wrong", "")} Now: {c.get("right", "")}'.strip()
+
+
+def report_link(p):
+    """A GitHub issue with the article's title and address already in it, so a reader sends a correction in two taps."""
+    q = lambda s: urllib.parse.quote(s, safe="")  # noqa: E731
+    return (f'{CONTACT_ISSUES}/new?title={q("Error: " + clip(p["headlines"][0], 80))}'
+            f'&body={q(f"Article: {SITE}/s/{p["id"]}/" + chr(10) * 2 + "What is wrong:" + chr(10) + chr(10) + "What it should say, with a source:")}')
+
+
+def corrections_page(rows):
+    """/corrections/: every correction and withdrawal, newest first; "No corrections yet." says so when there are none."""
+    flat = sorted((c for v in rows.values() for c in v), key=lambda c: dt(c["time"]), reverse=True)
+    items = "".join(f'<li><time datetime="{iso(c["time"])}">{when(c["time"])}</time> <a href="{BASE}/s/{E(c["id"])}/">{E(c["id"])}</a> '
+                    f'<span>{E(correction_text(c))}</span></li>' for c in flat)
+    return pagehead("Corrections", "Errors we have fixed and articles we have withdrawn.") + (
+        f'<div class="prose"><ol class="timeline">{items}</ol></div>' if items else '<div class="prose"><p>No corrections yet.</p></div>')
+
+
+def tombstone(c):
+    """What /s/<id>/ shows once an article is withdrawn: that it was, when, and why. The page is not indexed."""
+    return (pagehead("This article was withdrawn") + f'<div class="prose"><p>Withdrawn {when(c["time"])}. {E(c.get("right", ""))}</p>'
+            f'<p><a href="{BASE}/corrections/">Corrections</a> &middot; <a href="{BASE}/">Front page</a></p></div>')
+
+
 LEAK = re.compile(r"\{\{|\}\}|\{[a-z_]+\}|%\([a-z_]+\)s|\[\[|\bTODO\b|lorem ipsum|\bundefined\b|<headline>", re.I)
 QUARANTINE = []  # [{"id", "reasons"}] of the last build: articles held back from every page, sitemap and feed; the status page lists them
 
@@ -649,10 +698,13 @@ def article_ld(p, image):
     url = f"{SITE}/s/{p['id']}/"
     ld = {"@context": "https://schema.org", "@type": "NewsArticle", "mainEntityOfPage": {"@type": "WebPage", "@id": url},
           "headline": clip(p["headlines"][0], 110), "description": p.get("dek", ""),
-          "image": [ORIGIN + (image or DEFAULT_OG)], "datePublished": iso(p["published"]), "dateModified": iso(p["published"]),
+          "image": [ORIGIN + (image or DEFAULT_OG)], "datePublished": iso(p["published"]), "dateModified": iso(max([p["published"]] + [c["time"] for c in CORRECTIONS.get(p["id"], [])], key=dt)),
           "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
           "author": {"@type": "Organization", "name": NAME, "url": SITE + "/about/"},
           "publisher": seo.organization(SITE, NAME, accounts())}
+    fixes = [{"@type": "CorrectionComment", "text": correction_text(c), "datePublished": iso(c["time"])} for c in CORRECTIONS.get(p["id"], [])]
+    if fixes:
+        ld["correction"] = fixes
     cites = [{"@type": "CreativeWork", "name": o, **({"url": u} if u else {})} for o, u in seat_list(p)]
     if cites:
         ld["citation"] = cites
@@ -855,14 +907,16 @@ def story(p, rows, cos=None, counts=None):
         if ticker_of(p):
             company += f"<span>{ticker_html(ticker_of(p))}</span>"
     ctx = markets.context_for(p, MARKETS, BASE)
+    notes = "".join(f'<aside class="corr" role="note"><b>Corrected</b> <time datetime="{iso(c["time"])}">{when(c["time"])}</time>. '
+                    f'{E(correction_text(c))}</aside>' for c in CORRECTIONS.get(p["id"], []))
     body = f"""<article class="art">
 <header class="art-head"><a class="kick" href="{BASE}{topic_path(topic(p))}">{E(topic(p))}</a>
 <h1>{E(p['headlines'][0])}</h1>{f'<p class="dek">{E(p["dek"])}</p>' if (p.get("dek") or "").strip() else ""}
-<div class="byline"><span>Boardread desk, written by AI</span></div>{sources}
+<div class="byline"><span>Boardread desk, written by AI</span></div>{sources}{notes}
 <div class="mt art-meta"><time datetime="{iso(p['published'])}">{when(p['published'])}</time><span>{cover(p)}</span>{company}</div></header>
 {fig}
 <div class="art-body">{f'<section class="happened" aria-labelledby="wh"><h2 id="wh" class="lab">What happened</h2><div class="body">{paras}</div></section>' if paras else ""}
-<p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work and how to report an error</a>.</p>
+<p class="disclose">Written by AI from the sources listed. Numbers are checked against the source text before publishing. <a href="{BASE}/standards/">How we work</a>. <a href="{report_link(p)}" rel="noopener nofollow">Report an error</a>.</p>
 <div class="reportedby">{insta}</div>
 {ctx}{number_box(p)}
 <section class="sharebox"><h2 class="sh">Share</h2>{share_links(p)}</section>
@@ -966,7 +1020,7 @@ def standards_page():
 <li><b>Topics we skip.</b> Articles centred on deaths, violence, abuse and similar subjects are not published by the desk.</li>
 </ul>
 <h2>Corrections</h2>
-<p>If an article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
+<p>Every fix and withdrawal is on the <a href="{BASE}/corrections/">corrections page</a>. If an article misstates a fact, a name or a number, tell us with the link to the article and the correct information. The first thing checked is the source: if the source says something different from the article, the article is wrong and is corrected or withdrawn. If the source itself was corrected, the article follows it.</p>
 <ul>{contact_lines()}</ul>
 <h2>Who is responsible</h2>
 <p>The operator named in the <a href="{BASE}{LEGAL['impressum']}">Impressum</a> is responsible for the site, including the output of its automated desk.</p>
@@ -1113,7 +1167,10 @@ def build(out=desk.HERE / "_site"):
         shutil.copy(ASSETS / "CNAME", out / "CNAME")
     shown = []
     PHOTOS.clear()
-    passed, held = quarantine(published())
+    CORRECTIONS.clear()
+    CORRECTIONS.update(load_corrections())
+    withdrawn = {i: v[-1] for i, v in CORRECTIONS.items() if any(c.get("withdrawn") for c in v)}
+    passed, held = quarantine([p for p in published() if p["id"] not in withdrawn])
     QUARANTINE[:] = held
     for h in held:
         print(f"site: held back {h['id']}: {', '.join(h['reasons'])}")
@@ -1218,6 +1275,10 @@ def build(out=desk.HERE / "_site"):
                               ("impressum", "Impressum", impressum_page, "Legal notice for boardread.news.")):
         put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
         sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
+    put(out, "/corrections/", page("Corrections · boardread.", corrections_page(CORRECTIONS), "Errors fixed and articles withdrawn.", "/corrections/"))
+    sm.append((SITE + "/corrections/", iso(max((c["time"] for v in CORRECTIONS.values() for c in v), key=dt)) if CORRECTIONS else (iso(shown[0]["published"]) if shown else None)))
+    for i, c in withdrawn.items():  # the address stays: a tombstone, out of the index and out of every list
+        put(out, f"/s/{i}/", page("Withdrawn · boardread.", tombstone(c), "This article was withdrawn.", f"/s/{i}/", noindex=True))
     (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(dt(p["published"])), p.get("dek", ""),

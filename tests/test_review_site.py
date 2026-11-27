@@ -296,6 +296,51 @@ class Held(Features):
         self.assertEqual(status.snapshot()["quarantined"], site.QUARANTINE)
 
 
+class Corrected(Features):
+    def build_with(self, rows):
+        import shutil
+        shutil.rmtree(self.out)
+        (desk.HERE / "corrections.json").write_text(json.dumps(rows))
+        stub = lambda *a: a[-1].write_bytes(b"jpg") or True  # noqa: E731
+        with mock.patch.object(site, "og_image", side_effect=stub), mock.patch.object(site, "share_card", side_effect=stub):
+            self.out = site.build(self.root / "_site3")
+
+    def test_without_corrections_the_page_says_so_and_articles_carry_a_report_link(self):
+        self.assertIn("No corrections yet.", self.read("corrections/index.html"))
+        h = self.read("s/2026-11-26-0900-1/index.html")
+        self.assertIn("github.com/Keremozdemirra/news/issues/new?title=Error%3A", h)
+        self.assertIn("Article%3A%20https%3A%2F%2Fboardread.news%2Fs%2F2026-11-26-0900-1%2F", h)
+        self.assertNotIn('class="corr"', h)
+        self.assertIn("/corrections/</loc>", self.read("sitemap.xml"))
+
+    def test_a_correction_is_dated_on_the_article_in_the_ld_and_on_the_page(self):
+        self.build_with([{"id": "2026-11-26-0900-1", "time": "2026-11-27T09:30:00+00:00", "wrong": "10,000 jobs.", "right": "At least 10,000 jobs."}])
+        h = self.read("s/2026-11-26-0900-1/index.html")
+        self.assertIn('<aside class="corr" role="note"><b>Corrected</b>', h)
+        self.assertIn("Was: 10,000 jobs. Now: At least 10,000 jobs.", h)
+        ld = json.loads(re.findall(r'<script type="application/ld\+json">(.*?)</script>', h)[0])
+        self.assertEqual(ld["dateModified"], "2026-11-27T09:30:00Z")
+        self.assertEqual(ld["correction"][0]["@type"], "CorrectionComment")
+        page = self.read("corrections/index.html")
+        self.assertIn("2026-11-26-0900-1", page)
+        self.assertNotIn("No corrections yet", page)
+
+    def test_a_withdrawn_article_is_a_noindex_tombstone_and_in_no_list(self):
+        self.build_with([{"id": "2026-11-26-0900-1", "time": "2026-11-27T09:30:00+00:00", "right": "The figure was wrong.", "withdrawn": True}])
+        h = self.read("s/2026-11-26-0900-1/index.html")
+        self.assertIn("This article was withdrawn", h)
+        self.assertIn('content="noindex"', h)
+        self.assertNotIn("SAP explores at least 10,000 job cuts", h)
+        for f in ("sitemap.xml", "news-sitemap.xml", "feed.xml", "search.json", "latest/index.html", "index.html"):
+            self.assertNotIn("SAP explores at least 10,000 job cuts" if f != "sitemap.xml" and f != "news-sitemap.xml" else "/s/2026-11-26-0900-1/", self.read(f), f)
+
+    def test_a_broken_file_is_no_corrections(self):
+        (desk.HERE / "corrections.json").write_text("{not json")
+        self.assertEqual(site.load_corrections(), {})
+        (desk.HERE / "corrections.json").write_text(json.dumps([{"id": "x"}, {"id": "y", "time": "nonsense"}, "str"]))
+        self.assertEqual(site.load_corrections(), {})
+
+
 class Built(Features):
     """A real build: the pages and feeds the review found wrong."""
 
