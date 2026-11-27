@@ -1,0 +1,77 @@
+{
+ "id": "2026-11-27-1856-1",
+ "batch": "2026-11-27-1856",
+ "n": 1,
+ "created": "2026-11-27T18:56:36+00:00",
+ "layout": "number",
+ "photos": [
+  {
+   "file": "A modern Verizon retail store in Burlington, Vermont.jpg",
+   "credit": "Photo: Harrison Keely, CC BY 4.0, via Wikimedia Commons",
+   "name": ""
+  }
+ ],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Verizon is in talks to buy broadband operator Fidium for about $6 billion\n\nVerizon (NYSE: VZ) · Business\n\nFidium is owned by Searchlight Capital and Canada's BCI, according to the Financial Times Verizon aims to expand its network to 50 million US homes and businesses. The company wants a bigger presence in New England. A deal would let Verizon target more internet subscribers across the US.\n\nReported by Financial Times; Bloomberg; Mint.\n\nSend this to a colleague who covers Verizon.\n\n#business #news\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.techmeme.com/261127/p11#a261127p11"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/verizon-in-talks-to-buy-fidium-in-6-billion-deal-ft-says",
+  "https://www.livemint.com/companies/verizon-in-talks-to-buy-fidium-in-6-billion-deal-ft-says-11795804342081.html",
+  "https://www.techmeme.com/261127/p11#a261127p11"
+ ],
+ "headlines": [
+  "Verizon is in talks to buy broadband operator Fidium for about $6 billion"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "A modern Verizon retail store in Burlington, Vermont.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.986,
+ "figure": "$6B",
+ "company": "Verizon",
+ "ticker": {
+  "exchange": "NYSE",
+  "symbol": "VZ"
+ },
+ "person": "",
+ "person_role": "",
+ "image_query": "fiber optic cable",
+ "orgs": [
+  "Verizon",
+  "Fidium",
+  "Searchlight Capital"
+ ],
+ "venue": "",
+ "logo_names": [
+  "Verizon"
+ ],
+ "dek": "Fidium is owned by Searchlight Capital and Canada's BCI, according to the Financial Times",
+ "body": "Verizon aims to expand its network to 50 million US homes and businesses. The company wants a bigger presence in New England. A deal would let Verizon target more internet subscribers across the US.",
+ "supported": "8dd9cf38d21d",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "Financial Times",
+  "Bloomberg",
+  "Mint"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/verizon-in-talks-to-buy-fidium-in-6-billion-deal-ft-says",
+  "https://www.livemint.com/companies/verizon-in-talks-to-buy-fidium-in-6-billion-deal-ft-says-11795804342081.html"
+ ],
+ "credit": "Photo: Harrison Keely, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "A modern Verizon retail store in Burlington, Vermont.jpg",
+ "status": "queued",
+ "publish_after": "2026-11-27T20:05:34+00:00",
+ "story": ""
+}
