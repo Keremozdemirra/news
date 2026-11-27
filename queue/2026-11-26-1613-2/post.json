@@ -4,7 +4,7 @@
  "n": 2,
  "created": "2026-11-26T16:13:41+00:00",
  "publish_after": "2026-11-26T16:26:35+00:00",
- "status": "web",
+ "status": "held",
  "cards": [
   "card.jpg",
   "detail.jpg"
@@ -71,5 +71,9 @@
  },
  "lead_published": "2026-11-27T00:30:21+00:00",
  "tier": "web",
- "published": "2026-11-27T04:30:14+00:00"
+ "published": "2026-11-27T04:30:14+00:00",
+ "held": [
+  "centred on deaths or violence ('kills two')"
+ ],
+ "held_from": "web"
 }

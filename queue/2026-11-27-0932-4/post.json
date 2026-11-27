@@ -49,7 +49,11 @@
  ],
  "credit": "Photo: Winnebaggo, CC0, via Wikimedia Commons",
  "credit_file": "Target store in Stuart, FL.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T09:32:38+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (1 sentences, 9 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

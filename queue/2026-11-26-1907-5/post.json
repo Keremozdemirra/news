@@ -30,8 +30,8 @@
  "company": "",
  "person": "Jared Kushner",
  "logo_names": [],
- "dek": "He calls this the 'good thing' about the destruction from Israel's war on Gaza.",
- "body": "Jared Kushner says the 'good thing' about Israel's war on Gaza is that it can be built into 'something new.'",
+ "dek": "Three sources with knowledge of the call say it took place on Tuesday.",
+ "body": "Kushner is the presidential envoy who made the call. The commitments Netanyahu made to President Trump concern implementing a Gaza peace plan. The White House and Trump's Board of Peace have grown increasingly exasperated with what they view as Netanyahu's obstinacy on Gaza.",
  "so_what": "",
  "sources": [
   "Al Jazeera",
@@ -42,9 +42,19 @@
   "https://www.axios.com/2026/11/25/kushner-presses-netanyahu-gaza-peace-plan"
  ],
  "credit": "Photo: Junyu-K, CC BY 4.0, via Wikimedia Commons",
- "status": "web",
+ "status": "held",
  "published": "2026-11-26T19:07:38+00:00",
  "story": "",
  "photo_kind": "scene",
- "photo_alt": "A calm sea under a pale sky"
+ "photo_alt": "A calm sea under a pale sky",
+ "rewritten": {
+  "at": "2026-11-27T10:19:03.404803+00:00",
+  "why": "report too thin (1 sentences, 20 words beyond the dek)",
+  "dek": "He calls this the 'good thing' about the destruction from Israel's war on Gaza.",
+  "body": "Jared Kushner says the 'good thing' about Israel's war on Gaza is that it can be built into 'something new.'"
+ },
+ "held": [
+  "rewritten report does not match the headline (the dek and report are about a different call)"
+ ],
+ "held_from": "web"
 }

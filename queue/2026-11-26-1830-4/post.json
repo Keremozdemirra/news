@@ -24,13 +24,13 @@
  ],
  "topic": "Economy",
  "photo_file": "January 2025 Official Presidential Portrait of Donald J. Trump.jpg",
- "score": 8.081,
+ "score": 10.865,
  "figure": "",
  "company": "",
  "person": "Donald Trump",
  "logo_names": [],
  "dek": "He called the revision a historic mistake and said it should be \"immediately investigated.\"",
- "body": "President Donald Trump on Thursday deemed the latest gross domestic product revision a historic mistake. He claimed it should be \"immediately investigated.\" The third-quarter GDP data received a massive revision higher.",
+ "body": "President Donald Trump on Thursday deemed the latest gross domestic product revision a historic mistake. He claimed it should be \"immediately investigated.\" The third-quarter GDP data received a revision higher.",
  "so_what": "",
  "sources": [
   "CNBC",
@@ -43,5 +43,6 @@
  "credit": "Photo: Shealeah Craighead, Public domain, via Wikimedia Commons",
  "status": "web",
  "published": "2026-11-26T18:30:56+00:00",
- "story": ""
+ "story": "",
+ "score_before": 8.081
 }

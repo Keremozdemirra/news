@@ -27,7 +27,7 @@
  ],
  "topic": "Politics",
  "photo_file": "Kathy Hochul, November 2017.jpeg",
- "score": 8.658,
+ "score": 7.098,
  "figure": "five-year",
  "company": "",
  "person": "Kathy Hochul",
@@ -45,5 +45,6 @@
  "credit": "Photo: US Congress (Official Photo), Public domain, via Wikimedia Commons",
  "issue": 4,
  "tier": "web",
- "published": "2026-11-27T03:50:10+00:00"
+ "published": "2026-11-27T03:50:10+00:00",
+ "score_before": 8.658
 }

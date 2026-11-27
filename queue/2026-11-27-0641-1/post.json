@@ -46,7 +46,7 @@
  ],
  "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "Cranes at the Port of Halifax (Nova Scotia).jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T06:41:50+00:00",
  "story": "",
  "platforms": {
@@ -63,5 +63,9 @@
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bmkqsikk2x",
    "at": "2026-11-27T07:01:34+00:00"
   }
- }
+ },
+ "held": [
+  "report opens leaning on a sentence that is not there; rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

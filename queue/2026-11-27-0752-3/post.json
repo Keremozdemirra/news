@@ -48,7 +48,11 @@
  ],
  "credit": "Photo: Foto: Nebojša Tejić/STA, Public domain, via Wikimedia Commons",
  "credit_file": "Obisk španskega predsednika vlade v Sloveniji (53658605930) (cropped).jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T07:52:04+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (1 sentences, 21 words beyond the dek); copy did not pass its checks"
+ ],
+ "held_from": "web"
 }

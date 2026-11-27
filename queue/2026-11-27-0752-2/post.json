@@ -48,7 +48,7 @@
  ],
  "credit": "Photo: Rsparks3, CC0, via Wikimedia Commons",
  "credit_file": "Data center roof.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T07:52:03+00:00",
  "story": "",
  "platforms": {
@@ -57,5 +57,9 @@
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bvgkdu3u2e",
    "at": "2026-11-27T09:40:17+00:00"
   }
- }
+ },
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

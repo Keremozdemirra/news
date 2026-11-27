@@ -26,7 +26,7 @@
  ],
  "topic": "Business",
  "photo_file": "LOOM office seating.jpg",
- "score": 8.886,
+ "score": 8.077,
  "figure": "10,000",
  "company": "SAP",
  "person": "",
@@ -60,5 +60,6 @@
   }
  },
  "photo_kind": "scene",
- "photo_alt": "An open office floor with a lounge area"
+ "photo_alt": "An open office floor with a lounge area",
+ "score_before": 8.886
 }

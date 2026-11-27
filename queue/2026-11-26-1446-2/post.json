@@ -25,9 +25,9 @@
  ],
  "topic": "AI",
  "photo_file": "GPU blade with glycol cooling (54685994424).jpg",
- "score": 12.785,
+ "score": 8.914,
  "dek": "The error had incorrectly discounted usage at the launch of the GPT-6.2 Astra and Sol models.",
- "body": "OpenAI says it corrected a billing mistake from the launch of its GPT-6.2 Astra and Sol models. The error had incorrectly discounted usage. Astra users will now hit their usage limits up to 40% faster.",
+ "body": "OpenAI says it corrected a billing mistake from the launch of its GPT-6.2 Astra and Sol models. Astra users will now hit their usage limits up to 40% faster.",
  "sources": [
   "TechRadar",
   "Techmeme"
@@ -61,5 +61,12 @@
   }
  },
  "photo_kind": "scene",
- "photo_alt": "A liquid-cooled GPU server blade laid out in parts"
+ "photo_alt": "A liquid-cooled GPU server blade laid out in parts",
+ "score_before": 12.785,
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.411244+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "The error had incorrectly discounted usage at the launch of the GPT-6.2 Astra and Sol models.",
+  "body": "OpenAI says it corrected a billing mistake from the launch of its GPT-6.2 Astra and Sol models. The error had incorrectly discounted usage. Astra users will now hit their usage limits up to 40% faster."
+ }
 }

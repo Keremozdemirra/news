@@ -36,8 +36,8 @@
  "logo_names": [
   "SpaceX"
  ],
- "dek": "One share would come from SpaceX and one from Musk personally.",
- "body": "",
+ "dek": "The offer doubles one Elon Musk made last month.",
+ "body": "Musk made the statement on Wednesday. According to a post on X, he and SpaceX will also give every US child another share every year.",
  "so_what": "",
  "sources": [
   "Al Jazeera",
@@ -51,7 +51,17 @@
  ],
  "credit": "Photo: Bruno Sanchez-Andrade Nuño from Washington, DC, USA, CC BY 2.0, via Wikimedia Commons",
  "credit_file": "Entrance to SpaceX headquarters.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T02:08:10+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:19:03.412424+00:00",
+  "why": "report too thin (0 sentences, 0 words beyond the dek)",
+  "dek": "One share would come from SpaceX and one from Musk personally.",
+  "body": ""
+ },
+ "held": [
+  "same event as 2026-11-26-1446-5 (SpaceX shares for Trump Accounts), reported again"
+ ],
+ "held_from": "web"
 }

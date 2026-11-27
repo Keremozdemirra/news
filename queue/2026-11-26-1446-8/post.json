@@ -25,9 +25,9 @@
  ],
  "topic": "Markets",
  "photo_file": "Manhattan skyline from Upper New York Bay, 20231001 1041 0889.jpg",
- "score": 10.103,
+ "score": 4.603,
  "dek": "Pension funds and endowments are dropping legacy stakes at knockdown prices to free up cash for next-generation tech start-ups.",
- "body": "Institutional investors are selling stakes in older VC funds from the 2021 investment boom peak at steep discounts. They are rushing to back new AI funds. Pension funds and endowments are dropping legacy stakes at knockdown prices to free up cash for next-generation tech start-ups.",
+ "body": "Institutional investors are selling stakes in older VC funds from the 2021 investment boom peak at steep discounts. They are rushing to back new AI funds.",
  "sources": [
   "Financial Times",
   "Techmeme"
@@ -60,5 +60,12 @@
   }
  },
  "photo_kind": "scene",
- "photo_alt": "The Lower Manhattan skyline seen from the water"
+ "photo_alt": "The Lower Manhattan skyline seen from the water",
+ "score_before": 10.103,
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.412535+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "Pension funds and endowments are dropping legacy stakes at knockdown prices to free up cash for next-generation tech start-ups.",
+  "body": "Institutional investors are selling stakes in older VC funds from the 2021 investment boom peak at steep discounts. They are rushing to back new AI funds. Pension funds and endowments are dropping legacy stakes at knockdown prices to free up cash for next-generation tech start-ups."
+ }
 }

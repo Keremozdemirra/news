@@ -26,7 +26,7 @@
  ],
  "topic": "Economy",
  "photo_file": "Cranes at the Port of Halifax (Nova Scotia).jpg",
- "score": 8.655,
+ "score": 8.125,
  "figure": "",
  "company": "",
  "person": "",
@@ -47,5 +47,6 @@
  "photo_kind": "scene",
  "photo_alt": "Red container cranes at a busy port",
  "tier": "web",
- "published": "2026-11-27T03:50:10+00:00"
+ "published": "2026-11-27T03:50:10+00:00",
+ "score_before": 8.655
 }

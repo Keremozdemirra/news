@@ -46,7 +46,11 @@
  ],
  "credit": "Photo: Kenneth C. Zirkel, CC0, via Wikimedia Commons",
  "credit_file": "Example voting booth.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T02:42:41+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

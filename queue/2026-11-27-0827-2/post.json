@@ -43,7 +43,11 @@
  ],
  "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "Oil pumpjack in the Permian Basin.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T08:27:38+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (1 sentences, 15 words beyond the dek); rewritten, still report too thin (1 sentences, 27 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

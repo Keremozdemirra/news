@@ -26,7 +26,7 @@
  ],
  "topic": "Business",
  "photo_file": "Norse Atlantic Airways Boeing 787 LN-FND Oslo Gardermoen 2024 (01).jpg",
- "score": 10.397,
+ "score": 10.39,
  "dek": "The carrier is seeking urgent funding and will file for bankruptcy without a financial lifeline.",
  "body": "Norse Atlantic has suspended all flights as it faces potential collapse. The carrier is looking for urgent funding. It will file for bankruptcy without a financial lifeline.",
  "sources": [
@@ -60,5 +60,6 @@
    "url": "https://www.facebook.com/1508957942295455_122098326645564316",
    "at": "2026-11-26T17:41:33+00:00"
   }
- }
+ },
+ "score_before": 10.397
 }

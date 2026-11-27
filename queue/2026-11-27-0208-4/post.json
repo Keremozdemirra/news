@@ -46,7 +46,11 @@
  ],
  "credit": "Photo: Cancillería Argentina, CC BY 2.0, via Wikimedia Commons",
  "credit_file": "Javier Milei en el Salón Blanco 2 (cropped).jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T02:08:08+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "no dek; rewritten, still no dek"
+ ],
+ "held_from": "web"
 }

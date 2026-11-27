@@ -31,7 +31,7 @@
  "person": "Adrian Siemieniec",
  "logo_names": [],
  "dek": "Jagiellonia equalized almost immediately after falling behind, and defended well against a Sunderland side short of goals.",
- "body": "Jagiellonia Bialystok drew at Sunderland in the Europa League after an error by Reinildo. They responded to falling behind with an almost immediate equalizer and defended well against Sunderland's struggles in front of goal. Head coach Adrian Siemieniec called the trip one of the biggest highlights of his career.",
+ "body": "Jagiellonia Bialystok drew at Sunderland in the Europa League after an error by Reinildo. Head coach Adrian Siemieniec called the trip one of the biggest highlights of his career.",
  "so_what": "",
  "sources": [
   "The Guardian"
@@ -44,5 +44,11 @@
  "status": "web",
  "published": "2026-11-26T23:42:01+00:00",
  "story": "",
- "photo_alt": ""
+ "photo_alt": "",
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.414944+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "Jagiellonia equalized almost immediately after falling behind, and defended well against a Sunderland side short of goals.",
+  "body": "Jagiellonia Bialystok drew at Sunderland in the Europa League after an error by Reinildo. They responded to falling behind with an almost immediate equalizer and defended well against Sunderland's struggles in front of goal. Head coach Adrian Siemieniec called the trip one of the biggest highlights of his career."
+ }
 }

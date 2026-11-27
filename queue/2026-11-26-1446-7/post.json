@@ -26,9 +26,9 @@
  ],
  "topic": "Tech",
  "photo_file": "Graphics Processing Unit.JPG",
- "score": 10.227,
+ "score": 7.93,
  "dek": "The halt follows a new U.S. rule requiring licenses for companies in those countries to buy advanced A.I. chips.",
- "body": "Nvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries. It follows a new U.S. rule that would require licenses for companies in those countries to buy advanced A.I. chips.",
+ "body": "Nvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries.",
  "sources": [
   "The New York Times",
   "Financial Times",
@@ -44,5 +44,12 @@
  "story": "story.jpg",
  "published": "2026-11-26T15:32:59+00:00",
  "media_id": "18119490965590843",
- "permalink": "https://www.instagram.com/p/DgNbzJAknIz/"
+ "permalink": "https://www.instagram.com/p/DgNbzJAknIz/",
+ "score_before": 10.227,
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.412363+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "The halt follows a new U.S. rule requiring licenses for companies in those countries to buy advanced A.I. chips.",
+  "body": "Nvidia has halted sales to Southeast Asia as the U.S. tightens China restrictions. The shipping halt hit four countries. It follows a new U.S. rule that would require licenses for companies in those countries to buy advanced A.I. chips."
+ }
 }

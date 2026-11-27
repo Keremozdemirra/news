@@ -36,8 +36,8 @@
  "logo_names": [
   "Department for Work and Pensions"
  ],
- "dek": "The department says benefit and pension payments will be paid as normal while it works with cyber security experts.",
- "body": "There is little information on which services are affected or how long the disruption will last.",
+ "dek": "Officials say pension and benefit payments will continue to be made.",
+ "body": "Almost all pensions and benefits systems went offline on Friday morning. People could not check a state pension, apply for disability benefits or claim universal credit. The department is working with cyber security experts and Britain's cyber security authorities to investigate and restore services.",
  "so_what": "",
  "sources": [
   "The Guardian",
@@ -53,5 +53,11 @@
  "credit_file": "Code on computer monitor (Unsplash).jpg",
  "status": "web",
  "published": "2026-11-27T09:32:35+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:21:14.172728+00:00",
+  "why": "report too thin (1 sentences, 16 words beyond the dek)",
+  "dek": "The department says benefit and pension payments will be paid as normal while it works with cyber security experts.",
+  "body": "There is little information on which services are affected or how long the disruption will last."
+ }
 }

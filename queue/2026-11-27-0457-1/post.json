@@ -44,7 +44,11 @@
  ],
  "credit": "Photo: DmitTrix, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "Cement carrier 'Blue Ciment 2' (IMO 9577264), container ship 'Uni-Phoenix' (IMO 9202170), tanker 'Trans Chemica' (IMO 9314715) in Haifa Bay - 2023-11-28 (DSC4651-DSC4684; Hugin align & de-vignette 34 photos; G'MIC Median Blend).guetzli.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T04:57:01+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still no dek"
+ ],
+ "held_from": "web"
 }

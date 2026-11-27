@@ -34,8 +34,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "Prime Minister Christopher Luxon needs the support of the centrist Opportunity Party to remain in power.",
- "body": "Final election results showed on Friday that New Zealand's center-right coalition narrowly missed a parliamentary majority.",
+ "dek": "Prime Minister Christopher Luxon needs the centrist Opportunity Party's support to remain in power.",
+ "body": "Official results were published on Friday for this month's election. The right-leaning ruling bloc is led by the National Party.",
  "so_what": "",
  "sources": [
   "The Straits Times",
@@ -65,5 +65,11 @@
     "id": "17917969443518435"
    }
   }
+ },
+ "rewritten": {
+  "at": "2026-11-27T10:19:03.408769+00:00",
+  "why": "report too thin (1 sentences, 16 words beyond the dek)",
+  "dek": "Prime Minister Christopher Luxon needs the support of the centrist Opportunity Party to remain in power.",
+  "body": "Final election results showed on Friday that New Zealand's center-right coalition narrowly missed a parliamentary majority."
  }
 }

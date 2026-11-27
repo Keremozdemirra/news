@@ -41,9 +41,13 @@
  ],
  "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
  "photo_kind": "scene",
- "status": "web",
+ "status": "held",
  "published": "2026-11-26T23:41:58+00:00",
  "story": "",
  "photo_alt": "A football stadium seen from above",
- "credit_file": "Hinchliffe Stadium (Paterson, NJ).jpg"
+ "credit_file": "Hinchliffe Stadium (Paterson, NJ).jpg",
+ "held": [
+  "same event as 2026-11-26-2341-1 (Bournemouth's win over Celta Vigo), another angle"
+ ],
+ "held_from": "web"
 }

@@ -26,9 +26,9 @@
  ],
  "topic": "Business",
  "photo_file": "Elon Musk (54816836217) (cropped 2) (b).jpg",
- "score": 10.587,
+ "score": 7.342,
  "dek": "Elon Musk says he will personally match the shares donated, and SpaceX's COO separately pledged more than 2 million shares.",
- "body": "SpaceX said Wednesday that it will give one share of its stock to every active Trump Account. CEO Elon Musk will personally match the number of shares donated as part of a broader commitment. SpaceX's COO has separately pledged more than 2 million of the rocket maker's shares.",
+ "body": "SpaceX said Wednesday that it will give one share of its stock to every active Trump Account. CEO Elon Musk will personally match the number of shares donated as part of a broader commitment.",
  "sources": [
   "Business Insider",
   "CNBC",
@@ -61,5 +61,12 @@
    "url": "https://www.facebook.com/1508957942295455_122098326339564316",
    "at": "2026-11-26T17:41:24+00:00"
   }
+ },
+ "score_before": 10.587,
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.412138+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "Elon Musk says he will personally match the shares donated, and SpaceX's COO separately pledged more than 2 million shares.",
+  "body": "SpaceX said Wednesday that it will give one share of its stock to every active Trump Account. CEO Elon Musk will personally match the number of shares donated as part of a broader commitment. SpaceX's COO has separately pledged more than 2 million of the rocket maker's shares."
  }
 }

@@ -24,7 +24,7 @@
  ],
  "topic": "Markets",
  "photo_file": "Bulk carrier at Halifax Grain Elevator.jpg",
- "score": 8.125,
+ "score": 8.54,
  "figure": "",
  "company": "",
  "person": "",
@@ -41,9 +41,14 @@
   "https://www.wsj.com/finance/asian-stocks-rise-as-investors-shrug-off-u-s-tariff-plan-f8daa85b?mod=rss_markets_main"
  ],
  "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
- "status": "web",
+ "status": "held",
  "published": "2026-11-26T18:35:27+00:00",
  "story": "",
  "photo_kind": "scene",
- "photo_alt": "A bulk carrier at a grain terminal seen from above"
+ "photo_alt": "A bulk carrier at a grain terminal seen from above",
+ "score_before": 8.125,
+ "held": [
+  "same market session as 2026-11-26-1542-5 (two wraps within 12 hours)"
+ ],
+ "held_from": "web"
 }

@@ -25,7 +25,7 @@
  ],
  "topic": "Tech",
  "photo_file": "Code on computer monitor (Unsplash).jpg",
- "score": 8.413,
+ "score": 9.865,
  "figure": "",
  "company": "Fifa",
  "person": "",
@@ -49,5 +49,6 @@
  "story": "",
  "photo_kind": "scene",
  "photo_alt": "Lines of code on a computer monitor",
- "credit_file": "Code on computer monitor (Unsplash).jpg"
+ "credit_file": "Code on computer monitor (Unsplash).jpg",
+ "score_before": 8.413
 }

@@ -33,8 +33,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "Italy's foreign minister warned parliament that further military action could jeopardize efforts to reunify Libya.",
- "body": "Italy has joined the voices expressing concern about Ukraine's attack on Russian ships in Libyan waters.",
+ "dek": "The foreign minister warns that further military action could jeopardize efforts to reunify Libya.",
+ "body": "Italy's foreign minister told parliament on Thursday that Rome was not informed of Sunday's strike. Italy has joined others in expressing concern about the attack in Libyan waters.",
  "so_what": "",
  "sources": [
   "Africanews"
@@ -47,5 +47,11 @@
  "credit_file": "Cement carrier 'Blue Ciment 2' (IMO 9577264), container ship 'Uni-Phoenix' (IMO 9202170), tanker 'Trans Chemica' (IMO 9314715) in Haifa Bay - 2023-11-28 (DSC4651-DSC4684; Hugin align & de-vignette 34 photos; G'MIC Median Blend).guetzli.jpg",
  "status": "web",
  "published": "2026-11-27T07:52:06+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:21:14.171431+00:00",
+  "why": "report too thin (1 sentences, 16 words beyond the dek)",
+  "dek": "Italy's foreign minister warned parliament that further military action could jeopardize efforts to reunify Libya.",
+  "body": "Italy has joined the voices expressing concern about Ukraine's attack on Russian ships in Libyan waters."
+ }
 }

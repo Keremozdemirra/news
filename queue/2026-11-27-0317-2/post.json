@@ -33,8 +33,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "Voters will choose mayors, council members and other local leaders across 22 districts.",
- "body": "The results will shape the fortunes of the ruling Democratic Progressive party.",
+ "dek": "More than 11,000 officials are on the ballot in a vote seen as a midterm test of President Lai Ching-te's support.",
+ "body": "Taiwanese voters go to the polls on Saturday, Nov 28. Taiwanese officials have raised alarm over Chinese interference in the elections. The vote may shape early moves for the 2028 presidential race.",
  "so_what": "",
  "sources": [
   "The Guardian",
@@ -63,5 +63,11 @@
     "id": "18082062908567316"
    }
   }
+ },
+ "rewritten": {
+  "at": "2026-11-27T10:19:37.281914+00:00",
+  "why": "report too thin (1 sentences, 12 words beyond the dek)",
+  "dek": "Voters will choose mayors, council members and other local leaders across 22 districts.",
+  "body": "The results will shape the fortunes of the ruling Democratic Progressive party."
  }
 }

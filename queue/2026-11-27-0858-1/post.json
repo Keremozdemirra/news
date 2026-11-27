@@ -46,7 +46,7 @@
  ],
  "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
  "credit_file": "Bulk carrier at Halifax Grain Elevator.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T08:58:04+00:00",
  "story": "",
  "platforms": {
@@ -55,5 +55,9 @@
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bya2m4lk2j",
    "at": "2026-11-27T10:30:20+00:00"
   }
- }
+ },
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

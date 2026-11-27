@@ -46,7 +46,11 @@
  ],
  "credit": "Photo: Ianthebush, CC BY 2.0, via Wikimedia Commons",
  "credit_file": "One Direction - Lincoln Financial Field (14890362356).jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T02:42:57+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); copy did not pass its checks"
+ ],
+ "held_from": "web"
 }

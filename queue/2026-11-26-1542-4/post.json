@@ -27,7 +27,7 @@
  ],
  "topic": "Business",
  "photo_file": "Altria Building (8156028882).jpg",
- "score": 8.816,
+ "score": 11.928,
  "figure": "",
  "company": "Altria",
  "person": "",
@@ -49,5 +49,6 @@
  "credit": "Photo: Packer1028, CC0, via Wikimedia Commons",
  "issue": 6,
  "tier": "web",
- "published": "2026-11-27T03:50:09+00:00"
+ "published": "2026-11-27T03:50:09+00:00",
+ "score_before": 8.816
 }

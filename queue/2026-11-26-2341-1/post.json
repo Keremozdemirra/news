@@ -31,7 +31,7 @@
  "person": "Marco Rose",
  "logo_names": [],
  "dek": "Marco Rose's side came back from a goal and a man down at half-time and move closer to automatic Europa League last 16 qualification.",
- "body": "Bournemouth won 2-1 at Celta Vigo in the Europa League after coming from behind with 10 men. It was their 10th victory in a row in all competitions under Marco Rose, and it moves them a step closer to automatic qualification for the last 16. They were a goal and a man down at half-time.",
+ "body": "Bournemouth won 2-1 at Celta Vigo in the Europa League after coming from behind with 10 men. It was their 10th victory in a row in all competitions under Marco Rose, and it moves them a step closer to automatic qualification for the last 16.",
  "so_what": "",
  "sources": [
   "The Guardian"
@@ -45,5 +45,11 @@
  "published": "2026-11-26T23:41:56+00:00",
  "story": "",
  "photo_alt": "A football stadium seen from above",
- "credit_file": "Hinchliffe Stadium (Paterson, NJ).jpg"
+ "credit_file": "Hinchliffe Stadium (Paterson, NJ).jpg",
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.414775+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "Marco Rose's side came back from a goal and a man down at half-time and move closer to automatic Europa League last 16 qualification.",
+  "body": "Bournemouth won 2-1 at Celta Vigo in the Europa League after coming from behind with 10 men. It was their 10th victory in a row in all competitions under Marco Rose, and it moves them a step closer to automatic qualification for the last 16. They were a goal and a man down at half-time."
+ }
 }

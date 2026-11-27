@@ -34,8 +34,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "Habitat Property's Victoria Allan cites returning expatriates, increased bank hiring and more arrivals from mainland China.",
- "body": "Together these factors are tightening housing supply.",
+ "dek": "The private home price index dipped, ending two straight months of gains, while rents rose to a record for a 12th straight month.",
+ "body": "Renewed market volatility and competition from primary home sales weighed on sentiment. The Rating and Valuation Department released the data on Thursday. Prices have risen about 6.5 per cent so far this year.",
  "so_what": "",
  "sources": [
   "Bloomberg",
@@ -51,5 +51,11 @@
  "credit_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
  "status": "web",
  "published": "2026-11-27T03:47:44+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:20:08.249672+00:00",
+  "why": "report too thin (1 sentences, 7 words beyond the dek)",
+  "dek": "Habitat Property's Victoria Allan cites returning expatriates, increased bank hiring and more arrivals from mainland China.",
+  "body": "Together these factors are tightening housing supply."
+ }
 }

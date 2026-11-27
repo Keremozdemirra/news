@@ -46,7 +46,11 @@
  ],
  "credit": "Photo: Milad Mosapoor, Public domain, via Wikimedia Commons",
  "credit_file": "US Dollar banknotes II.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T02:08:09+00:00",
- "story": ""
+ "story": "",
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

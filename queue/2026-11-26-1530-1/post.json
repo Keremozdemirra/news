@@ -29,9 +29,9 @@
  ],
  "topic": "Tech",
  "photo_file": "North America from low orbiting satellite Suomi NPP.jpg",
- "score": 12.47,
+ "score": 11.993,
  "dek": "SpaceX targets first launches in 2027 and full operation by 2040, while BCG estimates costs stay well above ground-based centers.",
- "body": "The FCC has authorized SpaceX to deploy up to 1 million Starmind satellites to process AI data as orbital data centers. SpaceX is targeting its first launches in 2027, with the full constellation operating by 2040. Google and Blue Origin are also working on AI infrastructure in space, and Boston Consulting Group estimates costs will stay well above ground-based data centers for now.",
+ "body": "The FCC has authorized SpaceX to deploy up to 1 million Starmind satellites to process AI data as orbital data centers. Google and Blue Origin are also working on AI infrastructure in space, and Boston Consulting Group estimates costs will stay well above ground-based data centers for now.",
  "sources": [
   "The Decoder",
   "BBC",
@@ -66,5 +66,12 @@
    "url": "https://www.facebook.com/1508957942295455_122098327443564316",
    "at": "2026-11-26T17:41:59+00:00"
   }
+ },
+ "score_before": 12.47,
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.412981+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "SpaceX targets first launches in 2027 and full operation by 2040, while BCG estimates costs stay well above ground-based centers.",
+  "body": "The FCC has authorized SpaceX to deploy up to 1 million Starmind satellites to process AI data as orbital data centers. SpaceX is targeting its first launches in 2027, with the full constellation operating by 2040. Google and Blue Origin are also working on AI infrastructure in space, and Boston Consulting Group estimates costs will stay well above ground-based data centers for now."
  }
 }

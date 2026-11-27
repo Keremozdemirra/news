@@ -46,7 +46,7 @@
  ],
  "credit": "Photo: Alf van Beem, CC0, via Wikimedia Commons",
  "credit_file": "Old port cranes at Port of Antwerp, pic-054.JPG",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T03:17:16+00:00",
  "story": "",
  "platforms": {
@@ -55,5 +55,9 @@
    "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bopydmkh2z",
    "at": "2026-11-27T07:40:18+00:00"
   }
- }
+ },
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still report too thin (0 sentences, 0 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

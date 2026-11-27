@@ -25,7 +25,7 @@
  ],
  "topic": "Tech",
  "photo_file": "Datacenter Server Racks (22370909788).jpg",
- "score": 8.425,
+ "score": 9.043,
  "figure": "",
  "company": "1Password",
  "person": "",
@@ -48,5 +48,6 @@
  "published": "2026-11-26T20:16:53+00:00",
  "story": "",
  "photo_kind": "scene",
- "photo_alt": "A server room with empty racks"
+ "photo_alt": "A server room with empty racks",
+ "score_before": 8.425
 }

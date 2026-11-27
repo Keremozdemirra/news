@@ -23,7 +23,7 @@
  ],
  "topic": "AI",
  "photo_file": "AMD Ryzen 5 2600 (39851733273).jpg",
- "score": 8.038,
+ "score": 6.286,
  "figure": "",
  "company": "",
  "person": "",
@@ -44,5 +44,6 @@
  "published": "2026-11-26T18:35:27+00:00",
  "story": "",
  "photo_kind": "name",
- "photo_alt": ""
+ "photo_alt": "",
+ "score_before": 8.038
 }

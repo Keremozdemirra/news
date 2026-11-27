@@ -46,9 +46,13 @@
   "https://www.dw.com/en/crew-member-dies-after-diesel-tanker-sinks-off-ibiza-coast/a-80059054?maca=en-rss-en-world-4025-rdf"
  ],
  "credit": "Photo: Expedition 35 crew, Public domain, via Wikimedia Commons",
- "status": "web",
+ "status": "held",
  "published": "2026-11-26T20:51:37+00:00",
  "story": "",
  "photo_kind": "name",
- "photo_alt": ""
+ "photo_alt": "",
+ "held": [
+  "centred on deaths or violence ('killing a')"
+ ],
+ "held_from": "web"
 }

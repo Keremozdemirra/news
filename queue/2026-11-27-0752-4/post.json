@@ -34,8 +34,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "Authorities vowed stabilization policies amid increased volatility in global markets.",
- "body": "",
+ "dek": "The CSI 300 index posted its biggest one-day rise in two years after months of weakness.",
+ "body": "State media ran a rare intraday readout in which top policymakers pledged market liquidity support. Authorities reiterated support for capital markets and vowed stabilization policies. The moves came amid increased volatility in global markets.",
  "so_what": "",
  "sources": [
   "The Wall Street Journal",
@@ -50,5 +50,11 @@
  "credit_file": "Stockmarket.jpg",
  "status": "web",
  "published": "2026-11-27T07:52:05+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:21:14.170321+00:00",
+  "why": "report too thin (0 sentences, 0 words beyond the dek)",
+  "dek": "Authorities vowed stabilization policies amid increased volatility in global markets.",
+  "body": ""
+ }
 }

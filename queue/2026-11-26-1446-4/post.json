@@ -31,9 +31,9 @@
  ],
  "topic": "Economy",
  "photo_file": "Official Presidential Portrait of President Donald J. Trump (2025) (3x4).jpg",
- "score": 12.017,
+ "score": 9.575,
  "dek": "Many of the Asian partners depend on trade and investment from both the United States and China.",
- "body": "President Trump sent a message to trading partners across Asia that he is ready to escalate tariffs. Many of those partners depend on trade and investment from both the United States and China. The latest tariffs revive the focus on pressuring China.",
+ "body": "President Trump sent a message to trading partners across Asia that he is ready to escalate tariffs. The latest tariffs revive the focus on pressuring China.",
  "sources": [
   "The New York Times",
   "Axios",
@@ -69,5 +69,12 @@
    "url": "https://www.facebook.com/1508957942295455_122098326123564316",
    "at": "2026-11-26T17:41:16+00:00"
   }
+ },
+ "score_before": 12.017,
+ "rewritten": {
+  "at": "2026-11-27T10:24:03.411754+00:00",
+  "why": "a sentence restated the dek",
+  "dek": "Many of the Asian partners depend on trade and investment from both the United States and China.",
+  "body": "President Trump sent a message to trading partners across Asia that he is ready to escalate tariffs. Many of those partners depend on trade and investment from both the United States and China. The latest tariffs revive the focus on pressuring China."
  }
 }

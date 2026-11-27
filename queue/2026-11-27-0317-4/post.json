@@ -34,8 +34,8 @@
  "ticker": null,
  "person": "Donald Trump",
  "logo_names": [],
- "dek": "He said he made the request when they met in China last week and thinks it would help lead to a deal on Ukraine.",
- "body": "His comments came a day after he hosted Nato chief Mark Rutte in Florida.",
+ "dek": "He made the request when he met Putin in China last week, after calling the Russian leader his friend.",
+ "body": "Trump spoke a day after hosting Nato chief Mark Rutte in Florida. He said he made the request in the hopes that a deal can be made between Russia and Ukraine, and made quickly, and that he believes this is a strong possibility.",
  "so_what": "",
  "sources": [
   "South China Morning Post",
@@ -51,5 +51,11 @@
  "credit_file": "Globe with yellow background 1.jpg",
  "status": "web",
  "published": "2026-11-27T03:17:17+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:19:37.282251+00:00",
+  "why": "report too thin (1 sentences, 14 words beyond the dek)",
+  "dek": "He said he made the request when they met in China last week and thinks it would help lead to a deal on Ukraine.",
+  "body": "His comments came a day after he hosted Nato chief Mark Rutte in Florida."
+ }
 }

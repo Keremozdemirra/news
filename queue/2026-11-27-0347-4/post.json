@@ -35,8 +35,8 @@
  "logo_names": [
   "Macy's"
  ],
- "dek": "The retailer confirmed Wednesday that an impending nor'easter will keep the giant balloons grounded.",
- "body": "The parade was expected to celebrate its 100th year with a record 100 inflatables.",
+ "dek": "An impending nor'easter will keep the giant balloons from flying; the 100th parade was to feature a record 100 inflatables.",
+ "body": "The retailer confirmed the postponement on Wednesday. Macy's said the safety of participants and spectators is its top priority.",
  "so_what": "",
  "sources": [
   "Axios",
@@ -50,5 +50,11 @@
  "credit_file": "Macy's at Northfield, 355, Northern Facade - 01.09.2025.jpg",
  "status": "web",
  "published": "2026-11-27T03:47:46+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:20:08.250235+00:00",
+  "why": "report too thin (1 sentences, 14 words beyond the dek)",
+  "dek": "The retailer confirmed Wednesday that an impending nor'easter will keep the giant balloons grounded.",
+  "body": "The parade was expected to celebrate its 100th year with a record 100 inflatables."
+ }
 }

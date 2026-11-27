@@ -33,8 +33,8 @@
  "ticker": null,
  "person": "",
  "logo_names": [],
- "dek": "",
- "body": "",
+ "dek": "The reading backs the case for a Bank of Japan rate increase in December, with the target at 2%.",
+ "body": "The consumer price index excluding fresh food was 2.9% higher than a year earlier. Governor Kazuo Ueda will give a speech on Nov 30, ahead of the Dec 18 BOJ decision.",
  "so_what": "",
  "sources": [
   "CNA",
@@ -48,5 +48,11 @@
  "credit_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
  "status": "web",
  "published": "2026-11-27T02:08:10+00:00",
- "story": ""
+ "story": "",
+ "rewritten": {
+  "at": "2026-11-27T10:19:03.411725+00:00",
+  "why": "no dek",
+  "dek": "",
+  "body": ""
+ }
 }

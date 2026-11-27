@@ -46,7 +46,7 @@
  ],
  "credit": "Photo: Lars Christopher  Nøttaasen, CC BY 2.0, via Wikimedia Commons",
  "credit_file": "Colorful Old Oil Barrels.jpg",
- "status": "web",
+ "status": "held",
  "published": "2026-11-27T03:17:14+00:00",
  "story": "",
  "platforms": {
@@ -63,5 +63,9 @@
     "id": "18454366714135846"
    }
   }
- }
+ },
+ "held": [
+  "report too thin (0 sentences, 0 words beyond the dek); rewritten, still report too thin (1 sentences, 17 words beyond the dek)"
+ ],
+ "held_from": "web"
 }

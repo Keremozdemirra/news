@@ -27,7 +27,7 @@
  ],
  "topic": "Politics",
  "photo_file": "Disney Store Times Square NYC.jpg",
- "score": 9.183,
+ "score": 9.603,
  "figure": "",
  "company": "Disney",
  "person": "",
@@ -66,5 +66,6 @@
     "id": "17926308261223520"
    }
   }
- }
+ },
+ "score_before": 9.183
 }
