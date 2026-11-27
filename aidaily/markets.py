@@ -484,7 +484,8 @@ def rates_box(m, base="", cls="", compact=False):
 # Crypto: CoinMarketCap API, free Basic plan. Commercial User Agreement (pro.coinmarketcap.com/user-agreement-commercial,
 # read 2026-11-27): the licence covers one product (this website, not the social accounts), and the product "shall
 # prominently provide attribution to CoinMarketCap as follows: "Data provided by CoinMarketCap.com"" with a link. So the
-# prices appear on the site only, always next to that line; they are fetched at build time and never stored or re-served.
+# prices appear on the site only, and every page that shows them carries that line in its footer, as does the Crypto
+# section of /numbers/; they are fetched at build time and never stored or re-served.
 CMC_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?start=1&limit=20&convert=USD"
 CMC_CREDIT = "Data provided by CoinMarketCap.com"
 CMC_HOME = "https://coinmarketcap.com/"
@@ -535,14 +536,13 @@ def coin_change(pct):
 
 
 def crypto_items(m):
-    """Strip items for the coins, then the credit the licence asks for, so the two are never apart."""
+    """Strip items for the coins. Their credit is in the footer of every page and on /numbers/ (see CMC_URL)."""
     cr = (m or {}).get("crypto") or {}
     if not cr.get("coins"):
         return []
     at = cr.get("at", "")[11:16]
     out = [f'<li title="{E(c["name"])}, CoinMarketCap, {E(at)} UTC"><span class="sl">{E(c["sym"])}</span> <b>{E(coin_price(c["price"]))}</b> {coin_change(c["pct"])}</li>'
            for c in cr["coins"]]
-    out.append(f'<li class="cmc"><a href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a></li>')
     return out
 
 
@@ -568,13 +568,15 @@ def strip(m, base=""):
             label, v, d, ch, pct, pts = s
             when = f' <small class="sd">{E(date.fromisoformat(d).strftime("%b"))} avg</small>' if SERIES[k][3] == "wb" else ""
             items.append(f'<li><span class="sl">{E(label)}</span> <b>{E(fmt(k, v))}</b>{when} {change_html(k, ch, None)}</li>')
-    # the coins follow the three most watched series, with their credit right after them
+    # the coins follow the three most watched series
     items[3:3] = crypto_items(m)
     if not items:
         return ""
-    # the credit also sits beside All data, where a wide screen always shows it; narrow screens keep the one after the coins
-    credit = f'<a class="cmcr" href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a>' if crypto_items(m) else ""
-    return f'<div class="mstrip"><ul aria-label="Markets">{"".join(items)}</ul>{credit}<a href="{base}/numbers/">All data</a></div>'
+    # the list runs twice in one track that slides left by half its width, so the loop has no seam; the copy is hidden
+    # from screen readers. All data stays put on the right. Reduced motion: no sliding, one copy, scroll by hand.
+    copy = "".join(i.replace("<li", '<li aria-hidden="true" class="dup"', 1) for i in items)
+    return (f'<div class="mstrip"><div class="mtrack"><ul aria-label="Markets">{"".join(items)}{copy}</ul></div>'
+            f'<a href="{base}/numbers/">All data</a></div>')
 
 
 def chart(pts, w=360, h=120, n=90, monthly=False):

@@ -51,9 +51,24 @@ class Crypto(unittest.TestCase):
         self.assertIn("$91,235", s)
         self.assertIn("$2.41", s)
         self.assertIn("2.00%", s)
-        self.assertIn('href="https://coinmarketcap.com/"', s)
-        self.assertIn("Data provided by CoinMarketCap.com", s)
-        self.assertLess(s.index("SOL"), s.index("Data provided by CoinMarketCap.com"))
+        self.assertNotIn("Data provided by CoinMarketCap.com", s)  # the credit lives in the footer and on /numbers/
+        self.assertIn("Data provided by CoinMarketCap.com", markets.crypto_section(m))
+
+    def test_footer_carries_the_credit_on_every_page_that_shows_coins(self):
+        from aidaily import site
+        m = {"series": {}, "crypto": markets.crypto("k", opener=Opener(listing()))}
+        with mock.patch.object(site, "MARKETS", m):
+            self.assertIn('href="https://coinmarketcap.com/"', site.crypto_credit())
+            self.assertIn("Data provided by CoinMarketCap.com", site.crypto_credit())
+        with mock.patch.object(site, "MARKETS", {"series": {}}):
+            self.assertEqual(site.crypto_credit(), "")
+
+    def test_the_band_loops_with_a_hidden_copy_and_all_data_last(self):
+        m = {"series": {}, "crypto": markets.crypto("k", opener=Opener(listing()))}
+        s = markets.strip(m)
+        self.assertEqual(s.count(">BTC<"), 2)
+        self.assertEqual(s.count('aria-hidden="true" class="dup"'), 5)
+        self.assertTrue(s.endswith('<a href="/numbers/">All data</a></div>'))
 
     def test_no_coins_no_credit(self):
         self.assertNotIn("CoinMarketCap", markets.strip({"series": {}}))
