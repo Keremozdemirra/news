@@ -904,7 +904,8 @@ def _s_whois(day, label):
 def _s_person(day, label):
     cut_day = [p for p in _published(24) if p.get("published", "")[:10] == day]
     quizzed = {q.get("person") for q in _story_posts("whois", 1)}
-    people = [p for p in cut_day if p.get("person") and _photo(p, fresh=True)[0] and p["person"] not in quizzed]
+    # a portrait only: the file must carry the person's name (a scene photo of their company is not them)
+    people = [p for p in _people(cut_day, lambda p: _photo(p, fresh=True)[0]) if p["person"] not in quizzed]
     if not people:
         return []
     p = max(people, key=_score)

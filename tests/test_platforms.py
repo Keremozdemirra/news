@@ -164,7 +164,7 @@ class Text(Env):
         c = platforms.telegram_caption(post())
         head, _, foot = c.split("\n\n")
         self.assertEqual(head, "<b>Denny&#x27;s reshares Nvidia origin story after Jensen Huang&#x27;s return</b>")
-        self.assertEqual(foot, 'Written by AI · <a href="https://boardread.news/s/2026-11-26-1446-1/">Sources</a> · #business')
+        self.assertEqual(foot, '<a href="https://boardread.news/s/2026-11-26-1446-1/">Sources</a> · #business')
         long = platforms.telegram_caption(post(body="A fact. " * 300, dek="Another " * 200 + "."))
         self.assertLessEqual(platforms._visible(long), 1024)
         self.assertTrue(long.endswith("#business"))
@@ -248,7 +248,8 @@ class Clients(Env):
         self.assertTrue(msg.startswith("Denny's reshares Nvidia"))
         self.assertNotIn("#", msg)
         self.assertNotIn("reinstalled a plaque", msg)  # the dek is the preview's, not said twice
-        self.assertTrue(msg.endswith("Written by AI. Sources: https://boardread.news/s/2026-11-26-1446-1/"))
+        self.assertTrue(msg.endswith("\n\nSources: https://boardread.news/s/2026-11-26-1446-1/"))
+        self.assertNotIn("Written by AI", msg)
         self.assertLessEqual(len(platforms.facebook_text(post(body="word. " * 400))), 700)
 
     def test_facebook_placeholder_page_id_is_read_from_the_token(self):

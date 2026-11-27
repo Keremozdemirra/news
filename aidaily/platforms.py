@@ -236,11 +236,11 @@ def _visible(text):
 
 def telegram_caption(post):
     """A channel post in the house style of news channels (parse_mode HTML): the headline in bold, two sentences
-    at most, then one quiet line with the AI note, the sources link and the topic hashtag (Telegram's post search
+    at most, then one quiet line with the sources link and the topic hashtag (Telegram's post search
     finds channel posts by hashtag). 1024 characters as Telegram counts them, after the markup."""
     link = f'<a href="{_h(story_page(post, "telegram"))}">Sources</a>'
     tag = telegram_tag(post)
-    foot = " · ".join(x for x in (_h(_ai(post)).rstrip("."), link, tag) if x)
+    foot = " · ".join(x for x in (link, tag) if x)
     head = _with_ticker(post, _head(post), 300)
     sentences = why_it_matters(post, 2) or _sentences(post.get("dek"))[:1]
     while True:
@@ -255,7 +255,7 @@ def telegram_caption(post):
 
 
 def facebook_text(post):
-    """A short Page post above the link preview: the headline, one or two sentences, then the AI note and the
+    """A short Page post above the link preview: the headline, one or two sentences, then the
     sources address. No hashtags: they do nothing on a Page. The preview (title, image) comes from the article
     page's Open Graph tags, so the text does not repeat the dek the preview shows."""
     dek = post.get("dek") or ""

@@ -943,6 +943,15 @@ class Formats(Tmp):
         with mock.patch.object(desk, "now", return_value=w):
             self.assertEqual(desk._photo(json.loads((desk.QUEUE / "2026-11-2x-b" / "post.json").read_text())), ("", ""))
 
+    def test_person_story_needs_a_portrait_named_after_the_person(self):
+        w = _at(1, 13, 40)
+        self.pub("a", "Thariq Shihipar joins OpenAI", w, 2, person="Thariq Shihipar", photo=True,
+                 photo_file="Conference room at NOIRLab.jpg", credit="Photo: X, CC BY 4.0, via Wikimedia Commons")
+        self.assertEqual(self.run_at(w, "person"), {})
+        self.pub("b", "Lisa Su says AMD will double output", w, 3, person="Lisa Su", photo=True,
+                 photo_file="Lisa Su 2024 (cropped).jpg", credit="Photo: Y, CC BY 4.0, via Wikimedia Commons")
+        self.assertIn("Lisa Su", self.run_at(w, "person")["person"])
+
     def test_sport_reaches_no_story_format(self):
         w = _at(1, 19)  # Tuesday evening: last12, board, top5 and the quiz pools all see these posts
         sport = ["Arsenal beat Chelsea 3-1 in derby", "Australian Open sets $90M prize money", "Lakers sign star for $200M",

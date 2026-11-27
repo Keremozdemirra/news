@@ -323,7 +323,7 @@ CTA_ARTICLE, CTA_ARTICLES, CTA_ANSWER = "Full article: link in bio", "Full artic
 def _story_pos(uri, w, h, portrait=True):
     """CSS object-position that keeps the photo's focal point (the face of a portrait) in a w x h frame."""
     try:
-        return _pos(uri, w, h, None if portrait else {})
+        return _pos(uri, w, h, None if portrait else {"scene": True})
     except Exception:  # noqa: BLE001  an unreadable file: a portrait is held at its upper third, a scene at its centre
         return "50% 28%" if portrait else "50% 45%"
 
@@ -351,7 +351,7 @@ def _frame(body, kicker, label, cta, photo="", portrait=False, depth=1060):
         pos = _story_pos(photo, 1080, depth, portrait)
         bg = (f'<img data-bleed src="{photo}" style="position:absolute;left:0;top:0;width:1080px;height:{depth}px;object-fit:cover;object-position:{pos}">'
               f'<div style="position:absolute;left:0;top:0;width:1080px;height:{depth + 2}px;background:linear-gradient(180deg,'
-              f'rgba(18,18,18,.6) 0px,rgba(18,18,18,0) 380px,rgba(18,18,18,0) {depth - 420}px,rgba(18,18,18,.85) {depth - 150}px,{STORY_BG} {depth}px)"></div>')
+              f'rgba(18,18,18,.72) 0px,rgba(18,18,18,.35) 300px,rgba(18,18,18,0) 460px,rgba(18,18,18,0) {depth - 420}px,rgba(18,18,18,.85) {depth - 150}px,{STORY_BG} {depth}px)"></div>')
     return head() + f"""
 <div style="position:relative;width:1080px;height:1920px;background:{STORY_BG};color:{INK};font-family:'Libre Franklin',sans-serif;overflow:hidden">
 {bg}{_kicker(kicker, label, bool(photo))}
