@@ -50,5 +50,12 @@
  "credit_file": "Data center roof.jpg",
  "status": "web",
  "published": "2026-11-27T07:52:03+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bvgkdu3u2e",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bvgkdu3u2e",
+   "at": "2026-11-27T09:40:17+00:00"
+  }
+ }
 }
