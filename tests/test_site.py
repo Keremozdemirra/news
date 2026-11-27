@@ -111,7 +111,7 @@ class SitePages(SiteMeta):
         for host in ("x.com/intent/post", "bsky.app/intent/compose", "linkedin.com/sharing/share-offsite", "wa.me/?text="):
             self.assertIn(host, h)
         self.assertIn("data-copy=", h)
-        self.assertIn("Related news", h)
+        self.assertNotIn("Related news", h)  # the only other story is the Older link, and shares nothing with this one
         self.assertIn('rel="prev"', h)  # the older story
         self.assertNotIn("Newer", h)  # nothing is newer than the newest
 

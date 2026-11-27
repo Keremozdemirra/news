@@ -21,6 +21,7 @@
 .rm .book,.rm .leaf{transition:none!important}
 @media(prefers-reduced-motion:reduce){.book,.leaf{transition:none!important}}
 .mob{display:none}
+.mlist{display:none}
 .pg{padding:22px 26px 20px;height:100%;display:flex;flex-direction:column;font-size:12.5px;line-height:1.38;overflow:hidden}
 .pg .hd{display:flex;justify-content:space-between;border-bottom:1px solid var(--ink);padding-bottom:5px;font:600 10.5px var(--f);letter-spacing:.1em;color:var(--faint)}
 .pg .nm{font:800 52px/.85 var(--f);letter-spacing:-.06em;margin:10px 0 6px}
@@ -52,6 +53,15 @@
   .mob .pgw .pgi{width:620px;height:880px;transform-origin:0 0;transform:scale(calc((100vw - 32px) / 620))}
   .rm .mob{scroll-behavior:auto}
   .arch{grid-template-columns:1fr}.arch .attr{grid-column:1}.arch ul{columns:1;margin-top:10px}
+  /* the sheets are 620 px wide and fit a phone at half size, where the text is 6 px: a phone gets the same edition as a column of text */
+  .pp-wrap:has(.mlist) .ctl,.stage:has(+.mlist){display:none}
+  .mlist{display:block;margin-top:var(--s2)}
+  .mlist .sh{margin-top:var(--s4)}.mlist .sh:first-child{margin-top:0}
+  .mlist article{padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
+  .mlist .m{font:500 var(--t-meta)/1.4 var(--f);color:var(--soft)}
+  .mlist h3{font:600 var(--t-row)/1.25 var(--serif);margin:4px 0}.mlist h3 a{color:var(--ink)}
+  .mlist p{font:400 16px/1.45 var(--serif);color:var(--soft);margin:0}
+  .mlist ul{margin:0;padding:0;list-style:none}.mlist li{padding:var(--s1) 0;border-bottom:1px solid var(--rule);font:400 16px/1.4 var(--serif)}
 }
 .pg .cv-in{color:var(--ink);margin:6px 0}.pg .cv-in svg{width:100%;height:auto;display:block}
 .pg h3.x{font-size:40px;line-height:1.1}.pg h3.y{font-size:24px;line-height:1.15}.pg .a p{font-family:var(--serif)}

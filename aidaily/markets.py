@@ -619,11 +619,14 @@ def cards(m, keys=MARKET_CARDS):
             continue
         label, v, d, ch, pct, pts = s
         monthly = SERIES[k][3] == "wb"
+        weekly = any(SERIES[k][5] in g[2] and g[1] == "weekly" for g in EIA_GROUPS)
+        # a monthly average is a change on the month before, not on yesterday: the card says so beside the number
+        vs = f' <small class="vs">vs {date.fromisoformat(pts[-2][0]).strftime("%b")}</small>' if monthly and len(pts) > 1 and ch is not None else ""
         last90 = [x for _, x in pts[-(36 if monthly else 90):]]
         unit = SERIES[k][1]
-        out += (f'<article class="mcard"><h2>{E(label)}</h2><p class="mv"><b>{E(fmt(k, v))}</b>{f"<small>{E(unit)}</small>" if unit not in ("", "%") else ""} {change_html(k, ch, pct)}</p>'
+        out += (f'<article class="mcard"><h2>{E(label)}</h2><p class="mv"><b>{E(fmt(k, v))}</b>{f"<small>{E(unit)}</small>" if unit not in ("", "%") else ""} {change_html(k, ch, pct)}{vs}</p>'
                 f'<div class="mch">{chart(pts, n=36, monthly=True) if monthly else chart(pts)}</div><p class="what"><b>What it is.</b> {E(SERIES[k][4])}</p>'
-                f'<p class="meta">Last {len(last90)} {"monthly averages" if monthly else "observations"}: low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))}. {E(dlabel(k, d)) if monthly else "Series date " + dmy(d)}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
+                f'<p class="meta">Last {len(last90)} {"monthly averages" if monthly else "weekly observations" if weekly else "daily observations"}: low {E(fmt(k, min(last90)))}, high {E(fmt(k, max(last90)))}. {E(dlabel(k, d)) if monthly else "Series date " + dmy(d)}{", changes against the previous month" if monthly else ", change against the previous week" if weekly else ""}. {E(SOURCE_NAME[SERIES[k][3]])}.</p></article>')
     return f'<div class="mcards">{out}</div><p class="attr">{E(attribution(m, keys))}</p>' if out else ""
 
 

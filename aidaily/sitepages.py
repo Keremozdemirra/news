@@ -17,9 +17,10 @@ E = S.E
 
 
 def brief_rows(shown, day):
-    """The brief of a day: that day's top articles by score. Only that day's: the 24 hours before its last article
-    put seven of 26 November's articles under a brief dated 27 November."""
-    return S.by_score([p for p in shown if S.day_of(p["published"]) == day])[:BRIEF_N]
+    """The brief of a day: that day's top articles by news value, the order of the front page (the desk's own score put four politics
+    items in a row above the page's lead). Only that day's: the 24 hours before its last article put seven of 26 November's
+    articles under a brief dated 27 November."""
+    return V.front_rank([p for p in shown if S.day_of(p["published"]) == day])[:BRIEF_N]
 
 
 def brief_day(shown, days):
@@ -39,13 +40,13 @@ def brief_page(shown, day, m=None):
     rows = brief_rows(shown, day)
     words, sec = brief_words(rows)
     items = "".join(f'<article class="bn"><b>{k}</b><div><div class="cap dm">{E(S.topic(p))}</div><h2><a class="hl" href="{S.href(p)}">{E(p["headlines"][0])}</a></h2>'
-                    f'<p>{E(p.get("dek", ""))}</p><div class="mt">{S.hhmm(p["published"])} UTC &middot; {V.nroom(p)}</div></div></article>'
+                    f'<p>{E(p.get("dek", ""))}</p><div class="mt">{S.stamp(p["published"])} &middot; {V.nroom(p)}</div></div></article>'
                     for k, p in enumerate(rows, 1))
     more = len([p for p in shown if S.day_of(p["published"]) == day]) - len(rows)
     stop = (f'<div class="stop"><b>&ndash; 30 &ndash;</b><p>End of the brief. {V.PLURAL(len(rows), "article")}, {words} words, about {sec // 60} minute{"" if sec // 60 == 1 else "s"} '
             f'and {sec % 60} seconds.{f" The other {more} of the day are on the Board." if more > 0 else ""}</p>'
             f'<a class="btn" href="{S.BASE}/board/">The Board</a> {f'<a class="btn alt" href="{S.BASE}/play/">Play today\'s games</a>' if "play" in S.SHIPPED else ""}</div>')
-    head = V.head(S.day_label(day), "In brief", f"The day's top {len(rows)} articles, one block each. About {sec // 60}:{sec % 60:02d} to read.")
+    head = V.head(S.day_label(day), "In brief", f"The top {len(rows)} of the day. About {sec // 60}:{sec % 60:02d} to read.")
     return f'<div class="bf">{head}<div class="bcol">{items}{stop}</div><div class="bside">{markets.rates_box(m, S.BASE) if m else ""}</div></div>'
 
 
@@ -96,14 +97,18 @@ def quiz_page(shown):
               f'<p class="tally" aria-live="polite"></p></div>')
 
 
-def how_page(shown):
-    c = S.desk_counts(shown)
+def how_page(shown, everything=None):
+    """everything: every article on the site, Sport included. An "article on the site" means one of those, on this page and in the archive;
+    Latest, the brief and the main feed carry the business ones, and say so."""
+    everything = shown if everything is None else everything
+    sport = [p for p in everything if S.is_sport(p)]
+    c = S.desk_counts(everything)
     share = round(100 * c["three_plus"] / c["stories"]) if c["stories"] else 0
-    return S.pagehead("How it works", "What the desk does, with numbers computed when this page was built.") + f"""<div class="prose">
+    return S.pagehead("How it works", "How the desk works.") + f"""<div class="prose">
 <h2>The numbers now</h2>
 <dl>
 <dt>Feeds scanned</dt><dd>{c['feeds']} feeds, fetched every 30 minutes</dd>
-<dt>Newsrooms on the site</dt><dd>{c['newsrooms']} different newsrooms across {c['stories']} articles</dd>
+<dt>Newsrooms on the site</dt><dd>{c['newsrooms']} different newsrooms across {c['stories']} articles{f", {len(sport)} of them Sport" if sport else ""}</dd>
 <dt>Articles with three or more newsrooms</dt><dd>{c['three_plus']} of {c['stories']} ({share}%)</dd>
 <dt>Companies with a page</dt><dd>{len(S.companies(shown))}, each with at least two articles</dd>
 <dt>Articles with a credited photo</dt><dd>{c['photos']}</dd>
@@ -181,14 +186,21 @@ def build_views(out, shown, sm, m, days):
         return
     ed = V.edition_day(shown)
     eds = sorted({S.day_of(p["published"]) for p in shown}, reverse=True)
-    for path, day in [("/paper/", ed)] + [(f"/paper/{d}/", d) for d in eds]:
-        S.put(out, path, S.page(f"Yesterday's paper, {S.day_label(day)} · boardread.", V.paper_page(shown, m, day, eds),
-                                f"The paper of {S.day_label(day)}: six pages of the day's news to turn.", path, active="paper",
-                                styles=("views", "paper"), scripts=("paper",), body_class="v-paper"))
-        sm.append((S.SITE + path, latest))
+    # /paper/ is the dated edition it shows under another name: it carries its own title and says so with a canonical, and is left out
+    # of the sitemap, so a search engine sees one copy of the page and not two that change places every midnight
+    for path, day, main in [("/paper/", ed, True)] + [(f"/paper/{d}/", d, False) for d in eds]:
+        label = S.day_label(day)
+        title = "Yesterday's paper" if main and day < S.today() else f"The paper, {label}{', so far' if day >= S.today() else ''}"
+        desc = (f"Yesterday's news in six pages: the edition of {label}." if main
+                else f"The paper of {label}{', so far' if day >= S.today() else ''}, six pages.")
+        S.put(out, path, S.page(f"{title} · boardread.", V.paper_page(shown, m, day, eds, main), desc, path, active="paper",
+                                styles=("views", "paper"), scripts=("paper",), body_class="v-paper",
+                                canonical=f"/paper/{day}/" if main else None))
+        if not main:
+            sm.append((S.SITE + path, latest))
 
 
-def build(out, shown, sm, cos):
+def build(out, shown, sm, cos, everything=None):
     """Pages: /brief/ and its dated archive, /quiz/, /how-it-works/, /c/<slug>/ and the per-topic and per-company feeds."""
     latest = S.iso(shown[0]["published"]) if shown else None
     m = S.MARKETS
@@ -211,7 +223,7 @@ def build(out, shown, sm, cos):
     # the questions of the day keep their address beside the games, so no old link breaks
     S.put(out, "/quiz/", S.page("Today's quiz · boardread.", quiz_page(shown), "Questions built from today's articles, each answer linked to its sources.", "/quiz/", active="play"))
     sm.append((S.SITE + "/quiz/", latest))
-    S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown), "How the desk turns feeds into articles, with live counts.", "/how-it-works/"))
+    S.put(out, "/how-it-works/", S.page("How it works · boardread.", how_page(shown, everything), "How the desk turns feeds into articles, with live counts.", "/how-it-works/"))
     for path in ("/brief/", "/how-it-works/"):
         sm.append((S.SITE + path, latest))
     (out / "img").mkdir(exist_ok=True)

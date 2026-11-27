@@ -104,6 +104,18 @@ def day_of(iso):
     return dt(iso).strftime("%Y-%m-%d")
 
 
+def today():
+    return desk.now().strftime("%Y-%m-%d")
+
+
+def stamp(iso, utc=True, ref=None):
+    """The one way a time is written in a list: "11:17 UTC" for an article of the day being built, "26 Nov, 11:17 UTC" for any other
+    day, so yesterday and today never read alike. utc=False for the narrow places where the footer's "All times UTC" says it."""
+    d = dt(iso)
+    text = d.strftime("%H:%M") + (" UTC" if utc else "")
+    return text if day_of(iso) == (ref or today()) else d.strftime("%-d %b, ") + text
+
+
 def day_label(day):
     return datetime.strptime(day, "%Y-%m-%d").strftime("%-d %B %Y")
 
@@ -118,8 +130,8 @@ def iso(s):
 
 def shared(p):
     i = p.get("insights") or {}
-    # shares and saves say a reader found it worth keeping; before the weekly numbers arrive, rank decides
-    return ((i.get("shares") or 0) + (i.get("saved") or 0), p.get("score", 0))
+    # shares and saves say a reader found it worth keeping; before the weekly numbers arrive, the news value the front page uses decides
+    return ((i.get("shares") or 0) + (i.get("saved") or 0), views.front_score(p))
 
 
 def topic(p):
@@ -267,11 +279,11 @@ SEARCH_LINK = (f'<a class="iconbtn" href="{{b}}/search/" aria-label="Search"><sv
 
 
 def page(title, body, desc="", path="/", image=None, og_type="website", ld=None, og_title=None, active="", front=False,
-         noindex=False, rel=None, main_class="", feed=None, styles=("views",), scripts=(), body_class=""):
+         noindex=False, rel=None, main_class="", feed=None, styles=("views",), scripts=(), body_class="", canonical=None):
     """Every page. path is relative to the site root and becomes the canonical and og:url; image is the
     site-relative link-preview image (the shared default when a article has no photo). rel: {"prev": path, "next": path}.
     styles and scripts name extra files of assets/ (views, paper, play / paper, play) loaded only by the pages that use them."""
-    url = SITE + path
+    url = SITE + (canonical or path)  # canonical: a page that repeats another one (/paper/) points at the original
     img = ORIGIN + (image or DEFAULT_OG)
     og_dims = f'<meta property="og:image:width" content="{OG_W}"><meta property="og:image:height" content="{OG_H}">\n' \
         if image in (None, DEFAULT_OG) or image.startswith(f"{BASE}/og/") else ""
@@ -299,8 +311,8 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 {'<meta name="robots" content="noindex">' if noindex else '<meta name="robots" content="max-image-preview:large">'}
 <link rel="canonical" href="{E(url)}">{links}
 <link rel="icon" href="{BASE}/icon.svg" type="image/svg+xml"><link rel="icon" href="{BASE}/favicon.ico" sizes="32x32"><link rel="apple-touch-icon" href="{BASE}/apple-touch-icon.png"><link rel="manifest" href="{BASE}/manifest.webmanifest">
-<link rel="alternate" type="application/rss+xml" title="boardread." href="{BASE}/feed.xml">
-{own_feed}<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
+{own_feed}<link rel="alternate" type="application/rss+xml" title="boardread." href="{BASE}/feed.xml">
+<link rel="sitemap" type="application/xml" href="{BASE}/sitemap.xml">
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{BASE}/fonts/LibreFranklin-800.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="{BASE}/fonts/Newsreader-var.woff2" as="font" type="font/woff2" crossorigin>
@@ -391,7 +403,7 @@ def meta(*parts):
 
 
 def t_tag(p):
-    return f'<time datetime="{iso(p["published"])}">{clock(p["published"])}</time>'
+    return f'<time datetime="{iso(p["published"])}">{stamp(p["published"])}</time>'
 
 
 def lead_block(p):
@@ -422,7 +434,7 @@ def stream(rows, n=10):
 
 def ranked(rows, n=5):
     items = "".join(f'<li><span class="n" aria-hidden="true">{i}</span><a href="{href(p)}"><span class="h-s">{E(p["headlines"][0])}</span>'
-                    f'{meta(E(topic(p)), clock(p["published"]))}</a></li>' for i, p in enumerate(rows[:n], 1))
+                    f'{meta(E(topic(p)), stamp(p["published"]))}</a></li>' for i, p in enumerate(rows[:n], 1))
     return f'<ol class="rank">{items}</ol>'
 
 
@@ -606,16 +618,52 @@ def seat_list(p):
     return [(n, links.get(n.lower())) for n in outlets.newsrooms(p)]
 
 
-def related(p, rows, n=3):
-    pool = [o for o in rows if o is not p]
-    same_co = [o for o in pool if p.get("company") and o.get("company") == p["company"]]
-    same_t = [o for o in pool if topic(o) == topic(p) and o not in same_co]
-    return (same_co + same_t + [o for o in pool if o not in same_co and o not in same_t])[:n]
+# Words that say nothing about what a story is about; the rest of a headline and summary is what two stories can share.
+_COMMON = {"about", "after", "ahead", "amid", "announces", "before", "could", "from", "have", "into", "more", "other", "over", "says", "than", "that",
+           "their", "there", "these", "this", "those", "were", "which", "while", "will", "with", "would", "year", "years", "percent", "first", "second",
+           "week", "weeks", "month", "months", "report", "reports", "reported", "plans", "plan", "new", "says", "said", "also", "since", "under"}
+
+
+def _topic_words(p):
+    """The words a story is about: its capitalised names and its longer plain words, lower-cased, from the headline and summary."""
+    text = f'{p["headlines"][0]} {p.get("dek", "")}'
+    names = {w.lower() for w in re.findall(r"\b[A-Z][A-Za-z0-9&]{2,}", text[1:]) if w.lower() not in _COMMON}
+    plain = {w for w in re.findall(r"[a-z]{6,}", text.lower()) if w not in _COMMON}
+    return {w.removesuffix("'s") for w in names | plain}
+
+
+def related(p, rows, n=3, exclude=()):
+    """Stories that are about the same thing, closest first: the same company, then the names and words the two share. A story the page
+    already links as Older or Newer is not repeated, and a story that shares nothing with this one is not "related": no related
+    list is better than the latest items of the section under that heading."""
+    skip = {id(o) for o in exclude} | {id(p)}
+    mine = _topic_words(p)
+    scored = []
+    for o in rows:
+        if id(o) in skip:
+            continue
+        same_co = bool(co_of(p)) and co_of(o).lower() == co_of(p).lower()
+        shared = len(mine & _topic_words(o))
+        if not same_co and shared < 2:
+            continue
+        scored.append((6 * same_co + shared + (0.5 if topic(o) == topic(p) else 0), o["published"], o))
+    scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
+    return [o for _, _, o in scored[:n]]
 
 
 def co_of(p):
     """The company a article is about: the tagged company, else the first logo name the headline carries."""
     return ((p.get("company") or "").strip() or next((n for n in p.get("logo_names") or [] if n), "")).strip()
+
+
+def more_on(p, name, rows):
+    """True when "More on <name>" leads somewhere: the name is in the text a reader sees on this page, and the search the link
+    opens (headline, summary, company) finds at least two other articles."""
+    n = name.lower()
+    own = " ".join([p["headlines"][0], p.get("dek") or "", p.get("body") or ""]).lower()
+    if n not in own:
+        return False
+    return sum(1 for o in rows if o is not p and n in " ".join([o["headlines"][0], o.get("dek") or "", o.get("company") or ""]).lower()) >= 2
 
 
 def ticker_html(t):
@@ -716,11 +764,11 @@ def story(p, rows, cos=None, counts=None):
     alt = photo_alt(p)
     fig = (f'<figure>{pic(p, eager=True, ratio="16/9", alt=alt)}'
            f'<figcaption class="meta">{E(credit_line(p))}</figcaption></figure>') if p.get("_hires") else ""
-    rel = related(p, rows)
-    more = (f'<section class="related" aria-labelledby="rel"><h2 id="rel">Related news</h2><ul>'
-            + "".join(f'<li><a href="{href(o)}"><span class="h-s">{E(o["headlines"][0])}</span>{meta(E(topic(o)), t_tag(o))}</a></li>' for o in rel) + "</ul></section>") if rel else ""
     i = rows.index(p)
     newer, older = (rows[i - 1] if i > 0 else None), (rows[i + 1] if i + 1 < len(rows) else None)
+    rel = related(p, rows, exclude=[o for o in (newer, older) if o])
+    more = (f'<section class="related" aria-labelledby="rel"><h2 id="rel">Related news</h2><ul>'
+            + "".join(f'<li><a href="{href(o)}"><span class="h-s">{E(o["headlines"][0])}</span>{meta(E(topic(o)), t_tag(o))}</a></li>' for o in rel) + "</ul></section>") if rel else ""
     nav = "".join(f'<a href="{href(o)}" rel="{r}"><span class="kick">{k}</span><span class="h-s">{E(o["headlines"][0])}</span></a>'
                   for o, r, k in ((older, "prev", "&larr; Older"), (newer, "next", "Newer &rarr;")) if o)
     prevnext = f'<nav class="prevnext{"" if older and newer else " one"}" aria-label="More news">{nav}</nav>' if nav else ""
@@ -728,8 +776,10 @@ def story(p, rows, cos=None, counts=None):
     name = co_of(p)
     company = ""
     if name:
-        company = (f'<span>About <a href="{BASE}/c/{co_slug(name)}/">{E(name)}</a></span>' if co_slug(name) in cos
-                   else f'<span><a href="{BASE}/search/?q={urllib.parse.quote(name)}">More on {E(name)}</a></span>')
+        if co_slug(name) in cos:
+            company = f'<span>About <a href="{BASE}/c/{co_slug(name)}/">{E(name)}</a></span>'
+        elif more_on(p, name, rows):  # a search that finds nothing else is a dead end, and a name the text never uses is unexplained
+            company = f'<span><a href="{BASE}/search/?q={urllib.parse.quote(name)}" rel="nofollow">More on {E(name)}</a></span>'
         if ticker_of(p):
             company += f"<span>{ticker_html(ticker_of(p))}</span>"
     ctx = markets.context_for(p, MARKETS, BASE)
@@ -826,7 +876,7 @@ def about_page():
 <h2>Limits</h2>
 <p>Boardread does no original reporting. It summarises what named newsrooms have reported, and says which ones. Read the linked source for the full report. Opinion and speculation are not published.</p>
 <h2>Follow</h2>
-<p>The same news goes out on <a href="{BASE}/feed.xml">RSS</a>{"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}.</p>
+<p>The business news goes out on <a href="{BASE}/feed.xml">RSS</a> (the latest 50, no Sport){"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}. Sport has <a href="{BASE}/sport/feed.xml">its own feed</a>, and so does every section and company.</p>
 <p>See the <a href="{BASE}/standards/">editorial standards and corrections policy</a>, the <a href="{BASE}/contact/">contact page</a> and the <a href="{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
@@ -859,7 +909,7 @@ def contact_page():
 
 
 def search_page():
-    return pagehead("Search", "Every Boardread article: headline, summary, topic and company.") + f"""<div class="searchwrap">
+    return pagehead("Search", "Search Boardread.") + f"""<div class="searchwrap">
 <form class="sbox" role="search" action="{BASE}/search/" method="get" data-index="{BASE}/search.json">
 <input type="search" name="q" id="q" placeholder="Search the news" aria-label="Search the news" autocomplete="off" autofocus>
 <button type="submit">Search</button></form>
@@ -870,7 +920,7 @@ def search_page():
 
 
 def not_found():
-    return pagehead("Page not found", "The article may have moved or never existed.") + f"""<div class="prose">
+    return pagehead("Page not found") + f"""<div class="prose">
 <p>Try the <a href="{BASE}/">front page</a>, the <a href="{BASE}/latest/">latest articles</a> or the <a href="{BASE}/search/">search</a>.</p></div>"""
 
 
@@ -935,7 +985,8 @@ def covered_list(rows, cos, n=5):
     out = []
     for i, (name, slug, k) in enumerate(ranking, 1):
         link = f"{BASE}/c/{slug}/" if slug in cos else f"{BASE}/search/?q={urllib.parse.quote(name)}"
-        out.append(f'<li><span class="n" aria-hidden="true">{i}</span><a href="{link}"><span class="h-s">{E(name)}</span>'
+        nofollow = "" if slug in cos else ' rel="nofollow"'
+        out.append(f'<li><span class="n" aria-hidden="true">{i}</span><a href="{link}"{nofollow}><span class="h-s">{E(name)}</span>'
                    f'{meta(f"{k} articles this week")}</a></li>')
     return f'<ol class="rank">{"".join(out)}</ol>'
 
@@ -1015,7 +1066,7 @@ def build(out=desk.HERE / "_site"):
     sm.append((SITE + "/", iso(shown[0]["published"]) if shown else None))
     top5 = lambda rows: ranked(by_score(window(rows))[:5], 5)  # noqa: E731
     aside = lambda rows: (sec_head("Most important", level=2) + top5(rows)) if len(rows) > 3 else ""  # noqa: E731
-    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Every article, newest first. Times are UTC."), "latest", aside(news), sm)
+    paged(out, "/latest/", news, "Latest", desc, pagehead("Latest", "Business, newest first. Sport has its own page."), "latest", aside(news), sm)
     for t in TOPIC_ORDER:
         rows = [p for p in shown if topic(p) == t]
         paged(out, topic_path(t), rows, t, TOPICS[t], pagehead(t, TOPICS[t]), t.lower(), aside(rows), sm,
@@ -1038,7 +1089,7 @@ def build(out=desk.HERE / "_site"):
     for p in news:
         weeks.setdefault(week_of(p["published"]), []).append(p)
     this_week = datetime.now(timezone.utc).strftime("%G-W%V")
-    wdesc = "The week's ten leading articles, each with its sources."
+    wdesc = "The week's ten leading articles."
 
     def top_list(rows, heading, sub, active):
         body = pagehead(heading, sub) + (f'<div class="prose" style="max-width:50rem">{ranked(rows, 10)}</div>' if rows
@@ -1048,19 +1099,21 @@ def build(out=desk.HERE / "_site"):
     issues = []
     for wk in sorted(weeks, reverse=True):
         top = sorted(weeks[wk], key=shared, reverse=True)[:10]
-        put(out, f"/week/{wk}/", page(f"Top 10 · {wk} · boardread.", top_list(top, "Top 10", f"Week {wk[-2:]}, {wk[:4]}", "week"),
+        put(out, f"/week/{wk}/", page(f"Top 10 · {wk} · boardread.", top_list(top, "Top 10", f"Week {wk[-2:]}, {wk[:4]}. Ranked by shares and saves, then news value.", "week"),
                                       wdesc, f"/week/{wk}/", active="week"))
         sm.append((f"{SITE}/week/{wk}/", iso(max(p["published"] for p in weeks[wk]))))
         if wk != this_week:  # an unfinished week is not an issue yet
             issues.append((wk, top))
     last7 = [p for p in news if datetime.now(timezone.utc) - dt(p["published"]) <= timedelta(days=7)] or news[:10]
+    span = (f'{dt(last7[-1]["published"]).strftime("%-d %b")} to {dt(last7[0]["published"]).strftime("%-d %b")}' if last7 else "")
     past = "".join(f'<li><a href="{BASE}/week/{w}/">Week {w[-2:]}, {w[:4]}</a></li>' for w in sorted(weeks, reverse=True) if w != this_week)
     mc = covered_list(news, companies(news), 10)
-    put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=shared, reverse=True)[:10], "This week", "The ten leading articles of the last seven days", "week")
+    put(out, "/week/", page("This week · boardread.", top_list(sorted(last7, key=lambda p: (views.front_score(p), p["published"]), reverse=True)[:10], "This week",
+                                                                       f"The ten leading articles, {span}, by news value.", "week")
         + (f'<div class="prose" style="max-width:50rem"><h2>Most covered this week</h2><p>Companies ranked by how many articles named them in the last seven days.</p>{mc}</div>' if mc else "")
         + (f'<div class="prose"><h2>Past weeks</h2><ul>{past}</ul></div>' if past else ""), wdesc, "/week/", active="week"))
     sm.append((SITE + "/week/", iso(shown[0]["published"]) if shown else None))
-    put(out, "/search/", page("Search · boardread.", search_page(), "Search every Boardread article.", "/search/", active="search"))
+    put(out, "/search/", page("Search · boardread.", search_page(), "Search every Boardread article.", "/search/", active="search", noindex=True))  # one page for every ?q=: not a page to index
     (out / "search.json").write_text(search_index(shown))
     for key, title, fn, d in (("about", "About", about_page, "What Boardread is and how the desk works."),
                               ("standards", "Editorial standards and corrections", standards_page, "What a Boardread article promises and how corrections work."),
@@ -1073,11 +1126,14 @@ def build(out=desk.HERE / "_site"):
          {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,
           "image_bytes": (out / "og" / f"{p['id']}.jpg").stat().st_size if p.get("_og") else 0})
         for p in news[:50]]))
+    # an empty channel is no feed: until the first week has finished, the running week's top ten is the one item
+    weekly = issues[:12] or [(wk, sorted(weeks[wk], key=shared, reverse=True)[:10]) for wk in sorted(weeks, reverse=True)[:1]]
     (out / "weekly.xml").write_text(rss("boardread weekly", SITE + "/week/", [
-        (f"Top 10 · {wk}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/", format_datetime(dt(top[0]["published"]) + timedelta(days=1)),
-         " · ".join(p["headlines"][0] for p in top), {"category": "Weekly"}) for wk, top in issues[:12]]))
+        (f"Top 10 · {wk}{'' if wk != this_week else ', so far'}: {top[0]['headlines'][0]}", f"{SITE}/week/{wk}/",
+         format_datetime(dt(top[0]["published"]) + (timedelta(days=1) if wk != this_week else timedelta())),
+         " · ".join(p["headlines"][0] for p in top), {"category": "Weekly"}) for wk, top in weekly], self_path="/weekly.xml"))
     from . import sitepages  # imports this module, so only once it is loaded
-    sitepages.build(out, news, sm, cos)
+    sitepages.build(out, news, sm, cos, everything=shown)
     sitepages.feed_for(out, sport, "/sport/", "boardread. Sport", f"{SITE}/sport/")
     (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m]))
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
