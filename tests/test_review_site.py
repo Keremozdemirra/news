@@ -404,8 +404,15 @@ class Built(Features):
         one = self.read("s/2026-11-26-0800-1/index.html")  # SAP names a new chief: CNBC only
         self.assertIn('<span class="tag">Single source</span>', one)
 
-    def test_the_404_page_links_are_a_list_of_big_targets(self):
-        self.assertIn('class="gl"', self.read("404.html"))
+    def test_the_404_page_says_it_in_one_line_and_offers_search_and_the_newest_stories(self):
+        h = self.read("404.html")
+        self.assertIn("<h1>Page not found</h1>", h)
+        self.assertIn("Try search or the latest news.", h)
+        self.assertIn('class="sbox"', h)
+        self.assertIn('name="q"', h)
+        self.assertEqual(len(re.findall(r'<li><a href="[^"]*/s/[^"]+"><time', h)), 5)  # the five newest, in the Latest row markup
+        self.assertIn('<meta name="robots" content="noindex">', h)
+        self.assertNotIn('class="prose"', h)  # no bullets
 
     def test_the_paper_has_a_text_edition_for_phones(self):
         self.assertIn('class="mlist"', self.read("paper/index.html"))

@@ -88,6 +88,7 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .second a:hover h3{text-decoration:underline;text-underline-offset:3px}
 .second p{font:400 var(--t-dek) /1.45 var(--serif);color:var(--soft);margin:0 0 var(--s1)}
 .latest{margin-top:var(--s4)}
+.nf{padding-bottom:var(--s5)}.nf .latest{margin-top:var(--s5)}
 .latest li{border-bottom:1px solid var(--rule)}
 .latest li a{display:grid;grid-template-columns:72px minmax(0,1fr);gap:var(--s1);padding:12px 0;min-height:44px}
 .latest time{font:500 var(--t-meta)/1.5 var(--f);color:var(--soft)}

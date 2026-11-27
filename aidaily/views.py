@@ -109,6 +109,11 @@ def rel_time(p):
     return f'<time class="rel" datetime="{S.iso(p["published"])}" data-age>{S.stamp(p["published"], utc=False)}</time>'
 
 
+def latest_list(rows):
+    """The Latest row markup: time and headline, no image. Used on the front, the 404 page and the end of an article."""
+    return "<ul>" + "".join(f'<li><a href="{S.href(p)}">{rel_time(p)}<span>{E(p["headlines"][0])}</span></a></li>' for p in rows) + "</ul>"
+
+
 def section_rows(rows, newest, n=4):
     """The n articles a section block shows: the day's by news value, most important first. A section with fewer than n
     in the day is filled from older ones, newest first, so a quiet section still has a block."""
@@ -166,8 +171,7 @@ def front(shown, cos, m, sport=()):
         photo = img(p, "3/2") if ph(p) else ""
         return (f'<article class="second"><a href="{S.href(p)}">{photo}<span class="kick">{E(S.topic(p))}</span><h3>{E(p["headlines"][0])}</h3></a>'
                 f'<p>{E(p.get("dek", ""))}</p><div class="mt">{rel_time(p)} &middot; {nroom(p)}</div></article>')
-    latest = ('<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2><ul>'
-              + "".join(f'<li><a href="{S.href(p)}">{rel_time(p)}<span>{E(p["headlines"][0])}</span></a></li>' for p in latest_rows) + "</ul></section>")
+    latest = '<section class="latest"><h2 class="sh"><a href="' + S.BASE + '/latest/">Latest</a></h2>' + latest_list(latest_rows) + "</section>"
     rail = '<div class="toprail"><h2 class="sh">Also at the top</h2>' + "".join(second(p) for p in seconds) + latest + puzzles_block("inrail") + "</div>"
 
     blocks = ""

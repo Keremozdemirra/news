@@ -1086,9 +1086,13 @@ def search_page():
 </div>"""
 
 
-def not_found():
-    return pagehead("Page not found") + f"""<div class="prose"><ul class="gl">
-<li><a href="{BASE}/">Front page</a></li><li><a href="{BASE}/latest/">Latest</a></li><li><a href="{BASE}/search/">Search</a></li></ul></div>"""
+def not_found(rows=()):
+    """Old shared links end here: a search box and the newest headlines, no script."""
+    rows = list(rows)[:5]
+    return pagehead("Page not found", "Try search or the latest news.") + f"""<div class="nf"><form class="sbox" role="search" action="{BASE}/search/" method="get">
+<input type="search" name="q" placeholder="Search the news" aria-label="Search the news" autocomplete="off">
+<button type="submit">Search</button></form>
+{'<section class="latest"><h2 class="sh"><a href="' + BASE + '/latest/">Latest</a></h2>' + views.latest_list(rows) + "</section>" if rows else f'<p><a href="{BASE}/latest/">Latest</a></p>'}</div>"""
 
 
 # ---------------------------------------------------------------- build
@@ -1300,7 +1304,7 @@ def build(out=desk.HERE / "_site"):
     sm.append((SITE + "/corrections/", iso(max((c["time"] for v in CORRECTIONS.values() for c in v), key=dt)) if CORRECTIONS else (iso(shown[0]["published"]) if shown else None)))
     for i, c in withdrawn.items():  # the address stays: a tombstone, out of the index and out of every list
         put(out, f"/s/{i}/", page("Withdrawn · boardread.", tombstone(c), "This article was withdrawn.", f"/s/{i}/", noindex=True))
-    (out / "404.html").write_text(page("Page not found · boardread.", not_found(), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
+    (out / "404.html").write_text(page("Page not found · boardread.", not_found(shown), "The page you asked for is not here. Start from the front page or search.", "/404.html", noindex=True))
     (out / "feed.xml").write_text(rss("boardread", SITE + "/", [
         (p["headlines"][0], f"{SITE}/s/{p['id']}/", format_datetime(dt(p["published"])), p.get("dek", ""),
          {"category": topic(p), "image": f"{BASE}/og/{p['id']}.jpg" if p.get("_og") else None,
