@@ -70,7 +70,7 @@ class Tmp(unittest.TestCase):
         d = desk.QUEUE / pid
         d.mkdir(parents=True)
         post = {"id": pid, "created": desk.now().isoformat(), "publish_after": (desk.now() - timedelta(minutes=1)).isoformat(),
-                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: 2 reports.", "urls": ["u"],
+                "status": "queued", "cards": ["card-01.jpg", "card-02.jpg"], "caption": "AI today: two reports.", "urls": ["u"],
                 "headlines": ["Lab ships a model"], "topic": "Tech", "photo_file": "Harbour at dusk.jpg", "photo_kind": "scene",
                 "credit": "Photo: A, CC BY 4.0, via Wikimedia Commons", "dek": "The lab said the model runs on its own chips.",
                 "body": "The company trained it over several months on licensed data. Customers can reach it through the existing "
