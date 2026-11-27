@@ -1,0 +1,76 @@
+name: webcheck
+# The site and the games in a real browser, on a build of this commit: key pages at 390 and 1280 px in light and dark
+# (no sideways scroll, no console error, CSS loaded, theme toggle works and sticks, panel and rail on one line), every
+# internal link and asset, one scripted round of each game to its end screen. Runs on pushes that touch the site, the
+# games or these scripts (about two minutes), and nightly from the tick with full=yes (both sizes for the games, and the
+# live site's main URLs). A red run reaches the health issue (status.py: wf-webcheck).
+on:
+  push:
+    paths:
+      - "aidaily/site.py"
+      - "aidaily/views.py"
+      - "aidaily/sitepages.py"
+      - "aidaily/play.py"
+      - "aidaily/templates.py"
+      - "assets-site/**"
+      - "games/**"
+      - "scripts/webcheck.py"
+      - "scripts/linkcheck.py"
+      - ".github/workflows/webcheck.yml"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "yes: both sizes for the games, and the live site's main URLs (the nightly run)"
+        default: "no"
+permissions:
+  contents: read
+concurrency:
+  group: webcheck-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tools
+        run: |
+          command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg; }
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q playwright   # drives the Chrome already on the runner; no browser download
+      - name: Media branch (photos on the pages)
+        continue-on-error: true
+        run: scripts/media.sh pull
+      - name: Build the site, offline (the last good rates, no network for data)
+        env:
+          DESK_SITE_OFFLINE: "1"
+        run: python3 -m aidaily site
+      - name: Links and assets
+        run: python3 scripts/linkcheck.py _site
+      - name: Key pages, both sizes, both themes
+        run: /tmp/venv/bin/python scripts/webcheck.py site _site --shots /tmp/shots
+      - name: One round of each game
+        run: /tmp/venv/bin/python scripts/webcheck.py games _site ${{ inputs.full != 'yes' && '--fast' || '' }}
+      - name: Live site, main URLs
+        if: inputs.full == 'yes'
+        run: |
+          site=$(python3 -c 'import json; print(json.load(open("desk.json"))["site_url"])')
+          bad=0
+          for p in / /latest/ /play/ /status/status.json /sitemap.xml /feed.xml /assets/site.css /assets/theme.js \
+                   /play/topfloor/assets/data/today.json /play/tickerflip/assets/data/today.json /play/face-the-figure/assets/data/today.json; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$site$p?t=$(date +%s)")
+            [ "$code" = 200 ] || { echo "::error::$site$p answered $code"; bad=1; }
+          done
+          today=$(date -u +%F)
+          for g in topfloor tickerflip face-the-figure; do
+            d=$(curl -fsS --max-time 20 "$site/play/$g/assets/data/today.json?t=$(date +%s)" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("date"))' || true)
+            [ "$d" = "$today" ] || [ "$(date -u +%H)" -lt 2 ] || { echo "::error::$g serves the puzzle of ${d:-nothing}, not $today"; bad=1; }
+          done
+          exit $bad
+      - name: Screenshots
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: shots
+          path: /tmp/shots
+          if-no-files-found: ignore
+          retention-days: 7

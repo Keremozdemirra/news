@@ -211,9 +211,18 @@ class Withdrawn(Base):
         (desk.HERE / "corrections.json").write_text(json.dumps([{"id": a["id"], "time": "2026-11-27T10:00:00+00:00", "wrong": "x", "right": "y"}]))
         self.assertEqual({p["id"]: p["status"] for p, _ in desk.posts()}[a["id"]], "published")
 
-    def test_a_post_can_carry_its_own_withdrawn_flag(self):
-        a = self.post(published=ago(hours=2), withdrawn=True)
-        self.assertEqual({p["id"]: p["status"] for p, _ in desk.posts()}[a["id"]], "deleted")
+    def test_a_social_takedown_leaves_the_site_article_alone(self):
+        a = self.post(published=ago(hours=2), withdrawn={"at": ago(hours=1), "why": "wrong logo"})
+        self.assertEqual({p["id"]: p["status"] for p, _ in desk.posts()}[a["id"]], "published")
+
+    def test_a_social_takedown_is_named_until_every_copy_is_removed(self):
+        a = self.post(published=ago(hours=2), withdrawn={"why": "x"}, permalink="u",
+                      platforms={"telegram": {"id": "38", "removed": ago(hours=1)}, "threads": {"id": "1"}})
+        got = liveness.withdrawn_live([p for p, _ in desk.posts()])
+        self.assertIn("still up on threads:", got[0][1])  # Instagram is the owner's, in the app
+        a["platforms"]["threads"]["removed"] = ago(hours=1)
+        (desk.QUEUE / a["id"] / "post.json").write_text(json.dumps(a))
+        self.assertEqual(liveness.withdrawn_live([p for p, _ in desk.posts()]), [])
 
     def test_a_broken_corrections_file_withdraws_nothing(self):
         a = self.post(published=ago(hours=2))
@@ -229,7 +238,7 @@ class Withdrawn(Base):
         self.assertIn("threads, instagram, youtube", got[0][1])
         self.assertNotIn("bluesky", got[0][1])
 
-    def test_an_instagram_delete_clears_instagram_but_not_the_other_platforms(self):
+    def test_a_deleted_instagram_post_is_not_named_but_the_other_platforms_are(self):
         a = self.post(published=ago(hours=2), deleted=ago(hours=1), platforms={"threads": {"id": "1", "at": ago(hours=2)}})
         self.corrections(a["id"])
         a["status"] = "deleted"  # what `aidaily delete` writes
@@ -257,6 +266,14 @@ class InHealth(Base):
         self.assertEqual([k for k, _ in got], ["wf-publish"])
         with mock.patch.object(status, "now", lambda: T):
             self.assertEqual(status.problems(self.snap(publish=self.wf(1), tick=self.wf(0))), [])
+
+    def test_a_red_browser_check_is_a_finding_until_a_later_run_is_green(self):
+        red = self.wf(1, last_status="failure", last_run=ago(hours=3))
+        with mock.patch.object(status, "now", lambda: T):
+            self.assertEqual([k for k, _ in status.problems(self.snap(webcheck=red, tick=self.wf(0)))], ["wf-webcheck"])
+            self.assertEqual(status.problems(self.snap(webcheck={**red, "failure_streak": 0, "last_status": "success"}, tick=self.wf(0))), [])
+            old = {**red, "last_run": ago(hours=60)}
+            self.assertEqual(status.problems(self.snap(webcheck=old, tick=self.wf(0))), [])
 
     def test_a_paused_desk_is_silent_on_purpose(self):
         self.sent("threads", hours=5)

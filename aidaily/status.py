@@ -24,7 +24,7 @@ from pathlib import Path
 
 from . import desk, github, liveness
 
-WORKFLOWS = ("tick", "daily", "publish", "engage", "weekly", "site", "crosspost", "ci")
+WORKFLOWS = ("tick", "daily", "publish", "engage", "weekly", "site", "crosspost", "ci", "webcheck")
 DESK_WORKFLOWS = ("daily", "publish", "engage", "weekly", "site", "crosspost")
 HOLD_MINUTES = 20
 CLEAR_MINUTES = 30
@@ -256,6 +256,11 @@ def problems(snap, live_site=None):
         if name in DESK_WORKFLOWS and (w["failure_streak"] >= 2 or w["failures_6h"] >= 4):
             out.append((f"wf-{name}", f"The {name} workflow failed {max(w['failure_streak'], w['failures_6h'])} times "
                         f"recently ([latest run]({w['last_url']}))."))
+    # the browser checks run on pushes to the site and nightly: one red run is a finding (a layout, a toggle, a game, a
+    # link), and it stays until a later run is green; a run older than two days is history
+    wc = snap["workflows"].get("webcheck")
+    if wc and wc["failure_streak"] >= 1 and wc["last_status"] == "failure" and (desk._stamp(wc["last_run"] or "") or t) > t - timedelta(hours=48):
+        out.append(("wf-webcheck", f"The browser checks on the site or the games failed ([latest run]({wc['last_url']}))."))
     tick = snap["workflows"].get("tick")
     if tick is not None and not tick["active"]:
         out.append(("clock", "No tick run is queued or running, so nothing is scheduled. Start one: "

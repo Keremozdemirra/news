@@ -111,3 +111,21 @@ jobs:
         if: steps.deploy.outcome == 'success' || steps.deploy2.outcome == 'success'
         continue-on-error: true
         run: python3 -m aidaily indexnow _site live-sitemap.xml
+  # Independent of publish.yml's own health step: that step cannot say "publish is not running". The tick starts this
+  # workflow every ten minutes, so it is the second pair of eyes on the first. Red (an e-mail, and wf-site in the health
+  # issue) when no publish run was created in the last 45 minutes and the desk is not paused.
+  alive:
+    if: vars.DESK_PAUSED != '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: A publish run in the last 45 minutes
+        run: |
+          last=$(gh run list --workflow publish.yml --limit 1 --json createdAt --jq '.[0].createdAt // empty') || { echo "::warning::could not read the run list"; exit 0; }
+          [ -n "$last" ] || { echo "::error::publish.yml has no runs"; exit 1; }
+          age=$(( $(date +%s) - $(date -d "$last" +%s) ))
+          echo "last publish run $last (${age}s ago)"
+          [ "$age" -le 2700 ] || { echo "::error::no publish run for $((age / 60)) minutes: the clock (tick.yml) may be down. Start it: gh workflow run tick.yml --ref main"; exit 1; }

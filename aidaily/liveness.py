@@ -171,21 +171,24 @@ def token_dates(today=None):
 
 
 def withdrawn_live(rows, shorts=None):
-    """[(key, message)] for a withdrawn article that is still up somewhere the desk cannot take it down. Instagram has
-    `aidaily delete`; the other platforms and YouTube are deleted by hand, then the slot gets "removed": true."""
+    """[(key, message)] for a withdrawn article that is still up somewhere. Two kinds: a correction that withdraws it
+    (corrections.json: "retracted", every platform) and a social takedown (`aidaily withdraw`: "withdrawn", the site
+    article stays, Instagram is archived by the owner in the app). A copy is cleared by "removed" on its slot."""
     out = []
     shorts = (shorts or {}).get("attempted") or {}
     for p in rows:
-        if not p.get("withdrawn"):
+        if not (p.get("retracted") or p.get("withdrawn")):
             continue
         where = [n for n, s in (p.get("platforms") or {}).items() if s.get("id") and not s.get("removed")]
-        if p.get("status_was") == "published" and p.get("media_id") and not p.get("deleted") and not p.get("removed"):
+        if p.get("retracted") and p.get("status_was") == "published" and p.get("media_id") and not p.get("removed"):
             where.append("instagram")
-        if (shorts.get(p["id"]) or {}).get("video_id") and not (shorts[p["id"]] or {}).get("removed"):
+        short = shorts.get(p["id"]) or {}
+        if short.get("video_id") and not short.get("removed"):
             where.append("youtube")
         if where:
-            out.append((f"withdrawn-{p['id']}", f"Withdrawn article {p['id']} is still up on {', '.join(where)}: delete it there "
-                        "(`aidaily delete` takes it off Instagram), then set \"removed\": true on its slot."))
+            out.append((f"withdrawn-{p['id']}", f"Withdrawn article {p['id']} is still up on {', '.join(where)}: take it down there "
+                        "(`aidaily withdraw` does the mirrored platforms, YouTube Studio the Short, the app Instagram), "
+                        "then set \"removed\" on its slot."))
     return out
 
 

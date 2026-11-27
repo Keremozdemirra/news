@@ -57,6 +57,11 @@ jobs:
             if [ $(( $(date +%s) / 300 % 2 )) = 1 ]; then
               gh workflow run site.yml --ref main -f auto=yes >/dev/null 2>&1 || echo "$(date -u +%H:%M) site.yml not started"
             fi
+            # once a night, in the first five-minute slot after 03:00 UTC: the browser checks on the site and the games
+            # (webcheck.yml, full), which no push exercises when nothing changed
+            if [ "$(date -u +%H)" = 03 ] && [ $(( $(date +%s) / 300 % 12 )) = 0 ]; then
+              gh workflow run webcheck.yml --ref main -f full=yes >/dev/null 2>&1 || echo "$(date -u +%H:%M) webcheck.yml not started"
+            fi
             # A GitHub outage fails every dispatch; quitting early only turned each outage into a red run (an e-mail)
             # every 100 minutes. The loop rides it out, and the run turns red once, at the end, if it never recovered.
             [ "$fails" -gt "$worst" ] && worst=$fails
