@@ -221,6 +221,11 @@ def accounts():
 
 # What the masthead counts, set by build() before any page is written: articles in the last 24 hours and the newsrooms behind them.
 MARKETS = None  # official rates for the pages that show them, loaded once per build
+
+
+def crypto_credit():
+    return (f' Crypto prices: <a href="{markets.CMC_HOME}" rel="noopener">{markets.CMC_CREDIT}</a>.'
+            if (MARKETS or {}).get("crypto", {}).get("coins") else "")
 # The main navigation. Key is what a page passes as active; Play is the daily games hub.
 # The menu panel: everything that is not a section. Key is what a page passes as active.
 NAV = [("/latest/", "Latest", "latest"), ("/brief/", "Brief", "brief"), ("/board/", "Board", "board"), ("/feed/", "Feed", "feed"),
@@ -322,7 +327,7 @@ def page(title, body, desc="", path="/", image=None, og_type="website", ld=None,
 <div><h2>Legal</h2><ul><li><a href="{LEGAL['impressum']}">Impressum</a></li><li><a href="{LEGAL['privacy']}">Privacy</a></li></ul></div>
 <div><h2>Follow</h2><ul>{follow_links}</ul></div>
 </div>
-<div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC. &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
+<div class="foot-base"><span>Written by AI from the sources listed. Corrections: <a href="{BASE}/contact/">contact</a>. All times UTC.{crypto_credit()} &copy; {now.year} Boardread.</span><span><button type="button" class="kbd-hint" data-keys hidden>Keyboard shortcuts</button></span></div>
 </footer></body></html>"""
 
 
@@ -975,6 +980,9 @@ def build(out=desk.HERE / "_site"):
     global MARKETS
     # DESK_SITE_OFFLINE=1 builds from the last good copy of the rates without touching the network (tests, a plane)
     MARKETS = markets.load(live=os.environ.get("DESK_SITE_OFFLINE") != "1")
+    coins = markets.crypto() if os.environ.get("DESK_SITE_OFFLINE") != "1" else None
+    if coins:  # read at build time for this build only; never written to state (see markets.CMC_URL)
+        MARKETS = {**(MARKETS or {"series": {}}), "crypto": coins}
     sm = []
     # Business stays the core: the front page, Latest, the brief, the feeds and every view are made from `news`; sport has
     # its own block on the front page, its own section page and feed, and appears in the archive, search and sitemap.

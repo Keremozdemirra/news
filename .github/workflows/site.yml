@@ -69,6 +69,8 @@ jobs:
         env:
           # the build starts from the committed state/markets.json and refreshes it; the EIA key is optional (the keyless dnav pages are the fallback)
           EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+          # CoinMarketCap free Basic key: coin prices for this build only (the site, never the social accounts); without it the coins are left out
+          CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # the 1200x630 link-preview images are cut with ffmpeg, which the runner image does not ship

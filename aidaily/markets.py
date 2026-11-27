@@ -481,6 +481,83 @@ def rates_box(m, base="", cls="", compact=False):
             f'<div class="rtgrid">{body}</div><p class="attr">{E(attribution(m, RAIL))}</p></section>')
 
 
+# Crypto: CoinMarketCap API, free Basic plan. Commercial User Agreement (pro.coinmarketcap.com/user-agreement-commercial,
+# read 2026-11-27): the licence covers one product (this website, not the social accounts), and the product "shall
+# prominently provide attribution to CoinMarketCap as follows: "Data provided by CoinMarketCap.com"" with a link. So the
+# prices appear on the site only, always next to that line; they are fetched at build time and never stored or re-served.
+CMC_URL = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?start=1&limit=20&convert=USD"
+CMC_CREDIT = "Data provided by CoinMarketCap.com"
+CMC_HOME = "https://coinmarketcap.com/"
+COINS = 5
+
+
+def crypto(key=None, opener=urllib.request.urlopen):
+    """The five largest coins by market value, stablecoins and wrapped tokens left out (a dollar token at $1.00 says
+    nothing): {"at": ISO time, "coins": [{"sym", "name", "price", "pct"}]}, or None without a key or on any failure."""
+    key = key if key is not None else os.environ.get("CMC_API_KEY", "")
+    if not key:
+        return None
+    try:
+        req = urllib.request.Request(CMC_URL, headers={**UA, "Accept": "application/json", "X-CMC_PRO_API_KEY": key})
+        with opener(req, timeout=20) as r:
+            js = json.loads(_text(r.read()))
+    except Exception as e:  # noqa: BLE001
+        print(f"markets: crypto not fetched ({type(e).__name__})")  # the key never reaches the log
+        return None
+    coins = []
+    for c in js.get("data") or []:
+        tags = {str(t).lower() for t in (c.get("tags") or [])}
+        if "stablecoin" in tags or "wrapped-tokens" in tags:
+            continue
+        q = ((c.get("quote") or {}).get("USD") or {})
+        if q.get("price") is None:
+            continue
+        coins.append({"sym": c.get("symbol", ""), "name": c.get("name", ""), "price": float(q["price"]),
+                      "pct": float(q["percent_change_24h"]) if q.get("percent_change_24h") is not None else None})
+        if len(coins) == COINS:
+            break
+    if not coins:
+        return None
+    return {"at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "coins": coins}
+
+
+def coin_price(v):
+    return f"${v:,.0f}" if v >= 1000 else f"${v:,.2f}" if v >= 1 else f"${v:,.4f}"
+
+
+def coin_change(pct):
+    if pct is None:
+        return ""
+    cls = "up" if pct > 0 else "down" if pct < 0 else "flat"
+    word = "up" if pct > 0 else "down" if pct < 0 else "unchanged"
+    return (f'<span class="chg {cls}"><span aria-hidden="true">{sign_arrow(pct)}</span><span class="sr">{word} </span>'
+            f'{abs(pct):.2f}%<span class="sr"> in 24 hours</span></span>')
+
+
+def crypto_items(m):
+    """Strip items for the coins, then the credit the licence asks for, so the two are never apart."""
+    cr = (m or {}).get("crypto") or {}
+    if not cr.get("coins"):
+        return []
+    at = cr.get("at", "")[11:16]
+    out = [f'<li title="{E(c["name"])}, CoinMarketCap, {E(at)} UTC"><span class="sl">{E(c["sym"])}</span> <b>{E(coin_price(c["price"]))}</b> {coin_change(c["pct"])}</li>'
+           for c in cr["coins"]]
+    out.append(f'<li class="cmc"><a href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a></li>')
+    return out
+
+
+def crypto_section(m):
+    """The coins on the numbers page: price, 24-hour change, the time it was read, and the credit."""
+    cr = (m or {}).get("crypto") or {}
+    if not cr.get("coins"):
+        return ""
+    rows_html = "".join(f'<div class="rt"><span class="rl">{E(c["name"])} <small>{E(c["sym"])}</small></span><b>{E(coin_price(c["price"]))}</b>'
+                        f'<span class="rc">{coin_change(c["pct"])}</span></div>' for c in cr["coins"])
+    return (f'<section class="msec"><h2 class="sh">Crypto</h2><p class="olead">The five largest coins by market value, stablecoins left out. '
+            f'Price in US dollars and change over 24 hours, read at {E(cr.get("at", "")[11:16])} UTC when this page was built.</p>'
+            f'<div class="rtgrid cxb">{rows_html}</div><p class="attr"><a href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a></p></section>')
+
+
 def strip(m, base=""):
     """The one-line markets strip under the sections row: the series in STRIP with their change, and a link to all data.
     No indices. A monthly average says so, so it is never read as today's price."""
@@ -491,9 +568,13 @@ def strip(m, base=""):
             label, v, d, ch, pct, pts = s
             when = f' <small class="sd">{E(date.fromisoformat(d).strftime("%b"))} avg</small>' if SERIES[k][3] == "wb" else ""
             items.append(f'<li><span class="sl">{E(label)}</span> <b>{E(fmt(k, v))}</b>{when} {change_html(k, ch, None)}</li>')
+    # the coins follow the three most watched series, with their credit right after them
+    items[3:3] = crypto_items(m)
     if not items:
         return ""
-    return f'<div class="mstrip"><ul aria-label="Markets">{"".join(items)}</ul><a href="{base}/numbers/">All data</a></div>'
+    # the credit also sits beside All data, where a wide screen always shows it; narrow screens keep the one after the coins
+    credit = f'<a class="cmcr" href="{CMC_HOME}" rel="noopener">{CMC_CREDIT}</a>' if crypto_items(m) else ""
+    return f'<div class="mstrip"><ul aria-label="Markets">{"".join(items)}</ul>{credit}<a href="{base}/numbers/">All data</a></div>'
 
 
 def chart(pts, w=360, h=120, n=90, monthly=False):

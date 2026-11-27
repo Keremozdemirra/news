@@ -351,6 +351,7 @@ def numbers_page(shown, m):
                     f'Every card shows its series date and source.</p>{markets.cards(m)}</section>'
                     + (f'<section class="msec"><h2 class="sh">Metals</h2><p class="olead">Precious and industrial metals as monthly averages from the World Bank, each labelled with its month. '
                        f'Daily metal prices are licensed data and are not shown.</p>{markets.cards(m, markets.METALS)}</section>' if any(k in m.get("series", {}) for k in markets.METALS) else "")
+                    + markets.crypto_section(m)
                     + (f'<section class="msec"><h2 class="sh">US Treasury yield curve</h2><div class="cvbig">{curve}</div>'
                        f'<p class="what"><b>What it is.</b> Yields on US government debt from one month to thirty years; a curve that slopes down can signal expected rate cuts or a slowdown.</p>'
                        f'<p class="attr">Solid: {markets.dmy(m["curve"][-1]["date"])}' + (f', dashed: {markets.dmy(m["curve"][-2]["date"])}' if len(m["curve"]) > 1 else "") + f'. Per cent. {markets.SRC_UST}</p></section>' if m.get("curve") else ""))
