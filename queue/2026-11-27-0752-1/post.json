@@ -1,0 +1,52 @@
+{
+ "id": "2026-11-27-0752-1",
+ "batch": "2026-11-27-0752",
+ "n": 1,
+ "created": "2026-11-27T07:52:02+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "India's election body fixes website flaw that exposed voter data\n\nExposed reference numbers could allow hackers to automate downloads of large amounts of data. The flaw has been fixed following those findings.\n\nReported by The Straits Times; CNA.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/asia/south-asia/indias-election-body-website-flaw-exposing-voter-data-fixed-after-reuters-findings"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/business/exclusive-indias-election-body-website-flaw-exposing-voter-data-fixed-after-reuters-findings-6587051",
+  "https://www.straitstimes.com/asia/south-asia/indias-election-body-website-flaw-exposing-voter-data-fixed-after-reuters-findings"
+ ],
+ "headlines": [
+  "India's election body fixes website flaw that exposed voter data"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "A view of the server room at The National Archives.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A server room corridor with glowing racks",
+ "score": 9.168,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Exposed reference numbers could allow hackers to automate downloads of large amounts of data.",
+ "body": "The flaw has been fixed following those findings.",
+ "so_what": "",
+ "sources": [
+  "The Straits Times",
+  "CNA"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/asia/south-asia/indias-election-body-website-flaw-exposing-voter-data-fixed-after-reuters-findings",
+  "https://www.channelnewsasia.com/business/exclusive-indias-election-body-website-flaw-exposing-voter-data-fixed-after-reuters-findings-6587051"
+ ],
+ "credit": "Photo: The National Archives (UK), CC BY 3.0, via Wikimedia Commons",
+ "credit_file": "A view of the server room at The National Archives.jpg",
+ "status": "web",
+ "published": "2026-11-27T07:52:02+00:00",
+ "story": ""
+}

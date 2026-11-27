@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0752-4",
+ "batch": "2026-11-27-0752",
+ "n": 4,
+ "created": "2026-11-27T07:52:05+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Chinese shares rise as Beijing signals more support for markets\n\nAuthorities vowed stabilization policies amid increased volatility in global markets.\n\nReported by The Wall Street Journal; Financial Times.\n\nSend this to whoever on your team watches the markets.\n\n#markets #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.wsj.com/finance/stocks/chinese-shares-lifted-as-beijing-signals-more-market-support-3a1d1468?mod=rss_worldnews"
+ ],
+ "links": [
+  "https://www.ft.com/content/fedc6392-ad25-43e4-9d9f-20216cbf331e?syn-25a6b1a6=1",
+  "https://www.wsj.com/finance/stocks/chinese-shares-lifted-as-beijing-signals-more-market-support-3a1d1468?mod=rss_markets_main",
+  "https://www.wsj.com/finance/stocks/chinese-shares-lifted-as-beijing-signals-more-market-support-3a1d1468?mod=rss_worldnews"
+ ],
+ "headlines": [
+  "Chinese shares rise as Beijing signals more support for markets"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Markets",
+ "photo_file": "Stockmarket.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A wall of stock prices in green and red",
+ "score": 8.391,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "Authorities vowed stabilization policies amid increased volatility in global markets.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Wall Street Journal",
+  "Financial Times"
+ ],
+ "source_urls": [
+  "https://www.wsj.com/finance/stocks/chinese-shares-lifted-as-beijing-signals-more-market-support-3a1d1468?mod=rss_worldnews",
+  "https://www.ft.com/content/fedc6392-ad25-43e4-9d9f-20216cbf331e?syn-25a6b1a6=1",
+  "https://www.wsj.com/finance/stocks/chinese-shares-lifted-as-beijing-signals-more-market-support-3a1d1468?mod=rss_markets_main"
+ ],
+ "credit": "Photo: AhmadArdity, CC0, via Wikimedia Commons",
+ "credit_file": "Stockmarket.jpg",
+ "status": "web",
+ "published": "2026-11-27T07:52:05+00:00",
+ "story": ""
+}

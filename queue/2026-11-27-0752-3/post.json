@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0752-3",
+ "batch": "2026-11-27-0752",
+ "n": 3,
+ "created": "2026-11-27T07:52:04+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Spain holds snap election, its fifth general vote in over a decade\n\nPedro Sánchez · Politics\n\nCenter-right leader Alberto Núñez Feijóo is bidding to end Prime Minister Pedro Sánchez's eight-year run in power. Socialist Prime Minister Pedro Sánchez called the snap vote, arguing that his minority government needs broader support to pass pending reforms.\n\nReported by Bloomberg; France 24.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/what-to-know-ahead-of-spain-s-snap-election-video"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/spain-election-2026-how-pedro-sanchez-s-snap-vote-is-an-opening-for-far-right",
+  "https://www.bloomberg.com/news/videos/2026-11-27/what-to-know-ahead-of-spain-s-snap-election-video",
+  "https://www.france24.com/en/tv-shows/truth-or-fake/20261126-is-spain-s-snap-election-being-rigged-debunking-viral-claims"
+ ],
+ "headlines": [
+  "Spain holds snap election, its fifth general vote in over a decade"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "Obisk španskega predsednika vlade v Sloveniji (53658605930) (cropped).jpg",
+ "photo_kind": "person",
+ "photo_alt": "",
+ "score": 9.075,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Pedro Sánchez",
+ "logo_names": [],
+ "dek": "Center-right leader Alberto Núñez Feijóo is bidding to end Prime Minister Pedro Sánchez's eight-year run in power.",
+ "body": "Socialist Prime Minister Pedro Sánchez called the snap vote, arguing that his minority government needs broader support to pass pending reforms.",
+ "so_what": "",
+ "sources": [
+  "Bloomberg",
+  "France 24"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/videos/2026-11-27/what-to-know-ahead-of-spain-s-snap-election-video",
+  "https://www.bloomberg.com/news/articles/2026-11-27/spain-election-2026-how-pedro-sanchez-s-snap-vote-is-an-opening-for-far-right",
+  "https://www.france24.com/en/tv-shows/truth-or-fake/20261126-is-spain-s-snap-election-being-rigged-debunking-viral-claims"
+ ],
+ "credit": "Photo: Foto: Nebojša Tejić/STA, Public domain, via Wikimedia Commons",
+ "credit_file": "Obisk španskega predsednika vlade v Sloveniji (53658605930) (cropped).jpg",
+ "status": "web",
+ "published": "2026-11-27T07:52:04+00:00",
+ "story": ""
+}

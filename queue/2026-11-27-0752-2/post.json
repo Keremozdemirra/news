@@ -1,0 +1,54 @@
+{
+ "id": "2026-11-27-0752-2",
+ "batch": "2026-11-27-0752",
+ "n": 2,
+ "created": "2026-11-27T07:52:03+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "SAP flags a security incident, says no evidence of customer data breach\n\nSAP said it promptly implemented the necessary measures to protect its customers and its services.\n\nReported by The Straits Times; CNA.\n\nSend this to whoever on your team covers SAP.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.straitstimes.com/business/software-firm-sap-flags-security-incident-says-no-evidence-of-customer-data-breach"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/business/sap-flags-security-incident-says-no-evidence-unauthorized-access-customer-data-6586986",
+  "https://www.straitstimes.com/business/software-firm-sap-flags-security-incident-says-no-evidence-of-customer-data-breach"
+ ],
+ "headlines": [
+  "SAP flags a security incident, says no evidence of customer data breach"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Business",
+ "photo_file": "Data center roof.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A data centre roof seen from above",
+ "score": 9.14,
+ "figure": "",
+ "company": "SAP",
+ "ticker": null,
+ "person": "",
+ "logo_names": [
+  "SAP"
+ ],
+ "dek": "SAP said it promptly implemented the necessary measures to protect its customers and its services.",
+ "body": "",
+ "so_what": "",
+ "sources": [
+  "The Straits Times",
+  "CNA"
+ ],
+ "source_urls": [
+  "https://www.straitstimes.com/business/software-firm-sap-flags-security-incident-says-no-evidence-of-customer-data-breach",
+  "https://www.channelnewsasia.com/business/sap-flags-security-incident-says-no-evidence-unauthorized-access-customer-data-6586986"
+ ],
+ "credit": "Photo: Rsparks3, CC0, via Wikimedia Commons",
+ "credit_file": "Data center roof.jpg",
+ "status": "web",
+ "published": "2026-11-27T07:52:03+00:00",
+ "story": ""
+}
