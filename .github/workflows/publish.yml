@@ -36,6 +36,7 @@ jobs:
           TG_CHANNEL: ${{ secrets.TG_CHANNEL }}
           GITHUB_TOKEN: ${{ github.token }}
           DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+          DESK_PUBLISH: "1"  # account housekeeping (the Bluesky bot label) runs here, never in the unit suite
         run: |
           export DESK_MEDIA_REF=$(git ls-remote origin refs/heads/media | cut -f1)
           python3 -m aidaily publish

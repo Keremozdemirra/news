@@ -147,6 +147,10 @@ class BlueskyLabel(Tmp):
             def _open(self, req, label):
                 return json.dumps(profile).encode()
         with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}, "growth": {"caption_ai_line": True}}):
+            self.assertIsNone(desk.bluesky_bot_label({"bluesky": Fake}))  # outside the publish workflow: nothing
+            self.assertEqual(calls, [])
+        with mock.patch.dict(desk.CONFIG, {"platforms": {"bluesky": True}, "growth": {"caption_ai_line": True}}), \
+                mock.patch.dict(os.environ, {"DESK_PUBLISH": "1"}):
             self.assertEqual(desk.bluesky_bot_label({"bluesky": Fake}), "set")
             put = [b for n, b in calls if n.endswith("putRecord")][0]
             self.assertEqual(put["record"]["labels"]["values"], [{"val": "bot"}])

@@ -2763,6 +2763,9 @@ def bluesky_bot_label(factories=None):
     """Once: the Bluesky account's "bot" self-label (Kerem, 2026-11-27: Bluesky discloses by label and bio, not per
     post). Recorded in state/bluesky-label.json when done, so it is never written again; a failure is tried once a day."""
     from . import platforms
+    # only in the publish workflow (DESK_PUBLISH=1): the unit suite runs publish() too and must never reach Bluesky
+    if os.environ.get("DESK_PUBLISH") != "1":
+        return None
     if not CONFIG.get("platforms", {}).get("bluesky") or not growth("caption_ai_line"):
         return None
     st = _load(STATE / "bluesky-label.json", {})
