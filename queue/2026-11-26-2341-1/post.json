@@ -23,7 +23,7 @@
   "sport"
  ],
  "topic": "Sport",
- "photo_file": "Pit lane at Phillip Island GP Circuit (16232935133).jpg",
+ "photo_file": "Hinchliffe Stadium (Paterson, NJ).jpg",
  "score": 9.625,
  "figure": "2-1",
  "company": "Bournemouth",
@@ -39,10 +39,11 @@
  "source_urls": [
   "https://www.theguardian.com/football/2026/nov/26/europa-league-roundup-bournemouth-celta-vigo-celtic-milan-benfica"
  ],
- "credit": "Photo: Tom Reynolds from Melbourne, Australia, CC BY 2.0, via Wikimedia Commons",
+ "credit": "Photo: Quintin Soloviev, CC BY 4.0, via Wikimedia Commons",
  "photo_kind": "scene",
  "status": "web",
  "published": "2026-11-26T23:41:56+00:00",
  "story": "",
- "photo_alt": "An empty pit straight at a racing circuit"
+ "photo_alt": "A football stadium seen from above",
+ "credit_file": "Hinchliffe Stadium (Paterson, NJ).jpg"
 }
