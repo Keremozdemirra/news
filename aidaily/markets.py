@@ -98,7 +98,8 @@ SERIES = {
 }
 RAIL = ("eurusd", "usdjpy", "gbpusd", "brent", "wti", "gasoline", "ust10")
 METALS = ("gold", "silver", "platinum", "copper", "aluminium", "nickel", "zinc", "lead", "tin", "ironore")
-STRIP = ("eurusd", "usdjpy", "brent", "gasoline", "ust10")
+# most watched first: the euro-dollar, oil, gold, the US 10-year, then the rest of the majors, metals and gas
+STRIP = ("eurusd", "brent", "gold", "ust10", "usdjpy", "gbpusd", "silver", "copper", "henryhub", "wti", "usdcny")
 SOURCE_NAME = {"ecb": "ECB reference rate", "calc": CALC, "eia": "EIA", "ust": "US Treasury par yield", "wb": "World Bank Pink Sheet, monthly average"}
 HISTORY = 100  # observations kept per series
 
@@ -479,13 +480,15 @@ def rates_box(m, base="", cls="", compact=False):
 
 
 def strip(m, base=""):
-    """The one-line markets strip under the sections row: five series with their change, and a link to all data. No indices."""
+    """The one-line markets strip under the sections row: the series in STRIP with their change, and a link to all data.
+    No indices. A monthly average says so, so it is never read as today's price."""
     items = []
     for k in STRIP:
         s = stat(m, k)
         if s:
             label, v, d, ch, pct, pts = s
-            items.append(f'<li><span class="sl">{E(label)}</span> <b>{E(fmt(k, v))}</b> {change_html(k, ch, None)}</li>')
+            when = f' <small class="sd">{E(date.fromisoformat(d).strftime("%b"))} avg</small>' if SERIES[k][3] == "wb" else ""
+            items.append(f'<li><span class="sl">{E(label)}</span> <b>{E(fmt(k, v))}</b>{when} {change_html(k, ch, None)}</li>')
     if not items:
         return ""
     return f'<div class="mstrip"><ul aria-label="Markets">{"".join(items)}</ul><a href="{base}/numbers/">All data</a></div>'

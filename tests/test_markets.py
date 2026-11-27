@@ -1,4 +1,5 @@
 import json
+import re
 import os
 import tempfile
 import unittest
@@ -60,8 +61,9 @@ class Markets(unittest.TestCase):
         self.assertIn("$72.40", box)
         self.assertIn("U.S. Energy Information Administration", markets.attribution(m))
         strip = markets.strip(m)
-        self.assertIn("US gasoline", strip)
-        self.assertNotIn("WTI", strip)  # the strip carries five series only
+        self.assertNotIn("US gasoline", strip)  # a weekly US retail price is not a headline market
+        self.assertLess(strip.index("EUR/USD"), strip.index("Brent"))
+        self.assertLess(strip.index("Brent"), strip.index("US 10-year"))
         self.assertNotIn("USD/CNY", markets.rates_box(m))  # on the numbers page only
         self.assertIn("What it is.", markets.cards(m))
 
@@ -162,12 +164,22 @@ class Metals(unittest.TestCase):
         self.assertIn("World Bank, Commodity Price Data (The Pink Sheet), CC BY 4.0", html)
         self.assertNotIn("Series date 1 ", html)
 
-    def test_metals_stay_out_of_the_rail_strip_and_the_other_attribution(self):
+    def test_metals_stay_out_of_the_rail_and_the_other_attribution(self):
         m = data(True)
         m["series"].update({k: [list(x) for x in v] for k, v in self.pink().items()})
-        self.assertNotIn("Gold", markets.rates_box(m) + markets.strip(m))
+        self.assertNotIn("Gold", markets.rates_box(m))
         self.assertNotIn("World Bank", markets.attribution(m))
         self.assertNotIn("Gold", markets.cards(m))
+
+    def test_the_strip_puts_gold_third_and_marks_monthly_averages(self):
+        m = data(True)
+        m["series"].update({k: [list(x) for x in v] for k, v in self.pink().items()})
+        strip = markets.strip(m)
+        labels = re.findall(r'<span class="sl">([^<]+)</span>', strip)
+        self.assertEqual(labels[:3], ["EUR/USD", "Brent", "Gold"])
+        self.assertIn('$4,105</b> <small class="sd">Oct avg</small>', strip)
+        self.assertNotIn("avg", strip.split("Gold")[0])  # daily series carry no month tag
+        self.assertIn('href="/numbers/"', strip)  # the CC BY credit for the Pink Sheet is one link away
 
     def test_a_failed_pink_sheet_keeps_the_last_good_metals(self):
         with tempfile.TemporaryDirectory() as d:
