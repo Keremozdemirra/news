@@ -671,8 +671,8 @@ def _round_like(v, dec, sig):
 
 def distractors(fig):
     """Three wrong numbers in the unit and rounding of the right one, or [] when the figure is not one we can
-    vary honestly. A year moves by 10 and 20; any other figure is halved, raised by half, doubled, with
-    further factors only when rounding makes two of them collide."""
+    vary honestly. A year moves by 10 and 20; any other figure is taken to three quarters, a quarter more and half
+    as much again, with further factors only when rounding makes two of them collide."""
     parts = _fig_parts(fig)
     if not parts:
         return []
@@ -689,7 +689,8 @@ def distractors(fig):
                 add(str(int(val) + step))
         return out[:3] if len(out) >= 3 else []
     sig = len(str(int(val)).rstrip("0")) or 1
-    for factor in ("0.5", "1.5", "2", "0.75", "1.25", "3", "0.25", "4", "5"):
+    # near the right value first (three quarters, a quarter more, half as much again), so no option is absurd
+    for factor in ("0.75", "1.25", "1.5", "0.5", "2", "3", "0.25", "4", "5"):
         cand = _round_like(val * Decimal(factor), dec, sig)
         if cand is None or cand <= 0 or cand == val:
             continue
@@ -1009,23 +1010,23 @@ def _people(pool, has_photo=lambda p: _photo(p)[0]):
 
 
 def pick_whois(day, week, recent, has_photo=lambda p: _photo(p, fresh=True)[0]):
-    """Who is this?: the portrait without its name, four names from our own recent posts."""
+    """Who is this?: the portrait without its name and four names of the same kind (aidaily/people.py: same role,
+    same presentation, all widely known). Peers in our own news this week come first. A person in no group, or a
+    group with fewer than three fair names left, gives no question; nobody obscure is used as filler."""
+    from . import people
     week, recent = list(filter(social_allowed, week)), list(filter(social_allowed, recent))
-    named = sorted({p["person"] for p in week if p.get("person")})
-    cands = _people(recent, has_photo)
-    if len(named) < 4 or not cands:
-        return None
-    p = max(cands, key=_score)
-    others = [n for n in named if n != p["person"] and n.split()[-1] != p["person"].split()[-1]]
-    if len(others) < 3:
-        return None
-    # people from the same beat first: a central banker is guessed against central bankers and ministers, not a CEO
-    beat = {q["person"]: q.get("topic") for q in week if q.get("person")}
-    same = _order(day, [n for n in others if beat.get(n) == p.get("topic")])
-    options = _order(day, [p["person"]] + (same + _order(day, [n for n in others if n not in same]))[:3])
-    credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
-    return {"type": "whois", "title": "Who is this", "options": options, "answer": options.index(p["person"]), "posts": [p],
-            "credit": credit}
+    in_news = {people.norm(q["person"]) for q in week if q.get("person")}
+    for p in sorted(_people(recent, has_photo), key=lambda p: -_score(p)):
+        text = " ".join([_head(p), p.get("dek") if isinstance(p.get("dek"), str) else ""]).lower()
+        fair = [n for n in people.peers(p["person"]) if people.norm(n).split()[-1] not in people.norm(text)]
+        if len(fair) < 3:
+            continue
+        ours = [n for n in fair if people.norm(n) in in_news]
+        options = _order(day, [p["person"]] + (_order(day, ours) + _order(day, [n for n in fair if n not in ours]))[:3])
+        credit = p.get("credit", "") if not _name_in(p["person"], p.get("credit", "")) else ""
+        return {"type": "whois", "title": "Who is this", "options": options, "answer": options.index(p["person"]), "posts": [p],
+                "credit": credit}
+    return None
 
 
 def _s_whois(day, label):

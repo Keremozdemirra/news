@@ -1089,6 +1089,8 @@ class Formats(Tmp):
                 self.assertEqual((g[0] if not g[0].isdigit() else "", g[-1] if not g[-1].isdigit() else ""),
                                  (fig[0] if not fig[0].isdigit() else "", fig[-1] if not fig[-1].isdigit() else ""), (fig, g))
         self.assertEqual(sorted(desk.distractors("1997")), ["1977", "1987", "2007"])
+        self.assertEqual(sorted(desk.distractors("40%")), ["30%", "50%", "60%"])  # near the real value, never absurd
+        self.assertEqual(sorted(desk.distractors("$33B"), key=lambda x: float(x[1:-1])), ["$25B", "$41B", "$50B"])
         self.assertTrue(all(float(x[:-1]) <= 100 for x in desk.distractors("60%")))
         self.assertEqual(desk.distractors("five-year"), [])
         self.assertEqual(desk.distractors("AA-"), [])
@@ -1133,19 +1135,38 @@ class Formats(Tmp):
             self.pub(f"p{i}", f"{name} makes news", w, 2 + i, person=name, photo=True, score=10 - i,
                      photo_file=f"{name.split()[-1]} portrait 2026.jpg", credit="Photo: Someone, CC BY 4.0, via Wikimedia Commons")
 
-    def test_whois_needs_four_people_and_a_portrait_that_carries_the_name(self):
+    def test_whois_needs_a_listed_person_and_a_portrait_that_carries_the_name(self):
         w = _at(0, 11)  # Monday
-        self.people(w, 3)
-        self.assertEqual(self.run_at(w, "whois"), {})
-        self.pub("p3", "Pablo Hernández de Cos makes news", w, 9, person="Pablo Hernández de Cos", photo=True, photo_file="Hernandez.jpg")
+        self.pub("t", "Thariq Shihipar joins OpenAI", w, 2, person="Thariq Shihipar", photo=True, score=12,
+                 photo_file="Thariq Shihipar 2026.jpg", credit="Photo: Someone, CC BY 4.0, via Wikimedia Commons")
+        self.assertEqual(self.run_at(w, "whois"), {})  # in no peer group: no fair options
+        self.people(w, 5)
         out = self.run_at(w, "whois")
         self.assertEqual(sorted(out), ["whois", "whois-a"])
         letter, value = answer_of(out["whois-a"])
-        self.assertEqual(dict(OPT.findall(out["whois"]))[letter], value)
+        opts = dict(OPT.findall(out["whois"]))
+        self.assertEqual(opts[letter], value)
         self.assertEqual(value, "Jensen Huang")
+        self.assertIn("Sam Altman", opts.values())  # a peer in this week's news comes first
+        self.assertNotIn("Thariq Shihipar", opts.values())
         self.assertNotIn("makes news", out["whois"])  # the headline stays on the answer slide
-        self.assertEqual(len(OPT.findall(out["whois"])), 4)
+        self.assertEqual(len(opts), 4)
         self.assertIn("Who is this?", out["whois"])
+
+    def test_whois_options_share_the_answers_role_and_presentation(self):
+        from aidaily import people
+        w = _at(0, 11)
+        self.pub("h", "New York bans sale of AI chatbot toys", w, 2, person="Kathy Hochul", photo=True, score=12,
+                 photo_file="Kathy Hochul official portrait.jpg", credit="Photo: US Congress, public domain, via Wikimedia Commons")
+        for i, n in enumerate(["Jared Kushner", "Donald Trump", "Gretchen Whitmer"]):
+            self.pub(f"o{i}", f"{n} makes news", w, 3 + i, person=n, score=5)
+        with mock.patch.object(desk, "now", return_value=w):
+            q = desk.pick_whois("2026-11-23", desk._published(24 * 7), desk._published(48))
+        self.assertEqual(q["options"][q["answer"]], "Kathy Hochul")
+        for n in q["options"]:
+            self.assertEqual(people.place(n), ("US governors", "f"), n)
+        self.assertIn("Gretchen Whitmer", q["options"])  # in our news this week
+        self.assertEqual(people.place("Thariq Shihipar"), None)
 
     def test_whois_will_not_use_a_photo_that_does_not_carry_the_name(self):
         w = _at(0, 11)
