@@ -373,14 +373,17 @@ class FrontBuilt(Features):
     def test_most_covered_stays_out_until_three_companies_have_two_articles(self):
         self.assertNotIn("Most covered", self.read("index.html"))  # only SAP has two articles
 
-    def test_default_theme_is_light_with_a_toggle_and_a_head_script(self):
+    def test_theme_follows_the_device_until_the_reader_chooses(self):
         h = self.read("index.html")
         self.assertIn('class="themebtn"', h)
         self.assertRegex(h, r'<script src="[^"]*theme\.js[^"]*"></script>')  # blocking, in the head, before first paint
         self.assertNotIn("prefers-color-scheme", (self.out / "assets" / "site.css").read_text())
         js = (self.out / "assets" / "theme.js").read_text()
         self.assertIn("br:theme", js)
-        self.assertNotIn("matchMedia", js)
+        self.assertIn("prefers-color-scheme: dark", js)  # nothing stored: the device decides
+        self.assertIn('localStorage.setItem(KEY, next)', js)  # the toggle still stores the explicit choice
+        self.assertRegex(h, r'<meta name="theme-color" content="#ffffff" media="\(prefers-color-scheme: light\)">')
+        self.assertRegex(h, r'<meta name="theme-color" content="#121212" media="\(prefers-color-scheme: dark\)">')
 
     def test_section_rows_have_no_holes_and_no_empty_rules(self):
         import re

@@ -1,17 +1,24 @@
-/* Theme: light unless the reader chose dark. Loaded in the head, not deferred, so the choice is on the page before the first
-   paint. The only thing stored is the word "light" or "dark" under br:theme; it never leaves the device. */
+/* Theme: the reader's stored choice, else the device's own setting. Loaded in the head, not deferred, so the choice is on the page
+   before the first paint. The only thing stored is the word "light" or "dark" under br:theme; it never leaves the device. */
 (function () {
   "use strict";
   var KEY = "br:theme", root = document.documentElement, saved = null;
   try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
   function apply(t) {
     if (t === "dark") root.setAttribute("data-theme", "dark"); else root.removeAttribute("data-theme");
-    var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute("content", t === "dark" ? "#121212" : "#ffffff");
+    var ms = document.querySelectorAll('meta[name="theme-color"]');
+    for (var i = 0; i < ms.length; i++) ms[i].setAttribute("content", t === "dark" ? "#121212" : "#ffffff");
     var b = document.querySelector(".themebtn");
     if (b) { b.setAttribute("aria-pressed", t === "dark" ? "true" : "false"); b.setAttribute("aria-label", t === "dark" ? "Switch to the light theme" : "Switch to the dark theme"); }
   }
-  apply(saved === "dark" ? "dark" : "light");
+  var mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  function device() { return mq && mq.matches ? "dark" : "light"; }
+  apply(saved === "dark" || saved === "light" ? saved : device());
+  // nothing stored: follow the device when its setting changes
+  if (mq && !saved) {
+    var follow = function () { var s = null; try { s = localStorage.getItem(KEY); } catch (e) { s = null; } if (!s) apply(device()); };
+    if (mq.addEventListener) mq.addEventListener("change", follow); else if (mq.addListener) mq.addListener(follow);
+  }
   document.addEventListener("DOMContentLoaded", function () {
     var b = document.querySelector(".themebtn");
     if (!b) return;
