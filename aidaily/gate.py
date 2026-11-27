@@ -6,7 +6,7 @@ desk, so the rules are checked on the rendered page itself:
 
 - text: every text box inside the canvas, none clipped by its own box, no two text blocks overlapping
 - platform zones: nothing of ours in the space the app draws over (zones() per format)
-- logo chips: the one chip spec (templates.logo_chip): its height, the same padding on all sides, square corners
+- logo chips: the one chip spec (templates.logo_chip): its height, the same padding on all sides, one corner radius
 - credit: 22 px or more on a 1080 px canvas
 - faces: no text over the face of the person in the photo (focus.detect_face, mapped through the crop)
 - dead space: no empty band across the canvas deeper than DEAD of its height (measured on the screenshot)
@@ -119,8 +119,8 @@ def layout_problems(m, fmt):
         pads = {round(float(p.rstrip("px"))) for p in c["p"]}
         if len(pads) != 1 or abs(next(iter(pads)) - round(c["h"] * T.CHIP_PAD)) > 1:
             out.append(f"logo chip padding {sorted(pads)} is not the chip spec")
-        if c["r"] not in ("0px", "0"):
-            out.append("logo chip has round corners")
+        if abs(round(float(str(c["r"]).rstrip("px") or 0)) - round(c["h"] * T.CHIP_RADIUS)) > 1:
+            out.append(f"logo chip corner radius {c['r']} is not the chip spec")
         for z in zones(fmt):
             if _hit((c["x1"], c["y1"], c["x2"], c["y2"]), z):
                 out.append(f"logo chip in the app's zone {z}")

@@ -83,7 +83,7 @@ class Chip(unittest.TestCase):
         for chip in (a, b):
             self.assertIn(f"height:{T.CHIP_H}px", chip)
             self.assertIn(f"padding:{round(T.CHIP_H * T.CHIP_PAD)}px;", chip)
-            self.assertNotIn("border-radius", chip)  # square, like every brand v2 surface
+            self.assertIn(f"border-radius:{round(T.CHIP_H * T.CHIP_RADIUS)}px;", chip)  # one rounded spec on every chip
         # optical size: the square symbol is as tall as the box; the long wordmark is shorter, never wider than 5 boxes
         box = T.CHIP_H - 2 * round(T.CHIP_H * T.CHIP_PAD)
         self.assertEqual(T.logo_size(80 / 98, box)[1], box)

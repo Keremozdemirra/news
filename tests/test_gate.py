@@ -58,7 +58,7 @@ class Gate(unittest.TestCase):
                             f'border-radius:12px;background:#eee"><img src="{uri}" style="height:20px"></div>')
         problems = gate.check(bad, "feed")
         self.assertTrue(any("padding" in p for p in problems))
-        self.assertTrue(any("round corners" in p for p in problems))
+        self.assertTrue(any("corner radius" in p for p in problems))
         good = page(FILLED + f'<div style="position:absolute;left:600px;top:1240px">{T.logo_chip(uri)}</div>')
         self.assertFalse([p for p in gate.check(good, "feed") if "chip" in p])
 

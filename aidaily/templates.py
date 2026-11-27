@@ -279,7 +279,7 @@ def _aspect(uri):
 # padding on all four sides as a share of its height, the logo centred in the box left inside. Logos are sized
 # optically, to about the same inked area: a square symbol takes the box's full height, a long wordmark less. Kerem,
 # 2026-11-27: a wordmark sat 44 px tall in a 96 px chip beside a symbol 76 px tall, so the white around them differed.
-CHIP_H, CHIP_PAD, CHIP_AREA = 96, 0.22, 2.6  # area: a logo covers about CHIP_AREA squares of the box height
+CHIP_H, CHIP_PAD, CHIP_AREA, CHIP_RADIUS = 96, 0.22, 2.6, 0.18  # radius: Kerem prefers the rounded chip of 26 Nov to the square one (2026-11-27)  # area: a logo covers about CHIP_AREA squares of the box height
 
 
 def logo_size(aspect, box):
@@ -314,7 +314,7 @@ def logo_chip(uri, h=CHIP_H):
     box = h - 2 * pad
     aspect = _aspect(uri) if uri.endswith(".svg") else _raster_aspect(uri)
     w, lh = logo_size(aspect, box)
-    return (f'<div data-chip style="box-sizing:border-box;height:{h}px;padding:{pad}px;background:#fff;display:inline-flex;'
+    return (f'<div data-chip style="box-sizing:border-box;height:{h}px;padding:{pad}px;border-radius:{round(h * CHIP_RADIUS)}px;background:#fff;display:inline-flex;'
             f'align-self:flex-start;align-items:center;justify-content:center;flex:none">'
             f'<img src="{uri}" style="width:{w}px;height:{lh}px;object-fit:contain;display:block"></div>')
 
