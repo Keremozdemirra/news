@@ -1459,7 +1459,7 @@ class Formats(Tmp):
         self.assertEqual(self.run_at(w, "number"), {})
 
     def test_week_in_numbers_shows_units_and_drops_bare_counts(self):
-        w = _at(6, 11)
+        w = _at(4, 16)
         self.pub("a", "ElevenLabs valued at $33B", w, 20, figure="$33B", score=9)
         self.pub("b", "Fed holds rates at 5.25%", w, 30, figure="5.25%", score=8)
         self.pub("c", "FCC clears up to 1 million Starmind satellites", w, 40, figure="1 million", score=7)
@@ -1471,7 +1471,7 @@ class Formats(Tmp):
         for gone in ("42 state", ">42<", "1997"):
             self.assertNotIn(gone, out["numbers"])
         self.pub("f", "Policy lasts five-year", w, 5, figure="five-year")
-        self.assertEqual(self.run_at(_at(6, 11, 1), "numbers"), {})  # already ran once today
+        self.assertEqual(self.run_at(_at(4, 16, 1), "numbers"), {})  # already ran once today
 
     def test_company_file_monday_has_three_dated_headlines_and_a_logo(self):
         w = _at(0, 13)
@@ -1538,15 +1538,15 @@ class Formats(Tmp):
         self.assertIn("In the news<br>today.", out["today"])
 
     def test_the_afternoon_slot_still_carries_a_story_when_few_posts_have_logos(self):
-        """2026-11-27, a Friday: 3 of the day's posts had a logo, "today" built nothing, and nothing else was due
+        """2026-11-27: 3 of the day's posts had a logo, "today" built nothing, and nothing else was due
         between 16:00 and 19:30, so Instagram had no story all afternoon. It now carries the last 12 hours, without
         what the morning frame showed."""
-        w = _at(4, 16)
+        w = _at(3, 16)
         for i in range(3):
             self.pub(f"m{i}", f"Morning story {i}", w, 9, score=20)
         for i in range(4):
             self.pub(f"a{i}", f"Afternoon story {i}", w, 1 + i, company=f"Co{i}", logo=i < 2)
-        self.write_post("2026-11-27-last12", kind="story", status="published", story="story.jpg", urls=[],
+        self.write_post("2026-11-26-last12", kind="story", status="published", story="story.jpg", urls=[],
                         refs=["2026-11-2x-m0", "2026-11-2x-m1", "2026-11-2x-m2"], created=(w - timedelta(hours=9)).isoformat())
         out = self.run_at(w, "today")
         self.assertEqual(list(out), ["today"])
@@ -1580,14 +1580,14 @@ class Formats(Tmp):
         self.pub("c", "C headline", w, 72)
         self.assertEqual(self.run_at(w, "shared", "saved"), {})
 
-    def test_week_in_numbers_on_sunday_only(self):
+    def test_week_in_numbers_on_friday_only(self):
         for i, f in enumerate(["5.25%", "$33B", "7.5%"]):
-            self.pub(f"f{i}", f"Headline with {f} inside", _at(6, 11), 30 + i, figure=f, score=9 - i)
-        out = self.run_at(_at(6, 11), "numbers")
+            self.pub(f"f{i}", f"Headline with {f} inside", _at(4, 16), 30 + i, figure=f, score=9 - i)
+        out = self.run_at(_at(4, 16), "numbers")
         self.assertEqual(list(out), ["numbers"])
         self.assertIn("The week<br>in numbers.", out["numbers"])
         self.assertIn("Week 48", out["numbers"])
-        self.assertEqual(self.run_at(_at(5, 11), "numbers"), {})
+        self.assertEqual(self.run_at(_at(6, 16), "numbers"), {})
 
     def test_follow_asks_for_a_plain_mention_and_needs_no_data(self):
         out = self.run_at(_at(5, 18), "follow")  # Saturday

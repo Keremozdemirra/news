@@ -1158,7 +1158,10 @@ def _meaningful(p):
     a unit word right after it in the headline. Bare years, small counts and anything else give None."""
     fig, head_ = (p.get("figure") or "").strip(), _head(p)
     parts = _fig_parts(fig) if fig else None
-    if not parts or not _in_text(fig, head_):
+    # the copy step writes "$300M" where the headline says "$300 million": the same figure, spelled out
+    spelled = re.sub(r"(\d)\s?([MBKT])$", lambda m: m.group(1) + " " + {"M": "million", "B": "billion", "K": "thousand",
+                                                                           "T": "trillion"}[m.group(2)], fig)
+    if not parts or not (_in_text(fig, head_) or (spelled != fig and _in_text(spelled, head_))):
         return None
     pre, val, suf, comma, _ = parts
     if pre or suf.strip() in ("%", "percent"):
@@ -1453,7 +1456,7 @@ def _s_ranked(day, slot, label):
 
 def _s_numbers(day, label):
     figs = sorted([(p, m) for p in _mixed(sorted(_published(24 * 7), key=lambda p: -_score(p)), 99) if (m := _meaningful(p))],
-                  key=lambda x: -_score(x[0]))[:5]
+                  key=lambda x: -_score(x[0]))[:4]  # five overflowed the frame at a readable size (gate.py)
     if len(figs) < 3:
         return []
     return [_queue_story(f"{day}-numbers", R.T.story_numbers([(m[0], _head(q), m[1], _qualifier(q)) for q, m in figs], label),
@@ -1690,14 +1693,15 @@ STORY_SLOTS = {
     "company": (MON_WED_FRI, lambda d, s, l: _s_company(d, l)),
     "board": (TUE_THU, lambda d, s, l: _s_board(d, l)),
     "person": (MON_SAT, lambda d, s, l: _s_person(d, l)),
-    "numbers": (SUN, lambda d, s, l: _s_numbers(d, l)),
+    # the week in numbers closes the working week on Friday, in the hour "In the news today" has on other days
+    "numbers": ((4,), lambda d, s, l: _s_numbers(d, l)),
     "shared": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     "saved": (SUN, lambda d, s, l: _s_ranked(d, s, l)),
     # data stories: the markets close every weekday (the ECB fixes Monday to Friday), the chart on Sunday; with the
     # close taking the eighth weekday place, the follow story moves to Saturday
     "markets": (range(5), lambda d, s, l: _s_markets(d, l)),
     "chart": (SUN, lambda d, s, l: _s_chart(d, l)),
-    "today": (ALL, lambda d, s, l: _s_today(d, l)),
+    "today": ((0, 1, 2, 3, 5, 6), lambda d, s, l: _s_today(d, l)),
     "games": (ALL, lambda d, s, l: _s_games(d, l)),
     "follow": ((5,), lambda d, s, l: _s_follow(d, l)),
     "top5": (ALL, lambda d, s, l: _s_top5(d, s, l)),

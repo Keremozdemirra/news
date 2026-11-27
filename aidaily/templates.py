@@ -477,9 +477,18 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
 <div style="margin-top:40px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
 <div style="flex:1"></div>
 <div style="padding-top:24px;border-top:1px solid {LINE};font-size:24px;color:{GREY};line-height:1.4">Reported by {e(src)}</div>
-<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">
-<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand['name'])}</span><span style="color:{GREY}">{e(domain())}</span></div>
+{_end_cta(brand)}
 </div></body></html>"""
+
+
+def _end_cta(brand):
+    """The foot of a carousel's last slide: what to do next, in plain words. Follow for the next story, and where the
+    whole story and its sources are. It replaced the wordmark and the bare domain, which asked for nothing."""
+    return (f'<div style="margin-top:26px;display:flex;justify-content:space-between;align-items:center;gap:24px">'
+            f'<div style="background:{BLACK};color:{WHITE};padding:16px 26px;font-size:32px;font-weight:800;letter-spacing:-0.01em">'
+            f'Follow {e(brand["handle"])}</div>'
+            f'<div style="text-align:right;font-size:26px;line-height:1.25;color:{BLACK}"><span style="font-weight:700">Full story and sources</span>'
+            f'<br><span style="color:{GREY}">{e(domain())}</span></div></div>')
 
 
 # Instagram draws its slide counter ("2/2") in the top right of a carousel slide: nothing of ours goes in a square
@@ -867,7 +876,8 @@ def story_numbers(rows, label):
     """The week in numbers: up to five figures from the week's posts, each with its headline. A row is
     (figure, headline, unit, qualifier); the type steps down with the row count."""
     n = len(rows)
-    fig, txt, gap = (130, 40, 52) if n <= 3 else (108, 36, 40) if n == 4 else (96, 34, 32)
+    # three figures fill the frame at this size; the headlines under them are read, not skimmed (round 2, 2026-11-27)
+    fig, txt, gap = (150, 46, 60) if n <= 3 else (120, 40, 44) if n == 4 else (104, 36, 34)
     items = ""
     for i, (f, h, *extra) in enumerate(rows):
         u, q = (list(extra) + ["", ""])[:2]
