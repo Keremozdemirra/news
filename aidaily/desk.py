@@ -770,6 +770,10 @@ def audit(post):
         gap = copy.headline_gap(head_, post.get("dek", ""), post.get("body", ""))
         if gap:
             problems.append(gap)
+    # the caption, the figure card and the so-what line are written after the copy was verified: a number that the
+    # article does not state must not reach a reader through them
+    for field, nums in copy.surface_gap(post).items():
+        problems.append(f"{field} states numbers the article does not: {nums}")
     for field in ("dek", "body"):
         prev = ""
         for x in copy.sentences(post.get(field) or ""):

@@ -331,6 +331,24 @@ def _numbers(text):
     return {n.replace(",", "") for n in NUM.findall(text or "")}
 
 
+_NOT_CLAIMS = re.compile(r"\([A-Z]{2,6}:\s?\w+\)|#\w+|@\w+|https?://\S+")
+
+
+def surface_gap(post):
+    """Numbers on a surface the writer's verify() never sees (the caption, the figure card, the so-what line) that the
+    article's own text (headline, dek, body, sources) does not state: {field: sorted numbers}. A ticker in brackets,
+    a hashtag, a link and the "Reported by" and "Source:" lines are not claims."""
+    base = _numbers(" ".join([(post.get("headlines") or [""])[0], post.get("dek", ""), post.get("body", "") or ""]
+                             + list(post.get("sources") or [])))
+    out = {}
+    for field in ("caption", "figure", "so_what"):
+        lines = [l for l in str(post.get(field) or "").splitlines() if not re.match(r"\s*(?:Reported by|Source:)", l)]
+        extra = _numbers(_NOT_CLAIMS.sub(" ", "\n".join(lines))) - base
+        if extra:
+            out[field] = sorted(extra, key=float)
+    return out
+
+
 PCT = re.compile(r"(\d+(?:[.,]\d+)?)\s?(?:%|percent\b|per cent\b|percentage points?\b)", re.I)
 _MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sept?(?:ember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
 PERIODS = {
