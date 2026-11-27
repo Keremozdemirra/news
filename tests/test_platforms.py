@@ -344,6 +344,19 @@ class Clients(Env):
         finally:
             os.environ["FB_PAGE_ID"] = old
 
+    def test_facebook_duplicate_check_reads_the_page_id_from_the_token_too(self):
+        # 2026-11-27: find() ran first and sent the placeholder; every check failed and four posts were skipped
+        import os
+        old = os.environ.get("FB_PAGE_ID")
+        os.environ["FB_PAGE_ID"] = "BURAYA_ID"
+        try:
+            fake = Fake({"me/accounts": {"data": [{"id": "777", "name": "Boardread", "access_token": "pt"}]},
+                         "/777/posts": {"data": []}})
+            self.assertIsNone(platforms.Facebook(opener=fake).find(post()))
+            self.assertFalse([r for r in fake.seen if "BURAYA_ID" in r.full_url])
+        finally:
+            os.environ["FB_PAGE_ID"] = old
+
     def test_facebook_never_posts_with_a_personal_token(self):
         # a user token that manages no Page must not post to the person's own profile
         fake = Fake({"me/accounts": {"data": []}})

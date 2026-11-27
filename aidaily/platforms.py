@@ -597,6 +597,13 @@ class Facebook(Client):
         redact.register(self._page_token)  # and from every saved file and log line of the run
         return self._page_token
 
+    def page_id(self):
+        """The Page's id as page_token() resolved it from the token. The stored FB_PAGE_ID may be a placeholder: read
+        before the token was resolved it sent "BURAYA_ID" to the Graph API, and every duplicate check failed
+        (2026-11-27, six failed checks a post, then skipped)."""
+        self.page_token()
+        return self.env["FB_PAGE_ID"]
+
     def call(self, path, params):
         return self.form("POST", f"{self.host}/{self.version}/{path}", {**params, "access_token": self.page_token()},
                          f"facebook POST {path.split('/')[-1]}")
@@ -608,7 +615,7 @@ class Facebook(Client):
 
     def find(self, post):
         """This story already on the Page: a post whose text carries the story's own page address."""
-        page, url = self.env["FB_PAGE_ID"], story_page(post)
+        page, url = self.page_id(), story_page(post)
         got = self.form("GET", f"{self.host}/{self.version}/{page}/posts",
                         {"fields": "id,message,permalink_url,created_time", "limit": 25, "access_token": self.page_token()},
                         "facebook GET posts")
@@ -634,7 +641,7 @@ class Facebook(Client):
         "Accessible URL of a video file", published defaults to true; Page token with pages_manage_posts). The text
         is the link post's message, so the story address is in it and find() still sees the post."""
         self.page_token()
-        page = self.env["FB_PAGE_ID"]
+        page = self.page_id()
         try:
             got = self.form("POST", f"{self.video_host}/{self.version}/{page}/videos",
                             {"file_url": v["url"], "description": facebook_text(post), "title": _head(post)[:255],
@@ -654,7 +661,7 @@ class Facebook(Client):
         in the text. Alternating halves the link posts: Meta has been testing a monthly cap on them for Pages
         since December 2025 (TechCrunch 2025-12-17; publisher Pages excluded then)."""
         self.page_token()
-        page = self.env["FB_PAGE_ID"]
+        page = self.page_id()
         if (desk.platform_formats("facebook") or ["photo"])[-1] == "link":
             got = self.call(f"{page}/photos", {"url": _images(post)[0], "caption": facebook_text(post)})
             pid = got.get("post_id") or got["id"]
@@ -666,7 +673,7 @@ class Facebook(Client):
         """When the Page's newest story went up (GET /{page-id}/stories, creation_time, same docs), or None. The
         Page is the record: two publish runs started from one commit sent the same frame twice on 2026-11-27."""
         self.page_token()
-        got = self.form("GET", f"{self.host}/{self.version}/{self.env['FB_PAGE_ID']}/stories",
+        got = self.form("GET", f"{self.host}/{self.version}/{self.page_id()}/stories",
                         {"fields": "creation_time,status", "limit": 5, "access_token": self.page_token()}, "facebook GET stories")
         stamps = [int(x["creation_time"]) for x in got.get("data", []) if str(x.get("creation_time", "")).isdigit()]
         return datetime.fromtimestamp(max(stamps), timezone.utc) if stamps else None
@@ -677,7 +684,7 @@ class Facebook(Client):
         with photo_id makes it the story. Same Page token and pages_manage_posts as a feed post. A story takes no
         caption, sticker or link through this API, and a photo already used in a published post cannot be reused."""
         self.page_token()  # resolves FB_PAGE_ID to the Page the token manages
-        page = self.env["FB_PAGE_ID"]
+        page = self.page_id()
         photo = self.call(f"{page}/photos", {"url": image_url, "published": "false"})["id"]
         got = self.call(f"{page}/photo_stories", {"photo_id": photo})
         if not got.get("success") or not got.get("post_id"):
