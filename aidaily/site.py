@@ -920,8 +920,8 @@ def search_page():
 
 
 def not_found():
-    return pagehead("Page not found") + f"""<div class="prose">
-<p>Try the <a href="{BASE}/">front page</a>, the <a href="{BASE}/latest/">latest articles</a> or the <a href="{BASE}/search/">search</a>.</p></div>"""
+    return pagehead("Page not found") + f"""<div class="prose"><ul class="gl">
+<li><a href="{BASE}/">Front page</a></li><li><a href="{BASE}/latest/">Latest</a></li><li><a href="{BASE}/search/">Search</a></li></ul></div>"""
 
 
 # ---------------------------------------------------------------- build

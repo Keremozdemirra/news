@@ -52,11 +52,18 @@ a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-o
 .mstrip{position:relative;display:flex;align-items:center;gap:var(--s3);min-height:44px;font:500 var(--t-meta)/1.3 var(--f);border-bottom:1px solid var(--rule)}
 .mstrip .mtrack{flex:1;min-width:0;overflow:hidden}
 .mstrip ul{display:flex;width:max-content;white-space:nowrap}.mstrip li{display:flex;gap:6px;align-items:baseline;padding-right:var(--s4)}
-@media(prefers-reduced-motion:no-preference){.mstrip ul{animation:tape 70s linear infinite}.mstrip:hover ul,.mstrip:focus-within ul{animation-play-state:paused}}
-@media(prefers-reduced-motion:reduce){.mstrip .mtrack{overflow-x:auto;scrollbar-width:none}.mstrip .mtrack::-webkit-scrollbar{display:none}.mstrip li.dup{display:none}}
-.mstrip .sl,.mstrip .sd{color:var(--soft)}.mstrip .sd{font-size:inherit}.mstrip b{font-weight:700}.mstrip>a{flex:none;color:var(--ink);font-weight:600;padding-left:var(--s2);border-left:1px solid var(--rule)}
+@media(prefers-reduced-motion:no-preference){.mstrip ul{animation:tape 70s linear infinite}.mstrip:hover ul,.mstrip:focus-within ul,.mstrip.paused ul{animation-play-state:paused}}
+@media(prefers-reduced-motion:reduce){.mstrip .mtrack{overflow-x:auto;scrollbar-width:none}.mstrip .mtrack::-webkit-scrollbar{display:none}.mstrip li.dup{display:none}.mstrip .mpause{display:none}}
+.mstrip .mpause{all:unset;box-sizing:border-box;flex:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;color:var(--ink)}
+.mstrip .mpause:hover{text-decoration:underline}.mstrip .mpause:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.mstrip .mpause .pl,.mstrip .mpause[aria-pressed=true] .pa{display:none}.mstrip .mpause[aria-pressed=true] .pl{display:block}
+.mstrip .mtrack:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.mstrip .sl,.mstrip .sd{color:var(--soft)}.mstrip .sd{font-size:inherit}.mstrip b{font-weight:700}.mstrip>a{flex:none;color:var(--ink);font-weight:600;padding-left:var(--s2);border-left:1px solid var(--rule);align-self:stretch;display:flex;align-items:center}
 .chg{font:600 var(--t-meta)/1.3 var(--f);white-space:nowrap}.chg.up{color:var(--up)}.chg.down{color:var(--down)}.chg.flat{color:var(--soft)}
 @media(max-width:900px){
+  /* a sticky bar sticks only inside its parent, and the header around it is only as tall as the bar: the header gives up its box,
+     so the bar's parent is the page and it stays under the thumb while the sections and the strip scroll away */
+  .mh{display:contents}
   .mh .bar{position:sticky;top:0;z-index:20;border-bottom:1px solid var(--rule)}
   .mh .barin{height:52px}.mh .word,.mh .barin h1{font-size:28px}
   .mh .br .chans{display:none}.mh .mlab{display:none}
@@ -310,3 +317,12 @@ a.chan:hover{text-decoration:underline;text-underline-offset:3px}
 .leadrow .pic{aspect-ratio:16/9}
 @media(max-width:720px){.byline{flex-direction:column;align-items:flex-start;gap:2px}.byline span+span::before{content:none}.art-meta span+span::before{margin-right:var(--s1)}}
 .bside .rtgrid{grid-template-columns:1fr}.bside .rt{grid-template-columns:1fr auto}.bside .rt .rs{display:none}.bside .rt .rc{grid-column:2}
+
+/* ---- touch: a link that stands alone is at least 44 px to hit. The padding is cancelled by an equal negative margin, so the page does not move. ---- */
+@media(max-width:900px),(pointer:coarse){
+  .kick,.more,.sec .dm,.sh a,.sportmore a,.foot-base a,.byline a,.art-meta a,.mt a,.meta a,.attr a,.cap a{display:inline-block;padding:13px 0;margin:-13px 0}
+  .mh .word{display:inline-flex;align-items:center;min-height:44px}
+  .gl{list-style:none;margin:0;padding:0}.gl a{display:flex;align-items:center;min-height:44px}
+  .kbd-hint{display:none}
+}
+.kbd-hint{min-height:44px;padding:0 var(--s1)}

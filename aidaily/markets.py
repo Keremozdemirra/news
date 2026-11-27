@@ -583,7 +583,10 @@ def strip(m, base=""):
     # the list runs twice in one track that slides left by half its width, so the loop has no seam; the copy is hidden
     # from screen readers. All data stays put on the right. Reduced motion: no sliding, one copy, scroll by hand.
     copy = "".join(i.replace("<li", '<li aria-hidden="true" class="dup"', 1) for i in items)
-    return (f'<div class="mstrip"><div class="mtrack"><ul aria-label="Markets">{"".join(items)}{copy}</ul></div>'
+    # the pause button is the way to stop the motion on a touch screen, where there is no hover to do it (WCAG 2.2.2)
+    pause = ('<button type="button" class="mpause" aria-pressed="false" aria-label="Pause the ticker"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" '
+             'stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true" focusable="false"><path class="pa" d="M5 3v10M11 3v10"/><path class="pl" d="M5 3l8 5-8 5z"/></svg></button>')
+    return (f'<div class="mstrip"><div class="mtrack"><ul aria-label="Markets">{"".join(items)}{copy}</ul></div>{pause}'
             f'<a href="{base}/numbers/">All data</a></div>')
 
 

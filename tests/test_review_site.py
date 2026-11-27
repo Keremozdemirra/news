@@ -124,6 +124,36 @@ class Related(unittest.TestCase):
         self.assertFalse(site.more_on(dict(p, body="Nothing here."), "Habitat Property", [p, *others]))
 
 
+class Touch(unittest.TestCase):
+    css = (site.ASSETS / "views.css").read_text()
+    js = (site.ASSETS / "site.js").read_text()
+
+    def test_the_header_gives_up_its_box_on_a_phone_so_the_bar_can_stick(self):
+        mobile = self.css[self.css.index("@media(max-width:900px){\n  /* a sticky bar"):]
+        mobile = mobile[:mobile.index("\n}")]
+        self.assertIn(".mh{display:contents}", mobile)
+        self.assertIn(".mh .bar{position:sticky;top:0", mobile)
+
+    def test_the_strip_has_a_pause_button_that_reduced_motion_hides(self):
+        html = markets.strip(data(True))
+        self.assertRegex(html, r'<button type="button" class="mpause" aria-pressed="false"')
+        self.assertIn(".mstrip.paused ul{animation-play-state:paused}", self.css)
+        self.assertRegex(self.css, r"prefers-reduced-motion:reduce\)\{[^@]*\.mstrip \.mpause\{display:none\}")
+        self.assertIn('"aria-pressed"', self.js)
+        self.assertIn("track.tabIndex = 0", self.js)
+
+    def test_the_shortcuts_button_is_for_a_keyboard(self):
+        self.assertIn("(hover: hover) and (pointer: fine)", self.js)
+        self.assertIn(".kbd-hint{display:none}", self.css)
+
+    def test_standalone_links_get_a_44px_target_on_touch(self):
+        self.assertRegex(self.css, r"\.kick,\.more[^{]*\{display:inline-block;padding:13px 0;margin:-13px 0\}")
+        self.assertIn("min-height:44px", self.css[self.css.index(".gl a"):][:80])
+
+    def test_no_gradient_anywhere(self):
+        self.assertNotIn("gradient", self.css)
+
+
 class Built(Features):
     """A real build: the pages and feeds the review found wrong."""
 
@@ -157,6 +187,9 @@ class Built(Features):
                 self.assertNotIn("Yesterday&#x27;s paper, ", h)
                 self.assertNotIn("Yesterday&#x27;s<br>paper", h)
                 self.assertRegex(re.search(r"<title>(.*?)</title>", h).group(1), r"^The paper, \d+ \w+ \d{4}")
+
+    def test_the_404_page_links_are_a_list_of_big_targets(self):
+        self.assertIn('class="gl"', self.read("404.html"))
 
     def test_the_paper_has_a_text_edition_for_phones(self):
         self.assertIn('class="mlist"', self.read("paper/index.html"))

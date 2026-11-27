@@ -76,7 +76,22 @@
     panel.hidden = !on;
     if (on) panel.querySelector("button").focus();
   }
-  document.querySelectorAll("[data-keys]").forEach(function (b) { b.hidden = false; b.addEventListener("click", function () { showKeys(true); }); });
+  // the shortcuts need a keyboard: a phone has none, so it never sees the button
+  var keyboard = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  document.querySelectorAll("[data-keys]").forEach(function (b) { b.hidden = !keyboard; b.addEventListener("click", function () { showKeys(true); }); });
+
+  // the markets strip moves on its own: a button stops it (a touch screen has no hover), and a reader who asked for less motion
+  // gets a strip that scrolls by hand and can be reached with the keyboard
+  document.querySelectorAll(".mstrip").forEach(function (strip) {
+    var btn = strip.querySelector(".mpause"), track = strip.querySelector(".mtrack");
+    if (btn) btn.addEventListener("click", function () {
+      var on = btn.getAttribute("aria-pressed") !== "true";
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.setAttribute("aria-label", on ? "Play the ticker" : "Pause the ticker");
+      strip.classList.toggle("paused", on);
+    });
+    if (track && matchMedia("(prefers-reduced-motion: reduce)").matches) { track.tabIndex = 0; track.setAttribute("role", "region"); track.setAttribute("aria-label", "Markets, scrolls sideways"); }
+  });
   var list = [], at = -1;
   function stories() {
     var seenHref = {};
