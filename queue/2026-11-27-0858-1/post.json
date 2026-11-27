@@ -48,5 +48,12 @@
  "credit_file": "Bulk carrier at Halifax Grain Elevator.jpg",
  "status": "web",
  "published": "2026-11-27T08:58:04+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3bya2m4lk2j",
+   "url": "https://bsky.app/profile/boardread.bsky.social/post/3n3bya2m4lk2j",
+   "at": "2026-11-27T10:30:20+00:00"
+  }
+ }
 }
