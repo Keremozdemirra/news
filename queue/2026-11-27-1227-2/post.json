@@ -1,0 +1,66 @@
+{
+ "id": "2026-11-27-1227-2",
+ "batch": "2026-11-27-1227",
+ "n": 2,
+ "created": "2026-11-27T12:28:30+00:00",
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Spain heads to early election Sunday as housing and immigration dominate debate\n\nThe vote may usher in a right-wing coalition to replace Prime Minister Pedro Sanchez's Socialist-led minority government. The struggle many face in buying a home has been the biggest issue of a bitter campaign. Sanchez is one of Europe's last leftist leaders.\n\nReported by France 24; BBC.\n\nSend this to whoever on your team follows policy.\n\n#politics #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.france24.com/en/video/20261127-spain-election-housing-crisis-and-immigration-dominate-final-campaign-debate"
+ ],
+ "links": [
+  "https://www.bbc.co.uk/news/articles/ckr5gr4g8gn5o?at_medium=RSS&at_campaign=rss",
+  "https://www.france24.com/en/video/20261127-spain-election-housing-crisis-and-immigration-dominate-final-campaign-debate"
+ ],
+ "headlines": [
+  "Spain heads to early election Sunday as housing and immigration dominate debate"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "20200417 Quartier Eurobahnhof 01.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A residential building under construction with a tower crane",
+ "score": 9.074,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The vote may usher in a right-wing coalition to replace Prime Minister Pedro Sanchez's Socialist-led minority government.",
+ "body": "The struggle many face in buying a home has been the biggest issue of a bitter campaign. Sanchez is one of Europe's last leftist leaders.",
+ "so_what": "",
+ "sources": [
+  "France 24",
+  "BBC"
+ ],
+ "source_urls": [
+  "https://www.france24.com/en/video/20261127-spain-election-housing-crisis-and-immigration-dominate-final-campaign-debate",
+  "https://www.bbc.co.uk/news/articles/ckr5gr4g8gn5o?at_medium=RSS&at_campaign=rss"
+ ],
+ "credit": "Photo: Flocci Nivis, CC BY 4.0, via Wikimedia Commons",
+ "credit_file": "20200417 Quartier Eurobahnhof 01.jpg",
+ "video": {
+  "shape": "reel",
+  "file": "video.mp4",
+  "cover": "cover.jpg",
+  "spec": [],
+  "headline": "Spain heads to early election Sunday as housing and immigration dominate debate",
+  "photo_file": "20200417 Quartier Eurobahnhof 01.jpg",
+  "credit": "Photo: Flocci Nivis, CC BY 4.0, via Wikimedia Commons",
+  "focus": [
+   0.5,
+   0.5
+  ],
+  "seconds": 8.0
+ },
+ "status": "queued",
+ "publish_after": "2026-11-27T13:12:25+00:00",
+ "story": ""
+}

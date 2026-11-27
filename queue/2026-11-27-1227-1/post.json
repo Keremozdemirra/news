@@ -1,0 +1,68 @@
+{
+ "id": "2026-11-27-1227-1",
+ "batch": "2026-11-27-1227",
+ "n": 1,
+ "created": "2026-11-27T12:27:53+00:00",
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Hackers breach US Air Force's Cloud One cloud computing platform\n\nThe intrusion was found within the past month during a system upgrade, three people familiar with the matter said. Cloud One powers the Air Force's air defense radar and other data feeds, according to Reuters sources. The breach could put a vast swathe of sensitive tactical, personnel and logistics data at risk. The discovery has led to disruption across the platform, two of the people said.\n\nReported by South China Morning Post; Bloomberg; Reuters.\n\nSend this to whoever on your team covers tech.\n\n#tech #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.scmp.com/news/world/united-states-canada/article/3376087/hackers-breach-us-air-force-cloud-one-platform-putting-military-data-risk"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/hackers-breached-us-air-force-s-cloud-platform",
+  "https://www.scmp.com/news/world/united-states-canada/article/3376087/hackers-breach-us-air-force-cloud-one-platform-putting-military-data-risk",
+  "https://www.techmeme.com/261127/p4#a261127p4"
+ ],
+ "headlines": [
+  "Hackers breach US Air Force's Cloud One cloud computing platform"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "Tech",
+ "photo_file": "Datacenter Server Racks (22370909788).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A server room with empty racks",
+ "score": 9.998,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The intrusion was found within the past month during a system upgrade, three people familiar with the matter said.",
+ "body": "Cloud One powers the Air Force's air defense radar and other data feeds, according to Reuters sources. The breach could put a vast swathe of sensitive tactical, personnel and logistics data at risk. The discovery has led to disruption across the platform, two of the people said.",
+ "so_what": "",
+ "sources": [
+  "South China Morning Post",
+  "Bloomberg",
+  "Reuters"
+ ],
+ "source_urls": [
+  "https://www.scmp.com/news/world/united-states-canada/article/3376087/hackers-breach-us-air-force-cloud-one-platform-putting-military-data-risk",
+  "https://www.bloomberg.com/news/articles/2026-11-27/hackers-breached-us-air-force-s-cloud-platform"
+ ],
+ "credit": "Photo: Carl Lender from Sunrise, USA, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Datacenter Server Racks (22370909788).jpg",
+ "video": {
+  "shape": "card",
+  "file": "video.mp4",
+  "cover": "cover.jpg",
+  "spec": [],
+  "headline": "Hackers breach US Air Force's Cloud One cloud computing platform",
+  "photo_file": "Datacenter Server Racks (22370909788).jpg",
+  "credit": "Photo: Carl Lender from Sunrise, USA, CC BY 2.0, via Wikimedia Commons",
+  "focus": [
+   0.5,
+   0.5
+  ],
+  "seconds": 8.0
+ },
+ "status": "queued",
+ "publish_after": "2026-11-27T12:27:25+00:00",
+ "story": ""
+}

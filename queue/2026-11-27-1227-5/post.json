@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-1227-5",
+ "batch": "2026-11-27-1227",
+ "n": 5,
+ "created": "2026-11-27T12:28:32+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "France enters recession after GDP falls 0.2% in third quarter\n\nThe country has now posted two consecutive quarters of negative growth. France's national statistics bureau reported the figure for the third quarter of 2026. The bureau had previously reported stagnation for the quarter.\n\nReported by Le Monde in English.\n\nSend this to whoever on your team tracks the economy.\n\n#economy #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.lemonde.fr/en/economy/article/2026/11/27/france-enters-recession-after-two-consecutive-quarters-of-gdp-decline_6789838_19.html"
+ ],
+ "links": [
+  "https://www.lemonde.fr/en/economy/article/2026/11/27/france-enters-recession-after-two-consecutive-quarters-of-gdp-decline_6789838_19.html"
+ ],
+ "headlines": [
+  "France enters recession after GDP falls 0.2% in third quarter"
+ ],
+ "categories": [
+  "markets"
+ ],
+ "topic": "Economy",
+ "photo_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Container cranes across a bay",
+ "score": 8.146,
+ "figure": "0.2%",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The country has now posted two consecutive quarters of negative growth.",
+ "body": "France's national statistics bureau reported the figure for the third quarter of 2026. The bureau had previously reported stagnation for the quarter.",
+ "so_what": "",
+ "sources": [
+  "Le Monde in English"
+ ],
+ "source_urls": [
+  "https://www.lemonde.fr/en/economy/article/2026/11/27/france-enters-recession-after-two-consecutive-quarters-of-gdp-decline_6789838_19.html"
+ ],
+ "credit": "Photo: Wikipek, CC0, via Wikimedia Commons",
+ "credit_file": "Cranes in the Port of Algeciras and Gibraltar.jpg",
+ "status": "web",
+ "published": "2026-11-27T12:28:32+00:00",
+ "story": ""
+}

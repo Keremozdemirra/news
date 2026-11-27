@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-1227-3",
+ "batch": "2026-11-27-1227",
+ "n": 3,
+ "created": "2026-11-27T12:28:31+00:00",
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "South Korea's FSS inspects E9Pay after 2.5 billion won hacking loss\n\nAbout 90 hacking attacks caused the largest reported financial loss from a domestic hacking incident in South Korea to date. E9Pay is an overseas remittance fintech firm. The losses confirmed so far, equal to $1.88 million, could increase if investigators uncover additional breaches. The Financial Supervisory Service is examining the circumstances of the attacks and the resulting fund outflows.\n\nReported by The Korea Herald.\n\nSend this to whoever on your team covers E9Pay.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.koreaherald.com/article/10952280"
+ ],
+ "links": [
+  "https://www.koreaherald.com/article/10952280"
+ ],
+ "headlines": [
+  "South Korea's FSS inspects E9Pay after 2.5 billion won hacking loss"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Business",
+ "photo_file": "A view of the server room at The National Archives.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A server room corridor with glowing racks",
+ "score": 8.5,
+ "figure": "2.5 billion won",
+ "company": "E9Pay",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "About 90 hacking attacks caused the largest reported financial loss from a domestic hacking incident in South Korea to date.",
+ "body": "E9Pay is an overseas remittance fintech firm. The losses confirmed so far, equal to $1.88 million, could increase if investigators uncover additional breaches. The Financial Supervisory Service is examining the circumstances of the attacks and the resulting fund outflows.",
+ "so_what": "",
+ "sources": [
+  "The Korea Herald"
+ ],
+ "source_urls": [
+  "https://www.koreaherald.com/article/10952280"
+ ],
+ "credit": "Photo: The National Archives (UK), CC BY 3.0, via Wikimedia Commons",
+ "credit_file": "A view of the server room at The National Archives.jpg",
+ "status": "queued",
+ "publish_after": "2026-11-27T13:57:25+00:00",
+ "story": ""
+}

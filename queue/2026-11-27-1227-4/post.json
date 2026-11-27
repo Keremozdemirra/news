@@ -1,0 +1,49 @@
+{
+ "id": "2026-11-27-1227-4",
+ "batch": "2026-11-27-1227",
+ "n": 4,
+ "created": "2026-11-27T12:28:32+00:00",
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "EU approves Deutsche Boerse's €5.3 billion Allfunds deal\n\nThe deal for Allfunds Group is the largest acquisition in the German exchange operator's history. Deutsche Boerse AG's €5.3 billion bid for Allfunds Group Plc is worth $5.8 billion. The European Union's approval carries no conditions.\n\nReported by Bloomberg.\n\nSend this to whoever on your team covers Deutsche Boerse.\n\n#business #news",
+ "source_cta": false,
+ "urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/deutsche-boerse-s-5-3-billion-allfunds-deal-gets-eu-approval"
+ ],
+ "links": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/deutsche-boerse-s-5-3-billion-allfunds-deal-gets-eu-approval"
+ ],
+ "headlines": [
+  "EU approves Deutsche Boerse's €5.3 billion Allfunds deal"
+ ],
+ "categories": [
+  "business"
+ ],
+ "topic": "Business",
+ "photo_file": "Glass office tower seen from below, São Paulo.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A glass office tower seen from below",
+ "score": 8.348,
+ "figure": "€5.3 billion",
+ "company": "Deutsche Boerse",
+ "ticker": null,
+ "person": "",
+ "logo_names": [],
+ "dek": "The deal for Allfunds Group is the largest acquisition in the German exchange operator's history.",
+ "body": "Deutsche Boerse AG's €5.3 billion bid for Allfunds Group Plc is worth $5.8 billion. The European Union's approval carries no conditions.",
+ "so_what": "",
+ "sources": [
+  "Bloomberg"
+ ],
+ "source_urls": [
+  "https://www.bloomberg.com/news/articles/2026-11-27/deutsche-boerse-s-5-3-billion-allfunds-deal-gets-eu-approval"
+ ],
+ "credit": "Photo: Wilfredor, CC0, via Wikimedia Commons",
+ "credit_file": "Glass office tower seen from below, São Paulo.jpg",
+ "status": "web",
+ "published": "2026-11-27T12:28:32+00:00",
+ "story": ""
+}
