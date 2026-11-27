@@ -75,6 +75,18 @@ class Choice(unittest.TestCase):
         s["_assets"]["kind"] = "person"
         self.assertEqual(FL.photo_fit(s), "high")
 
+    def test_a_company_photo_with_a_portrait_face_does_not_fit(self):
+        """The Musinsa card showed a model (2026-11-27). A large face high in a company photo, when the story names
+        no person, drops the photo; a warm facade read as skin (low, Google's Hyderabad office) does not."""
+        s = story("Musinsa operating profit jumps 67%", "file://" + __file__, "company")
+        with mock.patch.object(FL.focus, "detect_face", return_value=(0.6, 0.21, 0.36)):
+            self.assertEqual(FL.photo_fit(s), "low")
+        with mock.patch.object(FL.focus, "detect_face", return_value=(0.49, 0.58, 0.41)):
+            self.assertEqual(FL.photo_fit(s), "high")
+        with mock.patch.object(FL.focus, "detect_face", return_value=(0.6, 0.21, 0.36)):
+            s["person"] = "Jo Man-ho"
+            self.assertEqual(FL.photo_fit(s), "high")
+
     def test_type_fills_the_card(self):
         short, long = "Fed holds rates", "Canada's Supreme Court largely upholds Quebec's religious symbols ban after a long fight"
         self.assertGreater(FL.fill_size(short, 936, 700), FL.fill_size(long, 936, 700))

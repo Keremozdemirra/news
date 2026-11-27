@@ -229,6 +229,17 @@ def is_deal(story):
     return DEAL.search(story.get("headline") or story.get("title") or "") is not None
 
 
+def _face(uri):
+    """A portrait-like face: a large head (a third of the width or more) in the upper half. The skin-tone finder
+    also fires on warm facades and on shoppers far off (Google's Hyderabad office, a Target store), which sit lower
+    or smaller; on the 7 company photos of 26-27 Nov this split the model from every building. A miss only costs
+    the photo: the card falls back to type."""
+    from urllib.parse import unquote, urlparse
+    path = unquote(urlparse(uri).path) if uri.startswith("file:") else ""
+    found = focus.detect_face(path) if path and Path(path).exists() else None
+    return bool(found) and found[2] >= 0.3 and found[1] < 0.45
+
+
 def photo_fit(story):
     """"high" when the card's photo is of the story: the person, the company's own premises, the named place, or a
     vetted scene the article's own subject or place matched (its scene rule, or a place or subject the text names).
@@ -239,6 +250,10 @@ def photo_fit(story):
     if not (a.get("photo") or file_):
         return "none"
     kind = a.get("kind") or story.get("photo_kind") or ""
+    if kind == "company" and not story.get("person") and _face(a.get("photo", "")):
+        # a company's photo with a face in it shows someone the story does not name (a model on the Musinsa card,
+        # 2026-11-27); the company's premises or its own products are what the company photo is for
+        return "low"
     if kind in ("person", "company", "place"):
         return "high"
     title = story.get("headline") or story.get("title") or (story.get("headlines") or [""])[0]
