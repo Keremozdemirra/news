@@ -321,7 +321,9 @@ class Photos(unittest.TestCase):
              mock.patch.object(T.scenes, "photo", return_value=(None, "", "", "")), \
              mock.patch.object(E, "fresh_photo", side_effect=lambda subj, *a, **k: seen.append(subj) or (None, "", "")):
             T.assets(s)
-        self.assertEqual([subj[0] for call in seen for subj in call], ["", ""])
+        # person, company and venue tiers are asked; none with the company the headline does not name
+        self.assertNotIn("Stellantis", [subj[0] for call in seen for subj in call])
+        self.assertTrue(seen)
 
     def test_company_logo_only_when_the_headline_names_it(self):
         s = {"headline": "Doug Ford and Unifor leader urge Ottawa to scrap automaker rules", "company": "Stellantis",

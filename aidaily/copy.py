@@ -82,6 +82,9 @@ Fields:
 - orgs: up to 3 companies or institutions the story names, main one first, each spelled as in the source
   ([] if none)
 - image_query: {image_rule}
+- venue: the institution or ground the story is about that a photo can show, by the name Wikipedia gives it: a central
+  bank, court, parliament, stock exchange, ministry, international body, stadium or arena, like "Bank of Japan",
+  "International Court of Justice", "Vitality Stadium" ("" if none; never a company, never a city alone)
 - figure: the single key figure as written in the source, digits only, like "$36M", "40%" or "77,000" ("" if
   none, if it is a word like "a quarter", or if the source qualifies it with "more than", "up to", "about")
 - x_post: max 240 characters, headline plus one fact, no hashtags, no link
@@ -571,7 +574,7 @@ def apply(stories, reply_rows):
         else:
             s.update({k: c.get(k, "") for k in ("headline", "dek", "company", "company_domain", "backer", "person",
                                                  "person_role", "figure", "x_post", "linkedin_post", "image_query",
-                                                 "topic")},
+                                                 "topic", "venue")},
                      copy_status="ok")
             s["headline"] = fix_legislature(s["headline"])
             if s.get("dek") and (META.search(s["dek"]) or OFFTOPIC.search(s["dek"])):

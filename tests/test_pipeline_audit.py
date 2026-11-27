@@ -221,3 +221,48 @@ class WriterReview(unittest.TestCase):
         self.assertEqual(copy.fix_legislature("Argentina's Senate approves bill"), "Argentina's Senate approves bill")
         post = {"headlines": ["Japan's Senate narrowly rejects censure motion"], "topic": "Politics", "dek": "x.", "body": TWO}
         self.assertTrue(any("Senate" in p for p in desk.audit(post)))
+
+
+def _snak(v):
+    return {"mainsnak": {"datavalue": {"value": v}}}
+
+
+class VenueTier(unittest.TestCase):
+    """Photo plan item 4: a named institution or ground, resolved by its Wikidata class."""
+
+    def fake(self, url, raw=False):
+        if "wbsearchentities" in url:
+            if "Bournemouth" in url:
+                return {"search": [{"id": "Q19568"}]}
+            if "Bank%20of%20Japan" in url:
+                return {"search": [{"id": "Q1"}, {"id": "Q22"}]}
+            return {"search": [{"id": "Q9"}]}
+        if "wbgetentities" in url:
+            return {"entities": {
+                "Q19568": {"labels": {"en": {"value": "AFC Bournemouth"}}, "claims": {"P31": [_snak({"id": "Q476028"})],
+                                                                                      "P115": [_snak({"id": "Q500"})]}},
+                "Q1": {"labels": {"en": {"value": "Bank of Japan Dori"}}, "claims": {"P31": [_snak({"id": "Q79007"})]}},  # a street
+                "Q22": {"labels": {"en": {"value": "Bank of Japan"}}, "claims": {"P31": [_snak({"id": "Q66344"})],
+                                                                                 "P18": [_snak("Bank of Japan head office.jpg")]}},
+                "Q9": {"labels": {"en": {"value": "Acme"}}, "claims": {"P31": [_snak({"id": "Q4830453"})]}}}}  # a business
+        if "EntityData/Q500" in url:
+            return {"entities": {"Q500": {"labels": {"en": {"value": "Dean Court"}},
+                                          "claims": {"P18": [_snak("Dean Court 2019.jpg")]}}}}
+        raise AssertionError(url)
+
+    def test_a_club_gives_its_home_ground_and_a_bank_its_building_never_a_namesake_or_a_company(self):
+        with mock.patch.object(entities, "_get", side_effect=self.fake):
+            self.assertEqual(entities.venue_entity("AFC Bournemouth")[0], "Dean Court")
+            label, claims = entities.venue_entity("Bank of Japan")
+            self.assertEqual(label, "Bank of Japan")
+            self.assertEqual(entities.venue_files(claims, label), ["Bank of Japan head office.jpg"])
+            self.assertEqual(entities.venue_entity("Acme"), (None, {}))
+
+    def test_a_concert_in_the_categories_is_not_the_stadium(self):
+        info = {"extmetadata": {"Categories": {"value": "Concerts at Lincoln Financial Field|One Direction"},
+                                "ImageDescription": {"value": "Lincoln Financial Field"}}, "width": 2000, "height": 1400, "url": "u"}
+        with mock.patch.object(entities, "candidates", return_value=["Lincoln Financial Field night.jpg"]), \
+             mock.patch.object(entities, "_commons_info", return_value=info), \
+             mock.patch.object(entities, "photo_ok", return_value=(True, "Photo: X, CC BY 2.0")), \
+             mock.patch.object(entities, "_get", side_effect=AssertionError("must not download")):
+            self.assertEqual(entities.fresh_photo([("Lincoln Financial Field", False)], set(), allow="Eagles")[2], "")

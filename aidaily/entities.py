@@ -640,12 +640,77 @@ def foreign_names(title, allow):
     return verdict()
 
 
-def candidates(subject, person=False, company=False, role=None):
+# What a story's named institution or ground may be, by its Wikidata class (P31, direct): only these get the place tier.
+VENUE_TYPES = frozenset("""Q66344 Q41487 Q190752 Q1229264 Q11204 Q35749 Q637846 Q375928 Q11691 Q192350 Q327333 Q483110
+Q1154710 Q1076486 Q641226 Q484652 Q245065 Q1137809 Q2977 Q16831714 Q43229 Q7188 Q1752346 Q1371037 Q3887 Q17149090
+Q33506 Q207694 Q24354 Q1060829 Q15265344 Q2526255 Q14350 Q1774898 Q1262438 Q189445 Q37002670 Q748720 Q1752939""".split())
+# a club's own photo is its ground: P115, home venue
+CLUB_TYPES = frozenset("Q476028 Q17156793 Q13393265 Q4498974 Q847017 Q103229495 Q20639856 Q17270000".split())
+
+
+def _claim_ids(claims, prop):
+    return [c["mainsnak"]["datavalue"]["value"]["id"] for c in claims.get(prop, []) if "datavalue" in c.get("mainsnak", {})]
+
+
+def venue_entity(name):
+    """(label, claims) of the institution, building or ground a story names, or (None, {}): the first of seven search
+    hits whose label carries the name and whose class is a venue type; a club gives its home ground (P115)."""
+    q = urllib.parse.quote(name)
+    hits = _get(f"https://www.wikidata.org/w/api.php?action=wbsearchentities&format=json&language=en&type=item&limit=7&search={q}")["search"]
+    ids = [h["id"] for h in hits]
+    if not ids:
+        return None, {}
+    ents = _get("https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=claims|labels&languages=en"
+                f"&ids={'|'.join(ids)}")["entities"]
+    want = _stems5(name)
+    for qid in ids:
+        e = ents.get(qid, {})
+        label = (e.get("labels", {}).get("en") or {}).get("value", "")
+        # "Indian Parliament" is "Parliament of India": words compared by their first five letters
+        if not want or not want <= _stems5(label):
+            continue
+        claims = e.get("claims", {})
+        types = set(_claim_ids(claims, "P31"))
+        if types & CLUB_TYPES:
+            home = _claim_ids(claims, "P115")[:1]
+            if home:
+                h = _get(f"https://www.wikidata.org/wiki/Special:EntityData/{home[0]}.json")["entities"][home[0]]
+                return (h.get("labels", {}).get("en") or {}).get("value", ""), h.get("claims", {})
+            return None, {}
+        if types & VENUE_TYPES:
+            return label, claims
+    return None, {}
+
+
+def _stems5(text):
+    return {w[:5] for w in _words(text) if w not in ("of", "the")}
+
+
+def venue_files(claims, label=""):
+    """The venue's Wikidata image, then the files of its Commons category that carry its name (a category of the Bank
+    of Japan also holds other Japanese banks), minus people, events and graphics."""
+    own = [c["mainsnak"]["datavalue"]["value"] for c in claims.get("P18", []) if "datavalue" in c.get("mainsnak", {})]
+    files = list(own)
+    cat = [c["mainsnak"]["datavalue"]["value"] for c in claims.get("P373", []) if "datavalue" in c.get("mainsnak", {})]
+    if cat:
+        t = urllib.parse.quote("Category:" + cat[0])
+        got = _get(f"https://commons.wikimedia.org/w/api.php?action=query&format=json&list=categorymembers&cmtype=file"
+                   f"&cmlimit=50&cmtitle={t}")["query"]["categorymembers"]
+        name = _stems5(label)
+        files += [m["title"][5:] for m in got if phrase_in(label, m["title"]) or len(name & _stems5(m["title"])) >= max(2, len(name))]
+    return [f for f in dict.fromkeys(files) if not (STRICT_NOT.search(f) or PEOPLE.search(f) or CROWD.search(f) or EVENT.search(f)
+                                                     or PEOPLE_ART.search(f))]
+
+
+def candidates(subject, person=False, company=False, role=None, venue=False):
     """Commons JPEG names that may show the subject: a person's Wikidata image and category, or a search
     whose hits must name the subject in their own title and must not be photos of people or events.
     With `role`, the person is the Wikidata entity whose description matches it (see person_entity)."""
     files = []
-    if person:
+    if venue:
+        label, claims = venue_entity(subject)
+        files = venue_files(claims, label) if claims else []
+    elif person:
         _, claims = _entity(subject) if role is None else person_entity(subject, role)
         if role is not None and not claims:
             return []
@@ -794,13 +859,14 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
     for subject in subjects:
         text, is_person = subject[0], subject[1]
         role = subject[2] if len(subject) > 2 else None
+        place = len(subject) > 3 and subject[3] == "venue"
         if not text:
             continue
         deferred = None
         try:
             # the premises rule is for a company's photos; a place named in the headline (strict) and a sport ground
             # (teams) have their own checks
-            names = candidates(text, is_person, company=not (is_person or strict or teams), role=role)
+            names = candidates(text, is_person, company=not (is_person or strict or teams or place), role=role, venue=place)
         except Exception:  # noqa: BLE001  one failed lookup moves on to the next subject
             continue
         for f in names[:30]:
@@ -828,6 +894,10 @@ def fresh_photo(subjects, used, fetch=True, allow="", teams=False, strict=False)
             raw_cats = (info.get("extmetadata", {}).get("Categories") or {}).get("value", "")
             cats = raw_cats.replace("|", " ")
             if GRAPHIC.search(cats):
+                continue
+            # a concert, rally or ceremony at the place is not the place: the title alone let "One Direction - Lincoln
+            # Financial Field" through; the categories and description say what the picture shows
+            if not is_person and EVENT.search(f"{desc} {cats}"):
                 continue
             # a file found by name alone may show a namesake: its description or categories must carry the role
             if is_person and role is not None and f in SEARCHED:

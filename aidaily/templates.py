@@ -98,8 +98,12 @@ def pick_photo(story, head_, co, fetch=True, sport=False):
     # own photo only when the headline names the company, like its logo: a Stellantis plant in France once ran over
     # a headline about Ontario's premier
     own_co = co if co and in_headline(co, head_) else ""
+    # then the named institution or ground (a central bank, a court, a parliament, a stadium; a club's home ground),
+    # resolved by its Wikidata class: Bank of Japan's head office, not Antwerp's cranes
+    venue = story.get("venue", "") or (co if sport else "")
     for tag, subject in [("person", (story.get("person", ""), True, story.get("person_role", "") if not sport else None)),
-                         ("company", (story.get("image_query", "") if sport else own_co, False))]:
+                         ("company", (story.get("image_query", "") if sport else own_co, False)),
+                         ("place", (venue, False, None, "venue"))]:
         ph, credit, file_ = entities.fresh_photo([subject], USED, fetch=fetch, allow=allow, teams=sport)
         if file_:
             kind = tag
