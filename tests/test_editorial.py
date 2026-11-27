@@ -227,6 +227,11 @@ class Copy(unittest.TestCase):
         p.update(headlines=["UK net migration falls to 77,000"], figure="77,000")
         self.assertIn("The number", site.number_box(p))
 
+    def test_a_short_sentence_the_dek_already_holds_goes(self):
+        out = copy.drop_repeats("The projection covers the current fiscal year. It equals $6 billion.",
+                                ["The figure equals $6 billion, and the war keeps oil prices elevated."], "Alberta raises surplus")
+        self.assertEqual(out, "The projection covers the current fiscal year.")
+
     def test_a_spelled_out_quantity_is_never_the_number(self):
         s = {"title": "Number of Neets in UK falls below a million", "summary": "", "source": "The Guardian"}
         copy.apply([s], [{"id": 0, "headline": "UK Neet number falls below a million", "dek": "", "x_post": "",
@@ -379,6 +384,9 @@ class PostDesign(unittest.TestCase):
         self.assertIn("Reported by 3 newsrooms", html)
         self.assertIn("Every link is on the article at boardread.news.", html)
         self.assertIn("Comment SOURCE", T.sources_slide(self.story(), ["FT"], cta=True))
+        one = T.sources_slide(self.story(), ["Bloomberg"])
+        self.assertIn("Reported by Bloomberg", one)
+        self.assertNotIn("<ol", one)
 
 
 class ExtendedCarousel(unittest.TestCase):

@@ -430,8 +430,11 @@ def sources_slide(story, outlets, cta=False, brand=BRAND):
     ask = ("Comment SOURCE and we send the links to your DMs." if cta else
            f"Every link is on the article at {domain()}.")
     head_ = f"Reported by {len(names)} newsrooms" if len(names) > 1 else f"Reported by {names[0]}"
+    # one newsroom is named in the heading; a list of one would say it twice
+    listed = (f'<ol style="list-style:none;margin:48px 0 0;padding:0;font-size:40px;font-weight:700;border-top:1px solid {LINE}">'
+              f'{rows}</ol>{more}') if len(names) > 1 else ""
     inner = (f'<h2 style="margin:64px 0 0;font-size:72px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{e(head_)}</h2>'
-             f'<ol style="list-style:none;margin:48px 0 0;padding:0;font-size:40px;font-weight:700;border-top:1px solid {LINE}">{rows}</ol>{more}'
+             f'{listed}'
              f'<div style="margin-top:48px;font-size:34px;font-weight:500;line-height:1.3">{e(ask)}</div>')
     return _slide(story, "Sources", inner, brand)
 

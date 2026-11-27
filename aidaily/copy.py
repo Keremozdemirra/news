@@ -391,7 +391,11 @@ def drop_repeats(post, deks, headline):
     lines = (post or "").split("\n")
     tail = [l for l in lines if l.startswith("Source:")]
     sents = sentences(" ".join(l for l in lines if l.strip() and not l.startswith("Source:")))
-    kept = [x for x in sents if not any(d and (repeats(x, d) or repeats(d, x, share=0.8)) for d in deks)]
+    def said(x, d):
+        # a short sentence ("It equals $6 billion.") repeats the dek when its words and numbers are all there
+        short = len(_stems(x)) < 3 and _stems(x) <= _stems(d, short=True) and _numbers(x) <= _numbers(d)
+        return short or repeats(x, d) or repeats(d, x, share=0.8)
+    kept = [x for x in sents if not any(d and said(x, d) for d in deks)]
     if len(kept) == 1 and repeats(kept[0], headline, share=0.6):
         kept = []
     body = " ".join(kept)
