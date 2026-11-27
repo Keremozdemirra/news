@@ -718,6 +718,19 @@ def audit(post):
             problems.append(f"scene {pf!r} does not fit the article (place or subject)")
         elif item is not None and item.get("sport") and scenes.sport_of(text, data) != item["sport"]:
             problems.append(f"scene {pf!r} shows {item['sport']}, not this article's sport")
+    # a two-photo card (feedlayouts: split, place) credits and clears each photo it shows, not only the post's own
+    for ph in post.get("photos") or []:
+        if not ph.get("file"):
+            continue
+        if not ph.get("credit"):
+            problems.append(f"card photo {ph['file']!r} without a credit line")
+        elif "BY-SA" in ph["credit"]:
+            problems.append(f"card photo {ph['file']!r} is ShareAlike")
+        if E.AI_MADE.search(ph["file"]):
+            problems.append(f"card photo {ph['file']!r} is AI-made")
+        if ph.get("name") and ph["name"] != "Place" and post.get("layout") in ("split", "place") and not re.search(
+                re.escape(ph["name"].split()[-1].rstrip("y")), unicodedata.normalize("NFKD", head_).encode("ascii", "ignore").decode(), re.I):
+            problems.append(f"card shows {ph['name']}, whom the headline does not name")
     if pf and post.get("credit_file") and post["credit_file"] != pf:
         problems.append(f"credit belongs to {post['credit_file']!r}, the card shows {pf!r}")
     # a company photo shows the company's own premises, sign or (for an airline or planemaker) its own aircraft
@@ -1655,6 +1668,38 @@ def _last_slot():
     return max(slots) if slots else None
 
 
+def _last_layout(tier):
+    """The card layout of the tier's latest feed post, so the next one differs (feedlayouts.choose). A post from before
+    the layouts were introduced drew the full-photo card."""
+    rows = [p for p, _ in posts() if p.get("tier") == tier and p.get("kind") not in ("story", "reel", "data")
+            and p.get("status") in ("queued", "published", "web")]
+    if not rows:
+        return ""
+    last = max(rows, key=lambda p: (p.get("publish_after") or p.get("created") or ""))
+    return last.get("layout") or "photo"
+
+
+def _card(img, m, s, prev):
+    """Render the story's card in the layout its photos support and that differs from `prev`; returns the layout
+    name and the photos the card shows. The pack's full-photo card stays in place if anything fails: a layout
+    lookup must never cost a post its card."""
+    from . import feedlayouts as FL
+    try:
+        a = R.T.assets(s)
+        if m.get("photo"):  # the photo the pack's card drew, as the post record and the site use it
+            a.update(photo=m["photo"], credit=m.get("credit", a.get("credit", "")), file=m.get("photo_file", a.get("file", "")),
+                     kind=m.get("photo_kind", a.get("kind", "")))
+        lay = FL.choose(s, prev)
+        png = img / "card.png"
+        R.shoot(FL.html(s, lay), png, 1080, 1350)
+        R.jpeg(png).replace(img / "card.jpg")
+        png.unlink()
+        return lay, FL.credits(s, lay)
+    except Exception as exc:  # noqa: BLE001
+        print(f"layout fell back to the pack card: {exc}")
+        return "photo", [{"file": m.get("photo_file", ""), "credit": m.get("credit", ""), "name": ""}]
+
+
 def _row_score(row):
     m, s = row
     return m.get("score", s.get("score", 0)) or 0
@@ -1688,6 +1733,7 @@ def queue(day_dir, batch=None, render=True):
     horizon = earliest + timedelta(hours=CONFIG["max_hours_ahead"])
     slot, gap = _last_slot(), timedelta(minutes=CONFIG["spacing_minutes"])
     made, n, ctas = [], 0, 0
+    prev = {"instagram": _last_layout("instagram"), "web": _last_layout("web")}
     for m, s in ranked:
         video, ig_stills = None, False
         web = m["url"] not in room_urls or not social_allowed(s)
@@ -1709,6 +1755,9 @@ def queue(day_dir, batch=None, render=True):
             img = MEDIA / out.name
             img.mkdir(parents=True, exist_ok=True)
             R.jpeg(day_dir / "pack" / m["file"]).replace(img / "card.jpg")
+            tier = "web" if web else "instagram"
+            layout, photos = _card(img, m, s, prev[tier])
+            prev[tier] = layout
             png = img / "detail.png"
             R.shoot(R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means')), png, 1080, 1350)
             R.jpeg(png)
@@ -1746,7 +1795,10 @@ def queue(day_dir, batch=None, render=True):
                     if fmt != "photo" or clip:
                         video = make_video(s, img, out.name, clip=clip, shape=None if fmt == "photo" else fmt)
                         ig_stills = bool(video) and fmt == "photo"
+        if not render:
+            layout, photos = "", []
         post = {"id": out.name, "batch": batch, "n": n, "created": now().isoformat(timespec="seconds"),
+                "layout": layout, "photos": photos,
                 "tier": "web" if web else "instagram",
                 "cards": ["card.jpg", "detail.jpg"] + [f"{n}.jpg" for n, _ in extra_slides(m, s, web, ctas)],
                 "caption": caption(m, s, cta=(cta := wants_source_cta(m, web, ctas))),

@@ -312,12 +312,14 @@ def _size(text, big, mid, small):
 REEL_SAFE_RIGHT, REEL_SAFE_BOTTOM = 180, 420  # px on 1080x1920; tests/test_safe_area.py measures every text layer against them
 
 
-def card(story, brand=BRAND, motion=False, height=1350):
+def card(story, brand=BRAND, motion=False, height=1350, place="bottom"):
     """4:5 card for every platform.
 
     motion: the photo layout without its photo, on a transparent ground, for cardvideo.py to lay over the moving
     photo; its parts carry class names so the video can bring them in one by one. height 1920 is the same card as a
-    9:16 Reel, with the text kept clear of the bands Instagram draws its own buttons and caption over."""
+    9:16 Reel, with the text kept clear of the bands Instagram draws its own buttons and caption over.
+    place "top" sets the headline in the top of a 4:5 photo card, for a photo whose subject or detail is low
+    (feedlayouts.quiet_side picks it)."""
     a = assets(story)
     title = story.get("headline") or story["title"]
     kind = layout(story)
@@ -338,12 +340,12 @@ def card(story, brand=BRAND, motion=False, height=1350):
         return head().replace("<body>", "<body style=\"background:transparent\">" if motion else "<body>") + f"""
 <div style="position:relative;width:1080px;height:{height}px;background:{'transparent' if motion else BLACK};color:{WHITE};font-family:'Libre Franklin',sans-serif;overflow:hidden">
 {photo}
-<div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
+{_top_text(story, title, brand, chips) if place == "top" and not tall and not motion else f'''<div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
 <div class="c-chips" style="position:absolute;left:64px;right:64px;top:{top}px;display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
 <div style="position:absolute;left:72px;right:{side}px;bottom:{bottom}px;display:flex;flex-direction:column">
 <span class="c-meta" style="font-size:26px;color:#D6D6D6">{_breaking(story, True)}{_meta_html(_meta_card(story), WHITE)}</span>
 <h1 class="c-head" style="margin:22px 0 56px;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1>
-<div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div></div></body></html>"""
+<div class="c-foot">{_foot(story, brand, dark=True, edited=motion)}</div></div>'''}</div></body></html>"""
     if kind == "figure":
         # one way to set a big figure: "C$8.5 billion" from the copy step reads "C$8.5B", like every other card
         fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
@@ -366,6 +368,18 @@ def card(story, brand=BRAND, motion=False, height=1350):
 <div style="flex:1"></div>
 <h1 style="margin:0;font-size:{_size(title, 104, 92, 78)}px;font-weight:800;line-height:1.0;letter-spacing:{TRACK}">{t(title)}</h1>
 {_hook(story, title)}<div style="margin-top:64px">{_foot(story, brand)}</div></div></body></html>"""
+
+
+def _top_text(story, title, brand, chips):
+    """The 4:5 photo card turned over: meta and headline on a scrim at the top, the logos and the footer at the foot."""
+    grad = "rgba(0,0,0,.94) 0%,rgba(0,0,0,.84) 30%,rgba(0,0,0,0) 56%,rgba(0,0,0,0) 66%,rgba(0,0,0,.88) 90%,rgba(0,0,0,.94) 100%"
+    return f"""<div class="c-grad" style="position:absolute;inset:0;background:linear-gradient(180deg,{grad})"></div>
+<div data-text style="position:absolute;left:72px;right:72px;top:72px;display:flex;flex-direction:column">
+<span class="c-meta" style="font-size:26px;color:#D6D6D6">{_breaking(story, True)}{_meta_html(_meta_card(story), WHITE)}</span>
+<h1 class="c-head" style="margin:22px 0 0;font-size:{_size(title, 88, 78, 66)}px;font-weight:800;line-height:1.02;letter-spacing:{TRACK}">{t(title)}</h1></div>
+<div data-text style="position:absolute;left:72px;right:72px;bottom:64px;display:flex;flex-direction:column;gap:28px">
+<div class="c-chips" style="display:flex;gap:18px;flex-wrap:wrap">{chips}</div>
+<div class="c-foot">{_foot(story, brand, dark=True)}</div></div>"""
 
 
 def hook_shown(story):
