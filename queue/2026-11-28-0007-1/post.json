@@ -1,0 +1,84 @@
+{
+ "id": "2026-11-28-0007-1",
+ "batch": "2026-11-28-0007",
+ "n": 1,
+ "created": "2026-11-28T00:07:49+00:00",
+ "layout": "photo",
+ "photos": [
+  {
+   "file": "Allstate Insurance Building, Vero Beach (3142344359).jpg",
+   "credit": "Photo: sylvar, CC BY 2.0, via Wikimedia Commons",
+   "name": ""
+  }
+ ],
+ "gate": [
+  "detail slide: text off the canvas: 'Follow @boardread'",
+  "detail slide: text off the canvas: 'boardread.news'"
+ ],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg",
+  "sources.jpg"
+ ],
+ "caption": "Allstate outage hits its website, mobile apps and roadside assistance\n\nAllstate (NYSE: ALL) · Business\n\nAccount access through the app and website still appeared down as of Friday afternoon. Allstate began dealing with the problem on Monday, November 23. Microsoft and JPMorgan Chase have each had outages in recent weeks.\n\nReported by The Verge; Wall Street Journal.\n\nSend this to a colleague who covers Allstate.\n\n#business #allstate\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.theverge.com/tech/1044612/allstate-has-been-suffering-an-outage-since-monday"
+ ],
+ "links": [
+  "https://www.techmeme.com/261127/p15#a261127p15",
+  "https://www.theverge.com/tech/1044612/allstate-has-been-suffering-an-outage-since-monday"
+ ],
+ "headlines": [
+  "Allstate outage hits its website, mobile apps and roadside assistance"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Business",
+ "photo_file": "Allstate Insurance Building, Vero Beach (3142344359).jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 9.071,
+ "figure": "",
+ "company": "Allstate",
+ "ticker": {
+  "exchange": "NYSE",
+  "symbol": "ALL"
+ },
+ "person": "",
+ "person_role": "",
+ "image_query": "",
+ "orgs": [
+  "Allstate",
+  "Microsoft",
+  "JPMorgan Chase"
+ ],
+ "venue": "",
+ "logo_names": [
+  "Allstate"
+ ],
+ "dek": "Account access through the app and website still appeared down as of Friday afternoon.",
+ "body": "Allstate began dealing with the problem on Monday, November 23. Microsoft and JPMorgan Chase have each had outages in recent weeks.",
+ "supported": "04762a4b7ad8",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "The Verge",
+  "Wall Street Journal"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.theverge.com/tech/1044612/allstate-has-been-suffering-an-outage-since-monday"
+ ],
+ "credit": "Photo: sylvar, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Allstate Insurance Building, Vero Beach (3142344359).jpg",
+ "status": "held",
+ "publish_after": "2026-11-28T00:17:45+00:00",
+ "story": "",
+ "held": [
+  "visual gate: detail slide: text off the canvas: 'Follow @boardread'",
+  "visual gate: detail slide: text off the canvas: 'boardread.news'"
+ ]
+}

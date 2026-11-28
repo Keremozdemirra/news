@@ -1,0 +1,64 @@
+{
+ "id": "2026-11-28-0008-1",
+ "batch": "2026-11-28-0008",
+ "n": 1,
+ "created": "2026-11-28T00:08:44+00:00",
+ "layout": "brief",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Arteta sets Arsenal a 100-point target for the Premier League season\n\nMikel Arteta · Sport\n\nArsenal lead Manchester City by six points after 11 games before Sunday's meeting at the Emirates Stadium. Arteta was an assistant to Pep Guardiola when Manchester City reached 100 points in 2017-18. City finished 19 points ahead of second-placed Manchester United that season.\n\nReported by The Guardian; ESPN.\n\nSend this to a colleague who covers Arsenal.\n\n#arsenal\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.theguardian.com/football/2026/nov/27/arteta-sets-arsenal-100-point-premier-league-target-to-emulate-manchester-city"
+ ],
+ "links": [
+  "https://www.espn.com/soccer/story/_/id/50611692/arsenal-man-city-mikel-arteta-premier-league-case",
+  "https://www.theguardian.com/football/2026/nov/27/arteta-sets-arsenal-100-point-premier-league-target-to-emulate-manchester-city"
+ ],
+ "headlines": [
+  "Arteta sets Arsenal a 100-point target for the Premier League season"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "Emirates Stadium 2016 2.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 9.414,
+ "figure": "100",
+ "company": "Arsenal",
+ "ticker": null,
+ "person": "Mikel Arteta",
+ "person_role": "Spanish football manager, Arsenal head coach",
+ "image_query": "Emirates Stadium",
+ "orgs": [],
+ "venue": "Emirates Stadium",
+ "logo_names": [],
+ "dek": "Arsenal lead Manchester City by six points after 11 games before Sunday's meeting at the Emirates Stadium.",
+ "body": "Arteta was an assistant to Pep Guardiola when Manchester City reached 100 points in 2017-18. City finished 19 points ahead of second-placed Manchester United that season.",
+ "supported": "47c8a683fb64",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "The Guardian",
+  "ESPN"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.theguardian.com/football/2026/nov/27/arteta-sets-arsenal-100-point-premier-league-target-to-emulate-manchester-city",
+  "https://www.espn.com/soccer/story/_/id/50611692/arsenal-man-city-mikel-arteta-premier-league-case"
+ ],
+ "credit": "Photo: Photo2023, CC0, via Wikimedia Commons",
+ "credit_file": "Emirates Stadium 2016 2.jpg",
+ "status": "held",
+ "story": "",
+ "held": [
+  "photo file names Emirates, which the story does not name"
+ ]
+}
