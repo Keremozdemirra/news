@@ -414,6 +414,21 @@ class PostDesign(unittest.TestCase):
         self.assertIn("expects a surplus of C$8.5 billion", html)
         self.assertIn("Source: Financial Times; Bloomberg; CNA", html)
 
+    def test_number_slide_falls_back_to_the_report_and_skips_years_and_scores(self):
+        from aidaily import desk
+        story = self.story(headline="Deutsche Boerse wins EU approval for Allfunds deal", figure="€5.3 billion",
+                           dek="Brussels cleared the bid without conditions.",
+                           linkedin_post="Deutsche Boerse's €5.3 billion bid for Allfunds is worth $5.8 billion. Closing is due "
+                                         "in the first quarter.\n\nSource: Bloomberg")
+        self.assertIn("€5.3 billion bid for Allfunds", T.number_line(story))
+        with mock.patch.dict(desk.CONFIG["growth"], {"carousel_extended": True}):
+            text = desk.detail_text({"source": "Bloomberg"}, story, False, 0)
+        self.assertNotIn("€5.3 billion bid", text)  # set on the number slide, not read again on the detail slide
+        self.assertIn("Closing is due", text)
+        self.assertEqual(T.number_line(self.story(headline="Calvert-Lewin signs on", figure="2029",
+                                                  dek="The deal runs until 2029.")), "")
+        self.assertEqual(T.number_line(self.story(headline="Bournemouth win", figure="2-1", dek="They won 2-1 away.")), "")
+
     def test_sources_slide_lists_every_newsroom_and_asks_only_when_told(self):
         html = T.sources_slide(self.story(), ["FT", "Bloomberg", "CNA"])
         self.assertIn("Reported by 3 newsrooms", html)

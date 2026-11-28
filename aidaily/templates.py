@@ -533,14 +533,18 @@ def _slide(story, kicker, inner, brand=BRAND, end=False):
 def number_line(story):
     """The sentence that states the post's figure, as written ("€550M" is "€550 million" in the dek), from a sentence
     the cover does not already show: the cover always carries the headline, and the dek when it sets it (hook_shown).
-    "" when no such sentence states the figure: then there is no number slide (the headline twice in one carousel
-    read badly, 2026-11-28-0736-1)."""
+    The dek first, then the report's sentences in order; the detail slide then leaves that sentence out
+    (desk.detail_text). "" when no such sentence states the figure: then there is no number slide (the headline
+    twice in one carousel read badly, 2026-11-28-0736-1)."""
     from . import copy, desk
     fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
     raw = story.get("figure") or fig
-    if not fig or hook_shown(story):
+    # a bare year or a score set huge says nothing on its own ("2029" for a contract, "2-1" for a match)
+    if not fig or re.fullmatch(r"(?:19|20)\d\d|\d+\s?[-–]\s?\d+", raw.strip()):
         return ""
-    for x in ((story.get("dek") or "").strip(),):
+    report_ = desk.body(story) if story.get("linkedin_post") else (story.get("body") or "")
+    dek = "" if hook_shown(story) else (story.get("dek") or "").strip()
+    for x in [dek] + copy.sentences(report_):
         if x and (desk._in_text(raw, x) or desk._in_text(fig, x) or key_figure(x) == fig) and copy.figure_ok(raw, x):
             return x
     return ""

@@ -326,11 +326,13 @@ def so_what(s):
 def detail_text(m, s, web, ctas):
     """The detail slide's text: dek and report, minus the dek when another slide already sets it (the text card's
     hook, or the number slide's line) and the report has more to say. No sentence is read twice in one carousel."""
-    elsewhere = R.T.hook_shown(s) or any(n == "number" and R.T.number_line(s) == (s.get("dek") or "").strip()
-                                         for n, _ in extra_slides(m, s, web, ctas))
+    line = R.T.number_line(s) if any(n == "number" for n, _ in extra_slides(m, s, web, ctas)) else ""
+    elsewhere = R.T.hook_shown(s) or (bool(line) and line == (s.get("dek") or "").strip())
     # the slide holds MAX_REPORT characters; the site article and the caption keep the whole report
     capped = "\n".join(l for l in copy.cap_report("" if elsewhere else s.get("dek") or "", s.get("linkedin_post") or "").splitlines()
                        if l.strip() and not l.startswith("Source:"))
+    if line and line != (s.get("dek") or "").strip():  # a report sentence the number slide sets is not read again here
+        capped = re.sub(r"\s{2,}", " ", capped.replace(line, "")).strip()
     if elsewhere and capped:
         return capped
     return "\n".join(x for x in ((s.get("dek") or "").strip(), capped) if x)
