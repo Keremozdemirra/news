@@ -1,6 +1,9 @@
 {
  "since": {
+  "stuck": "2026-11-28T12:00:26+00:00",
   "silent-instagram": "2026-11-28T11:00:22+00:00",
+  "silent-threads": "2026-11-28T12:00:26+00:00",
+  "silent-bluesky": "2026-11-28T12:00:26+00:00",
   "silent-telegram": "2026-11-28T11:30:18+00:00",
   "silent-stories": "2026-11-28T09:40:18+00:00"
  },
@@ -12,7 +15,10 @@
  ],
  "clear_since": null,
  "active": {
+  "stuck": "1 post(s) due for 2h but not published, and Instagram is not cooling down.",
   "silent-instagram": "Instagram has sent nothing for 4 hours (last at 28 Nov 07:41 UTC).",
+  "silent-threads": "Threads has sent nothing for 3 hours (last at 28 Nov 08:51 UTC).",
+  "silent-bluesky": "Bluesky has sent nothing for 3 hours (last at 28 Nov 08:51 UTC).",
   "silent-telegram": "Telegram has sent nothing for 4 hours (last at 28 Nov 07:50 UTC).",
   "silent-stories": "No story went out for 5 hours (last 28 Nov 06:30 UTC)."
  }
