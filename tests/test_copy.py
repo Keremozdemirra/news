@@ -43,6 +43,43 @@ class SixWordRule(unittest.TestCase):
         self.assertTrue(any("copies a source headline" in p for p in copy.verify(self.SRC, row)))
 
 
+class NoHoleLeftBehind(unittest.TestCase):
+    """2026-11-28-0736-1 printed "Analysts describe the scale of the walkovers as ." : the hype filter removed the predicate
+    "unprecedented" and left its sentence behind."""
+    SRC = {"title": "Sarawak GPS wins 29 seats unopposed at close of nominations", "source": "CNA", "reports": [],
+           "summary": "Gabungan Parti Sarawak won 29 of 82 seats uncontested. The big peninsular parties stayed out of the state polls. "
+                      "Analysts say the scale of the walkovers is unprecedented. Forming the state government takes 42 seats."}
+    ROW = {"id": 0, "headline": "Sarawak's GPS wins a record 29 state seats unopposed", "dek": "Gabungan Parti Sarawak won 29 of 82 seats uncontested.",
+           "x_post": "GPS wins 29 seats unopposed", "linkedin_post": "The big peninsular parties stayed out of the polls. "
+           "Analysts describe the scale of the walkovers as unprecedented. Forming the government takes 42 seats.\n\nSource: CNA"}
+
+    def test_a_sentence_whose_only_content_was_the_hype_word_is_dropped_whole(self):
+        s = dict(self.SRC)
+        copy.apply([s], [dict(self.ROW)])
+        self.assertEqual(s["copy_status"], "ok")
+        self.assertNotIn("walkovers", s["linkedin_post"])
+        shown = s["dek"] + " " + s["linkedin_post"]
+        self.assertNotIn("as .", shown)
+        self.assertFalse(copy.GAP.search(shown))
+        self.assertIn("Forming the government takes 42 seats.", shown)
+
+    def test_hype_that_is_only_an_intensifier_still_goes_and_the_fact_stays(self):
+        self.assertEqual(copy.remove_hype("linkedin_post", "The firm made a massive revision to its forecast.\n\nSource: CNA"),
+                         "The firm made a revision to its forecast.\n\nSource: CNA")
+
+    def test_a_headline_keeps_its_words_rather_than_a_hole(self):
+        self.assertEqual(copy.remove_hype("headline", "Walkovers seen as unprecedented"), "Walkovers seen as unprecedented")
+
+    def test_any_other_step_that_leaves_a_hole_costs_only_that_sentence(self):
+        c = {"dek": "A fact stands.", "linkedin_post": "One fact. The scale was described as . Another fact.\n\nSource: CNA", "x_post": "x"}
+        self.assertEqual(copy.drop_gaps(c), ["The scale was described as ."])
+        self.assertEqual(c["linkedin_post"], "One fact. Another fact.\n\nSource: CNA")
+
+    def test_a_headline_with_a_hole_is_rejected(self):
+        row = {"headline": "Walkovers described as .", "dek": "", "x_post": "", "linkedin_post": ""}
+        self.assertTrue(any("word is missing" in p for p in copy.verify(self.SRC, row)))
+
+
 class ExactHeadline(unittest.TestCase):
     SRC = {"title": "Iran denies involvement in Kuwait strike that killed two Italians", "summary": "", "source": "Africanews", "reports": []}
 

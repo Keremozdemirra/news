@@ -216,6 +216,62 @@ SWAPS = ((re.compile(r"\bin order to\b", re.I), "to"), (re.compile(r"\bdue to th
          (re.compile(r"\bin the event that\b", re.I), "if"), (re.compile(r"\ba total of\s+"), ""))
 
 
+# a hole where a word or quote was taken out: a stop after a space or another stop, an empty bracket, or a stop right after a
+# word that cannot end a sentence ("describe the scale of the walkovers as ."). The audit (desk.audit) holds a post with one.
+GAP = re.compile(r"\w\s+[.,;:!?](?=\s|$)|[,;:]\s*\.|\(\s*\)|\b(?:as|of|the|a|an|to|by|with|for|and|or|than)\s*\.(?=\s|$)")
+
+
+def holed(text):
+    """A hole in the text: a GAP, or an ending on a word that cannot end it ("Walkovers seen as")."""
+    return bool(GAP.search(text) or re.search(r"\b(?:as|of|the|a|an|to|by|with|for|and|or|than)\W*$", text.strip(), re.I))
+
+
+def _tidy(text):
+    return re.sub(r"[ \t]{2,}", " ", text).replace(" ,", ",").strip()
+
+
+def remove_hype(field, text):
+    """The text without the hype the source used ("massive revision" becomes "revision"). A word that was the sentence's
+    predicate ("scale of the walkovers as unprecedented") leaves a hole when it goes: that sentence is dropped, never printed
+    with the hole (2026-11-28-0736-1). A headline or x_post keeps its words instead, since it has no other sentence to lean on."""
+    if field in ("headline", "x_post"):
+        out = _tidy(HYPE.sub("", text))
+        return text if holed(out) and not holed(text) else out
+    lines = []
+    for line in text.split("\n"):
+        if line.startswith("Source:") or not line.strip():
+            lines.append(line)
+            continue
+        kept = []
+        for sent in sentences(line):
+            out = _tidy(HYPE.sub("", sent))
+            if not (holed(out) and not holed(sent)):
+                kept.append(out)
+        if kept:
+            lines.append(" ".join(kept))
+    return "\n".join(lines).strip()
+
+
+def drop_gaps(c):
+    """Sentences with a hole in them, from whatever step made it, leave the dek, report and x_post. Returns those cut."""
+    cut = []
+    for field in ("dek", "linkedin_post", "x_post"):
+        text = c.get(field)
+        if not isinstance(text, str) or not GAP.search(text):
+            continue
+        lines = []
+        for line in text.split("\n"):
+            if line.startswith("Source:") or not GAP.search(line):
+                lines.append(line)
+                continue
+            kept = [x for x in sentences(line) if not GAP.search(x)]
+            cut += [x for x in sentences(line) if GAP.search(x)]
+            if kept:
+                lines.append(" ".join(kept))
+        c[field] = "\n".join(lines).strip()
+    return cut
+
+
 def plain(text):
     """The safe rewrites: filler openers, intensifier adverbs, a padding "also", wordy phrases. Digits, names and
     the "Source:" line are never touched."""
@@ -521,6 +577,8 @@ def verify(story, copy):
     problems += [f"period: {why}" for why in period_gaps(story, copy).values()]
     for field in ("headline", "dek", "x_post", "linkedin_post"):
         problems += [f"{field}: {t}" for t in tells(copy.get(field, ""), headline=field == "headline")]
+    if GAP.search(copy.get("headline", "")):
+        problems.append("headline: a word is missing")
     run = headline_copied(story, copy.get("headline", ""))
     if run:
         problems.append(f"headline: copies a source headline ({run!r})")
@@ -1294,7 +1352,10 @@ def apply(stories, reply_rows):
             for f in ("headline", "dek", "x_post", "linkedin_post"):
                 if isinstance(c.get(f), str):
                     # spaces only: the report's blank line before "Source:" must survive
-                    c[f] = plain(re.sub(r"[ \t]{2,}", " ", HYPE.sub("", c[f])).replace(" ,", ",").strip())
+                    c[f] = plain(remove_hype(f, c[f]))
+            drop_gaps(c)
+            if not c.get("x_post"):
+                c["x_post"] = c.get("headline", "")
         problems = verify(s, c) if c else ["no copy returned"]
         # a headline over the limit is the model's slip, not a wrong fact: the source's own headline stands in when
         # it fits and everything else checked out (a Meloni post was lost to five extra characters)
