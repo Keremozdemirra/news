@@ -19,6 +19,18 @@ SRC = {"bbc1": {"name": "BBC Sport", "publisher": "BBC Sport", "category": "spor
        "cnbc": {"name": "CNBC", "category": "business"}}
 
 
+# these tests drive copy.apply with a headline the writer "returned" that is the source's own; the exact-copy rule has its own tests (test_copy)
+_exact = mock.patch.object(copy, "HEADLINE_EXACT", False)
+
+
+def setUpModule():
+    _exact.start()
+
+
+def tearDownModule():
+    _exact.stop()
+
+
 def it(title, src, hours=1):
     return dict(title=title, source_id=src, url=f"https://x/{abs(hash(title + src))}", published=NOW - timedelta(hours=hours), summary="")
 

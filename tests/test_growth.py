@@ -16,11 +16,16 @@ from test_desk import FakeIG, Tmp
 _growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG["growth"] if isinstance(desk.CONFIG["growth"][k], bool)})
 
 
+_exact = mock.patch.object(copy, "HEADLINE_EXACT", False)  # see test_copy for the exact-copy rule
+
+
 def setUpModule():
+    _exact.start()
     _growth.start()
 
 
 def tearDownModule():
+    _exact.stop()
     _growth.stop()
 
 

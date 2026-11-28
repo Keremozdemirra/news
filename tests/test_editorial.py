@@ -14,6 +14,18 @@ from aidaily import copy, desk, entities as E, rank, templates as T
 NOW = datetime(2026, 11, 26, 18, tzinfo=timezone.utc)
 
 
+# these tests drive copy.apply with a headline the writer "returned" that is the source's own; the exact-copy rule has its own tests (test_copy)
+_exact = mock.patch.object(copy, "HEADLINE_EXACT", False)
+
+
+def setUpModule():
+    _exact.start()
+
+
+def tearDownModule():
+    _exact.stop()
+
+
 def item(title, src, hours=1, summary=""):
     return {"title": title, "source_id": src, "url": f"https://x/{abs(hash((title, src)))}",
             "published": NOW - timedelta(hours=hours), "summary": summary}

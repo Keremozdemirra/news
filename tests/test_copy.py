@@ -43,6 +43,22 @@ class SixWordRule(unittest.TestCase):
         self.assertTrue(any("copies a source headline" in p for p in copy.verify(self.SRC, row)))
 
 
+class ExactHeadline(unittest.TestCase):
+    SRC = {"title": "Iran denies involvement in Kuwait strike that killed two Italians", "summary": "", "source": "Africanews", "reports": []}
+
+    def test_a_headline_equal_to_the_source_headline_is_rejected_by_default(self):
+        self.assertTrue(copy.headline_copied(self.SRC, "Iran denies involvement in Kuwait strike that killed two Italians"))
+        self.assertTrue(copy.headline_copied(self.SRC, "Iran Denies Involvement In Kuwait Strike That Killed Two Italians."))
+        self.assertTrue(copy.headline_copied(self.SRC, "Iran denies involvement in the Kuwait strike that killed two Italians"))  # a small word
+
+    def test_a_partial_run_is_allowed_by_default(self):
+        self.assertEqual(copy.headline_copied(self.SRC, "Iran denies involvement in Kuwait strike, Tehran says"), "")
+        self.assertEqual(copy.headline_copied(self.SRC, "Two Italians killed in Kuwait strike; Iran denies a role"), "")
+
+    def test_the_prompt_tells_the_writer(self):
+        self.assertIn("never reuse a source headline", copy.prompt("S"))
+
+
 class ThinWithContext(unittest.TestCase):
     CTX = [{"text": "A fact.", "label": "ECB", "url": "https://x.test/a"}, {"text": "Another fact.", "label": "ECB", "url": "https://x.test/b"}]
 

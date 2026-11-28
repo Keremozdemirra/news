@@ -10,6 +10,18 @@ from aidaily import copy, desk, entities, rank, site, sitepages, views
 TWO = "The company said the change reaches every customer this week. Its rivals have not announced a matching plan so far."
 
 
+# these tests drive copy.apply with a headline the writer "returned" that is the source's own; the exact-copy rule has its own tests (test_copy)
+_exact = mock.patch.object(copy, "HEADLINE_EXACT", False)
+
+
+def setUpModule():
+    _exact.start()
+
+
+def tearDownModule():
+    _exact.stop()
+
+
 class Reports(unittest.TestCase):
     def test_other_newsrooms_reach_the_copy_and_ground_its_numbers(self):
         now = datetime(2026, 11, 27, 9, tzinfo=timezone.utc)

@@ -7,7 +7,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
-from aidaily import desk, instagram
+from aidaily import copy, desk, instagram
 
 # the shipped desk.json switches growth features on; these tests pin the plain behaviour they were written for
 _growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG["growth"] if isinstance(desk.CONFIG["growth"][k], bool)})
@@ -17,12 +17,17 @@ _growth = mock.patch.dict(desk.CONFIG["growth"], {k: False for k in desk.CONFIG[
 _fb = mock.patch.dict(desk.CONFIG, {"facebook_stories": False})
 
 
+_exact = mock.patch.object(copy, "HEADLINE_EXACT", False)  # see test_copy for the exact-copy rule
+
+
 def setUpModule():
+    _exact.start()
     _growth.start()
     _fb.start()
 
 
 def tearDownModule():
+    _exact.stop()
     _growth.stop()
     _fb.stop()
 

@@ -1,8 +1,21 @@
 """The writer's checks that a headline, a dek and a report belong to one story, and the rules for how they are worded."""
 import json
 import unittest
+from unittest import mock
 
 from aidaily import copy
+
+
+# these tests drive copy.apply with a headline the writer "returned" that is the source's own; the exact-copy rule has its own tests (test_copy)
+_exact = mock.patch.object(copy, "HEADLINE_EXACT", False)
+
+
+def setUpModule():
+    _exact.start()
+
+
+def tearDownModule():
+    _exact.stop()
 
 
 def story(title, summary="", source="Reuters", reports=()):

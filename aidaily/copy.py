@@ -53,6 +53,7 @@ the reports from other newsrooms listed under it ("also reported").
 Never add a number, name or claim that is not in them. Report; do not interpret. No sentence about what the
 news means, why it matters, what to watch, or what it signals: the reader decides that. No closing line
 that sounds quotable. American English. No em or en dashes. No hype words. No "not X but Y" constructions.
+Write your own headline; never reuse a source headline.
 Voice: short, plain, confident. Say each fact once, with the plainest verb the source supports: "says", "cuts",
 "buys", "sues", "rises". Not "signals", "vows", "slams", "unveils", "faces", "eyes". No stock phrases: "amid", "comes
 as", "in a move", "underscores", "highlights", "sends a message", "raises questions", "sparks fears", "paves the way".
@@ -792,6 +793,7 @@ OFFTOPIC = re.compile(r"^(?:Separately|In other news|Elsewhere|In a separate (?:
 
 VERBATIM_WORDS = 8     # a run this long, word for word from a source, is copied, not reported (the prompt asks for under 7). The legal answer (2026-11-27 section 5) says 6;
                        # measured 2026-11-28 it would hold 55% of the stories that post today, so it waits for the owner's decision
+HEADLINE_EXACT = True  # a headline equal to a source headline, ignoring case, punctuation and small words, is the newsroom's: rejected
 HEADLINE_RUN = 0       # 6 would reject a headline equal to or sharing a 6-word run with a source headline (measured: holds 36% of today's postable stories); 0 is off
 QUOTE_WORDS = 15       # the longest statement the post may quote, once
 QUOTE = re.compile(r"[\"“]([^\"”]{1,500})[\"”]")
@@ -825,16 +827,21 @@ def copied_run(sentence, source, n=None):
     return ""
 
 
+SMALL = set("a an the as in on of for to at by and or with from is are was were be after before over amid".split())
+
+
+def _core(text):
+    return " ".join(w for w in _words(text) if w not in SMALL)
+
+
 def headline_copied(story, headline):
-    """The first run a headline shares with a source headline (the lead's or another newsroom's), or "". A headline equal to
-    one, ignoring case and punctuation, counts at any length."""
-    if not HEADLINE_RUN:
-        return ""
+    """A source headline the headline repeats, or "". Always (HEADLINE_EXACT): equal to the lead's or another newsroom's
+    headline once case, punctuation and small words are set aside. Only with HEADLINE_RUN: a shared run of that many words."""
     titles = [story.get("title", "")] + [r.get("title", "") for r in story.get("reports") or []]
-    mine = " ".join(_words(headline))
-    if mine and any(mine == " ".join(_words(t)) for t in titles):
+    mine = _core(headline)
+    if HEADLINE_EXACT and mine and any(mine == _core(t) for t in titles):
         return mine
-    return copied_run(headline, " . ".join(titles), HEADLINE_RUN)
+    return copied_run(headline, " . ".join(titles), HEADLINE_RUN) if HEADLINE_RUN else ""
 
 
 def strip_copied(story, c):
