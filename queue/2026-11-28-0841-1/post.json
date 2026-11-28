@@ -67,5 +67,22 @@
  "credit_file": "Office Building Off Old Street (215200145).jpeg",
  "status": "web",
  "published": "2026-11-28T08:41:47+00:00",
- "story": ""
+ "story": "",
+ "platforms": {
+  "threads": {
+   "id": "18124065919992663",
+   "url": "https://www.threads.com/@boardread/post/DgR3X7hHDLI",
+   "at": "2026-11-28T08:51:27+00:00",
+   "format": "text",
+   "reply": {
+    "id": "18195395353410346"
+   }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3ed676lt525",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3ed676lt525",
+   "at": "2026-11-28T08:51:29+00:00",
+   "format": "link"
+  }
+ }
 }
