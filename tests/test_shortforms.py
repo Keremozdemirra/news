@@ -117,3 +117,26 @@ class Refuse(unittest.TestCase):
         story = SH._light_story(p)
         for name in ("know", "quote", "figure"):
             self.assertIsNone(SF.post_timeline(name, p, story, "lower", SH.facts(p, 3), "Bloomberg"), name)
+
+
+class GateSkip(Tmp):
+    def test_a_structure_the_gate_refuses_is_skipped_for_the_day_not_counted(self):
+        from aidaily import cardvideo as CV
+        from unittest import mock as _m
+        job = {"structure": "brief", "key": "brief-x", "posts": [], "markets": True}
+
+        class Http:
+            pass
+        with _m.patch.dict(desk.CONFIG, {"growth": dict(GROWTH_ON)}), _m.patch.object(SH, "due", return_value=(True, "")), \
+                _m.patch.object(SH, "plan_next", return_value=job), _m.patch.object(SH, "access_token", return_value="t"), \
+                _m.patch.object(SH, "build_plain", side_effect=CV.GateFail("empty band 20%")):
+            self.assertIsNone(SH.run(Http()))
+        st = SH._state()
+        self.assertEqual(st.get("build_failures", 0), 0)
+        self.assertEqual(st["brief_day"], f"{desk.now():%Y-%m-%d}")
+        self.assertIn("brief-x", st["gate_skipped"])
+
+    def test_big_figures_stay_inside_the_safe_width(self):
+        for fig in ("$3.642", "21.5 trillion", "0.2%", "500B won"):
+            px = int(SF.big(fig).split("font-size:")[1].split("px")[0])
+            self.assertLessEqual(px * 0.64 * len(fig), 760 + 1, fig)

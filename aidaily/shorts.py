@@ -666,6 +666,18 @@ def run(http=_http, render=build):
             spec = CV.audit_file(mp4, "reel") if Path(mp4).stat().st_size else ["empty file"]
             if spec:
                 raise ValueError("; ".join(spec))
+        except CV.GateFail as e:
+            # a frame the visual gate refused: this structure is skipped for the day and the next run makes another,
+            # never counted toward the day's build failures (a refused brief at 00:00 stopped every Short on 28 Nov)
+            st.setdefault("gate_skipped", {})[job["key"]] = str(e)[:200]
+            if job["structure"] == "brief":
+                st["brief_day"] = day
+            elif job["structure"] == "data":
+                st["data_day"] = day
+                st.setdefault("data_used", []).append(job["key"][5:])
+            _save(st)
+            print(f"shorts: {job['key']} refused by the visual gate, skipped: {str(e)[:160]}")
+            return None
         except Exception as e:  # noqa: BLE001
             failures = (st.get("build_failures", 0) if st.get("build_date") == day else 0) + 1
             st.update(build_date=day, build_failures=failures, build_error=f"{job['key']}: {str(e)[-300:]}")

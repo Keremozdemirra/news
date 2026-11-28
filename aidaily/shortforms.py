@@ -47,7 +47,11 @@ def line(text, size=88, weight=700, lines=6, room=900, min_px=46):
 
 
 def big(text, room=330):
-    return RC._fit(text, 300, 110, 1, room, 0.95, track="-0.04em", extra="margin-bottom:24px")
+    """A figure set large, sized from its length so it never runs past x 880 (a fitted "$3.642" did, under the
+    Shorts buttons, gate 2026-11-28): Franklin 800 figures are about 0.62 em wide, the text box 760 px."""
+    px = max(72, min(240, int((RC.RIGHT - RC.LEFT) / (0.64 * max(len(text), 1)))))
+    return (f'<div style="font-size:{px}px;font-weight:800;line-height:0.95;letter-spacing:-0.04em;white-space:nowrap;'
+            f'margin-bottom:24px">{T.t(text)}</div>')
 
 
 def read_seconds(text, lo=3.0, hi=6.0):
@@ -196,13 +200,16 @@ def post_timeline(name, post, story, layout, facts, outlets, say=None):
         beats = [head] + fact_beats[:3]
     elif name == "figure":
         fig, sentence = figure_of(post, story)
-        if sentence == story["headline"]:  # the headline follows: the number alone first, with its topic
-            first = ([RC.page(layout, label(f"The number · {post.get('topic') or 'News'}") + big(fig))], 3.6,
-                     f"The number: {fig}.")
+        if sentence == story["headline"]:
+            # the number with the headline under it in one frame: the claim and its figure land together, and the
+            # opening frame has no empty band (the number alone left 25% of it empty)
+            first = ([RC.page(layout, label(f"The number · {post.get('topic') or 'News'}") + big(fig)
+                              + line(sentence, 96, 800, 4, room - 420, 56))], read_seconds(sentence, 4.5, 6.5), sentence)
+            beats = [first] + [b for b, f in zip(fact_beats, facts) if f != sentence][:2]
         else:
-            first = ([RC.page(layout, label("The number") + big(fig) + line(sentence, 64, 500, 5, room - 420))],
+            first = ([RC.page(layout, label("The number") + big(fig) + line(sentence, 80, 500, 5, room - 420, 50))],
                      read_seconds(sentence, 4.5, 7.5), sentence)
-        beats = [first, head] + [b for b, f in zip(fact_beats, facts) if f != sentence][:1]
+            beats = [first, head] + [b for b, f in zip(fact_beats, facts) if f != sentence][:1]
     elif name == "quote":
         q = quote_of(post)
         beats = [head, ([RC.page(layout, label("In their words") + line(q, 80, 500, 7, room - 80))], read_seconds(q, 4.5, 8), q)]
@@ -227,7 +234,8 @@ def brief_timeline(posts, outlets_of, markets=False, say=None):
     title = "3 stories moving markets today" if markets else "3 stories to know today"
     room = RC.room("plain")
     from . import desk
-    beats = [([RC.page("plain", label(f"{desk.now():%-d %b %Y}") + line(title, 120, 800, 3, 600))], 3.4, title + ".")]
+    # the opening frame is the one the visual gate measures (an empty band deeper than 15% fails): the title fills it
+    beats = [([RC.page("plain", label(f"{desk.now():%-d %b %Y}") + line(title, 190, 800, 4, room - 120, 90))], 3.4, title + ".")]
     for i, p in enumerate(posts[:3], start=1):
         h = p["headlines"][0]
         who = outlets_of(p)
@@ -322,7 +330,7 @@ def data_timeline(m, key, why, n=90, say=None):
     value, caption, title, src = data_text(m, key, why)
     pts = M.stat(m, key)[5][-n:]
     lo, hi = min(v for _, v in pts), max(v for _, v in pts)
-    beats = [([RC.page("plain", label("Number of the day") + big(value) + line(caption, 64, 500, 5, 500))],
+    beats = [([RC.page("plain", label("Number of the day") + big(value) + line(caption, 92, 500, 6, 640, 60))],
               read_seconds(caption, 5, 7.5), caption),
              ([RC.page("plain", label(f"Last {len(pts)} readings") + chart_svg(pts)
                        + f'<div style="margin-top:20px;font-size:34px;color:{GREY}">Low {M.fmt(key, lo)} · High {M.fmt(key, hi)}</div>')], 6.0,
