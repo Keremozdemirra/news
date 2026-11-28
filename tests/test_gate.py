@@ -139,6 +139,15 @@ class Queue(unittest.TestCase):
         post = {"id": "a", "headlines": ["Lab ships a model"], "topic": "Tech", "gate": ["text off the canvas: 'x'"]}
         self.assertIn("visual gate: text off the canvas: 'x'", desk.audit(post))
 
+    def test_a_sentence_with_a_missing_word_holds_the_post(self):
+        """Live on 2026-11-28 (2026-11-27-0736-1): "Analysts describe the scale of the walkovers as ." on a detail slide."""
+        from aidaily import desk
+        post = {"id": "a", "headlines": ["Sarawak's GPS wins a record 29 state seats unopposed"], "topic": "Politics",
+                "body": "Major parties are sitting out the polls. Analysts describe the scale of the walkovers as . A majority takes 42 seats."}
+        self.assertTrue(any("gap where a word is missing" in p for p in desk.audit(post)))
+        post["body"] = "Major parties are sitting out the polls. A simple majority takes 42 seats, about 2.5% of the vote."
+        self.assertFalse(any("gap where a word is missing" in p for p in desk.audit(post)))
+
     def test_the_fallback_card_drops_the_photo(self):
         from aidaily import feedlayouts as FL
         s = {"headline": "Nvidia opens a plant", "_assets": {"photo": "file:///x.jpg", "file": "X.jpg", "kind": "company"}}

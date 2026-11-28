@@ -728,6 +728,13 @@ def audit(post):
                                                                      if re.search(rf"\b{re.escape(w)}\b", cap)]
     problems = [f"visual gate: {x}" for x in post.get("gate") or []]
     head_ = post["headlines"][0]
+    # a sentence with a hole in it: a word or quote taken out leaves "describe the walkovers as ." (live on Instagram,
+    # 2026-11-28-0736-1). Any text a slide prints is checked for punctuation that follows a space or another stop.
+    for field in ("body", "dek", "so_what"):
+        gap = re.search(r"\w\s+[.,;:!?](?=\s|$)|[,;:]\s*\.|\(\s*\)|\b(?:as|of|the|a|an|to|by|with|for|and|or|than)\s*\.(?=\s|$)",
+                        post.get(field) or "")
+        if gap:
+            problems.append(f"{field} has a gap where a word is missing: {gap.group(0)!r}")
     if post.get("topic") not in TOPICS:
         problems.append(f"topic {post.get('topic')!r} is not one of the nine")
     if not social_allowed(post) and (post.get("tier") != "web" or post.get("status") not in ("web", "held")):
