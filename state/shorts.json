@@ -12,5 +12,8 @@
    "video_id": "LzqiZZIdflI",
    "url": "https://youtube.com/shorts/LzqiZZIdflI"
   }
- }
+ },
+ "build_date": "2026-11-28",
+ "build_failures": 1,
+ "build_error": "brief-2026-11-28: empty band 20% of the frame deep"
 }
