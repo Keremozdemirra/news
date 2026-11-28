@@ -1,0 +1,68 @@
+{
+ "id": "2026-11-28-0408-1",
+ "batch": "2026-11-28-0408",
+ "n": 1,
+ "created": "2026-11-28T04:08:09+00:00",
+ "layout": "photo",
+ "photos": [
+  {
+   "file": "SoFi Stadium.jpg",
+   "credit": "Photo: Thank You (21 Millions+) views, CC BY 2.0, via Wikimedia Commons",
+   "name": ""
+  }
+ ],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Chargers start DJ Uiagalelei at quarterback as Justin Herbert is out\n\nHerbert remains in concussion protocol and misses Sunday's Week 12 game against the Patriots. Uiagalelei makes the first start of his NFL career. Coach Jim Harbaugh announced Herbert's status on Friday.\n\nReported by CBS Sports; ESPN.\n\nSend this to a colleague who follows this sector.\n\n#justinherbert\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.cbssports.com/nfl/news/chargers-poised-to-start-dj-uiagalelei-with-justin-herbert-ruled-out-for-week-12/"
+ ],
+ "links": [
+  "https://www.cbssports.com/nfl/news/chargers-poised-to-start-dj-uiagalelei-with-justin-herbert-ruled-out-for-week-12/",
+  "https://www.espn.com/nfl/story/_/id/50615818/qb-dj-uiagalelei-start-chargers-justin-herbert-concussion-protocol"
+ ],
+ "headlines": [
+  "Chargers start DJ Uiagalelei at quarterback as Justin Herbert is out"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "SoFi Stadium.jpg",
+ "photo_kind": "company",
+ "photo_alt": "",
+ "score": 8.608,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Justin Herbert",
+ "person_role": "American NFL quarterback, Los Angeles Chargers",
+ "image_query": "SoFi Stadium",
+ "orgs": [],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Herbert remains in concussion protocol and misses Sunday's Week 12 game against the Patriots.",
+ "body": "Uiagalelei makes the first start of his NFL career. Coach Jim Harbaugh announced Herbert's status on Friday.",
+ "supported": "22144153a413",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "CBS Sports",
+  "ESPN"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.cbssports.com/nfl/news/chargers-poised-to-start-dj-uiagalelei-with-justin-herbert-ruled-out-for-week-12/",
+  "https://www.espn.com/nfl/story/_/id/50615818/qb-dj-uiagalelei-start-chargers-justin-herbert-concussion-protocol"
+ ],
+ "credit": "Photo: Thank You (21 Millions+) views, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "SoFi Stadium.jpg",
+ "status": "web",
+ "published": "2026-11-28T04:08:09+00:00",
+ "story": ""
+}
