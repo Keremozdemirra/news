@@ -72,6 +72,13 @@
    "url": "https://bsky.app/profile/boardread.news/post/3n3dewrpvhz2q",
    "at": "2026-11-27T23:50:28+00:00",
    "format": "link"
+  },
+  "threads": {
+   "id": "18103491335652645",
+   "url": "https://www.threads.com/@boardread/post/DgQ8_-lmuVZ",
+   "at": "2026-11-28T00:21:19+00:00",
+   "format": "text",
+   "reply_error": "threads POST threads_publish: HTTP 400: {\"error\":{\"message\":\"Fatal\",\"code\":-1,\"type\":\"OAuthException\",\"error_subcode\":4279047,\"is_transient\":false,\"error_user_msg\":\"The post you're trying to publish has an invalid link attachment.\",\"error_user_title\":\"Invalid Link Attachment\",\"fbtrace_id\":\"A5oT5RDph"
   }
  }
 }
