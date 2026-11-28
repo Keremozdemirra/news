@@ -1,0 +1,65 @@
+{
+ "id": "2026-11-28-1108-1",
+ "batch": "2026-11-28-1108",
+ "n": 1,
+ "created": "2026-11-28T11:08:16+00:00",
+ "layout": "brief",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Uganda starts first mRNA Ebola vaccine trial in Africa\n\nThe Uganda Virus Research Institute is running it with Moderna, which makes the vaccine. The trial targets Bundibugyo, a less common Ebola strain. That strain caused the Ebola outbreak in neighboring DRC.\n\nReported by Africanews; Al Jazeera.\n\nSend this to a colleague who tracks global risk.\n\n#worldnews #moderna\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "http://www.africanews.com/2026/11/28/uganda-launches-first-african-trial-of-mrna-bundibugyo-ebola-vaccine/"
+ ],
+ "links": [
+  "http://www.africanews.com/2026/11/28/uganda-launches-first-african-trial-of-mrna-bundibugyo-ebola-vaccine/",
+  "https://www.aljazeera.com/news/2026/11/28/uganda-starts-mrna-ebola-vaccine-trial-in-first-for-africa?traffic_source=rss"
+ ],
+ "headlines": [
+  "Uganda starts first mRNA Ebola vaccine trial in Africa"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "World",
+ "photo_file": "Alley of flags UNO Geneva.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "National flags along the approach to the UN in Geneva",
+ "score": 8.174,
+ "figure": "",
+ "company": "Moderna",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "vaccine vial",
+ "orgs": [
+  "Uganda Virus Research Institute",
+  "Moderna"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "The Uganda Virus Research Institute is running it with Moderna, which makes the vaccine.",
+ "body": "The trial targets Bundibugyo, a less common Ebola strain. That strain caused the Ebola outbreak in neighboring DRC.",
+ "supported": "fa52b7d478f2",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "Africanews",
+  "Al Jazeera"
+ ],
+ "context": [],
+ "source_urls": [
+  "http://www.africanews.com/2026/11/28/uganda-launches-first-african-trial-of-mrna-bundibugyo-ebola-vaccine/",
+  "https://www.aljazeera.com/news/2026/11/28/uganda-starts-mrna-ebola-vaccine-trial-in-first-for-africa?traffic_source=rss"
+ ],
+ "credit": "Photo: Tinux, CC0, via Wikimedia Commons",
+ "credit_file": "Alley of flags UNO Geneva.jpg",
+ "status": "web",
+ "published": "2026-11-28T11:08:16+00:00",
+ "story": ""
+}
