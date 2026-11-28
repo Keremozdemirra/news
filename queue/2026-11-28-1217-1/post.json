@@ -1,0 +1,61 @@
+{
+ "id": "2026-11-28-1217-1",
+ "batch": "2026-11-28-1217",
+ "n": 1,
+ "created": "2026-11-28T12:17:47+00:00",
+ "layout": "type",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Sainsbury's staff ban woman with terminal cancer after face-scan error\n\nStaff using FaceWatch technology misidentified her as a shoplifter at the Walters Yard branch in Bromley on 7 November. Indge says she was left traumatized and violated after being escorted from the supermarket.\n\nReported by The Guardian.\n\nSend this to a colleague who follows tech.\n\n#tech\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.theguardian.com/technology/2026/nov/28/woman-traumatised-sainsburys-shoplifting-ban-after-staff-facial-recognition-error"
+ ],
+ "links": [
+  "https://www.theguardian.com/technology/2026/nov/28/woman-traumatised-sainsburys-shoplifting-ban-after-staff-facial-recognition-error"
+ ],
+ "headlines": [
+  "Sainsbury's staff ban woman with terminal cancer after face-scan error"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Tech",
+ "photo_file": "A hand rests on a laptop keyboard, pressing a key.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A hand resting on a laptop keyboard",
+ "score": 8.146,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Sainsbury's supermarket",
+ "orgs": [
+  "FaceWatch"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Staff using FaceWatch technology misidentified her as a shoplifter at the Walters Yard branch in Bromley on 7 November.",
+ "body": "Indge says she was left traumatized and violated after being escorted from the supermarket.",
+ "supported": "09c27db9480b",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "The Guardian"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.theguardian.com/technology/2026/nov/28/woman-traumatised-sainsburys-shoplifting-ban-after-staff-facial-recognition-error"
+ ],
+ "credit": "Photo: Shixart1985, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "A hand rests on a laptop keyboard, pressing a key.jpg",
+ "status": "web",
+ "published": "2026-11-28T12:17:47+00:00",
+ "story": ""
+}
