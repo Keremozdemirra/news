@@ -453,9 +453,13 @@ def _hook(story, title):
             f'line-height:1.28;color:{GREY}">{t(dek)}</div>')
 
 
-def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means"):
+def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means", end=True):
     """Second slide of a single-story post: the checked report text and who reported it.
-    A checked "what it means" sentence, when there is one, sits under the report with a small label."""
+    A checked "what it means" sentence, when there is one, sits under the report with a small label.
+    end: the carousel's last slide, which carries the follow and site ask; otherwise the wordmark row. The report
+    text shrinks in the browser if it would push the foot off the slide (a long report did, 2026-11-28, and the
+    gate held the post)."""
+    from . import feedlayouts as FL
     a = assets(story)
     title = story.get("headline") or story["title"]
     paras = "".join(f'<p style="margin:0 0 28px">{t(p)}</p>' for p in (body or story.get("dek", "")).split("\n") if p.strip())
@@ -471,14 +475,20 @@ def detail(story, body, outlets, brand=BRAND, so_what="", label="What it means")
     from . import desk
     src = desk.reported_by(outlets) if outlets else story.get("source", "")
     return head() + f"""
-<div style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
+<div data-col style="width:1080px;height:1350px;padding:72px;background:{WHITE};color:{BLACK};font-family:'Libre Franklin',sans-serif;display:flex;flex-direction:column">
 <div style="display:flex;align-items:center;gap:24px;min-height:68px;padding-bottom:20px;border-bottom:2px solid {BLACK}">{_detail_logo(story)}<span style="font-size:24px;color:{GREY}">{_meta_html(_meta(story), BLACK)}</span></div>
 <h2 style="margin:56px 0 0;font-size:52px;font-weight:800;line-height:1.08;letter-spacing:{TRACK}">{t(title)}</h2>
-<div style="margin-top:40px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
+<div data-fill data-max="{size}" style="margin-top:40px;font-size:{size}px;font-weight:500;line-height:1.32;letter-spacing:-0.3px">{paras}</div>{meaning}
 <div style="flex:1"></div>
 <div style="padding-top:24px;border-top:1px solid {LINE};font-size:24px;color:{GREY};line-height:1.4">Reported by {e(src)}</div>
-{_end_cta(brand)}
-</div></body></html>"""
+{_end_cta(brand) if end else _wordmark_row(brand)}
+</div>{FL.FIT}</body></html>"""
+
+
+def _wordmark_row(brand):
+    return (f'<div style="margin-top:28px;display:flex;justify-content:space-between;align-items:baseline;font-size:24px">'
+            f'<span style="font-size:34px;font-weight:800;letter-spacing:{TRACK}">{e(brand["name"])}</span>'
+            f'<span style="color:{GREY}">{e(domain())}</span></div>')
 
 
 def _end_cta(brand):

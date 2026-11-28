@@ -115,6 +115,24 @@ class ExtraSlides(unittest.TestCase):
                     self.assertEqual(gate.check(html, "feed", png), [])
 
 
+@unittest.skipUnless(HAVE, "needs ffmpeg and Chrome")
+class DetailFits(unittest.TestCase):
+    def test_a_long_report_with_its_meaning_keeps_the_foot_on_the_slide(self):
+        """2026-11-28: the follow and site foot was pushed off the detail slide and the gate held the post. The report
+        text now shrinks to fit; the foot is the follow ask only on the last slide."""
+        s = ExtraSlides().story()
+        body = " ".join(["Verizon said the deal would extend its fibre network to millions of homes in New England."] * 6)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(T, "domain", return_value="boardread.news"):
+            for end in (True, False):
+                html = T.detail(s, body, ["Financial Times", "Bloomberg"], so_what="It is Verizon's biggest fibre purchase "
+                                "since it bought Frontier, and it lifts its reach in the north-east.", end=end)
+                png = Path(tmp) / "d.png"
+                render.shoot(html, png, 1080, 1350)
+                with self.subTest(end=end):
+                    self.assertEqual([x for x in gate.check(html, "feed") if "off the canvas" in x or "clipped" in x], [])
+                    self.assertEqual("Follow @boardread" in html, end)
+
+
 class Queue(unittest.TestCase):
     def test_a_failed_gate_holds_the_post(self):
         from aidaily import desk

@@ -1960,7 +1960,8 @@ def queue(day_dir, batch=None, render=True):
             layout, photos = _card(img, m, s, prev[tier])
             prev[tier] = layout
             png = img / "detail.png"
-            detail_page = R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means'))
+            detail_page = R.T.detail(s, detail_text(m, s, web, ctas), outlets(m, s), so_what=so_what(s), label=CONFIG.get('so_what_label', 'What it means'),
+                                     end=not extra_slides(m, s, web, ctas))
             R.shoot(detail_page, png, 1080, 1350)
             s["_gate"] = (s.get("_gate") or []) + [f"detail slide: {x}" for x in _gate(detail_page, None, None, "", "")]
             R.jpeg(png)
