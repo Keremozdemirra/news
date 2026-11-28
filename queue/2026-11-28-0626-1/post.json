@@ -1,0 +1,66 @@
+{
+ "id": "2026-11-28-0626-1",
+ "batch": "2026-11-28-0626",
+ "n": 1,
+ "created": "2026-11-28T06:26:26+00:00",
+ "layout": "brief",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "US aircraft fire on ship Pacific Archer over Iran blockade\n\nThe US military says it disabled the commercial ship with precision munitions fired into its stern. The Pacific Archer left an Iranian port before the strike. The US military says the ship ignored warnings to stop.\n\nReported by The Japan Times; Al Jazeera.\n\nSend this to a colleague who tracks global risk.\n\n#worldnews\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.japantimes.co.jp/news/2026/11/28/world/us-military-fires-ship-iran-blockade/"
+ ],
+ "links": [
+  "https://www.aljazeera.com/news/2026/11/27/us-military-says-it-disabled-merchant-ship-trying-to-breach-iran-blockade?traffic_source=rss",
+  "https://www.aljazeera.com/video/newsfeed/2026/11/27/us-disables-ship-attempting-to-breach-iran-blockade?traffic_source=rss",
+  "https://www.japantimes.co.jp/news/2026/11/28/world/us-military-fires-ship-iran-blockade/"
+ ],
+ "headlines": [
+  "US aircraft fire on ship Pacific Archer over Iran blockade"
+ ],
+ "categories": [
+  "launch"
+ ],
+ "topic": "World",
+ "photo_file": "Palais des Nations unies, à Genève.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "Flags in front of the Palais des Nations in Geneva",
+ "score": 8.707,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "cargo ship",
+ "orgs": [
+  "U.S. military"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "The US military says it disabled the commercial ship with precision munitions fired into its stern.",
+ "body": "The Pacific Archer left an Iranian port before the strike. The US military says the ship ignored warnings to stop.",
+ "supported": "5b803a2e4535",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "The Japan Times",
+  "Al Jazeera"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.japantimes.co.jp/news/2026/11/28/world/us-military-fires-ship-iran-blockade/",
+  "https://www.aljazeera.com/news/2026/11/27/us-military-says-it-disabled-merchant-ship-trying-to-breach-iran-blockade?traffic_source=rss",
+  "https://www.aljazeera.com/video/newsfeed/2026/11/27/us-disables-ship-attempting-to-breach-iran-blockade?traffic_source=rss"
+ ],
+ "credit": "Photo: Groov3, CC0, via Wikimedia Commons",
+ "credit_file": "Palais des Nations unies, à Genève.jpg",
+ "status": "web",
+ "published": "2026-11-28T06:26:26+00:00",
+ "story": ""
+}
