@@ -388,7 +388,8 @@ class PostDesign(unittest.TestCase):
     def test_cards_and_slides_are_flat_and_carry_the_domain(self):
         s = self.story()
         pages = [T.card(s), T.detail(s, "Talks are at an early stage.", ["FT"]), T.sources_slide(s, ["FT", "CNA"]),
-                 T.number_slide(self.story(headline="UK net migration falls to 77,000", figure="77,000"))]
+                 T.number_slide(self.story(headline="UK net migration falls sharply", figure="77,000",
+                                           dek="Net migration fell to 77,000 in the year to June."))]
         for html in pages:
             self.assertNotIn("border-radius", html)
             self.assertNotIn("box-shadow", html)
@@ -405,8 +406,12 @@ class PostDesign(unittest.TestCase):
     def test_number_slide_needs_a_figure_the_text_states(self):
         self.assertIsNone(T.number_slide(self.story()))
         self.assertIsNone(T.number_slide(self.story(figure="a million", headline="Neets fall below a million")))
-        html = T.number_slide(self.story(headline="Alberta raises surplus to C$8.5 billion", figure="C$8.5 billion"))
+        # the headline alone states it: the cover already shows the headline, so there is no number slide
+        self.assertIsNone(T.number_slide(self.story(headline="Alberta raises surplus to C$8.5 billion", figure="C$8.5 billion")))
+        html = T.number_slide(self.story(headline="Alberta's budget swings to a surplus", figure="C$8.5 billion",
+                                         dek="The province now expects a surplus of C$8.5 billion this year."))
         self.assertIn(">C$8.5B<", html)
+        self.assertIn("expects a surplus of C$8.5 billion", html)
         self.assertIn("Source: Financial Times; Bloomberg; CNA", html)
 
     def test_sources_slide_lists_every_newsroom_and_asks_only_when_told(self):
@@ -422,7 +427,8 @@ class PostDesign(unittest.TestCase):
 
 class ExtendedCarousel(unittest.TestCase):
     def rows(self, figure=""):
-        s = {"headline": "UK net migration falls to 77,000", "figure": figure, "dek": "", "topic": "Economy",
+        s = {"headline": "UK net migration falls to 77,000", "figure": figure,
+             "dek": f"Net migration fell to {figure} in the year to June." if figure else "", "topic": "Economy",
              "source": "The Guardian", "newsrooms": ["The Guardian"], "score": 9,
              "_assets": {"photo": "", "logo": "", "backer": "", "logos": [], "logo_names": [], "credit": "", "file": ""}}
         return {"headline": s["headline"], "source": "The Guardian", "score": 9}, s

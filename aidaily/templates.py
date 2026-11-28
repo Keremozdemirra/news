@@ -531,15 +531,16 @@ def _slide(story, kicker, inner, brand=BRAND, end=False):
 
 
 def number_line(story):
-    """The sentence that states the post's figure, as written ("€550M" is "€550 million" in the headline): the headline
-    first, then the dek. "" when there is no figure or no sentence of ours states it."""
+    """The sentence that states the post's figure, as written ("€550M" is "€550 million" in the dek), from a sentence
+    the cover does not already show: the cover always carries the headline, and the dek when it sets it (hook_shown).
+    "" when no such sentence states the figure: then there is no number slide (the headline twice in one carousel
+    read badly, 2026-11-28-0736-1)."""
     from . import copy, desk
     fig = short_figure(story["figure"]) if story.get("figure") else _headline_figure(story)
     raw = story.get("figure") or fig
-    if not fig:
+    if not fig or hook_shown(story):
         return ""
-    title = story.get("headline") or story.get("title") or ""
-    for x in (title, (story.get("dek") or "").strip()):
+    for x in ((story.get("dek") or "").strip(),):
         if x and (desk._in_text(raw, x) or desk._in_text(fig, x) or key_figure(x) == fig) and copy.figure_ok(raw, x):
             return x
     return ""

@@ -100,7 +100,8 @@ class ExtraSlides(unittest.TestCase):
         return {"title": "Verizon is in talks to buy broadband operator Fidium for about $6 billion",
                 "headline": "Verizon is in talks to buy broadband operator Fidium for about $6 billion", "figure": "$6B",
                 "topic": "Business", "category": "business", "source": "Bloomberg", "published": "2026-11-27T18:56:00+00:00",
-                "outlets": ["Financial Times", "Bloomberg", "Mint"], "timeline": [0, 0, 0], "dek": "",
+                "outlets": ["Financial Times", "Bloomberg", "Mint"], "timeline": [0, 0, 0],
+                "dek": "Verizon would pay $6B for the fibre operator, Bloomberg reported.",
                 "_assets": {"photo": "", "logo": "", "logos": [], "logo_names": [], "credit": "", "file": "", "kind": ""}}
 
     def test_number_and_sources_slides_pass(self):
