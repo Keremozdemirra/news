@@ -1,0 +1,67 @@
+{
+ "id": "2026-11-28-0151-1",
+ "batch": "2026-11-28-0151",
+ "n": 1,
+ "created": "2026-11-28T01:51:18+00:00",
+ "layout": "brief",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Australia leave Nathan Lyon out of Test squad, name Clayton and Rocchiccioli\n\nThe Test series against New Zealand starts on 9 December. Lyon is an off-spinner. Selectors have left one place unfilled until after the next Sheffield Shield round.\n\nReported by ESPNcricinfo; Sky Sports; BBC Sport.\n\nSend this to a colleague who tracks the economy.\n\n#nathanlyon\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.cricinfo.com/ci/content/story/1564482.html?ex_cid=OTC-RSS"
+ ],
+ "links": [
+  "https://www.bbc.co.uk/sport/cricket/articles/ckjre1p5g4l7o?at_medium=RSS&at_campaign=rss",
+  "https://www.cricinfo.com/ci/content/story/1564482.html?ex_cid=OTC-RSS",
+  "https://www.skysports.com/cricket/news/12040/13617351/nathan-lyon-dropped-by-australia-for-their-test-series-against-new-zealand"
+ ],
+ "headlines": [
+  "Australia leave Nathan Lyon out of Test squad, name Clayton and Rocchiccioli"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "",
+ "photo_kind": "",
+ "photo_alt": "",
+ "score": 8.864,
+ "figure": "",
+ "company": "",
+ "ticker": null,
+ "person": "Nathan Lyon",
+ "person_role": "Australian cricketer, off-spinner for Australia",
+ "image_query": "",
+ "orgs": [],
+ "venue": "",
+ "logo_names": [],
+ "dek": "The Test series against New Zealand starts on 9 December.",
+ "body": "Lyon is an off-spinner. Selectors have left one place unfilled until after the next Sheffield Shield round.",
+ "supported": "e2d4a50677e7",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "ESPNcricinfo",
+  "Sky Sports",
+  "BBC Sport"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.cricinfo.com/ci/content/story/1564482.html?ex_cid=OTC-RSS",
+  "https://www.bbc.co.uk/sport/cricket/articles/ckjre1p5g4l7o?at_medium=RSS&at_campaign=rss",
+  "https://www.skysports.com/cricket/news/12040/13617351/nathan-lyon-dropped-by-australia-for-their-test-series-against-new-zealand"
+ ],
+ "credit": "",
+ "credit_file": "",
+ "status": "held",
+ "story": "",
+ "held": [
+  "no photo"
+ ]
+}
