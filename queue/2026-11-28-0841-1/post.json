@@ -1,0 +1,71 @@
+{
+ "id": "2026-11-28-0841-1",
+ "batch": "2026-11-28-0841",
+ "n": 1,
+ "created": "2026-11-28T08:41:47+00:00",
+ "layout": "type",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "India finds second unsafe Bisleri water sample, this time with bacteria\n\nA regulatory document shows the sample contained coliform bacteria. Bisleri is India's biggest packaged-water brand, and its 20-US cent bottles have made it a household name. Poor water quality has made bottled water a necessity for homes and restaurants across India. Bisleri competes with PepsiCo and Coca-Cola and has stayed the market leader.\n\nReported by CNA; South China Morning Post; The Straits Times.\n\nSend this to a colleague who covers Bisleri.\n\n#business #bisleri\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.channelnewsasia.com/asia/india-bisleri-bottled-water-bacteria-6589171"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/asia/india-bisleri-bottled-water-bacteria-6589171",
+  "https://www.scmp.com/news/asia/south-asia/article/3376119/india-finds-unsafe-bisleri-sample-due-bacteria-amid-bottled-water-crackdown",
+  "https://www.straitstimes.com/asia/south-asia/indias-bottled-water-crackdown-widens-as-new-bisleri-sample-found-with-bacteria"
+ ],
+ "headlines": [
+  "India finds second unsafe Bisleri water sample, this time with bacteria"
+ ],
+ "categories": [
+  "policy"
+ ],
+ "topic": "Business",
+ "photo_file": "Office Building Off Old Street (215200145).jpeg",
+ "photo_kind": "scene",
+ "photo_alt": "An office block lit at dusk",
+ "score": 9.448,
+ "figure": "",
+ "company": "Bisleri",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "bottled water",
+ "orgs": [
+  "Bisleri",
+  "PepsiCo",
+  "Coca-Cola"
+ ],
+ "venue": "",
+ "logo_names": [
+  "Bisleri"
+ ],
+ "dek": "A regulatory document shows the sample contained coliform bacteria.",
+ "body": "Bisleri is India's biggest packaged-water brand, and its 20-US cent bottles have made it a household name. Poor water quality has made bottled water a necessity for homes and restaurants across India. Bisleri competes with PepsiCo and Coca-Cola and has stayed the market leader.",
+ "supported": "0b98a2fb6b85",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "CNA",
+  "South China Morning Post",
+  "The Straits Times"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.channelnewsasia.com/asia/india-bisleri-bottled-water-bacteria-6589171",
+  "https://www.scmp.com/news/asia/south-asia/article/3376119/india-finds-unsafe-bisleri-sample-due-bacteria-amid-bottled-water-crackdown",
+  "https://www.straitstimes.com/asia/south-asia/indias-bottled-water-crackdown-widens-as-new-bisleri-sample-found-with-bacteria"
+ ],
+ "credit": "Photo: Francisco Anzola, CC BY 3.0, via Wikimedia Commons",
+ "credit_file": "Office Building Off Old Street (215200145).jpeg",
+ "status": "web",
+ "published": "2026-11-28T08:41:47+00:00",
+ "story": ""
+}
