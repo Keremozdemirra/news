@@ -318,7 +318,8 @@ def _clean(s):
 
 
 TITLE_TARGET = 60  # characters: the whole title shows under a Short on a phone; the news, never a teaser
-CLAUSE = re.compile(r",\s|;\s|\s(?:as|after|amid|while|despite|with|over|following|ahead of|before)\s", re.I)
+COMMA = re.compile(r",\s|;\s")
+CLAUSE = re.compile(r"\s(?:as|after|amid|while|despite|with|over|following|ahead of|before)\s", re.I)
 PHRASE = re.compile(r"\s(?:to|in|for|on|at|by|from|into|against)\s", re.I)
 
 
@@ -328,7 +329,13 @@ def title(post):
     t = _clean(post["headlines"][0])
     if len(t) <= TITLE_TARGET:
         return t
-    for pattern in (CLAUSE, PHRASE):  # a whole clause first, else stop before a trailing phrase
+    # an aside between two commas goes first: "Hamas says Izzeldeen al-Hayya, son of its chief, survived Israeli
+    # strike" keeps its verb as "Hamas says Izzeldeen al-Hayya survived Israeli strike"
+    m = re.search(r",\s[^,]{3,40},\s", t)
+    if m and len(t) - len(m.group(0)) + 1 <= TITLE_TARGET:
+        return (t[:m.start()] + " " + t[m.end():]).strip()
+    # then a comma ("..., this time with bacteria" must not leave ", this time"), a linking word, a phrase
+    for pattern in (COMMA, CLAUSE, PHRASE):
         cuts = [m.start() for m in pattern.finditer(t) if 20 <= m.start() <= TITLE_TARGET]
         if cuts:
             return t[:max(cuts)].rstrip(",;: ")

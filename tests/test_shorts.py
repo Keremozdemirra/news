@@ -255,3 +255,7 @@ class Windows(unittest.TestCase):
                          "Spain heads to early election Sunday")
         self.assertEqual(SH.title(post(headlines=["South Korean banks' net profit rises 2.1% to 21.5 trillion won"])),
                          "South Korean banks' net profit rises 2.1%")
+        self.assertEqual(SH.title(post(headlines=["India finds second unsafe Bisleri water sample, this time with bacteria"])),
+                         "India finds second unsafe Bisleri water sample")
+        self.assertEqual(SH.title(post(headlines=["Hamas says Izzeldeen al-Hayya, son of its chief, survived Israeli strike"])),
+                         "Hamas says Izzeldeen al-Hayya survived Israeli strike")
