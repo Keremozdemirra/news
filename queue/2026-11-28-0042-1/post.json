@@ -1,0 +1,71 @@
+{
+ "id": "2026-11-28-0042-1",
+ "batch": "2026-11-28-0042",
+ "n": 1,
+ "created": "2026-11-28T00:42:09+00:00",
+ "layout": "type",
+ "photos": [],
+ "gate": [],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg",
+  "sources.jpg"
+ ],
+ "caption": "Hamas says Izzeldeen al-Hayya, son of its chief, survived Israeli strike\n\nKhalil al-Hayya · World\n\nBorn in 1997, he is the last surviving son of Hamas chief Khalil al-Hayya, senior official Basem Naim says. The strike hit at dawn on Friday and wounded several people, including Hayya's daughter-in-law, Hamas sources say. Nobody was killed, and the Israeli military had no immediate comment. Hamas says Israeli forces previously killed four of Khalil al-Hayya's other sons. Israel killed four people in Gaza, Al Jazeera reported.\n\nReported by South China Morning Post; Al Jazeera.\n\nSend this to a colleague who covers Hamas.\n\n#worldnews #hamas\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.scmp.com/news/world/middle-east/article/3376106/son-hamas-chief-survives-israeli-strike-group-says"
+ ],
+ "links": [
+  "https://www.aljazeera.com/news/2026/11/27/israel-kills-four-in-gaza-as-hamas-chief-al-hayyas-son-survives-strike?traffic_source=rss",
+  "https://www.aljazeera.com/video/newsfeed/2026/11/27/aje-onl-nf_-hamas-chiefs-son-escapes-israeli-strike-gaza-271126?traffic_source=rss",
+  "https://www.scmp.com/news/world/middle-east/article/3376106/son-hamas-chief-survives-israeli-strike-group-says"
+ ],
+ "headlines": [
+  "Hamas says Izzeldeen al-Hayya, son of its chief, survived Israeli strike"
+ ],
+ "categories": [
+  "statement"
+ ],
+ "topic": "World",
+ "photo_file": "Alley of flags UNO Geneva.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "National flags along the approach to the UN in Geneva",
+ "score": 9.039,
+ "figure": "",
+ "company": "Hamas",
+ "ticker": null,
+ "person": "Khalil al-Hayya",
+ "person_role": "Palestinian Hamas leader and chief negotiator",
+ "image_query": "Gaza destroyed buildings",
+ "orgs": [
+  "Hamas",
+  "Israeli military"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Born in 1997, he is the last surviving son of Hamas chief Khalil al-Hayya, senior official Basem Naim says.",
+ "body": "The strike hit at dawn on Friday and wounded several people, including Hayya's daughter-in-law, Hamas sources say. Nobody was killed, and the Israeli military had no immediate comment. Hamas says Israeli forces previously killed four of Khalil al-Hayya's other sons. Israel killed four people in Gaza, Al Jazeera reported.",
+ "supported": "a1dce0708787",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "South China Morning Post",
+  "Al Jazeera"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.scmp.com/news/world/middle-east/article/3376106/son-hamas-chief-survives-israeli-strike-group-says",
+  "https://www.aljazeera.com/news/2026/11/27/israel-kills-four-in-gaza-as-hamas-chief-al-hayyas-son-survives-strike?traffic_source=rss",
+  "https://www.aljazeera.com/video/newsfeed/2026/11/27/aje-onl-nf_-hamas-chiefs-son-escapes-israeli-strike-gaza-271126?traffic_source=rss"
+ ],
+ "credit": "Photo: Tinux, CC0, via Wikimedia Commons",
+ "credit_file": "Alley of flags UNO Geneva.jpg",
+ "status": "held",
+ "publish_after": "2026-11-28T00:48:05+00:00",
+ "story": "",
+ "held": [
+  "skipped topic 'wounded'"
+ ]
+}
