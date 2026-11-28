@@ -1,0 +1,66 @@
+{
+ "id": "2026-11-28-0736-1",
+ "batch": "2026-11-28-0736",
+ "n": 1,
+ "created": "2026-11-28T07:36:47+00:00",
+ "layout": "type",
+ "photos": [],
+ "gate": [],
+ "tier": "instagram",
+ "cards": [
+  "card.jpg",
+  "detail.jpg",
+  "number.jpg",
+  "sources.jpg"
+ ],
+ "caption": "Sarawak's GPS wins a record 29 state seats unopposed on nomination day\n\nGabungan Parti Sarawak needs 13 of the 53 remaining contested seats to secure a majority in the state election. Major parties from Peninsular Malaysia are sitting out the Sarawak polls. Analysts describe the scale of the walkovers as . A simple majority to form the state government takes 42 seats.\n\nReported by CNA; The Straits Times.\n\nSend this to a colleague who follows policy.\n\n#politics\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.channelnewsasia.com/asia/malaysia-sarawak-state-election-gps-abang-johari-openg-uncontested-6586651"
+ ],
+ "links": [
+  "https://www.channelnewsasia.com/asia/malaysia-sarawak-state-election-gps-abang-johari-openg-uncontested-6586651",
+  "https://www.straitstimes.com/asia/se-asia/sarawak-polls-gps-wins-29-seats-unopposed-at-close-of-nominations"
+ ],
+ "headlines": [
+  "Sarawak's GPS wins a record 29 state seats unopposed on nomination day"
+ ],
+ "categories": [
+  "news"
+ ],
+ "topic": "Politics",
+ "photo_file": "Industrial production line operating in a large modern factory.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A production line in a factory hall",
+ "score": 8.996,
+ "figure": "29",
+ "company": "",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "Sarawak State Legislative Assembly",
+ "orgs": [
+  "Gabungan Parti Sarawak"
+ ],
+ "venue": "",
+ "logo_names": [],
+ "dek": "Gabungan Parti Sarawak needs 13 of the 53 remaining contested seats to secure a majority in the state election.",
+ "body": "Major parties from Peninsular Malaysia are sitting out the Sarawak polls. Analysts describe the scale of the walkovers as . A simple majority to form the state government takes 42 seats.",
+ "supported": "ea6f84c99045",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "CNA",
+  "The Straits Times"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.channelnewsasia.com/asia/malaysia-sarawak-state-election-gps-abang-johari-openg-uncontested-6586651",
+  "https://www.straitstimes.com/asia/se-asia/sarawak-polls-gps-wins-29-seats-unopposed-at-close-of-nominations"
+ ],
+ "credit": "Photo: Shixart1985, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Industrial production line operating in a large modern factory.jpg",
+ "status": "queued",
+ "publish_after": "2026-11-28T07:33:40+00:00",
+ "story": ""
+}
