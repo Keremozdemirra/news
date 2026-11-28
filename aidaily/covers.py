@@ -20,7 +20,15 @@ FIT = """<script>
 document.fonts.ready.then(function(){document.querySelectorAll('[data-fit]').forEach(function(el){
   var max=+el.dataset.max,min=+el.dataset.min,lines=+el.dataset.lines,lh=parseFloat(el.dataset.lh);
   for(var s=max;s>=min;s-=4){el.style.fontSize=s+'px';var h=el.getBoundingClientRect().height;
-    if(Math.round(h/(s*lh))<=lines&&el.scrollWidth<=el.clientWidth+1)break;}});});
+    if(Math.round(h/(s*lh))<=lines&&el.scrollWidth<=el.clientWidth+1)break;}});
+ // a photo starts below the text block, so no word ever sits on it
+ document.querySelectorAll('[data-below]').forEach(function(img){var t=document.querySelector('[data-text]');
+  if(t){var y=Math.ceil(t.getBoundingClientRect().bottom)+36;img.style.top=y+'px';img.style.height=(1920-y)+'px';}});
+ // a figure fills the box it is given: as tall as the box allows, never wider than the text width
+ document.querySelectorAll('[data-fill]').forEach(function(el){var box=el.parentElement;
+  var room=1500-box.getBoundingClientRect().top-parseFloat(getComputedStyle(box).paddingTop),wide=box.clientWidth;
+  for(var s=Math.min(560,Math.floor(room/0.9));s>=60;s-=6){el.style.fontSize=s+'px';
+    var r=el.getBoundingClientRect();if(r.width<=wide&&r.height+s*0.2<=room)break;}});});
 </script>"""
 
 
@@ -49,38 +57,59 @@ def _head():
     return T.head().replace("<body>", f'<body style="margin:0;background:{T.STORY_BG}">')
 
 
-def cover(story, hook, line, cutout_uri="", credit="", kind="reel"):
-    """A 1080x1920 cover: the series mark at the top, then the chips, the hook and its line, and the way to the full
-    story at the foot. With a cut-out the text sits high and the subject stands below it on flat black (its top at
-    y 1180, never under the text: a face never carries type), its credit under the line; without one the text is
-    centred so no band of the frame is left empty (gate.DEAD). A very short hook and line still leave one: the gate
-    refuses that cover and the video keeps its usual first frame."""
+def key_number(hook, story):
+    """The figure the cover can set large: the hook's own number ("29" from "29 SEATS UNOPPOSED"), else the headline's
+    figure; "" when there is none."""
+    m = re.search(r"[$€£]?\d[\d.,]*%?", hook)
+    if m:
+        return m.group(0)
+    return T._headline_figure(story) if story.get("headline") else ""
+
+
+def cover(story, hook, line, photo_uri="", credit="", kind="reel", focus=(0.5, 0.35), cutout_uri=""):
+    """A 1080x1920 cover that fills the frame:
+      - with a photo of the story's subject (cardvideo.photo_fits): the text in the upper half, the photo cropped
+        on its focal point filling the lower half, its credit on the frame;
+      - without one: the type fills it: the hook and the line set larger, "Full story" straight under the line, and
+        below a thin rule the key number set huge when there is one (29 for "29 SEATS UNOPPOSED"), else the topic
+        as a quiet large word.
+    The series mark sits on top of every cover. cutout_uri: the subject cut out instead of the crop (off until a
+    Linux tool is approved; Apple's Vision runs only on a Mac)."""
     mark = (f'<div style="position:absolute;left:{LEFT}px;top:250px;font-size:28px;font-weight:700;letter-spacing:6px;'
             f'color:{GREY}">A BOARDREAD STORY</div>')
     row = "".join(_chip(c) for c in chips(story))
-    hook_html = (f'<div data-fit data-max="320" data-min="110" data-lines="3" data-lh="0.9" style="font-size:320px;'
+    pic_mode = bool(photo_uri or cutout_uri)
+    hook_html = (f'<div data-fit data-max="330" data-min="110" data-lines="3" data-lh="0.9" style="font-size:330px;'
                  f'font-weight:800;line-height:0.9;letter-spacing:-0.035em;text-transform:uppercase;text-wrap:balance">'
                  f'{T.e(hook)}</div>')
-    # a short line is set larger, so a short hook and line still fill the frame (gate.DEAD)
-    size = 50 if cutout_uri else (78 if len(line) < 60 else 62)
-    line_html = (f'<div style="margin-top:36px;font-size:{size}px;font-weight:500;line-height:1.14;'
-                 f'color:#e9e9e7">{T.t(line)}</div>')
-    cred = (f'<div data-credit style="margin-top:26px;font-size:22px;line-height:1.3;color:{GREY}">{T.e(credit)}</div>'
+    size = 50 if pic_mode else (76 if len(line) < 70 else 66)
+    line_html = f'<div style="margin-top:30px;font-size:{size}px;font-weight:500;line-height:1.13;color:#e9e9e7">{T.t(line)}</div>'
+    more = (f'<div style="margin-top:22px;font-size:34px;font-weight:500;color:{GREY}">Full story: '
+            f'<span style="color:{PAPER};font-weight:700">{T.e(T.domain())}</span></div>')
+    cred = (f'<div data-credit style="margin-top:14px;font-size:22px;line-height:1.3;color:{GREY}">{T.e(credit)}</div>'
             if credit else "")
-    if cutout_uri:
-        body = (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:330px">'
-                f'<div>{row}</div>{hook_html}{line_html}{cred}</div>')
-        pic = (f'<img src="{cutout_uri}" style="position:absolute;left:0;width:1080px;bottom:0;height:740px;'
-               f'object-fit:contain;object-position:center bottom">')
-        foot = ""
+    pic, art = "", ""
+    if pic_mode:
+        if cutout_uri:
+            pic = (f'<img src="{cutout_uri}" style="position:absolute;left:0;width:1080px;bottom:0;height:740px;'
+                   f'object-fit:contain;object-position:center bottom">')
+        else:
+            pic = (f'<img data-below src="{photo_uri}" style="position:absolute;left:0;width:1080px;top:1180px;height:740px;'
+                   f'object-fit:cover;object-position:{focus[0] * 100:.0f}% {focus[1] * 100:.0f}%">')
+        body = f'<div>{row}</div>{hook_html}{line_html}{cred}{more}'
     else:
-        body = (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:330px;height:1090px;display:flex;'
-                f'flex-direction:column;justify-content:center"><div>{row}</div>{hook_html}{line_html}</div>')
-        pic = ""
-        foot = (f'<div style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;bottom:{1920 - 1500}px;font-size:34px;'
-                f'font-weight:500;color:{GREY}">Full story: <span style="color:{PAPER};font-weight:700">{T.e(T.domain())}</span></div>')
+        big = key_number(hook, story)
+        word = big or (story.get("topic") or "")
+        tone = PAPER if big else "#2f2f2f"  # the number is content; a topic word is only texture
+        # the rule and the figure take whatever height is left above y 1500; FILL sizes the figure to it
+        art = (f'<div style="margin-top:44px;border-top:3px solid {PAPER};padding-top:20px;flex:1;min-height:0;'
+               f'display:flex;align-items:flex-start"><div data-fill style="font-size:100px;font-weight:800;line-height:0.86;'
+               f'letter-spacing:-0.05em;color:{tone};white-space:nowrap">{T.e(word)}</div></div>') if word else ""
+        body = f'<div>{row}</div>{hook_html}{line_html}{more}{art}'
+    text = (f'<div data-text style="position:absolute;left:{LEFT}px;width:{RIGHT - LEFT}px;top:330px;'
+            f'{"height:1170px;display:flex;flex-direction:column" if not pic_mode else ""}">{body}</div>')
     return _head() + (f'<div style="position:relative;width:{W}px;height:{H}px;overflow:hidden;color:{PAPER};'
-                      f"font-family:'Libre Franklin',sans-serif\">{pic}{mark}{body}{foot}</div>{FIT}</body></html>")
+                      f"font-family:'Libre Franklin',sans-serif\">{pic}{mark}{text}</div>{FIT}</body></html>")
 
 
 def today_card(items, day_label, fmt="feed"):
