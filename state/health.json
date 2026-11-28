@@ -1,7 +1,11 @@
 {
- "since": {},
+ "since": {
+  "silent-stories": "2026-11-28T09:40:18+00:00"
+ },
  "issue": null,
  "reported": [],
  "clear_since": null,
- "active": {}
+ "active": {
+  "silent-stories": "No story went out for 3 hours (last 28 Nov 06:30 UTC)."
+ }
 }
