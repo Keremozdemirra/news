@@ -104,6 +104,11 @@ def post_structures(post, story, facts):
     return out
 
 
+def ranked(available, last):
+    """Every available structure in ORDER, the last Short's moved to the end: the order a run tries them in."""
+    return [n for n in ORDER if n in available and n != last] + [n for n in ORDER if n in available and n == last]
+
+
 def choose(available, last):
     """The first structure in ORDER that is available and differs from the last Short's; the last one only when
     nothing else is."""

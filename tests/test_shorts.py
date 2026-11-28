@@ -217,7 +217,8 @@ class Run(Choice):
         with mock.patch.dict("os.environ", ENV), mock.patch.object(CV, "audit_file", return_value=["frame rate 25/1"]):
             self.assertIsNone(SH.run(f, render=self.render))
         self.assertFalse(any(c[0] == "PUT" for c in f.calls))
-        self.assertEqual(SH._state()["build_failures"], 1)
+        failures = SH._state()["failures"][f"{desk.now():%Y-%m-%d}"]
+        self.assertEqual(sum(failures.values()), len(failures))  # each structure tried once, none uploaded
 
 
 HAVE_TOOLS = shutil.which("ffmpeg") and (Path(render.CHROME).exists() if render.CHROME.startswith("/") else shutil.which(render.CHROME))

@@ -474,9 +474,10 @@ def _light_story(post):
     return story_from(post, Path("photo.jpg"), post.get("credit", ""))
 
 
-def plan_next(st=None):
-    """The next Short as a job {structure, key, ...}, or None: the first structure (shortforms.ORDER) that has the
-    material and is not the one the last Short used. The brief and the number of the day run once a day each."""
+def plan_jobs(st=None):
+    """The Shorts this run may make, in the order to try them: every structure (shortforms.ORDER) that has the
+    material, the last Short's at the end, a structure that failed three times today left out, and the plain
+    single-story Short of the top candidate last of all. The brief and the number of the day run once a day each."""
     from . import shortforms as SF
     st = st or _state()
     day = f"{desk.now():%Y-%m-%d}"
@@ -498,8 +499,30 @@ def plan_next(st=None):
         posts, markets = brief_pool()
         if len(posts) == 3:
             avail["brief"] = {"structure": "brief", "key": f"brief-{day}", "posts": posts, "markets": markets}
-    name = SF.choose(avail, st.get("last_structure"))
-    return avail[name] if name else None
+    jobs = [avail[n] for n in SF.ranked(avail, st.get("last_structure")) if not structure_blocked(st, n)]
+    if cands and not any(j.get("post") for j in jobs) and not structure_blocked(st, "story"):
+        # the last resort: the plain single-story Short of the top candidate, which the gate then sets on black
+        jobs.append({"structure": "story", "key": cands[0]["id"], "post": cands[0]})
+    return jobs
+
+
+def structure_blocked(st, name, limit=3):
+    """A structure that failed `limit` times today is not tried again today; the others still are."""
+    day = f"{desk.now():%Y-%m-%d}"
+    return ((st.get("failures") or {}).get(day) or {}).get(name, 0) >= limit
+
+
+def note_failure(st, name, why):
+    day = f"{desk.now():%Y-%m-%d}"
+    st["failures"] = {day: {**((st.get("failures") or {}).get(day) or {})}}  # only today's counts are kept
+    st["failures"][day][name] = st["failures"][day].get(name, 0) + 1
+    st["build_error"] = f"{name}: {str(why)[-300:]}"
+
+
+def plan_next(st=None):
+    """The first job plan_jobs() would try, or None."""
+    jobs = plan_jobs(st)
+    return jobs[0] if jobs else None
 
 
 def today_count(st=None):
@@ -537,8 +560,6 @@ def due():
     wait = int(cfg("shorts_spacing_minutes", 180)) + desk.zlib.crc32(last.encode()) % 31 if last else 0
     if last and _dt(last) > desk.now() - timedelta(minutes=wait):
         return False, "spacing"
-    if st.get("build_date") == f"{desk.now():%Y-%m-%d}" and st.get("build_failures", 0) >= 3:
-        return False, "build failed repeatedly today"
     if not plan_next(st):
         return False, "no candidate"
     return True, ""
@@ -637,8 +658,7 @@ def run(http=_http, render=build):
         print(f"shorts: not now ({why})")
         return None
     st = _state()
-    job = plan_next(st)
-    post = job.get("post")
+    jobs = plan_jobs(st)
     day = f"{desk.now():%Y-%m-%d}"
     try:
         token = access_token(http)
@@ -648,41 +668,39 @@ def run(http=_http, render=build):
     except Rejected as e:
         print(f"shorts: {e}")
         return None
-    info, clip = {"structure": job["structure"]}, None
     last_layout = next((v.get("layout") for v in sorted(st.get("attempted", {}).values(), key=lambda v: v.get("at", ""),
                                                           reverse=True) if v.get("layout")), None)
     with tempfile.TemporaryDirectory() as tmp:
-        try:
-            out = Path(tmp) / "short.mp4"
-            if not post:
-                mp4, credit = build_plain(job, out, info=info)
-                info["layout"] = "plain"
-            elif render is build:
-                from . import shortforms as SF
-                clip = choose_footage(post, SF.MAX_SECONDS)
-                mp4, credit = build(post, out, clip=clip, structure=job["structure"], avoid=last_layout, info=info)
-            else:
-                mp4, credit = render(post, out)
-            spec = CV.audit_file(mp4, "reel") if Path(mp4).stat().st_size else ["empty file"]
-            if spec:
-                raise ValueError("; ".join(spec))
-        except CV.GateFail as e:
-            # a frame the visual gate refused: this structure is skipped for the day and the next run makes another,
-            # never counted toward the day's build failures (a refused brief at 00:00 stopped every Short on 28 Nov)
-            st.setdefault("gate_skipped", {})[job["key"]] = str(e)[:200]
-            if job["structure"] == "brief":
-                st["brief_day"] = day
-            elif job["structure"] == "data":
-                st["data_day"] = day
-                st.setdefault("data_used", []).append(job["key"][5:])
-            _save(st)
-            print(f"shorts: {job['key']} refused by the visual gate, skipped: {str(e)[:160]}")
-            return None
-        except Exception as e:  # noqa: BLE001
-            failures = (st.get("build_failures", 0) if st.get("build_date") == day else 0) + 1
-            st.update(build_date=day, build_failures=failures, build_error=f"{job['key']}: {str(e)[-300:]}")
-            _save(st)
-            print(f"shorts: build failed ({failures}): {str(e)[-200:]}")
+        # one structure failing (the gate refusing a frame, a render error) never stops the run: the next structure
+        # is tried, the plain single-story Short last; failures are counted per structure (a refused brief at 00:00
+        # stopped every Short on 28 Nov when they were counted per day)
+        mp4 = job = None
+        for job in jobs:
+            post, info, clip = job.get("post"), {"structure": job["structure"]}, None
+            try:
+                out = Path(tmp) / f"short-{job['structure']}.mp4"
+                if not post:
+                    mp4, credit = build_plain(job, out, info=info)
+                    info["layout"] = "plain"
+                elif render is build:
+                    from . import shortforms as SF
+                    clip = choose_footage(post, SF.MAX_SECONDS)
+                    mp4, credit = build(post, out, clip=clip, structure=job["structure"], avoid=last_layout, info=info)
+                else:
+                    mp4, credit = render(post, out)
+                spec = CV.audit_file(mp4, "reel") if Path(mp4).stat().st_size else ["empty file"]
+                if spec:
+                    raise ValueError("; ".join(spec))
+                break
+            except Exception as e:  # noqa: BLE001
+                note_failure(st, job["structure"], e)
+                if isinstance(e, CV.GateFail):
+                    st.setdefault("gate_skipped", {})[job["key"]] = str(e)[:200]
+                _save(st)
+                print(f"shorts: {job['structure']} failed, trying the next: {str(e)[-200:]}")
+                mp4 = None
+        if mp4 is None:
+            print("shorts: every structure failed this run")
             return None
         headline = post["headlines"][0] if post else metadata_job(job)["snippet"]["title"]
         rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": headline, "structure": info["structure"],

@@ -1,5 +1,6 @@
 """The Short's structures: varied, 20 to 45 seconds, every line from the published copy or the publisher's series."""
 import unittest
+from pathlib import Path
 from datetime import date, timedelta
 from unittest import mock
 
@@ -120,21 +121,36 @@ class Refuse(unittest.TestCase):
 
 
 class GateSkip(Tmp):
-    def test_a_structure_the_gate_refuses_is_skipped_for_the_day_not_counted(self):
+    def test_a_brief_failing_three_times_never_stops_the_shorts(self):
+        # 28 Nov: the brief failed the gate three times at 00:00 and, counted per day, stopped every Short
         from aidaily import cardvideo as CV
         from unittest import mock as _m
-        job = {"structure": "brief", "key": "brief-x", "posts": [], "markets": True}
+        brief = {"structure": "brief", "key": "brief-x", "posts": [], "markets": True}
+        story = {"structure": "story", "key": "p1", "post": post(id="p1")}
+        uploads = []
 
-        class Http:
-            pass
+        def render(p, out):
+            Path(out).write_bytes(b"x")
+            return Path(out), ""
+
+        def jobs(st=None):
+            st = st or SH._state()
+            return [j for j in (brief, story) if not SH.structure_blocked(st, j["structure"])]
         with _m.patch.dict(desk.CONFIG, {"growth": dict(GROWTH_ON)}), _m.patch.object(SH, "due", return_value=(True, "")), \
-                _m.patch.object(SH, "plan_next", return_value=job), _m.patch.object(SH, "access_token", return_value="t"), \
-                _m.patch.object(SH, "build_plain", side_effect=CV.GateFail("empty band 20%")):
-            self.assertIsNone(SH.run(Http()))
+                _m.patch.object(SH, "plan_jobs", side_effect=jobs), _m.patch.object(SH, "access_token", return_value="t"), \
+                _m.patch.object(SH, "build_plain", side_effect=CV.GateFail("empty band 20%")), \
+                _m.patch.object(CV, "audit_file", return_value=[]), _m.patch.object(SH, "metadata_job", return_value={"snippet": {"title": "t"}}), \
+                _m.patch.object(SH, "upload", side_effect=lambda *a, **k: (uploads.append(1), f"v{len(uploads)}")[1]):
+            for _ in range(4):
+                self.assertTrue(SH.run(object(), render=render))
+                st = SH._state()
+                st["attempted"] = {}  # the same story again next round: this test is about the failures, not the queue
+                SH._save(st)
+        self.assertEqual(len(uploads), 4)  # a Short went out every run
         st = SH._state()
-        self.assertEqual(st.get("build_failures", 0), 0)
-        self.assertEqual(st["brief_day"], f"{desk.now():%Y-%m-%d}")
-        self.assertIn("brief-x", st["gate_skipped"])
+        self.assertEqual(st["failures"][f"{desk.now():%Y-%m-%d}"], {"brief": 3})  # the fourth run did not try it
+        self.assertTrue(SH.structure_blocked(st, "brief"))
+        self.assertFalse(SH.structure_blocked(st, "story"))
 
     def test_big_figures_stay_inside_the_safe_width(self):
         for fig in ("$3.642", "21.5 trillion", "0.2%", "500B won"):
