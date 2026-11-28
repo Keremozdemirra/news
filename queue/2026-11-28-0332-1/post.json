@@ -1,0 +1,62 @@
+{
+ "id": "2026-11-28-0332-1",
+ "batch": "2026-11-28-0332",
+ "n": 1,
+ "created": "2026-11-28T03:32:48+00:00",
+ "layout": "brief",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "Baylor is expected to hire UTSA's Jeff Traylor as football coach\n\nTraylor went 61-28 at UTSA, including three seasons with 10 wins. Baylor fired Dave Aranda in October. UTSA beat Tulsa 28-22 in San Antonio on Friday to improve to 10-2. ESPN's Pete Thamel reported the expected hire that day, citing sources. Traylor is a former Texas high school coach.\n\nReported by CBS Sports; ESPN.\n\nSend this to a colleague who covers Baylor.\n\n#baylor\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.cbssports.com/college-football/news/baylor-hires-jeff-traylor-utsa-coaching-carousel/"
+ ],
+ "links": [
+  "https://www.cbssports.com/college-football/news/baylor-hires-jeff-traylor-utsa-coaching-carousel/",
+  "https://www.espn.com/college-football/story/_/id/50617811/baylor-expected-hire-utsa-coach-robert-traylor"
+ ],
+ "headlines": [
+  "Baylor is expected to hire UTSA's Jeff Traylor as football coach"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "Football (6869489634).jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A football on a grass pitch",
+ "score": 8.16,
+ "figure": "",
+ "company": "Baylor",
+ "ticker": null,
+ "person": "Jeff Traylor",
+ "person_role": "American football coach, UTSA head coach",
+ "image_query": "McLane Stadium",
+ "orgs": [],
+ "venue": "McLane Stadium",
+ "logo_names": [],
+ "dek": "Traylor went 61-28 at UTSA, including three seasons with 10 wins.",
+ "body": "Baylor fired Dave Aranda in October. UTSA beat Tulsa 28-22 in San Antonio on Friday to improve to 10-2. ESPN's Pete Thamel reported the expected hire that day, citing sources. Traylor is a former Texas high school coach.",
+ "supported": "f2874d6a45ef",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "CBS Sports",
+  "ESPN"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.cbssports.com/college-football/news/baylor-hires-jeff-traylor-utsa-coaching-carousel/",
+  "https://www.espn.com/college-football/story/_/id/50617811/baylor-expected-hire-utsa-coach-robert-traylor"
+ ],
+ "credit": "Photo: James Boyes from UK, CC BY 2.0, via Wikimedia Commons",
+ "credit_file": "Football (6869489634).jpg",
+ "status": "web",
+ "published": "2026-11-28T03:32:48+00:00",
+ "story": ""
+}
