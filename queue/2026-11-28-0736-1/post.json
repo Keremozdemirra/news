@@ -67,5 +67,13 @@
  "attempted": "2026-11-28T07:40:15+00:00",
  "published": "2026-11-28T07:41:11+00:00",
  "media_id": "18119720219093485",
- "permalink": "https://www.instagram.com/p/DgRvZZSDbYg/"
+ "permalink": "https://www.instagram.com/p/DgRvZZSDbYg/",
+ "platforms": {
+  "telegram": {
+   "id": "43",
+   "url": "https://t.me/boardread/43",
+   "at": "2026-11-28T07:50:15+00:00",
+   "format": "photo"
+  }
+ }
 }
