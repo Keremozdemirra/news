@@ -1,5 +1,6 @@
 import json
 import unittest
+from unittest import mock
 
 from aidaily import copy
 
@@ -13,6 +14,46 @@ class R:
 def story():
     return {"title": "Nscale raises $3.36B in convertible financing", "summary": "Ahead of its US IPO.",
             "source": "TechCrunch"}
+
+
+class SixWordRule(unittest.TestCase):
+    """The legal answer's rules, switched on here: they ship off until the owner decides (see VERBATIM_WORDS)."""
+    def setUp(self):
+        for name, v in (("VERBATIM_WORDS", 6), ("HEADLINE_RUN", 6)):
+            p = mock.patch.object(copy, name, v)
+            p.start()
+            self.addCleanup(p.stop)
+
+    SRC = {"title": "Number of Neets in UK falls below a million as Burnham pushes to tackle crisis", "summary": "", "source": "Guardian",
+           "reports": [{"outlet": "BBC", "title": "Youth jobless count drops under one million", "summary": ""}]}
+
+    def test_a_six_word_run_from_the_source_is_copied(self):
+        s = dict(self.SRC, summary="Oil futures ended the session lower with the market awaiting the weekend meeting of OPEC.")
+        self.assertTrue(copy.copied_run("Oil futures ended the session lower on Friday.", copy.source_text(s)))
+        self.assertEqual(copy.copied_run("Oil futures ended lower on Friday.", copy.source_text(s)), "")
+
+    def test_a_headline_equal_to_or_running_six_words_with_a_source_headline_is_rejected(self):
+        self.assertTrue(copy.headline_copied(self.SRC, "Youth jobless count drops under one million"))   # equal to another newsroom's
+        self.assertTrue(copy.headline_copied(self.SRC, "Youth jobless count drops under one million, ONS says"))
+        self.assertTrue(copy.headline_copied(self.SRC, "Number of Neets in UK falls below a million this quarter"))
+        self.assertEqual(copy.headline_copied(self.SRC, "UK youth Neet count dips under 1 million"), "")
+
+    def test_verify_reports_it(self):
+        row = {"headline": "Number of Neets in UK falls below a million", "dek": "", "x_post": "", "linkedin_post": ""}
+        self.assertTrue(any("copies a source headline" in p for p in copy.verify(self.SRC, row)))
+
+
+class ThinWithContext(unittest.TestCase):
+    CTX = [{"text": "A fact.", "label": "ECB", "url": "https://x.test/a"}, {"text": "Another fact.", "label": "ECB", "url": "https://x.test/b"}]
+
+    def test_a_dek_and_two_gated_facts_are_not_thin(self):
+        self.assertEqual(copy.thin({"dek": "A dek.", "linkedin_post": "", "context": self.CTX}), "")
+
+    def test_one_fact_is_still_thin(self):
+        self.assertTrue(copy.thin({"dek": "A dek.", "linkedin_post": "", "context": self.CTX[:1]}))
+
+    def test_no_dek_is_held_whatever_the_context(self):
+        self.assertEqual(copy.thin({"dek": "", "linkedin_post": "", "context": self.CTX}), "no dek")
 
 
 class Copy(unittest.TestCase):

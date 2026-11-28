@@ -520,6 +520,9 @@ def verify(story, copy):
     problems += [f"period: {why}" for why in period_gaps(story, copy).values()]
     for field in ("headline", "dek", "x_post", "linkedin_post"):
         problems += [f"{field}: {t}" for t in tells(copy.get(field, ""), headline=field == "headline")]
+    run = headline_copied(story, copy.get("headline", ""))
+    if run:
+        problems.append(f"headline: copies a source headline ({run!r})")
     if len(copy.get("headline", "")) > MAX_HEADLINE:
         problems.append("headline too long")
     if re.search(r"\d[\d,.]*\s?(?:[%kKmMbBtn]|bn|tn)?\+", copy.get("headline", "") + " " + copy.get("dek", "")):
@@ -787,7 +790,9 @@ META = re.compile(r"\b(?:the (?:report|article|story|source)['’]s (?:headline|
 OFFTOPIC = re.compile(r"^(?:Separately|In other news|Elsewhere|In a separate (?:development|story|move))\b", re.I)
 
 
-VERBATIM_WORDS = 8     # a run this long, word for word from a source, is copied, not reported (the prompt asks for under 7)
+VERBATIM_WORDS = 8     # a run this long, word for word from a source, is copied, not reported (the prompt asks for under 7). The legal answer (2026-11-27 section 5) says 6;
+                       # measured 2026-11-28 it would hold 55% of the stories that post today, so it waits for the owner's decision
+HEADLINE_RUN = 0       # 6 would reject a headline equal to or sharing a 6-word run with a source headline (measured: holds 36% of today's postable stories); 0 is off
 QUOTE_WORDS = 15       # the longest statement the post may quote, once
 QUOTE = re.compile(r"[\"“]([^\"”]{1,500})[\"”]")
 MAX_REPORT = 600       # dek and report together: what the detail slide can set without shrinking past 38 px
@@ -800,10 +805,11 @@ def _words(text):
 LINKING = {"the", "of", "for", "and", "from", "in", "on", "to", "a", "an", "at", "by", "with"}
 
 
-def copied_run(sentence, source, n=VERBATIM_WORDS):
+def copied_run(sentence, source, n=None):
     """The first run of `n` words the sentence takes word for word from the source, or "". Quoted statements are
     judged apart (see strip_copied); the rest must be the writer's own words (the EU press publishers' right allows
     very short extracts only)."""
+    n = n or VERBATIM_WORDS
     plain = QUOTE.sub(" ", sentence)
     words, src = _words(plain), _words(source)
     cased = re.findall(r"[A-Za-z0-9]+(?:['\u2019][A-Za-z]+)?", _fold(plain))
@@ -817,6 +823,18 @@ def copied_run(sentence, source, n=VERBATIM_WORDS):
                 continue
             return " ".join(words[i:i + n])
     return ""
+
+
+def headline_copied(story, headline):
+    """The first run a headline shares with a source headline (the lead's or another newsroom's), or "". A headline equal to
+    one, ignoring case and punctuation, counts at any length."""
+    if not HEADLINE_RUN:
+        return ""
+    titles = [story.get("title", "")] + [r.get("title", "") for r in story.get("reports") or []]
+    mine = " ".join(_words(headline))
+    if mine and any(mine == " ".join(_words(t)) for t in titles):
+        return mine
+    return copied_run(headline, " . ".join(titles), HEADLINE_RUN)
 
 
 def strip_copied(story, c):
@@ -1132,6 +1150,9 @@ def thin(s):
         return "no dek"
     n, words = len(sentences(report)), len(report.split())
     if n < MIN_SENTENCES or words < MIN_WORDS:
+        # a dek and two or more gated primary-source facts (enrich.py) are an article; without a dek nothing is
+        if len(s.get("context") or []) >= MIN_SENTENCES:
+            return ""
         return f"report too thin ({n} sentences, {words} words beyond the dek)"
     return ""
 

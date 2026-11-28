@@ -1,0 +1,19 @@
+name: enrich-check
+# Manual only. One look at the SEC EDGAR path with the declared contact; prints facts, never the address.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - name: Look at EDGAR
+        env:
+          DESK_CONTACT_URL: ${{ github.server_url }}/${{ github.repository }}
+          DESK_SEC_CONTACT: ${{ secrets.DESK_SEC_CONTACT }}
+        run: python3 scripts/enrich_check.py
