@@ -691,6 +691,23 @@ class Select(Tmp):
         self.assertEqual([s["title"] for s in desk.select(rows)], ["Anthropic releases coding agent"])
 
 
+    def st2(self, title, score, outlets=("TechCrunch",), summary=""):
+        return {"title": title, "score": score, "published": desk.now().isoformat(), "outlets": list(outlets),
+                "url": title, "links": [title], "summary": summary}
+
+    def test_a_story_with_two_newsrooms_goes_ahead_of_a_thin_one_at_a_similar_score(self):
+        rows = [self.st2("Acme cuts jobs at plant", 9.4), self.st2("Beta buys rival firm", 8.8, outlets=("Reuters", "FT"))]
+        self.assertEqual([s["title"] for s in desk.select(rows)], ["Beta buys rival firm", "Acme cuts jobs at plant"])
+        # a clearly bigger story still leads
+        rows[0]["score"] = 10.5
+        self.assertEqual(desk.select(rows)[0]["title"], "Acme cuts jobs at plant")
+
+    def test_a_story_dropped_as_thin_rests_until_another_newsroom_reports_it(self):
+        desk._note_thin([("Acme cuts jobs at plant", 1)])
+        self.assertEqual(desk.select([self.st2("Acme cuts jobs at plant", 9.0)]), [])
+        self.assertEqual(len(desk.select([self.st2("Acme cuts jobs at plant", 9.0, outlets=("TechCrunch", "BBC"))])), 1)
+
+
 class SourceDM(Tmp):
     def test_keyword_gets_one_private_reply_with_the_story_page(self):
         self.write_post("2026-11-26-1300-1", status="published", published=desk.now().isoformat(), media_id="m1",

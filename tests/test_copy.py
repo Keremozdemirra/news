@@ -185,5 +185,6 @@ class ShortArticles(unittest.TestCase):
         p = {"dek": self.DEK, "body": "The upgrade moves the long-term foreign currency rating to BB, its first rise since 2005.",
              "sources": ["Reuters", "Bloomberg"]}
         self.assertTrue(copy.short(p))
-        self.assertFalse(site.indexable(p))
+        self.assertTrue(site.indexable(p))
+        self.assertFalse(site.indexable(dict(p, short=True)))
         self.assertFalse(copy.short(dict(p, body=p["body"] + " Treasury welcomed the decision on Saturday.")))

@@ -20,7 +20,7 @@
     "Product Hunt",
     "Techmeme"
   ],
-  "max_per_run": 10,
+  "max_per_run": 20,
   "spacing_minutes": 45,
   "ig_gap_minutes": 20,
   "slot_jitter_minutes": 10,

@@ -1208,7 +1208,6 @@ def body_of(post):
     return " ".join(l for l in (post or "").split("\n") if l.strip() and not l.startswith("Source:"))
 
 
-SHORT_SINCE = "2026-11-28T12:00"
 SHORT_WORDS = 12  # Kerem, 2026-11-28, "more news + shorter articles": a dek and one report sentence of 12+ words
 _FILLER = {"that", "this", "with", "from", "have", "been", "will", "would", "said", "says", "their", "they", "there",
            "which", "about", "after", "into", "also", "than", "were", "when", "while", "more", "over", "under", "some"}
@@ -1226,10 +1225,8 @@ def adds_fact(report, known):
 
 
 def short(s):
-    """True for an article that passes on the short rule alone (one report sentence, no gated primary facts): it
-    stays on the site for readers but is not indexed (site.indexable), like a single-source story."""
-    if (s.get("published") or s.get("created") or "9999") < SHORT_SINCE:
-        return False  # the rule is new: articles from before it keep the index status they had
+    """True for an article that passes on the short rule alone (one report sentence, no gated primary facts). The desk
+    marks the post "short" when it is queued; the site keeps it for readers but does not index it (site.indexable)."""
     report = body_of(s.get("linkedin_post") or s.get("body"))
     full = len(sentences(report)) >= MIN_SENTENCES and len(report.split()) >= MIN_WORDS
     return not full and len(s.get("context") or []) < MIN_SENTENCES

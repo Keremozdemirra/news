@@ -201,7 +201,7 @@ def pick(manifest, stories, weights):
     recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i], "created": p.get("created")}
               for p in _recent_posts(CONFIG["repeat_window_days"])
               for i, u in enumerate(p.get("urls", []))]
-    rows, taken, dropped = [], [], []
+    rows, taken, dropped, thin_rows = [], [], [], []
     for i, m in enumerate(manifest):
         s = by_url.get(m["url"], {})
         mine = {"url": m["url"], "links": s.get("links", []), "headline": m["headline"]}
@@ -213,6 +213,8 @@ def pick(manifest, stories, weights):
                or ("repeat" if any(same_story(mine, r) for r in recent + taken) else ""))
         if why:
             dropped.append((why, m["headline"]))
+            if why == "no dek" or why.startswith("report too thin"):
+                thin_rows.append((m["url"], len(_newsrooms(s))))
             continue
         taken.append(mine)
         rows.append((i / max(weights.get(m["category"], 1.0), 0.5), m, s))
@@ -223,6 +225,7 @@ def pick(manifest, stories, weights):
             k = why.split(" (")[0]
             n[k] = n.get(k, 0) + 1
         print("pick: kept %d, dropped %s" % (len(rows), ", ".join(f"{v} {k}" for k, v in sorted(n.items(), key=lambda x: -x[1]))))
+    _note_thin(thin_rows)
     for why, head_ in dropped:
         if why != "repeat":
             print(f"pick: dropped ({why[:80]}): {head_[:70]}")
@@ -1878,7 +1881,47 @@ def select(stories, lane="news"):
                 and not (sport and (SPORT_SKIP.search(s["title"]) or len(s["title"].split()) < 4))
                 and not any(same_story(me, r) for r in recent + out)):
             out.append(s)
-    return sorted(out, key=lambda s: -s["score"])[:limit]
+    rested = _thin_rested()
+    out = [s for s in out if not (s["url"] in rested and len(_newsrooms(s)) <= rested[s["url"]])]
+    return sorted(out, key=lambda s: -(s["score"] + (RICH_BONUS if rich(s) else 0)))[:limit]
+
+
+RICH_BONUS = 1.0  # a story with more to write from goes ahead of a thin one at a similar score
+RICH_WORDS = 40   # content words across every source's title and summary
+THIN_REST_HOURS = 6
+
+
+def _newsrooms(s):
+    return set(s.get("outlets") or []) - set(CONFIG["not_sources"])
+
+
+def rich(s):
+    """Two or more newsrooms, or 40+ content words across the sources, or a story enrich can add primary facts to
+    (an indicator, a primary link or a regulator it names): the writer has enough to write a report from."""
+    if len(_newsrooms(s)) >= 2 or len(set(re.findall(r"[a-z]{4,}", copy.source_text(s).lower()))) >= RICH_WORDS:
+        return True
+    try:
+        from . import enrich
+        return bool(enrich.macro_plan(s) or enrich.primary_links(s.get("hrefs")) or enrich.regulator_wanted(s))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _thin_rested():
+    """{url: newsrooms when dropped} of stories pick() dropped as thin in the last THIN_REST_HOURS: the writer is not
+    asked again until another newsroom reports it (the same three stories were rewritten every run, 2026-11-28)."""
+    cut = (now() - timedelta(hours=THIN_REST_HOURS)).isoformat()
+    return {u: r["n"] for u, r in _load(STATE / "thin.json", {}).items() if r.get("at", "") > cut}
+
+
+def _note_thin(rows):
+    if not rows:
+        return
+    cut = (now() - timedelta(hours=24)).isoformat()
+    got = {u: r for u, r in _load(STATE / "thin.json", {}).items() if r.get("at", "") > cut}
+    for u, n in rows:
+        got[u] = {"at": now().isoformat(timespec="seconds"), "n": n}
+    _save(STATE / "thin.json", got)
 
 
 def _last_slot():
@@ -2062,6 +2105,7 @@ def queue(day_dir, batch=None, render=True):
                 "person_role": s.get("person_role", ""), "image_query": s.get("image_query", ""),
                 "orgs": s.get("orgs", []), "venue": s.get("venue", ""), "logo_names": s.get("_assets", {}).get("logo_names", []), "dek": s.get("dek", ""), "body": body(s), "supported": s.get("supported") or None, "by_source": s.get("by_source") or [], "so_what": so_what(s), "sources": outlets(m, s),
                 "context": (s.get("context") or []) if growth("enrich") else [],
+                **({"short": True} if copy.short({"linkedin_post": s.get("linkedin_post"), "context": (s.get("context") or []) if growth("enrich") else []}) else {}),
                 # aggregators and discussion boards point at reporting; the page links the reporting itself
                 "source_urls": [u for u in [m["url"]] + [x for x in s.get("links", []) if x != m["url"]]
                                 if not re.search(r"news\.google\.|news\.ycombinator\.|producthunt\.|techmeme\.|(?://|\.)(twitter|x)\.com/", u)][:5],
