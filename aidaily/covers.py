@@ -69,7 +69,7 @@ def key_number(hook, story):
     return T._headline_figure(story) if story.get("headline") else ""
 
 
-def cover(story, hook, line, photo_uri="", credit="", kind="reel", focus=(0.5, 0.35), cutout_uri=""):
+def cover(story, hook, line, photo_uri="", credit="", kind="reel", focus=(0.5, 0.35), cutout_uri="", when=""):
     """A 1080x1920 cover that fills the frame:
       - with a photo of the story's subject (cardvideo.photo_fits): the text in the upper half, the photo cropped
         on its focal point filling the lower half, its credit on the frame;
@@ -100,6 +100,17 @@ def cover(story, hook, line, photo_uri="", credit="", kind="reel", focus=(0.5, 0
             pic = (f'<img data-below src="{photo_uri}" style="position:absolute;left:0;width:1080px;top:1180px;height:740px;'
                    f'object-fit:cover;object-position:{focus[0] * 100:.0f}% {focus[1] * 100:.0f}%">')
         body = f'<div>{row}</div>{hook_html}{line_html}{cred}{more}'
+    elif not key_number(hook, story):
+        # type-only (sample, not shipped): the hook and the line fill the frame, centred in the space between the
+        # chips and the date line; the date is the one true extra a type cover can always carry
+        hook_html = hook_html.replace('data-max="330"', 'data-max="360"').replace('data-lines="3"', 'data-lines="4"')
+        line_html = (f'<div style="margin-top:40px;font-size:{88 if len(line) < 70 else 76}px;font-weight:500;'
+                     f'line-height:1.12;color:#e9e9e7">{T.t(line)}</div>')
+        date = (f'<div style="border-top:3px solid {PAPER};padding-top:22px;display:flex;justify-content:space-between;'
+                f'align-items:baseline;font-size:40px;font-weight:700;letter-spacing:.5px"><span>{T.e(when)}</span>'
+                f'<span style="font-weight:500;color:{GREY}">{T.e(T.domain())}</span></div>') if when else ""
+        body = (f'<div>{row}</div><div style="flex:1;min-height:0;display:flex;flex-direction:column;'
+                f'justify-content:center">{hook_html}{line_html}</div>{date or more}')
     else:
         big = key_number(hook, story)
         word = big or (story.get("topic") or "")
