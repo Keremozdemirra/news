@@ -21,7 +21,7 @@ class SiteMeta(Tmp):
         new, old = desk.now(), desk.now() - timedelta(days=5)
         for pid, when, head in (("2026-11-26-1300-1", new, "A very long headline " * 8), ("2026-11-21-1300-1", old, "Old story")):
             self.write_post(pid, status="published", published=when.isoformat(), headlines=[head], dek="Dek <b>here</b>.",
-                            body="Body.", sources=["CNBC"], source_urls=["https://www.cnbc.com/x"], categories=["policy"], photo_kind="person")
+                            body="Body.", sources=["CNBC", "Reuters"], source_urls=["https://www.cnbc.com/x", "https://www.reuters.com/x"], categories=["policy"], photo_kind="person")
             (desk.MEDIA / pid).mkdir(parents=True)
             (desk.MEDIA / pid / "thumb.jpg").write_text("x")
         (desk.MEDIA / "2026-11-26-1300-1" / "photo.jpg").write_text("x")
@@ -65,9 +65,14 @@ class SiteMeta(Tmp):
     def test_sitemaps_parse_and_news_sitemap_keeps_48_hours(self):
         out = self.build()
         locs = [u.text for u in ET.parse(out / "sitemap.xml").getroot().iterfind(".//s:loc", NS)]
-        for want in ("/s/2026-11-26-1300-1/", "/s/2026-11-21-1300-1/", "/t/tech/", "/week/"):
+        for want in ("/s/2026-11-26-1300-1/", "/s/2026-11-21-1300-1/", "/latest/", "/week/"):
             self.assertTrue(any(l.endswith(want) for l in locs), want)
-        self.assertTrue(all(u.find("s:lastmod", NS) is not None for u in ET.parse(out / "sitemap.xml").getroot()))
+        # two articles are under site.MIN_HUB: the section page exists for readers but is noindex and unlisted
+        self.assertFalse(any(l.endswith("/t/tech/") for l in locs))
+        self.assertIn('content="noindex"', (out / "t" / "tech" / "index.html").read_text())
+        # a page with no honest date (the prose pages) carries no lastmod; every other page carries one
+        undated = {u.find("s:loc", NS).text.rsplit("/", 2)[-2] for u in ET.parse(out / "sitemap.xml").getroot() if u.find("s:lastmod", NS) is None}
+        self.assertEqual(undated, {"about", "standards", "contact", "impressum", "privacy"})
         news = ET.parse(out / "news-sitemap.xml").getroot()
         self.assertEqual(len(news), 1)
         self.assertEqual(news.find(".//n:name", NS).text, "Boardread")

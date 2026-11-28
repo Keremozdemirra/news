@@ -271,7 +271,7 @@ class SiteTier(Tmp):
         for pid, status, extra in (("2026-11-26-1300-1", "published", {"permalink": "https://instagram.com/p/x"}),
                                    ("2026-11-26-1300-2", "web", {}), ("2026-11-26-1300-3", "queued", {})):
             self.write_post(pid, status=status, published=desk.now().isoformat(), headlines=[f"Headline {pid[-1]}"], dek="Dek.",
-                            body="Body.", sources=["CNBC"], source_urls=["https://www.cnbc.com/x"], score=9, **extra)
+                            body="Body.", sources=["CNBC", "Reuters"], source_urls=["https://www.cnbc.com/x", "https://www.reuters.com/x"], score=9, **extra)
             (desk.MEDIA / pid).mkdir(parents=True)
             (desk.MEDIA / pid / "thumb.jpg").write_text("x")
         out = site.build(self.root / "_site")

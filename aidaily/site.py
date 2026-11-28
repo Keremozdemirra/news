@@ -155,6 +155,23 @@ def content_problems(p):
     return out
 
 
+# What Google may index. Google's spam policy on scaled content abuse (developers.google.com/search/docs/essentials/spam-policies)
+# targets many pages that add nothing over their sources, so an article built from a single newsroom and a hub with a handful of rows
+# stay on the site for readers but are marked noindex and left out of both sitemaps. One constant each, so the bar can move.
+MIN_SOURCES = 2
+MIN_HUB = 3
+
+
+def indexable(p):
+    """True when the article is built from at least MIN_SOURCES distinct newsrooms, the least a synthesis needs to add something."""
+    return len(outlets.newsrooms(p)) >= MIN_SOURCES
+
+
+def modified(p):
+    """The article's last change: its publication time, or the newest correction when there is one (dateModified, sitemap lastmod)."""
+    return max([p["published"]] + [c["time"] for c in CORRECTIONS.get(p["id"], [])], key=dt)
+
+
 class BuildBlocked(RuntimeError):
     """The site is not rebuilt: the last good one stays up."""
 
@@ -791,7 +808,7 @@ def article_ld(p, image):
     url = f"{SITE}/s/{p['id']}/"
     ld = {"@context": "https://schema.org", "@type": "NewsArticle", "mainEntityOfPage": {"@type": "WebPage", "@id": url},
           "headline": clip(p["headlines"][0], 110), "description": p.get("dek", ""),
-          "image": ([f"{ORIGIN}{BASE}/og/{p['id']}-{n}.jpg" for n in p["_crops"]] if p.get("_crops") else [ORIGIN + (image or DEFAULT_OG)]), "datePublished": iso(p["published"]), "dateModified": iso(max([p["published"]] + [c["time"] for c in CORRECTIONS.get(p["id"], [])], key=dt)),
+          "image": ([f"{ORIGIN}{BASE}/og/{p['id']}-{n}.jpg" for n in p["_crops"]] if p.get("_crops") else [ORIGIN + (image or DEFAULT_OG)]), "datePublished": iso(p["published"]), "dateModified": iso(modified(p)),
           "articleSection": topic(p), "inLanguage": "en", "isAccessibleForFree": True,
           "author": {"@type": "Organization", "name": NAME, "url": SITE + "/about/"},
           "publisher": seo.organization(SITE, NAME, accounts())}
@@ -1037,7 +1054,7 @@ def story(p, rows, cos=None, counts=None):
     # no dek: the first sentence of the report, then the headline, so no page goes out without a description
     desc = (p.get("dek") or "").strip() or next((x for x in (p.get("body") or "").split("\n") if x.strip()), "") or p["headlines"][0]
     return page(f'{p["headlines"][0]} · boardread.', body, desc, f"/s/{p['id']}/", image, "article",
-                [article_ld(p, image), crumbs], p["headlines"][0], active=topic(p).lower())
+                [article_ld(p, image), crumbs], p["headlines"][0], active=topic(p).lower(), noindex=not indexable(p))
 
 
 # ---------------------------------------------------------------- feeds
@@ -1062,15 +1079,16 @@ def rss(title, link, items, self_path="/feed.xml"):
 
 
 def urlset(rows):
-    """Sitemap protocol: https://www.sitemaps.org/protocol.html"""
+    """Sitemap protocol: https://www.sitemaps.org/protocol.html. A row's lastmod is "" for a page with no honest date (Google ignores
+    lastmod once it learns a site's values do not match the pages' changes), which leaves the tag out."""
     return ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-            + "".join(f"<url><loc>{E(u)}</loc><lastmod>{m}</lastmod></url>" for u, m in rows) + "</urlset>")
+            + "".join(f"<url><loc>{E(u)}</loc>{f'<lastmod>{m}</lastmod>' if m else ''}</url>" for u, m in rows) + "</urlset>")
 
 
 def news_sitemap(rows, now):
     """Google News sitemap, only articles from the last 48 hours:
     https://developers.google.com/search/docs/crawling-indexing/sitemaps/news-sitemap"""
-    recent = [p for p in rows if now - dt(p["published"]) <= timedelta(hours=48)]
+    recent = [p for p in rows if now - dt(p["published"]) <= timedelta(hours=48) and indexable(p)]
     return ('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
             'xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">'
             + "".join(f"<url><loc>{E(f'{SITE}/s/{p['id']}/')}</loc><news:news><news:publication><news:name>{NAME}</news:name>"
@@ -1096,7 +1114,14 @@ def contact_lines():
     return "".join(parts)
 
 
+# Google's "Preferred sources" (developers.google.com/search/docs/appearance/preferred-sources): a plain link to Google's own page, so
+# the site loads nothing from Google. Only a domain-level site is eligible, so a site served from a path gets no link.
+PREFERRED_URL = f"https://www.google.com/preferences/source?q={urllib.parse.urlsplit(SITE).netloc}"
+
+
 def about_page():
+    PREFERRED = (f'<p>On Google, you can <a href="{E(PREFERRED_URL)}" rel="noopener">add Boardread as a preferred source</a> '
+                 f'to see its stories more often in Top Stories.</p>\n' if not BASE else "")
     return pagehead("About Boardread", "Business news written by AI, with every source linked.") + f"""<div class="prose">
 <p>Boardread covers markets, the economy, politics, world affairs, technology and AI. Every story links to the original reporting.</p>
 <h2>How it works</h2>
@@ -1111,7 +1136,7 @@ def about_page():
 <p>Boardread does no original reporting. It summarises named newsrooms and says which. Opinion and speculation are not published.</p>
 <h2>Follow</h2>
 <p>Boardread is on <a href="{BASE}/feed.xml">RSS</a> (the latest 50, no Sport){"".join(f', <a href="{E(a["url"])}" rel="me noopener">{E(a["name"])}</a>' for a in accounts())}. Sport has <a href="{BASE}/sport/feed.xml">its own feed</a>, and so does every section and company.</p>
-<p>Boardread is run by {OPERATOR["name"]}.</p>
+{PREFERRED}<p>Boardread is run by {OPERATOR["name"]}.</p>
 <p>See the <a href="{BASE}/standards/">editorial standards and corrections policy</a>, the <a href="{BASE}/contact/">contact page</a> and the <a href="{BASE}{LEGAL['impressum']}">Impressum</a>.</p>
 </div>"""
 
@@ -1263,7 +1288,9 @@ def collection_ld(title, desc, path, rows=()):
 
 
 def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, feed=None, own=None, days=True):
-    """A listing at path, one page per PER articles: path, path/page/2/, ..."""
+    """A listing at path, one page per PER articles: path, path/page/2/, ... A listing under MIN_HUB rows (except Latest) is noindex and
+    out of the sitemap; later pages of a long listing stay indexable with their own canonical (Google no longer reads rel=prev/next)."""
+    thin = len(rows) < MIN_HUB and path != "/latest/"
     total = max(1, -(-len(rows) // PER))
     for n in range(1, total + 1):
         here = path if n == 1 else f"{path}page/{n}/"
@@ -1275,8 +1302,8 @@ def paged(out, path, rows, title, desc, head, active, aside="", sitemap=None, fe
         chunk = rows[(n - 1) * PER:n * PER]
         put(out, here, page(title + (f" · page {n}" if n > 1 else "") + " · boardread.",
                             head + listing(chunk, path, n, total, aside if n == 1 else "", own, days),
-                            desc, here, active=active, rel=rel, feed=feed, ld=collection_ld(title, desc, here, chunk), reader=True))
-        if sitemap is not None and rows:
+                            desc, here, active=active, rel=rel, feed=feed, ld=collection_ld(title, desc, here, chunk), reader=True, noindex=thin))
+        if sitemap is not None and rows and not thin:
             sitemap.append((SITE + here, iso(max(p["published"] for p in rows))))
 
 
@@ -1416,7 +1443,8 @@ def build(out=desk.HERE / "_site"):
     cos, counts = companies(news), desk_counts(shown)
     for p in shown:
         put(out, f"/s/{p['id']}/", story(p, sport if is_sport(p) else news, cos, counts))
-        sm.append((f"{SITE}/s/{p['id']}/", iso(p["published"])))
+        if indexable(p):
+            sm.append((f"{SITE}/s/{p['id']}/", iso(modified(p))))
     days = {}
     for p in shown:
         days.setdefault(day_of(p["published"]), []).append(p)
@@ -1462,8 +1490,10 @@ def build(out=desk.HERE / "_site"):
                               ("contact", "Contact", contact_page, "Corrections, tips and questions."),
                               ("impressum", "Impressum", impressum_page, "Legal notice for boardread.news."),
                               ("privacy", "Privacy", privacy_page, "What Boardread collects, what your browser stores and what happens to a SOURCE comment.")):
-        put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/"))
-        sm.append((f"{SITE}/{key}/", iso(shown[0]["published"]) if shown else None))
+        about_ld = {"@context": "https://schema.org", "@type": "AboutPage", "name": title, "url": f"{SITE}/{key}/", "inLanguage": "en",
+                    "about": seo.organization(SITE, NAME, accounts())} if key == "about" else None
+        put(out, f"/{key}/", page(f"{title} · boardread.", fn(), d, f"/{key}/", ld=about_ld))
+        sm.append((f"{SITE}/{key}/", ""))  # prose that changes when the desk's rules do, not when an article lands
     put(out, "/corrections/", page("Corrections · boardread.", corrections_page(CORRECTIONS), "Errors fixed and articles withdrawn.", "/corrections/"))
     sm.append((SITE + "/corrections/", iso(max((c["time"] for v in CORRECTIONS.values() for c in v), key=dt)) if CORRECTIONS else (iso(shown[0]["published"]) if shown else None)))
     for i, c in withdrawn.items():  # the address stays: a tombstone, out of the index and out of every list
@@ -1483,7 +1513,7 @@ def build(out=desk.HERE / "_site"):
     from . import sitepages  # imports this module, so only once it is loaded
     sitepages.build(out, news, sm, cos, everything=shown)
     sitepages.feed_for(out, sport, "/sport/", "boardread. Sport", f"{SITE}/sport/")
-    (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m]))
+    (out / "sitemap.xml").write_text(urlset([(u, m) for u, m in sm if m is not None]))
     (out / "news-sitemap.xml").write_text(news_sitemap(shown, datetime.now(timezone.utc)))
     (out / "manifest.webmanifest").write_text(json.dumps({"name": "Boardread", "short_name": "Boardread", "description": TAGLINE, "start_url": BASE + "/", "scope": BASE + "/",
         "display": "browser", "background_color": "#ffffff", "theme_color": "#ffffff",
