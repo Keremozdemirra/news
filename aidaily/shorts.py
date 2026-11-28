@@ -287,7 +287,7 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
                               focus_xy=(fx, fy), footage=footage, voice=voice_cues)
         total = plan[1]
     if info is not None:
-        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar), hook_cover=bool(cover_html),
+        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar), hook_cover=(covers.LAST_KIND[0] or True) if cover_html else False,
                     **({"voice": nar.name} if nar and nar.name else {}))
     return out_mp4, credit
 
@@ -719,7 +719,7 @@ def run(http=_http, render=build):
         headline = post["headlines"][0] if post else metadata_job(job)["snippet"]["title"]
         rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": headline, "structure": info["structure"],
                **({"narrated": True, "voice": info.get("voice", "")} if info.get("narrated") else {}),
-               **({"hook_cover": True} if info.get("hook_cover") else {}),
+               **({"hook_cover": info["hook_cover"]} if info.get("hook_cover") else {}),
                **({"layout": info["layout"]} if info.get("layout") else {}), **({"footage": clip["id"]} if clip else {})}
         st.setdefault("attempted", {})[job["key"]] = rec
         st["last_structure"] = info["structure"]

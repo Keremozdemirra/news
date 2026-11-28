@@ -60,3 +60,36 @@ class Covers(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CoverOrder(unittest.TestCase):
+    """A photo of the subject first, then the key number, type alone last (Kerem, 2026-11-28)."""
+
+    def make(self, fits=False, found=None, hook="UNSAFE BISLERI SAMPLE", head="India finds second unsafe Bisleri water sample"):
+        import json
+        from unittest import mock
+        from aidaily import covers as CO
+        post = {"headlines": [head], "dek": "A sample contained bacteria.",
+                "published": "2026-11-28T08:41:47+00:00", "topic": "Business", "company": "Bisleri"}
+        ask = lambda p: "FAITHFUL" if "FAITHFUL or MISLEADING" in p else json.dumps({"hook": hook, "line": "A sample had bacteria."})  # noqa: E731
+        with mock.patch("aidaily.cardvideo.photo_fits", return_value=fits), \
+                mock.patch("aidaily.cardvideo.reel_focus", return_value=(0.5, 0.4, None, None)), \
+                mock.patch("aidaily.covers.cover_photo", return_value=found), \
+                mock.patch("aidaily.render.shoot"), mock.patch("aidaily.gate.check", return_value=[]):
+            html = CO.make_cover(post, {"headline": post["headlines"][0]}, "/tmp/x.jpg" if fits else None, ask=ask)
+        return html, CO.LAST_KIND[0]
+
+    def test_the_card_photo_when_it_shows_the_subject(self):
+        self.assertEqual(self.make(fits=True)[1], "photo")
+
+    def test_another_photo_of_the_subject_before_the_number_or_type(self):
+        from pathlib import Path
+        html, kind = self.make(found=(Path("/tmp/b.jpg"), "Photo: someone, CC BY 4.0"), hook="29 SEATS UNOPPOSED", head="GPS wins 29 seats unopposed")
+        self.assertEqual(kind, "photo")
+        self.assertIn("CC BY 4.0", html)
+
+    def test_the_number_next_then_type_with_its_date(self):
+        self.assertEqual(self.make(hook="29 SEATS UNOPPOSED", head="GPS wins 29 seats unopposed")[1], "number")
+        html, kind = self.make()
+        self.assertEqual(kind, "type")
+        self.assertIn("28 November 2026", html)

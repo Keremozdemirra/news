@@ -201,18 +201,31 @@ def pick(manifest, stories, weights):
     recent = [{"url": u, "links": p.get("links", []), "headline": (p.get("headlines") or [""] * (i + 1))[i], "created": p.get("created")}
               for p in _recent_posts(CONFIG["repeat_window_days"])
               for i, u in enumerate(p.get("urls", []))]
-    rows, taken = [], []
+    rows, taken, dropped = [], [], []
     for i, m in enumerate(manifest):
         s = by_url.get(m["url"], {})
         mine = {"url": m["url"], "links": s.get("links", []), "headline": m["headline"]}
         text = " ".join([m["headline"], s.get("dek", ""), s.get("title", "")])
         # an article is a headline, a dek and a report of facts beyond both. When the sources hold too little for
         # that, the story is not posted: a page of headline and dek only was a quarter of the site on 2026-11-27
-        if (s.get("copy_status") != "ok" or copy.thin(s) or SKIP.search(text) or FORMAT.search(s.get("title", "") + " " + m["headline"])
-                or any(same_story(mine, r) for r in recent + taken)):
+        why = (f"copy {s.get('copy_status') or 'missing'}" if s.get("copy_status") != "ok" else copy.thin(s)
+               or ("skip topic" if SKIP.search(text) else "") or ("format" if FORMAT.search(s.get("title", "") + " " + m["headline"]) else "")
+               or ("repeat" if any(same_story(mine, r) for r in recent + taken) else ""))
+        if why:
+            dropped.append((why, m["headline"]))
             continue
         taken.append(mine)
         rows.append((i / max(weights.get(m["category"], 1.0), 0.5), m, s))
+    # the drops were silent: a day of "no new story passed the checks" could not say which check (2026-11-28)
+    if dropped:
+        n = {}
+        for why, _ in dropped:
+            k = why.split(" (")[0]
+            n[k] = n.get(k, 0) + 1
+        print("pick: kept %d, dropped %s" % (len(rows), ", ".join(f"{v} {k}" for k, v in sorted(n.items(), key=lambda x: -x[1]))))
+    for why, head_ in dropped:
+        if why != "repeat":
+            print(f"pick: dropped ({why[:80]}): {head_[:70]}")
     rows.sort(key=lambda r: r[0])
     return [(m, s) for _, m, s in rows]
 
@@ -692,7 +705,7 @@ def make_video(s, img, post_id, clip=None, shape=None):
     return {"shape": shape, "file": "video.mp4", "cover": "cover.jpg", "spec": CV.audit_file(mp4, shape),
             "headline": s.get("headline") or s["title"], "photo_file": a.get("file", ""), "credit": a.get("credit", ""),
             "focus": list(CV.focus(s)), "seconds": seconds, **({"footage": footage} if footage else {}),
-            **({"layout": layout} if layout else {}), **({"hook_cover": True} if cover_html else {})}
+            **({"layout": layout} if layout else {}), **({"hook_cover": covers.LAST_KIND[0] or True} if cover_html else {})}
 
 
 def last_reel_layout():

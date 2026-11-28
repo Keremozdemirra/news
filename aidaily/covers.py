@@ -1,6 +1,6 @@
-"""Cover frames for Reels and Shorts, and the daily "Today" card. Kerem, 2026-11-28: "Ship all, fix type-only":
-the photo covers and the big-number covers go out (make_cover); a story with neither keeps its usual first frame
-until the type-only pass is approved.
+"""Cover frames for Reels and Shorts, and the daily "Today" card. Kerem, 2026-11-28: "Ship all, fix type-only", then
+"with images as much as possible": a photo cover whenever a licensed photo of the subject exists, the big-number
+cover next, type alone last (make_cover).
 
 Principles taken from a strong news-Reels account and set in Boardread's own system (black and white, Libre Franklin,
 flat chips, no colour, no hype):
@@ -101,7 +101,7 @@ def cover(story, hook, line, photo_uri="", credit="", kind="reel", focus=(0.5, 0
                    f'object-fit:cover;object-position:{focus[0] * 100:.0f}% {focus[1] * 100:.0f}%">')
         body = f'<div>{row}</div>{hook_html}{line_html}{cred}{more}'
     elif not key_number(hook, story):
-        # type-only (sample, not shipped): the hook and the line fill the frame, centred in the space between the
+        # type-only, the last resort: the hook and the line fill the frame, centred in the space between the
         # chips and the date line; the date is the one true extra a type cover can always carry
         hook_html = hook_html.replace('data-max="330"', 'data-max="360"').replace('data-lines="3"', 'data-lines="4"')
         line_html = (f'<div style="margin-top:40px;font-size:{88 if len(line) < 70 else 76}px;font-weight:500;'
@@ -147,13 +147,54 @@ def today_card(items, day_label, fmt="feed"):
         f'<span style="font-size:30px;color:{GREY}">{T.e(T.domain())}</span></div></div></body></html>')
 
 
+LAST_KIND = [""]  # the kind of the last cover made (photo, number, type), recorded on the post
 COVER_SECONDS = 1.3  # the cover holds the first 1.3 s, opaque over the running video, then fades to it
 
 
-def make_cover(post, story, photo_path=None, ask=None):
-    """The cover page for a Reel or Short, or None. Only the shipped kinds: a photo of the story's subject
-    (cardvideo.photo_fits) or a key number in the hook; never a type-only cover yet. The hook passes hooks.gate and
-    the faithfulness read, and the rendered cover passes the visual gate, or there is no cover."""
+def cover_photo(post, story, fetch=True):
+    """(path, credit) of a licensed photo of the story's own subject for a cover whose card photo is a stand-in, or
+    None. Kerem, 2026-11-28: "with images as much as possible". Tried in order: the named person, the company the
+    headline names, the named institution or ground (the same lookups as the card, but a photo used on a recent post
+    may come back: a repeat beats no picture), then a hand-vetted view of a place the headline names. Never a
+    ShareAlike or AI-made file."""
+    from . import entities as E
+    from . import feedlayouts as FL
+    from . import scenes
+    if not fetch:
+        return None
+    head_ = post["headlines"][0]
+    co = post.get("company") or ""
+    sport = post.get("topic") == "Sport"
+    subjects = [(post.get("person", ""), True, post.get("person_role") or None),
+                (co if co and T.in_headline(co, head_.lower()) else "", False),
+                (post.get("venue", ""), False, None, "venue")]
+    found = (None, "", "")
+    for subject in subjects:
+        if not subject[0]:
+            continue
+        try:
+            found = E.fresh_photo([subject], set(), fetch=True, allow=head_ + " " + co, teams=sport)
+        except Exception:  # noqa: BLE001  one failed lookup moves on to the next subject
+            found = (None, "", "")
+        if found[2]:
+            break
+    if not found[2]:
+        try:
+            ph, credit, file_, _ = scenes.photo(head_ + " " + post.get("dek", ""), post.get("topic", ""), set(), fetch=True,
+                                                data=FL._places_only(head_), sport=sport, title=head_)
+            found = (ph, credit, file_)
+        except Exception:  # noqa: BLE001
+            found = (None, "", "")
+    ph, credit, file_ = found
+    if not file_ or not ph or not credit or "BY-SA" in credit or E.AI_MADE.search(file_):
+        return None
+    return Path(ph), E.clean_credit(credit)
+
+
+def make_cover(post, story, photo_path=None, ask=None, fetch=True):
+    """The cover page for a Reel or Short, or None: a photo of the story's subject (the card's when it fits, else
+    cover_photo), else the key number set large, else type alone. The hook passes hooks.gate and the faithfulness
+    read, and the rendered cover passes the visual gate, or there is no cover. LAST_KIND says which kind it was."""
     from . import cardvideo as CV
     from . import entities as E
     from . import gate as G
@@ -170,13 +211,22 @@ def make_cover(post, story, photo_path=None, ask=None):
         print(f"cover: hook refused ({problems[0][:120]})")
         return None
     story = dict(story, company=post.get("company", story.get("company", "")), person=post.get("person", story.get("person", "")))
-    photo, credit, focus = "", "", (0.5, 0.35)
+    # a photo of the subject first, then the key number, type alone last (Kerem, 2026-11-28)
+    photo, credit, focus, kind = "", "", (0.5, 0.35), "type"
     if photo_path and CV.photo_fits(story):
         fx, fy, _, _ = CV.reel_focus(story)
-        photo, credit, focus = Path(photo_path).resolve().as_uri(), E.clean_credit((story.get("_assets") or {}).get("credit", "")), (fx, fy)
-    elif not key_number(hook, story):
-        return None  # type-only: not shipped yet
-    html = cover(story, hook, line, photo, credit, "reel", focus)
+        photo, credit, focus, kind = Path(photo_path).resolve().as_uri(), E.clean_credit((story.get("_assets") or {}).get("credit", "")), (fx, fy), "photo"
+    else:
+        got = cover_photo(post, story, fetch=fetch)
+        if got:
+            photo, credit, kind = got[0].resolve().as_uri(), got[1], "photo"
+        elif key_number(hook, story):
+            kind = "number"
+    when = ""
+    if kind == "type" and post.get("published"):
+        from datetime import datetime
+        when = datetime.fromisoformat(post["published"]).strftime("%-d %B %Y")
+    html = cover(story, hook, line, photo, credit, "reel", focus, when=when)
     with tempfile.TemporaryDirectory() as tmp:
         png = Path(tmp) / "cover.png"
         R.shoot(html, png, W, H)
@@ -184,4 +234,6 @@ def make_cover(post, story, photo_path=None, ask=None):
     if problems:
         print(f"cover: refused by the gate ({problems[0][:120]})")
         return None
+    print(f"cover: {kind}")
+    LAST_KIND[0] = kind
     return html
