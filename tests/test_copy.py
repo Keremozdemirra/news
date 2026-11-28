@@ -161,3 +161,29 @@ class Grounding(unittest.TestCase):
         rows = [{"id": "0", "headline": "Nscale raises $3.36B", "dek": "", "figure": "", "x_post": "", "linkedin_post": ""}]
         self.assertEqual(copy.apply([s], rows), [])
         self.assertEqual(s["copy_status"], "ok")
+
+
+class ShortArticles(unittest.TestCase):
+    """Kerem, 2026-11-28, "more news + shorter articles": a dek and one report sentence of 12+ words that adds a fact."""
+    HEAD = "S&P upgrades South Africa's credit rating"
+    DEK = "The agency lifted the rating after years of stagnation."
+
+    def thin(self, report):
+        return copy.thin({"headline": self.HEAD, "dek": self.DEK, "linkedin_post": report})
+
+    def test_one_sentence_with_a_new_fact_passes(self):
+        self.assertEqual(self.thin("The upgrade moves the long-term foreign currency rating to BB, its first rise since 2005."), "")
+
+    def test_a_sentence_that_only_rewords_the_dek_does_not(self):
+        self.assertTrue(self.thin("The agency upgraded South Africa's credit rating after years of stagnation in the country."))
+
+    def test_under_twelve_words_does_not(self):
+        self.assertTrue(self.thin("The rating is now BB since 2005."))
+
+    def test_a_short_article_is_not_indexed(self):
+        from aidaily import site
+        p = {"dek": self.DEK, "body": "The upgrade moves the long-term foreign currency rating to BB, its first rise since 2005.",
+             "sources": ["Reuters", "Bloomberg"]}
+        self.assertTrue(copy.short(p))
+        self.assertFalse(site.indexable(p))
+        self.assertFalse(copy.short(dict(p, body=p["body"] + " Treasury welcomed the decision on Saturday.")))

@@ -1549,6 +1549,83 @@
    "items_seen": null,
    "latest_item_date": null,
    "notes": "added 2026-11-26 for coverage beyond the US and UK (Asia, Middle East, Africa, Latin America, Oceania, Canada, Europe); fetched live that day with items under 24 hours old"
+  },
+  {
+   "id": "cnbc-finance",
+   "name": "CNBC Finance",
+   "category": "business",
+   "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "CNBC's public RSS search endpoint for Finance (id=10000664); same publisher and terms as the CNBC feeds already listed. Tested 2026-11-28."
+  },
+  {
+   "id": "cnbc-business",
+   "name": "CNBC Business",
+   "category": "business",
+   "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "CNBC's public RSS search endpoint for Business (id=10001147). Tested 2026-11-28."
+  },
+  {
+   "id": "cnbc-investing",
+   "name": "CNBC Investing",
+   "category": "business",
+   "url": "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839069",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "CNBC's public RSS search endpoint for Investing (id=15839069). Tested 2026-11-28."
+  },
+  {
+   "id": "bangkokpost-business",
+   "name": "Bangkok Post Business",
+   "category": "business",
+   "url": "https://www.bangkokpost.com/rss/data/business.xml",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "Official feed; the republishing policy allows use of its official feeds (bangkokpost.com/republishingpolicy). Tested 2026-11-28."
+  },
+  {
+   "id": "fed-press",
+   "name": "Federal Reserve",
+   "category": "business",
+   "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "Board press releases; public domain, cite the Board (federalreserve.gov/disclaimer.htm). Tested 2026-11-28."
+  },
+  {
+   "id": "sec-press",
+   "name": "US SEC",
+   "category": "business",
+   "url": "https://www.sec.gov/news/pressreleases.rss",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "SEC press releases; US federal government work. Tested 2026-11-28."
+  },
+  {
+   "id": "bea-releases",
+   "name": "US Bureau of Economic Analysis",
+   "category": "business",
+   "url": "https://apps.bea.gov/rss/rss.xml",
+   "type": "rss",
+   "status_code": 200,
+   "items_seen": null,
+   "latest_item_date": null,
+   "notes": "BEA releases; public domain unless marked (bea.gov/help/faq/145). Tested 2026-11-28."
   }
  ],
  "dead": [

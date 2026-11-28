@@ -163,8 +163,10 @@ MIN_HUB = 3
 
 
 def indexable(p):
-    """True when the article is built from at least MIN_SOURCES distinct newsrooms, the least a synthesis needs to add something."""
-    return len(outlets.newsrooms(p)) >= MIN_SOURCES
+    """True when the article is built from at least MIN_SOURCES distinct newsrooms, the least a synthesis needs to add something,
+    and is not a short article (copy.short: a dek and one report sentence), which readers get but search does not."""
+    from . import copy as C
+    return len(outlets.newsrooms(p)) >= MIN_SOURCES and not C.short(p)
 
 
 def modified(p):

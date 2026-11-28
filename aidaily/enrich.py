@@ -642,9 +642,11 @@ def primary_links(hrefs):
         p = urlsplit(u)
         host = (p.hostname or "").removeprefix("www.")
         first = host.split(".")[0]
-        if p.scheme != "https" or re.fullmatch(r"[\d.:]+|localhost", host) or ".".join(host.split(".")[-2:]) in news:
+        # a regulator or wire whose own feed we also read (the SEC, the Fed, 2026-11-28) is still a primary source
+        official = any(host == w or host.endswith("." + w) for w in WIRES) or any(host == r[4] or host.endswith("." + r[4]) for r in REGULATORS)
+        if p.scheme != "https" or re.fullmatch(r"[\d.:]+|localhost", host) or (".".join(host.split(".")[-2:]) in news and not official):
             continue
-        if any(host == w or host.endswith("." + w) for w in WIRES) or any(host == r[4] or host.endswith("." + r[4]) for r in REGULATORS) \
+        if official \
                 or first in ("investor", "investors", "ir", "newsroom", "pressroom") \
                 or re.search(r"/(?:investors?|newsroom|press-?releases?|pressroom|media-center)(?:/|$)", p.path):
             if u not in out:

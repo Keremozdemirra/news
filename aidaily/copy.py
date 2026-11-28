@@ -1208,15 +1208,46 @@ def body_of(post):
     return " ".join(l for l in (post or "").split("\n") if l.strip() and not l.startswith("Source:"))
 
 
+SHORT_SINCE = "2026-11-28T12:00"
+SHORT_WORDS = 12  # Kerem, 2026-11-28, "more news + shorter articles": a dek and one report sentence of 12+ words
+_FILLER = {"that", "this", "with", "from", "have", "been", "will", "would", "said", "says", "their", "they", "there",
+           "which", "about", "after", "into", "also", "than", "were", "when", "while", "more", "over", "under", "some"}
+
+
+def _content(text):
+    return {re.sub(r"(ing|ed|es|s)$", "", w) for w in re.findall(r"[a-z][a-z'-]{3,}", text.lower()) if w not in _FILLER}
+
+
+def adds_fact(report, known):
+    """True when the report states something the headline and dek do not: a number they lack, or three content words
+    of its own. A sentence that only rewords the dek is not a fact beyond it."""
+    nums = set(re.findall(r"\d[\d.,]*", report)) - set(re.findall(r"\d[\d.,]*", known))
+    return bool(nums) or len(_content(report) - _content(known)) >= 3
+
+
+def short(s):
+    """True for an article that passes on the short rule alone (one report sentence, no gated primary facts): it
+    stays on the site for readers but is not indexed (site.indexable), like a single-source story."""
+    if (s.get("published") or s.get("created") or "9999") < SHORT_SINCE:
+        return False  # the rule is new: articles from before it keep the index status they had
+    report = body_of(s.get("linkedin_post") or s.get("body"))
+    full = len(sentences(report)) >= MIN_SENTENCES and len(report.split()) >= MIN_WORDS
+    return not full and len(s.get("context") or []) < MIN_SENTENCES
+
+
 def thin(s):
-    """Why a checked story is too thin to post, or "": it needs a dek and a report of two sentences beyond it."""
+    """Why a checked story is too thin to post, or "". It needs a dek and either a report of two sentences beyond it,
+    two gated primary-source facts (enrich.py), or (the short rule) one report sentence of SHORT_WORDS or more that
+    adds a fact the headline and dek do not state."""
     report = body_of(s.get("linkedin_post"))
     if not (s.get("dek") or "").strip():
         return "no dek"
     n, words = len(sentences(report)), len(report.split())
     if n < MIN_SENTENCES or words < MIN_WORDS:
-        # a dek and two or more gated primary-source facts (enrich.py) are an article; without a dek nothing is
         if len(s.get("context") or []) >= MIN_SENTENCES:
+            return ""
+        known = f"{s.get('headline') or s.get('title') or ''} {s.get('dek', '')}"
+        if n >= 1 and words >= SHORT_WORDS and adds_fact(report, known):
             return ""
         return f"report too thin ({n} sentences, {words} words beyond the dek)"
     return ""

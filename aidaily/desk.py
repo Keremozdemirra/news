@@ -798,7 +798,8 @@ def audit(post):
         problems.append(f"photo file names {other}, which the story does not name")
     # every article carries a dek and a report of facts beyond it; a story pulled from a feed with one line of
     # summary used to reach the site as a headline and a dek (26 of 91 articles on 2026-11-27)
-    why = copy.thin({"dek": post.get("dek", ""), "linkedin_post": post.get("body", ""), "context": post.get("context") if growth("enrich") else []})
+    why = copy.thin({"headline": head_, "dek": post.get("dek", ""), "linkedin_post": post.get("body", ""),
+                     "context": post.get("context") if growth("enrich") else []})
     if why:
         problems.append(why)
     # the writer checks this with the sources in hand and marks the text it checked; a post whose text was edited
