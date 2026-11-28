@@ -1,5 +1,6 @@
-"""Cover frames for Reels and Shorts, and the daily "Today" card: samples only until Kerem approves (2026-11-28);
-nothing in the publish path calls this.
+"""Cover frames for Reels and Shorts, and the daily "Today" card. Kerem, 2026-11-28: "Ship all, fix type-only":
+the photo covers and the big-number covers go out (make_cover); a story with neither keeps its usual first frame
+until the type-only pass is approved.
 
 Principles taken from a strong news-Reels account and set in Boardread's own system (black and white, Libre Franklin,
 flat chips, no colour, no hype):
@@ -10,6 +11,8 @@ flat chips, no colour, no hype):
     credit kept on the frame.
 """
 import re
+import tempfile
+from pathlib import Path
 
 from . import templates as T
 
@@ -131,3 +134,43 @@ def today_card(items, day_label, fmt="feed"):
         f'<div style="display:flex;justify-content:space-between;align-items:baseline;border-top:2px solid #2c2c2c;padding-top:24px">'
         f'<span style="font-size:44px;font-weight:800;letter-spacing:{T.TRACK}">{T.e(T.BRAND["name"])}</span>'
         f'<span style="font-size:30px;color:{GREY}">{T.e(T.domain())}</span></div></div></body></html>')
+
+
+COVER_SECONDS = 1.3  # the cover holds the first 1.3 s, opaque over the running video, then fades to it
+
+
+def make_cover(post, story, photo_path=None, ask=None):
+    """The cover page for a Reel or Short, or None. Only the shipped kinds: a photo of the story's subject
+    (cardvideo.photo_fits) or a key number in the hook; never a type-only cover yet. The hook passes hooks.gate and
+    the faithfulness read, and the rendered cover passes the visual gate, or there is no cover."""
+    from . import cardvideo as CV
+    from . import entities as E
+    from . import gate as G
+    from . import hooks as HK
+    from . import render as R
+    if ask is None:
+        from .copy import ask_text as ask
+    try:
+        hook, line, problems = HK.write(post, ask)
+    except Exception as e:  # noqa: BLE001  no model, no cover: the video keeps its usual first frame
+        print(f"cover: no hook ({str(e)[:120]})")
+        return None
+    if problems:
+        print(f"cover: hook refused ({problems[0][:120]})")
+        return None
+    story = dict(story, company=post.get("company", story.get("company", "")), person=post.get("person", story.get("person", "")))
+    photo, credit, focus = "", "", (0.5, 0.35)
+    if photo_path and CV.photo_fits(story):
+        fx, fy, _, _ = CV.reel_focus(story)
+        photo, credit, focus = Path(photo_path).resolve().as_uri(), E.clean_credit((story.get("_assets") or {}).get("credit", "")), (fx, fy)
+    elif not key_number(hook, story):
+        return None  # type-only: not shipped yet
+    html = cover(story, hook, line, photo, credit, "reel", focus)
+    with tempfile.TemporaryDirectory() as tmp:
+        png = Path(tmp) / "cover.png"
+        R.shoot(html, png, W, H)
+        problems = G.check(html, "reel", png=png)
+    if problems:
+        print(f"cover: refused by the gate ({problems[0][:120]})")
+        return None
+    return html

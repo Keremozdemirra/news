@@ -262,9 +262,16 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
                 print(f"shorts: narration skipped, silent Short: {str(e)[:200]}")
                 nar = None
         fx, fy = CV.reel_focus(story)[:2] if not footage else (0.5, 0.5)
+        cover_html = None
+        if desk.growth("hook_covers") and narrate is not False:
+            from . import covers
+            try:
+                cover_html = covers.make_cover(post, story, photo)
+            except Exception as e:  # noqa: BLE001  a cover failure costs the cover, never the Short
+                print(f"shorts: no cover: {str(e)[:160]}")
         try:
-            CV.build_sequence(out_mp4, plan[0], plan[1], RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy),
-                              footage=footage, voice=voice_cues)
+            CV.build_sequence(out_mp4, CV.with_cover(plan[0], cover_html), plan[1], RC.GEO[layout]["band"], photo=photo,
+                              focus_xy=(fx, fy), footage=footage, voice=voice_cues)
         except CV.GateFail as e:
             if layout == "plain":
                 raise
@@ -276,11 +283,11 @@ def build(post, out_mp4, fetch=True, clip=None, structure="story", avoid=None, i
             else:
                 again = SF.post_timeline(structure, post, story, layout, facts(post, 3), outlets_line(post))
                 plan = SF.stretch(again, plan[1]) if again else plan
-            CV.build_sequence(out_mp4, plan[0], plan[1], RC.GEO[layout]["band"], photo=photo, focus_xy=(fx, fy),
-                              footage=footage, voice=voice_cues)
+            CV.build_sequence(out_mp4, CV.with_cover(plan[0], cover_html), plan[1], RC.GEO[layout]["band"], photo=photo,
+                              focus_xy=(fx, fy), footage=footage, voice=voice_cues)
         total = plan[1]
     if info is not None:
-        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar),
+        info.update(structure=structure, layout=layout, seconds=total, narrated=bool(nar), hook_cover=bool(cover_html),
                     **({"voice": nar.name} if nar and nar.name else {}))
     return out_mp4, credit
 
@@ -712,6 +719,7 @@ def run(http=_http, render=build):
         headline = post["headlines"][0] if post else metadata_job(job)["snippet"]["title"]
         rec = {"at": desk.now().isoformat(timespec="seconds"), "headline": headline, "structure": info["structure"],
                **({"narrated": True, "voice": info.get("voice", "")} if info.get("narrated") else {}),
+               **({"hook_cover": True} if info.get("hook_cover") else {}),
                **({"layout": info["layout"]} if info.get("layout") else {}), **({"footage": clip["id"]} if clip else {})}
         st.setdefault("attempted", {})[job["key"]] = rec
         st["last_structure"] = info["structure"]

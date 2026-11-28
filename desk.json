@@ -204,6 +204,8 @@
     "shorts_privacy": "public",
     "shorts_ai_line": true,
     "caption_ai_line": true,
+    "hook_covers": true,
+    "today_card": true,
     "shorts_voice": true,
     "shorts_voice_id": "",
     "shorts_voice_per_day": 2,

@@ -215,7 +215,7 @@ def reel_seconds(story):
     return RC.plan(story)[1]
 
 
-def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=None):
+def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=None, cover_html=None):
     """Render one video card. Returns the output path; raises when ffmpeg or Chrome fail. footage: a local clip file
     (broll.fetch) that replaces the moving photo; the story must already carry its credit (with_footage).
     A reel with a `layout` is the sequenced 9:16 card (build_reel); its length comes from its plan, not `seconds`."""
@@ -225,7 +225,7 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=No
     if not shutil.which("ffmpeg"):
         raise RuntimeError("ffmpeg not found")
     if shape == "reel" and layout:
-        return build_reel(story, out_mp4, layout, footage)
+        return build_reel(story, out_mp4, layout, footage, cover_html)
     h = HEIGHT[shape]
     src = photo_path(story)
     sw, sh = probe_size(src)
@@ -263,19 +263,27 @@ def build(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=No
     return out_mp4
 
 
-def build_gated(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=None):
+def with_cover(pages, cover_html):
+    """The pages with the cover laid on top for its first COVER_SECONDS (an opaque frame, faded out to the video)."""
+    if not cover_html:
+        return pages
+    from . import covers as CO
+    return list(pages) + [(cover_html, 0.0, CO.COVER_SECONDS, "cover")]
+
+
+def build_gated(story, out_mp4, shape="card", seconds=SECONDS, footage=None, layout=None, cover_html=None):
     """build(), and for a Reel whose frames fail the visual gate, the same Reel set on black ("plain"); a Reel that
     fails that too raises GateFail and the post goes out as stills. Returns (path, layout used)."""
     try:
-        return build(story, out_mp4, shape, seconds=seconds, footage=footage, layout=layout), layout
+        return build(story, out_mp4, shape, seconds=seconds, footage=footage, layout=layout, cover_html=cover_html), layout
     except GateFail as e:
         if shape != "reel" or not layout or layout == "plain":
             raise
         print(f"reel gate failed in {layout} ({str(e)[:160]}); set on black instead")
-        return build(story, out_mp4, shape, seconds=seconds, footage=footage, layout="plain"), "plain"
+        return build(story, out_mp4, shape, seconds=seconds, footage=footage, layout="plain", cover_html=cover_html), "plain"
 
 
-def build_reel(story, out_mp4, layout, footage=None):
+def build_reel(story, out_mp4, layout, footage=None, cover_html=None):
     """The sequenced Reel (reelcard): the picture fills its layout's band (the rest black), and the layers come and go
     on the plan's clock: headline, fact, who reported it, end frame."""
     from . import reelcard as RC
@@ -283,8 +291,8 @@ def build_reel(story, out_mp4, layout, footage=None):
     pages = [(RC.layer(story, layout, name), t_in, t_out, "base" if name == "base" else "end" if name == "end" else "text")
              for name, t_in, t_out in parts]
     fx, fy, _, _ = reel_focus(story) if not footage else (0.5, 0.5, False, None)
-    return build_sequence(out_mp4, pages, total, RC.GEO[layout]["band"], photo=photo_path(story), focus_xy=(fx, fy),
-                          footage=footage)
+    return build_sequence(out_mp4, with_cover(pages, cover_html), total, RC.GEO[layout]["band"], photo=photo_path(story),
+                          focus_xy=(fx, fy), footage=footage)
 
 
 class GateFail(ValueError):
@@ -303,7 +311,7 @@ def gate_pages(pages):
         if kind == "base":
             continue
         m = G.measure(html_, "reel")
-        if kind == "end":
+        if kind in ("end", "cover"):  # opaque full frames: checked on their own
             problems += G.layout_problems(m, "reel")
             continue
         off = len(bm["text"])

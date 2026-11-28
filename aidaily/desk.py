@@ -653,6 +653,16 @@ def make_video(s, img, post_id, clip=None, shape=None):
     reels = shape == "reel" and video_cfg("reel_layouts", True)
     if reels:  # the sequenced Reel (reelcard.py): its length comes from what it has to say
         seconds = CV.reel_seconds(s)
+    cover_html = None
+    if reels and growth("hook_covers"):
+        # the hook cover over the first 1.3 s (covers.py): only a photo of the subject or a key number, never type-only
+        from . import covers
+        try:
+            cover_html = covers.make_cover({"headlines": [s.get("headline") or s["title"]], "dek": s.get("dek", ""),
+                                            "company": s.get("company", ""), "person": s.get("person", "")},
+                                           s, CV.photo_path(s))
+        except Exception as e:  # noqa: BLE001  a cover failure costs the cover, never the video
+            print(f"{post_id}: no cover: {str(e)[:160]}")
     try:
         if clip:
             from . import broll
@@ -661,16 +671,18 @@ def make_video(s, img, post_id, clip=None, shape=None):
                     src = broll.fetch(clip, Path(tmp) / "clip.mp4", seconds)
                     fs = CV.with_footage(s, clip)
                     layout = CV.reel_layout(fs, post_id, footage=True, avoid=last_reel_layout()) if reels else None
-                    mp4, layout = CV.build_gated(fs, img / "video.mp4", shape, seconds=seconds, footage=src, layout=layout)
+                    mp4, layout = CV.build_gated(fs, img / "video.mp4", shape, seconds=seconds, footage=src, layout=layout,
+                                                 cover_html=cover_html)
                 footage = {"id": clip["id"], "credit": broll.credit(clip), "page": clip["page"], "licence": clip["licence"]}
             except Exception as e:  # noqa: BLE001  footage that will not fetch or render: the photo moves instead
                 print(f"{post_id}: footage {clip['id']} failed, moving photo instead: {str(e)[:200]}")
                 layout = CV.reel_layout(s, post_id, avoid=last_reel_layout()) if reels else None
-                mp4, layout = CV.build_gated(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
+                mp4, layout = CV.build_gated(s, img / "video.mp4", shape, seconds=seconds, layout=layout, cover_html=cover_html)
         else:
             layout = CV.reel_layout(s, post_id, avoid=last_reel_layout()) if reels else None
-            mp4, layout = CV.build_gated(s, img / "video.mp4", shape, seconds=seconds, layout=layout)
-        CV.cover(mp4, img / "cover.jpg")
+            mp4, layout = CV.build_gated(s, img / "video.mp4", shape, seconds=seconds, layout=layout, cover_html=cover_html)
+        # the Reel's cover image is the hook cover when there is one, else a frame once the headline has settled
+        CV.cover(mp4, img / "cover.jpg", at=0.4 if cover_html else 1.6)
     except Exception as e:  # noqa: BLE001  a render failure costs the video, never the post
         print(f"{post_id}: video render failed, stills only: {str(e)[:300]}")
         for f in ("video.mp4", "cover.jpg"):
@@ -680,7 +692,7 @@ def make_video(s, img, post_id, clip=None, shape=None):
     return {"shape": shape, "file": "video.mp4", "cover": "cover.jpg", "spec": CV.audit_file(mp4, shape),
             "headline": s.get("headline") or s["title"], "photo_file": a.get("file", ""), "credit": a.get("credit", ""),
             "focus": list(CV.focus(s)), "seconds": seconds, **({"footage": footage} if footage else {}),
-            **({"layout": layout} if layout else {})}
+            **({"layout": layout} if layout else {}), **({"hook_cover": True} if cover_html else {})}
 
 
 def last_reel_layout():
@@ -1438,6 +1450,15 @@ def _s_top5(day, slot, label):
 
 
 def _s_today(day, label):
+    # the numbered Today card (covers.today_card, Kerem 2026-11-28: "Ship all"): the day's four top stories, one plain
+    # line each; the logo grid and the last-12-hours frame remain for a day with fewer than four
+    top = [p for p in sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p))
+           if social_allowed(p)][:4]
+    if len(top) == 4 and growth("today_card"):
+        from . import covers, shorts
+        when = datetime.fromisoformat(f"{day}T12:00:00+00:00").strftime("%A %-d %B")
+        return [_queue_story(f"{day}-today", covers.today_card([shorts.title(p) for p in top], when, "story"),
+                             "Today on Boardread: " + "; ".join(p["headlines"][0] for p in top))]
     seen, tiles = set(), []
     for p in sorted([p for p in _published(24) if p.get("published", "")[:10] == day], key=lambda p: -_score(p)):
         key = ((p.get("logo_names") or [p.get("company")])[0] or "").lower()

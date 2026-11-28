@@ -96,7 +96,7 @@ class MakeVideo(unittest.TestCase):
         from pathlib import Path
         built = []
 
-        def fake_build(story, out, shape="card", seconds=8, footage=None, layout=None):
+        def fake_build(story, out, shape="card", seconds=8, footage=None, layout=None, cover_html=None):
             built.append((footage, story["_assets"]["credit"]))
             Path(out).write_bytes(b"x")
             return Path(out)

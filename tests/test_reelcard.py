@@ -138,7 +138,7 @@ class Desk(Tmp):
         self.write_post("old", video={"shape": "reel", "file": "video.mp4", "layout": "photo-top"})
         seen = {}
 
-        def fake_build(story, out, shape="card", seconds=8, footage=None, layout=None):
+        def fake_build(story, out, shape="card", seconds=8, footage=None, layout=None, cover_html=None):
             seen.update(shape=shape, seconds=seconds, layout=layout)
             Path(out).write_bytes(b"x")
             return Path(out)
@@ -156,7 +156,7 @@ class Desk(Tmp):
         from aidaily import desk
         seen = {}
 
-        def fake_build(story, out, shape="card", seconds=8, footage=None, layout=None):
+        def fake_build(story, out, shape="card", seconds=8, footage=None, layout=None, cover_html=None):
             seen.update(layout=layout, seconds=seconds)
             Path(out).write_bytes(b"x")
             return Path(out)
@@ -204,7 +204,7 @@ class Gated(unittest.TestCase):
     def test_a_reel_that_fails_the_gate_is_set_on_black_then_given_up(self):
         calls = []
 
-        def build(story, out, shape="card", seconds=8, footage=None, layout=None):
+        def build(story, out, shape="card", seconds=8, footage=None, layout=None, cover_html=None):
             calls.append(layout)
             if layout != "plain":
                 raise CV.GateFail("text in the app's zone")
