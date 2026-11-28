@@ -1,0 +1,59 @@
+{
+ "id": "2026-11-28-0702-1",
+ "batch": "2026-11-28-0702",
+ "n": 1,
+ "created": "2026-11-28T07:02:55+00:00",
+ "layout": "number",
+ "photos": [],
+ "gate": [],
+ "tier": "web",
+ "cards": [
+  "card.jpg",
+  "detail.jpg"
+ ],
+ "caption": "NBA announces arena funding plan for Europe with a target near $11 billion\n\nThe plan covers the development and renovation of arenas across the continent. The NBA-backed league in Europe has been planned for a long time. The arena plan is another step toward that league becoming reality.\n\nReported by ESPN.\n\nSend this to a colleague who covers NBA.\n\n#nba\n\nWritten by AI from named newsrooms.",
+ "source_cta": false,
+ "urls": [
+  "https://www.espn.com/nba/story/_/id/50592672/nba-reveals-11b-initiative-arena-development-europe"
+ ],
+ "links": [
+  "https://www.espn.com/nba/story/_/id/50592672/nba-reveals-11b-initiative-arena-development-europe"
+ ],
+ "headlines": [
+  "NBA announces arena funding plan for Europe with a target near $11 billion"
+ ],
+ "categories": [
+  "sport"
+ ],
+ "topic": "Sport",
+ "photo_file": "OAKA Basketball Arena in December 2024.jpg",
+ "photo_kind": "scene",
+ "photo_alt": "A basketball arena",
+ "score": 8.327,
+ "figure": "",
+ "company": "NBA",
+ "ticker": null,
+ "person": "",
+ "person_role": "",
+ "image_query": "",
+ "orgs": [],
+ "venue": "",
+ "logo_names": [],
+ "dek": "The plan covers the development and renovation of arenas across the continent.",
+ "body": "The NBA-backed league in Europe has been planned for a long time. The arena plan is another step toward that league becoming reality.",
+ "supported": "fcca907687dd",
+ "by_source": [],
+ "so_what": "",
+ "sources": [
+  "ESPN"
+ ],
+ "context": [],
+ "source_urls": [
+  "https://www.espn.com/nba/story/_/id/50592672/nba-reveals-11b-initiative-arena-development-europe"
+ ],
+ "credit": "Photo: Skywalkerr42, CC0, via Wikimedia Commons",
+ "credit_file": "OAKA Basketball Arena in December 2024.jpg",
+ "status": "web",
+ "published": "2026-11-28T07:02:55+00:00",
+ "story": ""
+}
