@@ -74,6 +74,21 @@
    "url": "https://t.me/boardread/43",
    "at": "2026-11-28T07:50:15+00:00",
    "format": "photo"
+  },
+  "threads": {
+   "id": "18169170754426031",
+   "url": "https://www.threads.com/@boardread/post/DgRxp4BleNd",
+   "at": "2026-11-28T08:01:32+00:00",
+   "format": "photo",
+   "reply": {
+    "id": "18017808911988889"
+   }
+  },
+  "bluesky": {
+   "id": "at://did:plc:rs25xii6lopjeyelvd2otrqq/app.bsky.feed.post/3n3eaeybbfo25",
+   "url": "https://bsky.app/profile/boardread.news/post/3n3eaeybbfo25",
+   "at": "2026-11-28T08:01:35+00:00",
+   "format": "link"
   }
  }
 }
